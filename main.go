@@ -196,8 +196,14 @@ func main() {
 	// Page cache (loon-baseline). In-memory by default so the demo needs no
 	// Redis; set REDIS_ADDR to use the shared redis impl instead — no call site
 	// changes, just the backend.
+	// One Redis client, shared between the page cache (loon-baseline) and the
+	// core Redis seam (core.Redis) that Redis-capable plugins consume — e.g. the
+	// usenet plugin's staging: redis mode. In-memory cache + no Redis seam by
+	// default (Redis stays nil); set REDIS_ADDR to enable both at once.
+	var redisClient *goredis.Client
 	if addr := os.Getenv("REDIS_ADDR"); addr != "" {
-		wsrv.cache = cacheredis.New(goredis.NewClient(&goredis.Options{Addr: addr}))
+		redisClient = goredis.NewClient(&goredis.Options{Addr: addr})
+		wsrv.cache = cacheredis.New(redisClient)
 		logger.Info("cache backend", "kind", "redis", "addr", addr)
 	} else {
 		wsrv.cache = cachememory.New()
@@ -304,6 +310,14 @@ func main() {
 		Points:        pointsSvc,
 		HTTPClient:    core.NewHTTPClient(),
 		Errors:        core.NewErrorReporter(core.ErrorAdapter{}), // stderr fallback
+		// Optional: only wired when REDIS_ADDR is set; otherwise Core.Redis stays
+		// nil and Redis-capable plugins fall back to their durable mode.
+		Redis: func() core.RedisService {
+			if redisClient == nil {
+				return nil
+			}
+			return core.NewRedis(redisClient)
+		}(),
 	})
 	if err != nil {
 		logger.Error("core.New", "err", err)
@@ -553,6 +567,9 @@ func main() {
 	defer cancel()
 	_ = srv.Shutdown(shutCtx)
 	rt.Stop(shutCtx)
+	if redisClient != nil {
+		_ = redisClient.Close() // host owns the shared client's lifecycle
+	}
 }
 
 // seedDemoUsers creates the two demo accounts (password == username) directly
