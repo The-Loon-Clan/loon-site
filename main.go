@@ -291,6 +291,12 @@ func main() {
 		logger.Info("job", "name", jobName, "line", line)
 	}
 
+	usenetStaging := os.Getenv("USENET_STAGING")
+	if usenetStaging == "" {
+		usenetStaging = "pg"
+	}
+	logger.Info("usenet staging", "mode", usenetStaging, "redis", redisClient != nil)
+
 	c, err := core.New(core.Deps{
 		Process:   "all",
 		Users:     usersSvc,
@@ -305,6 +311,11 @@ func main() {
 		Logger: logger,
 		Config: core.NewConfig(map[string]any{
 			"guestbook": map[string]any{"points_per_entry": 5},
+			// Usenet staging backend: "pg" (durable Postgres, the default) or
+			// "redis" (prod's assembly pipeline — needs REDIS_ADDR so core.Redis
+			// is wired, else the plugin refuses to boot rather than silently
+			// falling back). Flip with USENET_STAGING=redis.
+			"usenet": map[string]any{"staging": usenetStaging},
 		}),
 		Notifications: core.NewNotifications(core.NotificationsAdapter{NotifyFn: notifications.Deliver}),
 		Points:        pointsSvc,
