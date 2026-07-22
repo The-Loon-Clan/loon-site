@@ -30,18 +30,39 @@
                 {{if .IsAdmin}}<a href="/admin/settings">Settings</a> <a href="/admin/p/crawlers">Crawlers</a> <a href="/admin/jobs">Jobs</a>{{end}}
             </nav>
             <div class="user">
-                {{if .User}}<a href="/p/inbox" title="Notifications">&#128276;{{if .Unread}} <span class="badge bg-danger">{{.Unread}}</span>{{end}}</a> · <span title="points balance">{{.Points}} pts</span> · <a href="/u/{{.User.Username}}">{{.User.Username}}</a> · <a href="/logout">log out</a>
+                {{if .User}}<a href="/p/inbox" title="Notifications">&#128276;{{if .Unread}} <span class="badge bg-danger">{{.Unread}}</span>{{end}}</a> · <span title="points balance">{{.Points}} pts</span> · <a href="/u/{{.User.Username}}">{{.User.Username}}</a> · <form method="post" action="/logout" style="display:inline;margin:0"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button type="submit" style="background:none;border:none;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit">log out</button></form>
                 {{else}}<a href="/login">log in</a>{{end}}
             </div>
         </div>
     </header>
     <main class="container page py-4">
-        {{if .EmailUnverified}}<div class="alert" style="border-color:#c90;color:#c90;margin-bottom:1rem">Please verify your email &mdash; <a href="/verify/resend" style="color:#c90;text-decoration:underline">resend link</a>.</div>{{end}}
+        {{if .EmailUnverified}}<div class="alert" style="border-color:#c90;color:#c90;margin-bottom:1rem">Please verify your email &mdash; <form method="post" action="/verify/resend" style="display:inline;margin:0"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button type="submit" style="background:none;border:none;padding:0;color:#c90;text-decoration:underline;cursor:pointer;font:inherit">resend link</button></form>.</div>{{end}}
         {{template "content" .}}
     </main>
     <footer class="site-footer">
         Built on <a href="https://github.com/The-Loon-Clan/loon">loon</a> — a demo indexer keeping the last few days of Usenet.
     </footer>
+    <script>
+    // Double-submit CSRF: on submit, make every same-origin POST form carry the
+    // current token from the JS-readable csrf_tok cookie. Host forms also embed
+    // it server-side ({{"{{.CSRFToken}}"}}) as a no-JS fallback; this line is
+    // what covers plugin/framework forms rendered without the token (the same
+    // approach the prod indexer uses). Capture phase so it runs before submit.
+    document.addEventListener('submit', function (e) {
+        var f = e.target;
+        if (!f || (f.method || '').toLowerCase() !== 'post') return;
+        var m = document.cookie.match(/(?:^|;\s*)csrf_tok=([^;]+)/);
+        if (!m) return;
+        var inp = f.querySelector('input[name="_csrf"]');
+        if (!inp) {
+            inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = '_csrf';
+            f.appendChild(inp);
+        }
+        inp.value = decodeURIComponent(m[1]);
+    }, true);
+    </script>
 </body>
 </html>
 

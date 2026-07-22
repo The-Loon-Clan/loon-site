@@ -216,6 +216,9 @@ func main() {
 	// gin-contrib session middleware (the prod scheme) must be installed before
 	// any route that logs in or reads the user.
 	engine.Use(wsrv.auth.Session.Middleware())
+	// CSRF double-submit guard (after the session, which it reads/writes). Every
+	// state-changing POST must carry the _csrf token; templates embed it.
+	engine.Use(csrfMiddleware())
 	// Maintenance gate: while ON, visitor pages get the 503 page. Bypass /admin
 	// (so the operator can toggle it off), /login+/logout (sign in first),
 	// /static, /healthz — and /api+/rss, so the Newznab API keeps serving while

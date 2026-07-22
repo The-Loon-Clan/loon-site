@@ -43,12 +43,14 @@
                 <td>
                     {{if .Triggerable}}
                     <form method="post" action="/admin/jobs/control" style="display:inline">
+                        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
                         <input type="hidden" name="name" value="{{.Name}}">
                         <input type="hidden" name="action" value="trigger">
                         <button class="btn btn-sm btn-outline-primary py-0" type="submit">Run</button>
                     </form>
                     {{end}}
                     <form method="post" action="/admin/jobs/control" style="display:inline">
+                        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
                         <input type="hidden" name="name" value="{{.Name}}">
                         <input type="hidden" name="action" value="{{if .Paused}}resume{{else}}pause{{end}}">
                         <button class="btn btn-sm btn-outline-secondary py-0" type="submit">{{if .Paused}}Resume{{else}}Pause{{end}}</button>

@@ -22,6 +22,7 @@ var pageTmpl = template.Must(template.New("page").Parse(`
 <div class="card">
     <h2>Sign it</h2>
     <form method="post" action="/p/guestbook/sign" style="display:flex;gap:.5rem">
+        <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
         <input type="text" name="message" placeholder="say something nice…" style="flex:1" maxlength="500">
         <button class="btn btn-primary" type="submit">Sign</button>
     </form>
@@ -65,6 +66,9 @@ func (p *Plugin) renderPage(c *gin.Context) (template.HTML, error) {
 	var buf bytes.Buffer
 	if err := pageTmpl.Execute(&buf, map[string]any{
 		"Entries": entries, "Msg": c.Query("msg"), "Err": c.Query("err"),
+		// The host's CSRF middleware stashes the per-request token under this
+		// gin-context key; embed it so the sign form's POST passes the gate.
+		"CSRFToken": c.GetString("csrf_token"),
 	}); err != nil {
 		return "", err
 	}

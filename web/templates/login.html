@@ -5,6 +5,7 @@
     {{if .Error}}<div class="alert" style="border-color:var(--danger);color:var(--danger)">{{.Error}}</div>{{end}}
     <div class="card">
         <form method="post" action="/login">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
             <label for="username">Username or email</label>
             <input id="username" type="text" name="username" placeholder="alice, bob, or your email" autofocus>
             <label for="password" style="margin-top:.75rem">Password</label>

@@ -4,6 +4,7 @@
     {{if .Error}}<div class="alert" style="border-color:var(--danger);color:var(--danger)">{{.Error}}</div>{{end}}
     <div class="card">
         <form method="post" action="/reset">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
             <input type="hidden" name="token" value="{{.Token}}">
             <label for="password">New password</label>
             <input id="password" type="password" name="password" placeholder="at least 8 characters" autofocus>

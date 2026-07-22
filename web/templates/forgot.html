@@ -8,6 +8,7 @@
       {{if .Error}}<div class="alert" style="border-color:var(--danger);color:var(--danger)">{{.Error}}</div>{{end}}
       <div class="card">
         <form method="post" action="/forgot">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
             <label for="email">Email</label>
             <input id="email" type="email" name="email" placeholder="you@example.com" autofocus>
             <div style="margin:.75rem 0">{{captcha}}</div>

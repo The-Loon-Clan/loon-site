@@ -143,9 +143,11 @@ func (w *web) mount(e *gin.Engine) {
 	e.GET("/reset", w.resetPage)
 	e.POST("/reset", w.resetPost)
 	e.GET("/verify", w.verifyEmail)
-	e.GET("/verify/resend", w.resendVerify)
+	// State-changing: POST + CSRF. A GET logout/resend is forgeable via a
+	// cross-site top-level navigation (SameSite=Lax still sends the cookie).
+	e.POST("/verify/resend", w.resendVerify)
 	e.GET("/u/:name", w.profilePage)
-	e.GET("/logout", w.logout)
+	e.POST("/logout", w.logout)
 }
 
 // profilePage renders a user's public profile: it resolves the subject by name,
@@ -196,6 +198,7 @@ func (w *web) render(c *gin.Context, page string, data map[string]any) {
 	// /admin/* routes sit behind Require(RoleAdmin), so a plain user
 	// clicking them lands on a 403 JSON blob instead of a page.
 	data["IsAdmin"] = u != nil && u.AtLeast(core.RoleAdmin)
+	data["CSRFToken"] = csrfToken(c) // hidden _csrf field for every POST form
 	if u != nil {
 		if w.points != nil {
 			if bal, err := w.points.Balance(c.Request.Context(), u.ID); err == nil {
