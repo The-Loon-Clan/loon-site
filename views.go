@@ -91,7 +91,10 @@ func newWeb(store users.Store, secret []byte, log *slog.Logger) *web {
 		// REDIS_ADDR is set (the same env the page cache uses), sessions move
 		// server-side into Redis — the cookie carries only a signed id, so
 		// sessions survive a secret rotation and are revocable.
-		Session: session.Config{Secret: secret, RedisAddr: os.Getenv("REDIS_ADDR")},
+		// Secure defaults off (this demo serves plain HTTP), but a copied
+		// reference deployed behind TLS should set SECURE_COOKIES=1 so the
+		// session cookie isn't sent over an unencrypted request.
+		Session: session.Config{Secret: secret, RedisAddr: os.Getenv("REDIS_ADDR"), Secure: os.Getenv("SECURE_COOKIES") == "1"},
 		Resolve: func(ctx context.Context, id int64) (*core.User, webauth.Meta, bool) {
 			u, err := store.ByID(ctx, id)
 			if err != nil {
@@ -271,7 +274,13 @@ func (w *web) browse(c *gin.Context) {
 		w.render(c, "browse.html", data)
 		return
 	}
-	catID, _ := strconv.Atoi(catParam)
+	catID, err := strconv.Atoi(catParam)
+	if err != nil || catID <= 0 {
+		// A malformed ?cat= would fall through to an empty categories grid
+		// ("No categories enabled") — send it back to the real grid instead.
+		c.Redirect(http.StatusSeeOther, "/browse")
+		return
+	}
 	data["CatID"] = catID
 	data["CatName"] = w.catalog.Name(catID)
 	if w.usenet != nil {

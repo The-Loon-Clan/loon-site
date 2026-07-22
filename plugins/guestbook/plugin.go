@@ -11,12 +11,29 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon/core"
 )
+
+// maxMessageLen bounds a guestbook message server-side. The form's
+// maxlength is client-side only; a public POST endpoint must enforce its
+// own limit (doubly so for a reference others copy) or an attacker can
+// store a multi-megabyte row that every visitor then re-reads.
+const maxMessageLen = 500
+
+// cleanMessage trims + length-checks a submitted message, returning the
+// value to store and whether it is acceptable.
+func cleanMessage(raw string) (string, bool) {
+	msg := strings.TrimSpace(raw)
+	if msg == "" || utf8.RuneCountInString(msg) > maxMessageLen {
+		return "", false
+	}
+	return msg, true
+}
 
 //go:embed migrations/*.sql
 var migrations embed.FS
@@ -118,15 +135,20 @@ func (p *Plugin) sign(c *gin.Context) {
 	var req struct {
 		Message string `json:"message"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Message) == "" {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "message is required"})
+		return
+	}
+	msg, ok := cleanMessage(req.Message)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "message must be 1-500 characters"})
 		return
 	}
 
 	ctx := c.Request.Context()
 	err := p.db.WithTx(ctx, func(tx *sqlx.Tx) error {
 		_, err := tx.ExecContext(ctx,
-			`INSERT INTO entries (author, message) VALUES ($1, $2)`, u.Username, req.Message)
+			`INSERT INTO entries (author, message) VALUES ($1, $2)`, u.Username, msg)
 		return err
 	})
 	if err != nil {
@@ -145,7 +167,7 @@ func (p *Plugin) sign(c *gin.Context) {
 	_ = p.core.Notifications.Notify(ctx, 1, core.Notification{
 		Kind:      "guestbook_signed",
 		Title:     u.Username + " signed the guestbook",
-		Body:      req.Message,
+		Body:      msg,
 		Link:      "/p/guestbook",
 		ActorID:   u.ID,
 		ActorName: u.Username,

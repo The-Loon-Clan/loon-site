@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"html/template"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
@@ -80,9 +79,9 @@ func (p *Plugin) actionSign(c *gin.Context) (template.HTML, error) {
 		c.Redirect(http.StatusSeeOther, "/login")
 		return "", nil
 	}
-	msg := strings.TrimSpace(c.PostForm("message"))
-	if msg == "" {
-		c.Redirect(http.StatusSeeOther, "/p/guestbook?err=message+is+required")
+	msg, ok := cleanMessage(c.PostForm("message"))
+	if !ok {
+		c.Redirect(http.StatusSeeOther, "/p/guestbook?err=message+must+be+1-500+characters")
 		return "", nil
 	}
 

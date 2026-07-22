@@ -33,6 +33,14 @@ func (w *web) newznabAPI(c *gin.Context) {
 	}
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	offset, _ := strconv.Atoi(c.Query("offset"))
+	// Clamp untrusted paging params before handing them to the plugin — a
+	// negative or huge limit shouldn't reach the query layer.
+	if limit <= 0 || limit > 200 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
 	req := pluginapi.NewznabRequest{
 		Function:   c.Query("t"),
 		Query:      c.Query("q"),
@@ -69,9 +77,22 @@ func (w *web) newznabAPI(c *gin.Context) {
 	writeNewznab(c, res, "miss")
 }
 
+// sanitizeFilename strips characters that would break the quoted
+// Content-Disposition filename (quotes, backslashes, control chars). Go's
+// net/http already blocks CRLF header injection; this keeps the quoting
+// intact for crawled subjects that happen to contain a literal quote.
+func sanitizeFilename(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 || r == '"' || r == '\\' {
+			return -1
+		}
+		return r
+	}, s)
+}
+
 func writeNewznab(c *gin.Context, res pluginapi.NewznabResult, status string) {
 	if res.Filename != "" {
-		c.Header("Content-Disposition", `attachment; filename="`+res.Filename+`"`)
+		c.Header("Content-Disposition", `attachment; filename="`+sanitizeFilename(res.Filename)+`"`)
 	}
 	c.Header("X-Cache", status)
 	c.Data(http.StatusOK, res.ContentType, res.Body)
@@ -183,7 +204,7 @@ func (w *web) nzbDownload(c *gin.Context) {
 	if filename == "" {
 		filename = "download.nzb"
 	}
-	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
+	c.Header("Content-Disposition", `attachment; filename="`+sanitizeFilename(filename)+`"`)
 	c.Data(http.StatusOK, "application/x-nzb", data)
 }
 
