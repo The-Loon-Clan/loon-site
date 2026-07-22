@@ -189,6 +189,10 @@ func (w *web) render(c *gin.Context, page string, data map[string]any) {
 	}
 	u, _ := w.currentUser(c)
 	data["User"] = u
+	// Gate the admin nav on actual role, not mere logged-in-ness — the
+	// /admin/* routes sit behind Require(RoleAdmin), so a plain user
+	// clicking them lands on a 403 JSON blob instead of a page.
+	data["IsAdmin"] = u != nil && u.AtLeast(core.RoleAdmin)
 	if u != nil {
 		if w.points != nil {
 			if bal, err := w.points.Balance(c.Request.Context(), u.ID); err == nil {

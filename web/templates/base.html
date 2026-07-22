@@ -27,7 +27,7 @@
                     </details>
                     {{else}}<a href="{{.Href}}" {{if eq $.Path .Href}}class="active"{{end}}>{{.Label}}</a>{{end}}
                 {{end}}
-                {{if .User}}<a href="/admin/settings">Settings</a> <a href="/admin/p/crawlers">Crawlers</a> <a href="/admin/jobs">Jobs</a>{{end}}
+                {{if .IsAdmin}}<a href="/admin/settings">Settings</a> <a href="/admin/p/crawlers">Crawlers</a> <a href="/admin/jobs">Jobs</a>{{end}}
             </nav>
             <div class="user">
                 {{if .User}}<a href="/p/inbox" title="Notifications">&#128276;{{if .Unread}} <span class="badge bg-danger">{{.Unread}}</span>{{end}}</a> · <span title="points balance">{{.Points}} pts</span> · <a href="/u/{{.User.Username}}">{{.User.Username}}</a> · <a href="/logout">log out</a>

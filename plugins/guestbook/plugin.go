@@ -146,7 +146,7 @@ func (p *Plugin) sign(c *gin.Context) {
 		Kind:      "guestbook_signed",
 		Title:     u.Username + " signed the guestbook",
 		Body:      req.Message,
-		Link:      "/plugin/guestbook",
+		Link:      "/p/guestbook",
 		ActorID:   u.ID,
 		ActorName: u.Username,
 	})

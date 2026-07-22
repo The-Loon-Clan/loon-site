@@ -66,7 +66,7 @@ func (s releaseSource) Page(ctx context.Context, limit, offset int) ([]sitemap.E
 func (w *web) wireSitemap(engine *gin.Engine, baseURL string) {
 	cfg := sitemap.Config{
 		BaseURL:     baseURL,
-		StaticPaths: []string{"/", "/search", "/groups", "/guestbook"},
+		StaticPaths: []string{"/", "/search", "/groups", "/p/guestbook"},
 		TTL:         sitemapTTL,
 	}
 
