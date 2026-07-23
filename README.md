@@ -45,8 +45,9 @@ multi-file releases into a single NZB, and parses quality tags
   cookie; the login form is the only way in.
 - **Admin** — `/admin/plugins` + `/admin/jobs` (both from loon) + the
   setup wizard inside `/admin/settings`.
-- **Plugins** (from loon-plugins) — `usenet` (the indexer), `scraper`, `backups`,
-  `stats` — plus the local `guestbook` demo plugin.
+- **Plugins** (from loon-plugins) — `usenet` (the indexer), `scraper`, `catalog`,
+  `backups`, `stats`, `dailyreward`, `pointstore` — plus the local `guestbook`
+  demo plugin.
 
 ## What to read
 
