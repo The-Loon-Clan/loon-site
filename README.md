@@ -30,7 +30,7 @@ Open **http://localhost:8090/** and log in as **alice** (admin) or **bob** (user
 
 ### Index some Usenet
 
-1. Log in as **alice** → **Setup** (`/admin/usenet`).
+1. Log in as **alice** → **Settings** (`/admin/settings`, the Usenet section is the setup wizard).
 2. Enter an NNTP server → **Test connection** → **Fetch group list**.
 3. Enable a low-volume group → **Crawl now**.
 4. Watch **Jobs** (`/admin/jobs`), then **Search** for a title and download the `.nzb`.
@@ -44,7 +44,7 @@ multi-file releases into a single NZB, and parses quality tags
 - **Auth** — username/password login (bcrypt-verified) over a signed session
   cookie; the login form is the only way in.
 - **Admin** — `/admin/plugins` + `/admin/jobs` (both from loon) + the
-  `/admin/usenet` setup wizard.
+  setup wizard inside `/admin/settings`.
 - **Plugins** (from loon-plugins) — `usenet` (the indexer), `scraper`, `backups`,
   `stats` — plus the local `guestbook` demo plugin.
 
