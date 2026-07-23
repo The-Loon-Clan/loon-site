@@ -129,6 +129,16 @@ details.job-group[open] > summary::before { transform: rotate(90deg); }
 .cov-legend { display: flex; gap: 1.25rem; font-size: .8rem; color: var(--muted); margin: .3rem 0 .8rem; flex-wrap: wrap; }
 .cov-legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: .3rem; vertical-align: middle; }
 
+/* Fetched-range detail under the coverage bar. The bar above is drawn from the
+   watermarks alone, so it reads as one solid block even when parallel backfill
+   has left holes; these cells are the ranges actually fetched. Fixed cell count,
+   so a heavily fragmented group costs no more markup than a clean one. */
+.cov-cells { display: flex; gap: 1px; height: 6px; margin-top: 3px; min-width: 120px; }
+.cov-cells i { flex: 1 1 0; border-radius: 1px; background: var(--surface-2); }
+.cov-cells .cc1 { background: color-mix(in srgb, var(--success) 30%, var(--surface-2)); }
+.cov-cells .cc2 { background: color-mix(in srgb, var(--success) 60%, var(--surface-2)); }
+.cov-cells .cc3 { background: var(--success); }
+
 @media (max-width: 800px) {
     .group-list { columns: 1; }
     .nav-bar nav { gap: .6rem; }
