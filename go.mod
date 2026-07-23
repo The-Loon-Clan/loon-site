@@ -14,7 +14,7 @@ require (
 	github.com/gin-contrib/sessions v1.1.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/jmoiron/sqlx v1.3.5
-	github.com/lib/pq v1.10.9
+	github.com/lib/pq v1.12.3
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/the-loon-clan/loon v0.0.0-00010101000000-000000000000
 	github.com/the-loon-clan/loon-baseline v0.0.0-00010101000000-000000000000
