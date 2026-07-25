@@ -27,7 +27,17 @@
     {{range .Categories}}
     <tr>
         <td><input form="cat-{{.ID}}" name="name" class="form-control form-control-sm" value="{{.Name}}" required></td>
-        <td><input form="cat-{{.ID}}" name="description" class="form-control form-control-sm" value="{{.Description}}"></td>
+        <td class="d-flex gap-1">
+            <input form="cat-{{.ID}}" name="description" class="form-control form-control-sm" value="{{.Description}}">
+            {{/* Icon name (Bootstrap Icons) + palette color. The demo doesn't
+                 ship the icons font, so no glyph preview here — values still
+                 round-trip for hosts that render them. */}}
+            <input form="cat-{{.ID}}" name="icon" class="form-control form-control-sm" value="{{.Icon}}" title="Bootstrap Icons name" style="max-width:140px">
+            <select form="cat-{{.ID}}" name="color" class="form-select form-select-sm" style="max-width:100px">
+                {{$cur := .Color}}
+                {{range $c := $.Colors}}<option value="{{$c}}" {{if eq $c $cur}}selected{{end}}>{{$c}}</option>{{end}}
+            </select>
+        </td>
         <td><input form="cat-{{.ID}}" name="ordinal" type="number" class="form-control form-control-sm" value="{{.Ordinal}}"></td>
         <td class="small text-muted">{{.ThreadCount}}t / {{.PostCount}}p</td>
         <td class="d-flex gap-1">
@@ -45,10 +55,14 @@
 </table>
 
 <h2 class="h6 mt-4">New category</h2>
-<form method="post" action="/admin/forum-categories" class="d-flex gap-2" style="max-width:700px">
+<form method="post" action="/admin/forum-categories" class="d-flex gap-2" style="max-width:900px">
     <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
     <input name="name" class="form-control form-control-sm" placeholder="Name" required>
     <input name="description" class="form-control form-control-sm" placeholder="Description">
+    <input name="icon" class="form-control form-control-sm" placeholder="chat-square-text" title="Bootstrap Icons name" style="max-width:150px">
+    <select name="color" class="form-select form-select-sm" style="max-width:100px">
+        {{range $c := .Colors}}<option value="{{$c}}">{{$c}}</option>{{end}}
+    </select>
     <input name="ordinal" type="number" class="form-control form-control-sm" style="max-width:90px" placeholder="0">
     <button class="btn btn-sm btn-primary">Create</button>
 </form>
