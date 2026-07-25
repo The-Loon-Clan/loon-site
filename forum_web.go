@@ -66,6 +66,15 @@ func forumMigrate(db *sqlx.DB) error {
 		    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 		    PRIMARY KEY (post_id, user_id, emoji)
 		)`,
+		// Access gates (prod migration 278) — ALTERs so pre-gate demo
+		// installs pick them up; the CREATE above carries them implicitly
+		// for fresh installs via these same statements running after it.
+		`ALTER TABLE forum_categories ADD COLUMN IF NOT EXISTS see_role   TEXT NOT NULL DEFAULT 'all'`,
+		`ALTER TABLE forum_categories ADD COLUMN IF NOT EXISTS read_role  TEXT NOT NULL DEFAULT 'all'`,
+		`ALTER TABLE forum_categories ADD COLUMN IF NOT EXISTS write_role TEXT NOT NULL DEFAULT 'user'`,
+		`ALTER TABLE forum_categories ADD COLUMN IF NOT EXISTS see_tier   SMALLINT NOT NULL DEFAULT 0`,
+		`ALTER TABLE forum_categories ADD COLUMN IF NOT EXISTS read_tier  SMALLINT NOT NULL DEFAULT 0`,
+		`ALTER TABLE forum_categories ADD COLUMN IF NOT EXISTS write_tier SMALLINT NOT NULL DEFAULT 0`,
 		`CREATE INDEX IF NOT EXISTS idx_forum_threads_category ON forum_threads (category_id, last_post_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_forum_posts_thread ON forum_posts (thread_id, created_at ASC)`,
 		`CREATE INDEX IF NOT EXISTS idx_forum_post_reactions_post_emoji ON forum_post_reactions (post_id, emoji)`,

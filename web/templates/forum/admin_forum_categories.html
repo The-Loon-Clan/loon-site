@@ -50,6 +50,51 @@
             <button form="cat-merge-{{.ID}}" class="btn btn-sm btn-outline-secondary py-0">Merge</button>
         </td>
     </tr>
+    <tr>
+        <td colspan="5" class="pt-0 small text-muted">
+            {{/* Access gates: each pair is role OR earned rank tier (see the
+                 plugin's access model). Saved by the same row form. */}}
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <span title="who passes each gate: the role or above, OR the rank tier or above">Access:</span>
+                <span>see</span>
+                {{$sr := .SeeRole}}
+                <select form="cat-{{.ID}}" name="see_role" class="form-select form-select-sm py-0" style="max-width:110px">
+                    {{range $r := $.GateRoles}}<option value="{{$r}}" {{if eq $r $sr}}selected{{end}}>{{$r}}</option>{{end}}
+                </select>
+                <select form="cat-{{.ID}}" name="see_tier" class="form-select form-select-sm py-0" style="max-width:100px">
+                    {{$st := .SeeTier}}
+                    <option value="0" {{if eq $st 0}}selected{{end}}>any rank</option>
+                    <option value="1" {{if eq $st 1}}selected{{end}}>rank &ge;1</option>
+                    <option value="2" {{if eq $st 2}}selected{{end}}>rank &ge;2</option>
+                    <option value="3" {{if eq $st 3}}selected{{end}}>rank &ge;3</option>
+                </select>
+                <span>read</span>
+                {{$rr := .ReadRole}}
+                <select form="cat-{{.ID}}" name="read_role" class="form-select form-select-sm py-0" style="max-width:110px">
+                    {{range $r := $.GateRoles}}<option value="{{$r}}" {{if eq $r $rr}}selected{{end}}>{{$r}}</option>{{end}}
+                </select>
+                <select form="cat-{{.ID}}" name="read_tier" class="form-select form-select-sm py-0" style="max-width:100px">
+                    {{$rt := .ReadTier}}
+                    <option value="0" {{if eq $rt 0}}selected{{end}}>any rank</option>
+                    <option value="1" {{if eq $rt 1}}selected{{end}}>rank &ge;1</option>
+                    <option value="2" {{if eq $rt 2}}selected{{end}}>rank &ge;2</option>
+                    <option value="3" {{if eq $rt 3}}selected{{end}}>rank &ge;3</option>
+                </select>
+                <span>write</span>
+                {{$wr := .WriteRole}}
+                <select form="cat-{{.ID}}" name="write_role" class="form-select form-select-sm py-0" style="max-width:110px">
+                    {{range $r := $.GateRoles}}<option value="{{$r}}" {{if eq $r $wr}}selected{{end}}>{{$r}}</option>{{end}}
+                </select>
+                <select form="cat-{{.ID}}" name="write_tier" class="form-select form-select-sm py-0" style="max-width:100px">
+                    {{$wt := .WriteTier}}
+                    <option value="0" {{if eq $wt 0}}selected{{end}}>any rank</option>
+                    <option value="1" {{if eq $wt 1}}selected{{end}}>rank &ge;1</option>
+                    <option value="2" {{if eq $wt 2}}selected{{end}}>rank &ge;2</option>
+                    <option value="3" {{if eq $wt 3}}selected{{end}}>rank &ge;3</option>
+                </select>
+            </div>
+        </td>
+    </tr>
     {{end}}
     </tbody>
 </table>
