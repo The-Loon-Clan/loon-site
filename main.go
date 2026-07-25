@@ -327,8 +327,12 @@ func main() {
 		}),
 		Notifications: core.NewNotifications(core.NotificationsAdapter{NotifyFn: notifications.Deliver}),
 		Points:        pointsSvc,
-		HTTPClient:    core.NewHTTPClient(),
-		Errors:        core.NewErrorReporter(core.ErrorAdapter{}), // stderr fallback
+		// In-memory grants (lost on restart) — a real host backs this
+		// with a user_entitlements table. No demo plugin grants or
+		// checks entitlements yet; this is the minimal required wiring.
+		Entitlements: core.NewEntitlements(core.EntitlementsConfig{Store: core.NewMemEntitlementStore()}),
+		HTTPClient:   core.NewHTTPClient(),
+		Errors:       core.NewErrorReporter(core.ErrorAdapter{}), // stderr fallback
 		// Optional: only wired when REDIS_ADDR is set; otherwise Core.Redis stays
 		// nil and Redis-capable plugins fall back to their durable mode.
 		Redis: func() core.RedisService {
