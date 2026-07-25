@@ -1,0 +1,49 @@
+{{/* Shared chrome for the forum pages. These templates live in gin's HTML
+     set (the forum plugin renders them by name via c.HTML), not the demo's
+     per-page template map — so they are full documents with a slim version
+     of base.html's header. Data keys come from the plugin + Deps.BaseData:
+     User, IsAdmin, CSRFToken, Path, plus per-page keys. */}}
+{{define "fhead"}}<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Forums — loon demo indexer</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/tokens.css">
+    <link rel="stylesheet" href="/static/css/theme.css">
+</head>
+<body>
+    <header class="nav-bar">
+        <div class="inner">
+            <a class="brand" href="/">loon<span>indexer</span></a>
+            <nav>
+                <a href="/">News</a>
+                <a href="/search">Search</a>
+                <a href="/browse">Browse</a>
+                <a href="/community/forums" class="active">Forums</a>
+            </nav>
+            <div class="user">
+                {{if .User}}<a href="/u/{{.User.Username}}">{{.User.Username}}</a>{{else}}<a href="/login">log in</a>{{end}}
+            </div>
+        </div>
+    </header>
+    <main class="container page py-4">
+{{end}}
+
+{{define "ffoot"}}
+    </main>
+    <footer class="site-footer">
+        Forum served by the <a href="https://github.com/The-Loon-Clan/loon-plugins">loon-plugins</a> forum plugin — the same code the production indexer runs.
+    </footer>
+</body>
+</html>
+{{end}}
+
+{{define "fpagination"}}{{if .}}{{if gt .TotalPages 1}}
+<nav class="d-flex gap-2 my-3">
+    {{if .HasPrev}}<a class="btn btn-sm btn-outline-secondary" href="{{.BaseURL}}page={{.Prev}}">&laquo; prev</a>{{end}}
+    <span class="text-muted small align-self-center">page {{.Page}} / {{.TotalPages}}</span>
+    {{if .HasNext}}<a class="btn btn-sm btn-outline-secondary" href="{{.BaseURL}}page={{.Next}}">next &raquo;</a>{{end}}
+</nav>
+{{end}}{{end}}{{end}}

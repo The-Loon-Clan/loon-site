@@ -57,6 +57,7 @@ import (
 	"github.com/the-loon-clan/loon-plugins/backups"
 	_ "github.com/the-loon-clan/loon-plugins/catalog"
 	_ "github.com/the-loon-clan/loon-plugins/dailyreward"
+	// forum is imported (and its init runs) via forum_web.go's SetDeps wiring.
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	_ "github.com/the-loon-clan/loon-plugins/pointstore"
 	"github.com/the-loon-clan/loon-plugins/scraper"
@@ -183,6 +184,13 @@ func main() {
 	)
 	apiSvc.MarkRemote() // its loop lives in loon-api; here it's a config stub
 	seedDemoUsers(userStore, logger)
+	// Forum tables + starter content (forum_web.go). After the user seed so
+	// the starter threads can attribute to the demo accounts.
+	if err := forumMigrate(db); err != nil {
+		logger.Error("forum migrate", "err", err)
+		os.Exit(1)
+	}
+	forumSeed(db, logger)
 	wsrv := newWeb(userStore, sessionSecret, logger)
 	wsrv.loginLog = loginLog
 	wsrv.ipSalt = string(sessionSecret) // demo salt; a real host uses a dedicated ip_salt secret
@@ -332,6 +340,13 @@ func main() {
 	})
 	if err != nil {
 		logger.Error("core.New", "err", err)
+		os.Exit(1)
+	}
+
+	// Forum plugin seams + its gin-side templates (forum_web.go). Before
+	// Boot: SetDeps is checked at Provision.
+	if err := wireForumPlugin(c, engine); err != nil {
+		logger.Error("forum wiring", "err", err)
 		os.Exit(1)
 	}
 

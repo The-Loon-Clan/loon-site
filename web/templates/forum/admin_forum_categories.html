@@ -1,0 +1,47 @@
+{{template "fhead" .}}
+<nav class="small mb-2"><a href="/community/forums">Forums</a> &rsaquo; Admin</nav>
+<h1 class="h4 mb-3">Forum categories</h1>
+{{if .Flash}}<div class="alert my-2">{{.Flash}}</div>{{end}}
+{{if .Err}}<div class="alert my-2" style="border-color:#c33;color:#c33">{{.Err}}</div>{{end}}
+
+<table class="table align-middle" style="max-width:900px">
+    <thead><tr><th>Name</th><th>Description</th><th style="width:90px">Ordinal</th><th>Counts</th><th style="width:260px"></th></tr></thead>
+    <tbody>
+    {{range .Categories}}
+    <tr>
+        <form method="post" action="/admin/forum-categories/{{.ID}}">
+        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+        <td><input name="name" class="form-control form-control-sm" value="{{.Name}}" required></td>
+        <td><input name="description" class="form-control form-control-sm" value="{{.Description}}"></td>
+        <td><input name="ordinal" type="number" class="form-control form-control-sm" value="{{.Ordinal}}"></td>
+        <td class="small text-muted">{{.ThreadCount}}t / {{.PostCount}}p</td>
+        <td class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-secondary py-0">Save</button>
+        </form>
+            <form method="post" action="/admin/forum-categories/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Name}}? Only allowed when empty.')" class="d-inline">
+                <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                <button class="btn btn-sm btn-outline-danger py-0">Delete</button>
+            </form>
+            <form method="post" action="/admin/forum-categories/{{.ID}}/merge" class="d-inline d-flex gap-1">
+                <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                <select name="dst" class="form-select form-select-sm py-0">
+                    {{$src := .ID}}
+                    {{range $.Categories}}{{if ne .ID $src}}<option value="{{.ID}}">&rarr; {{.Name}}</option>{{end}}{{end}}
+                </select>
+                <button class="btn btn-sm btn-outline-secondary py-0">Merge</button>
+            </form>
+        </td>
+    </tr>
+    {{end}}
+    </tbody>
+</table>
+
+<h2 class="h6 mt-4">New category</h2>
+<form method="post" action="/admin/forum-categories" class="d-flex gap-2" style="max-width:700px">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    <input name="name" class="form-control form-control-sm" placeholder="Name" required>
+    <input name="description" class="form-control form-control-sm" placeholder="Description">
+    <input name="ordinal" type="number" class="form-control form-control-sm" style="max-width:90px" placeholder="0">
+    <button class="btn btn-sm btn-primary">Create</button>
+</form>
+{{template "ffoot" .}}

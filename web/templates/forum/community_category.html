@@ -1,0 +1,25 @@
+{{template "fhead" .}}
+<nav class="small mb-2"><a href="/community/forums">Forums</a> &rsaquo; {{.Category.Name}}</nav>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 m-0">{{.Category.Name}}</h1>
+    {{if .User}}<a class="btn btn-sm btn-primary" href="/community/forums/new?category={{.Category.ID}}">New thread</a>{{end}}
+</div>
+
+{{range .Threads}}
+<div class="card mb-2"><div class="card-body py-2 d-flex justify-content-between flex-wrap gap-2">
+    <div>
+        {{if .Pinned}}<span class="badge bg-info">pinned</span>{{end}}
+        {{if .Locked}}<span class="badge bg-secondary">locked</span>{{end}}
+        {{if eq .ThreadType "recruitment"}}<span class="badge bg-warning text-dark">recruitment</span>{{end}}
+        <a class="fw-bold" href="/community/forums/thread/{{.ID}}">{{.Title}}</a>
+        <div class="text-muted small">by {{.Username}} &middot; {{.CreatedAt.Format "Jan 02, 2006"}}</div>
+    </div>
+    <div class="text-end small text-muted">
+        {{.ReplyCount}} repl{{if eq .ReplyCount 1}}y{{else}}ies{{end}}<br>
+        last {{.LastPostAt.Format "Jan 02 15:04"}}{{if .LastPostUsername}} by {{.LastPostUsername}}{{end}}
+    </div>
+</div></div>
+{{else}}<div class="empty">No threads here yet.</div>{{end}}
+
+{{template "fpagination" .Pagination}}
+{{template "ffoot" .}}

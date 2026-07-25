@@ -1,0 +1,23 @@
+{{template "fhead" .}}
+<nav class="small mb-2"><a href="/community/forums">Forums</a> &rsaquo; New thread</nav>
+<h1 class="h4 mb-3">New thread</h1>
+{{if .User}}
+<form method="post" action="/community/forums/threads" style="max-width:640px">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    <label class="form-label small">Category</label>
+    <select name="category_id" class="form-select mb-2">
+        {{range .Categories}}<option value="{{.ID}}" {{if eq .ID $.SelectedCategory}}selected{{end}}>{{.Name}}</option>{{end}}
+    </select>
+    <label class="form-label small">Type</label>
+    <select name="thread_type" class="form-select mb-2">
+        <option value="discussion">Discussion — replies visible to everyone</option>
+        <option value="recruitment">Recruitment — replies visible only to you and each replier</option>
+    </select>
+    <input name="title" class="form-control mb-2" placeholder="Title" required>
+    <textarea name="body" class="form-control mb-2" rows="6" required placeholder="Opening post"></textarea>
+    <button class="btn btn-primary">Create thread</button>
+</form>
+{{else}}
+<p class="text-muted"><a href="/login">Log in</a> to start a thread.</p>
+{{end}}
+{{template "ffoot" .}}

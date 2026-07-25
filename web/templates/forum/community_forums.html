@@ -1,0 +1,35 @@
+{{template "fhead" .}}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 m-0">Forums</h1>
+    {{if .User}}<a class="btn btn-sm btn-primary" href="/community/forums/new">New thread</a>{{end}}
+</div>
+<p class="text-muted small">{{.TotalThreads}} thread(s) &middot; {{.TotalPosts}} post(s)</p>
+
+{{range .Categories}}
+<div class="card mb-2"><div class="card-body py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <a class="fw-bold" href="/community/forums/category/{{.ID}}">{{.Name}}</a>
+        <div class="text-muted small">{{.Description}}</div>
+    </div>
+    <div class="text-end small text-muted">
+        {{.ThreadCount}} threads &middot; {{.PostCount}} posts
+        {{if .LastThreadTitle}}<br>latest: <a href="/community/forums/thread/{{.LastThreadID}}">{{.LastThreadTitle}}</a>{{if .LastPostUser}} by {{.LastPostUser}}{{end}}{{end}}
+    </div>
+</div></div>
+{{else}}
+<div class="empty">No categories yet.{{if .IsAdmin}} Create some at <a href="/admin/forum-categories">Forum admin</a>.{{end}}</div>
+{{end}}
+
+{{if .Activity}}
+<h2 class="h5 mt-4">Recent activity</h2>
+<ul class="list-unstyled small">
+    {{range .Activity}}<li><a href="/community/forums/thread/{{.ThreadID}}#post-{{.PostID}}">{{.ThreadTitle}}</a> &mdash; {{.Username}} &middot; {{.CreatedAt.Format "Jan 02 15:04"}}</li>{{end}}
+</ul>
+{{end}}
+{{if .Contributors}}
+<h2 class="h5 mt-3">Top contributors</h2>
+<ul class="list-unstyled small">
+    {{range .Contributors}}<li>{{.Username}} <span class="text-muted">({{.PostCount}} posts)</span></li>{{end}}
+</ul>
+{{end}}
+{{template "ffoot" .}}
