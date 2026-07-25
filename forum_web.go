@@ -30,22 +30,23 @@ func forumMigrate(db *sqlx.DB) error {
 		    name        TEXT NOT NULL UNIQUE,
 		    description TEXT NOT NULL DEFAULT '',
 		    ordinal     INTEGER NOT NULL DEFAULT 0,
-		    color       TEXT NOT NULL DEFAULT '',
-		    icon        TEXT NOT NULL DEFAULT '',
+		    color       TEXT NOT NULL DEFAULT 'blue',
+		    icon        TEXT NOT NULL DEFAULT 'chat-square-text',
 		    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 		)`,
 		`CREATE TABLE IF NOT EXISTS forum_threads (
-		    id           SERIAL PRIMARY KEY,
-		    category_id  INTEGER NOT NULL REFERENCES forum_categories(id) ON DELETE CASCADE,
-		    user_id      BIGINT NOT NULL REFERENCES users(id),
-		    title        TEXT NOT NULL,
-		    thread_type  TEXT CHECK (thread_type IN ('discussion','recruitment')),
-		    pinned       BOOLEAN NOT NULL DEFAULT false,
-		    locked       BOOLEAN NOT NULL DEFAULT false,
-		    reply_count  INTEGER NOT NULL DEFAULT 0,
-		    last_post_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    hidden_at    TIMESTAMPTZ
+		    id            SERIAL PRIMARY KEY,
+		    category_id   INTEGER NOT NULL REFERENCES forum_categories(id) ON DELETE CASCADE,
+		    user_id       BIGINT NOT NULL REFERENCES users(id),
+		    title         TEXT NOT NULL,
+		    thread_type   TEXT NOT NULL DEFAULT 'discussion' CHECK (thread_type IN ('discussion','recruitment')),
+		    pinned        BOOLEAN NOT NULL DEFAULT false,
+		    locked        BOOLEAN NOT NULL DEFAULT false,
+		    reply_count   INTEGER NOT NULL DEFAULT 0,
+		    last_post_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+		    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+		    hidden_at     TIMESTAMPTZ,
+		    hidden_reason TEXT NOT NULL DEFAULT ''
 		)`,
 		`CREATE TABLE IF NOT EXISTS forum_posts (
 		    id             SERIAL PRIMARY KEY,
@@ -55,17 +56,19 @@ func forumMigrate(db *sqlx.DB) error {
 		    quoted_post_id INTEGER REFERENCES forum_posts(id) ON DELETE SET NULL,
 		    edited_at      TIMESTAMPTZ,
 		    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    hidden_at      TIMESTAMPTZ
+		    hidden_at      TIMESTAMPTZ,
+		    hidden_reason  TEXT NOT NULL DEFAULT ''
 		)`,
 		`CREATE TABLE IF NOT EXISTS forum_post_reactions (
 		    post_id    INTEGER NOT NULL REFERENCES forum_posts(id) ON DELETE CASCADE,
-		    user_id    BIGINT  NOT NULL REFERENCES users(id),
+		    user_id    BIGINT  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 		    emoji      TEXT    NOT NULL,
 		    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 		    PRIMARY KEY (post_id, user_id, emoji)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_forum_threads_category ON forum_threads (category_id, last_post_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_forum_posts_thread ON forum_posts (thread_id, created_at ASC)`,
+		`CREATE INDEX IF NOT EXISTS idx_forum_post_reactions_post_emoji ON forum_post_reactions (post_id, emoji)`,
 	}
 	for _, q := range stmts {
 		if _, err := db.Exec(q); err != nil {
@@ -187,6 +190,10 @@ func wireForumPlugin(c *core.Core, engine *gin.Engine) error {
 			if u, ok := c.Auth.CurrentUser(gc); ok {
 				data["User"] = u
 				data["IsAdmin"] = u.AtLeast(core.RoleAdmin)
+				// The forum's moderation routes (pin/lock, category admin)
+				// gate at RoleMod — the templates must show the buttons to
+				// the role that can actually use them.
+				data["IsMod"] = u.AtLeast(core.RoleMod)
 			}
 			data["CSRFToken"] = csrfToken(gc)
 			data["Path"] = gc.Request.URL.Path

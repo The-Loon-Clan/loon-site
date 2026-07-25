@@ -2,13 +2,15 @@
 <nav class="small mb-2"><a href="/community/forums">Forums</a> &rsaquo; <a href="/community/forums/category/{{.Thread.CategoryID}}">{{.Thread.CategoryName}}</a> &rsaquo; {{.Thread.Title}}</nav>
 <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
     <h1 class="h4 m-0">{{.Thread.Title}}</h1>
-    {{if .IsAdmin}}
     <div class="d-flex gap-1">
+        {{if .IsMod}}
         <form method="post" action="/community/forums/thread/{{.Thread.ID}}/pin"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button class="btn btn-sm btn-outline-secondary">{{if .Thread.Pinned}}Unpin{{else}}Pin{{end}}</button></form>
         <form method="post" action="/community/forums/thread/{{.Thread.ID}}/lock"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button class="btn btn-sm btn-outline-secondary">{{if .Thread.Locked}}Unlock{{else}}Lock{{end}}</button></form>
+        {{end}}
+        {{if or .IsMod (eq .Thread.UserID .CurrentUserID)}}
         <form method="post" action="/community/forums/thread/{{.Thread.ID}}/delete" onsubmit="return confirm('Delete this thread?')"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button class="btn btn-sm btn-outline-danger">Delete</button></form>
+        {{end}}
     </div>
-    {{end}}
 </div>
 {{if .Thread.Locked}}<div class="alert my-2">This thread is locked.</div>{{end}}
 {{if and .IsRecruitment (not .CanSeeAllReplies)}}<div class="alert my-2">Recruitment thread &mdash; replies are private. You see the opening post{{if .User}} and your own reply{{end}} only.</div>{{end}}
@@ -45,7 +47,7 @@
             </form>
         </details>
         {{end}}
-        {{if or $.IsAdmin (eq .UserID $.CurrentUserID)}}
+        {{if or $.IsMod (eq .UserID $.CurrentUserID)}}
         <form method="post" action="/community/forums/post/{{.ID}}/delete" class="d-inline" onsubmit="return confirm('Delete this post?')">
             <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
             <input type="hidden" name="thread_id" value="{{.ThreadID}}">

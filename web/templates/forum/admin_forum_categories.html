@@ -4,32 +4,40 @@
 {{if .Flash}}<div class="alert my-2">{{.Flash}}</div>{{end}}
 {{if .Err}}<div class="alert my-2" style="border-color:#c33;color:#c33">{{.Err}}</div>{{end}}
 
+{{/* Per-row forms live OUTSIDE the table and inputs reference them via the
+     form= attribute — a <form> straddling table cells is invalid markup the
+     HTML5 parser mangles (empty form node, fields attached by parser quirk,
+     a phantom sixth column). Same pattern as prod's provider table. */}}
+{{range .Categories}}
+<form method="post" action="/admin/forum-categories/{{.ID}}" id="cat-{{.ID}}">
+    <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+</form>
+<form method="post" action="/admin/forum-categories/{{.ID}}/delete" id="cat-del-{{.ID}}"
+      onsubmit="return confirm('Delete this category? Only allowed when empty.')">
+    <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+</form>
+<form method="post" action="/admin/forum-categories/{{.ID}}/merge" id="cat-merge-{{.ID}}">
+    <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+</form>
+{{end}}
+
 <table class="table align-middle" style="max-width:900px">
-    <thead><tr><th>Name</th><th>Description</th><th style="width:90px">Ordinal</th><th>Counts</th><th style="width:260px"></th></tr></thead>
+    <thead><tr><th>Name</th><th>Description</th><th style="width:90px">Ordinal</th><th>Counts</th><th style="width:280px"></th></tr></thead>
     <tbody>
     {{range .Categories}}
     <tr>
-        <form method="post" action="/admin/forum-categories/{{.ID}}">
-        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
-        <td><input name="name" class="form-control form-control-sm" value="{{.Name}}" required></td>
-        <td><input name="description" class="form-control form-control-sm" value="{{.Description}}"></td>
-        <td><input name="ordinal" type="number" class="form-control form-control-sm" value="{{.Ordinal}}"></td>
+        <td><input form="cat-{{.ID}}" name="name" class="form-control form-control-sm" value="{{.Name}}" required></td>
+        <td><input form="cat-{{.ID}}" name="description" class="form-control form-control-sm" value="{{.Description}}"></td>
+        <td><input form="cat-{{.ID}}" name="ordinal" type="number" class="form-control form-control-sm" value="{{.Ordinal}}"></td>
         <td class="small text-muted">{{.ThreadCount}}t / {{.PostCount}}p</td>
         <td class="d-flex gap-1">
-            <button class="btn btn-sm btn-outline-secondary py-0">Save</button>
-        </form>
-            <form method="post" action="/admin/forum-categories/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Name}}? Only allowed when empty.')" class="d-inline">
-                <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
-                <button class="btn btn-sm btn-outline-danger py-0">Delete</button>
-            </form>
-            <form method="post" action="/admin/forum-categories/{{.ID}}/merge" class="d-inline d-flex gap-1">
-                <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
-                <select name="dst" class="form-select form-select-sm py-0">
-                    {{$src := .ID}}
-                    {{range $.Categories}}{{if ne .ID $src}}<option value="{{.ID}}">&rarr; {{.Name}}</option>{{end}}{{end}}
-                </select>
-                <button class="btn btn-sm btn-outline-secondary py-0">Merge</button>
-            </form>
+            <button form="cat-{{.ID}}" class="btn btn-sm btn-outline-secondary py-0">Save</button>
+            <button form="cat-del-{{.ID}}" class="btn btn-sm btn-outline-danger py-0">Delete</button>
+            <select form="cat-merge-{{.ID}}" name="dst" class="form-select form-select-sm py-0" style="max-width:130px">
+                {{$src := .ID}}
+                {{range $.Categories}}{{if ne .ID $src}}<option value="{{.ID}}">&rarr; {{.Name}}</option>{{end}}{{end}}
+            </select>
+            <button form="cat-merge-{{.ID}}" class="btn btn-sm btn-outline-secondary py-0">Merge</button>
         </td>
     </tr>
     {{end}}
