@@ -1,0 +1,85 @@
+{{/* Shared community partials. Names are prefixed because pluginTemplates()
+     parses every plugin dir into ONE flat namespace. */}}
+
+{{/* Flash message. Dot is the flash string; renders nothing when empty. */}}
+{{define "c-flash"}}{{if .}}<div class="notice notice--warning">{{.}}</div>{{end}}{{end}}
+
+{{/* The community identity header, shared by the view / thread / settings
+     pages. Dot is a *Community. accent_color is admin-supplied and lands in a
+     style attribute, so it is emitted ONLY through the plugin's own validated
+     field — never concatenated with anything else here. */}}
+{{define "c-header"}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>
+            {{.Name}}
+            {{if .NSFW}}<span class="tag tag--danger">NSFW</span>{{end}}
+        </h1>
+        <div class="panel__actions">
+            <span class="panel__action">/c/{{.Slug}}</span>
+            {{if .SubscriberCount}}<span class="panel__action">{{.SubscriberCount}} members</span>{{end}}
+        </div>
+    </header>
+</section>
+{{end}}
+
+{{/* Sidebar: rules + mods. Dot is a dict of Rules, Mods, SidebarHTML. */}}
+{{define "c-sidebar"}}
+{{if .SidebarHTML}}
+<section class="panelV2">
+    <header class="panel__header"><h2 class="panel__heading">About</h2></header>
+    {{/* Already safe: the plugin ran it through Deps.Markdown, which is
+         goldmark with raw HTML off followed by the allowlist sanitizer. */}}
+    <div class="panel__body prose">{{.SidebarHTML}}</div>
+</section>
+{{end}}
+{{if .Rules}}
+<section class="panelV2">
+    <header class="panel__header"><h2 class="panel__heading">Rules</h2></header>
+    <div class="panel__body">
+        <ol class="rule-list">
+            {{range .Rules}}
+            <li><strong>{{.Title}}</strong>{{if .Body}}<div class="text-muted">{{.Body}}</div>{{end}}</li>
+            {{end}}
+        </ol>
+    </div>
+</section>
+{{end}}
+{{if .Mods}}
+<section class="panelV2">
+    <header class="panel__header"><h2 class="panel__heading">Moderators</h2></header>
+    <div class="panel__body">
+        <div class="pill-row">
+            {{range .Mods}}{{template "user-tag" (dict "Name" .Username "Role" .Role)}}{{end}}
+        </div>
+    </div>
+</section>
+{{end}}
+{{end}}
+
+{{/* One thread row. Dot is a *CommunityThread. */}}
+{{define "c-thread-row"}}
+<li>
+    <a class="list-row" href="/c/{{.CommunitySlug}}/thread/{{.ID}}">
+        <span class="avatar avatar--sm avatar--round poster--h{{hue .Username}}">
+            <span class="avatar__fallback">{{initials .Username}}</span>
+        </span>
+        <span class="list-row__body">
+            <span class="list-row__title">
+                {{if .Pinned}}<span class="tag tag--warning">Pinned</span>{{end}}
+                {{if .Locked}}<span class="tag">Locked</span>{{end}}
+                {{.Title}}
+            </span>
+            <span class="list-row__meta">
+                <span>{{.Username}}</span>
+                {{with timeAgo .LastPostAt}}<span>{{.}}</span>{{end}}
+            </span>
+        </span>
+        <span class="list-row__trail">
+            <span class="list-row__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#comment"></use></svg>{{.ReplyCount}}</span>
+            <svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg>
+        </span>
+    </a>
+</li>
+{{end}}

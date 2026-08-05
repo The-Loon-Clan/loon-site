@@ -10,6 +10,7 @@ import (
 
 	"github.com/the-loon-clan/loon/core"
 
+	"github.com/the-loon-clan/loon-plugins/communities"
 	"github.com/the-loon-clan/loon-plugins/donations"
 	"github.com/the-loon-clan/loon-plugins/messages"
 	"github.com/the-loon-clan/loon-plugins/news"
@@ -52,6 +53,10 @@ type pluginFixture struct {
 func pluginFixtures() []pluginFixture {
 	now := time.Now()
 	page := hostPagination(1, 25, 1, "/x")
+	comm := &communities.Community{
+		ID: 1, Slug: "usenet", Name: "Usenet", JoinType: "open",
+		SubscriberCount: 3, CreatedAt: now, UpdatedAt: now,
+	}
 
 	// news.Handlers builds an anonymous projection rather than passing its
 	// model, so the fixture mirrors that shape instead of using NewsPost.
@@ -191,6 +196,88 @@ func pluginFixtures() []pluginFixture {
 				"Usernames":     map[int]string{1: "alice"},
 			}},
 
+		// ── communities
+		//
+		// postView is unexported in the plugin (handlers.go), so the fixture
+		// mirrors its shape: the model plus the already-rendered body. That is
+		// deliberate — BodyHTML is what the template must render, and
+		// .Body is the untrusted source it must never touch.
+		{"communities_index.html",
+			map[string]any{"Communities": nil, "Total": 0, "Pagination": page},
+			map[string]any{
+				"Communities": []*communities.Community{{
+					ID: 1, Slug: "usenet", Name: "Usenet", Description: "d",
+					JoinType: "open", SubscriberCount: 3, ThreadCount: 2,
+				}},
+				"Total": 1,
+			}},
+		{"community_new.html",
+			map[string]any{},
+			map[string]any{"Error": "bad slug", "Slug": "x", "Name": "n", "Description": "d"}},
+		{"community_view.html",
+			map[string]any{
+				"Community":  comm,
+				"Threads":    nil,
+				"Total":      0,
+				"Pagination": page,
+				"Rules":      nil,
+				"Mods":       nil,
+				"Role":       &communities.CommunityViewerRole{},
+			},
+			map[string]any{
+				"Threads": []*communities.CommunityThread{{
+					ID: 1, CommunityID: 1, Title: "T", Username: "bob",
+					CommunitySlug: "usenet", ReplyCount: 2, LastPostAt: now, CreatedAt: now,
+				}},
+				"Rules":           []*communities.CommunityRule{{ID: 1, Title: "Be civil", Body: "b"}},
+				"Mods":            []*communities.CommunityMod{{UserID: 1, Username: "alice", Role: "admin"}},
+				"Role":            &communities.CommunityViewerRole{IsOwner: true, IsMod: true, IsSubscriber: true},
+				"SidebarHTML":     template.HTML("<p>side</p>"),
+				"DescriptionHTML": template.HTML("<p>desc</p>"),
+				"PendingCount":    2,
+				"Flash":           "saved",
+			}},
+		{"community_new_thread_c.html",
+			map[string]any{"Community": comm}, nil},
+		{"community_thread_c.html",
+			map[string]any{
+				"Community": comm,
+				"Thread": &communities.CommunityThread{
+					ID: 1, CommunityID: 1, Title: "T", Username: "bob",
+					CommunitySlug: "usenet", CreatedAt: now, LastPostAt: now,
+				},
+				"BodyHTML":   template.HTML("<p>body</p>"),
+				"Posts":      nil,
+				"Total":      0,
+				"Pagination": page,
+				"Rules":      nil,
+				"Mods":       nil,
+				"Role":       &communities.CommunityViewerRole{},
+			},
+			map[string]any{
+				"Posts": []struct {
+					*communities.CommunityPost
+					BodyHTML template.HTML
+				}{{
+					CommunityPost: &communities.CommunityPost{ID: 1, ThreadID: 1, Username: "alice", CreatedAt: now},
+					BodyHTML:      template.HTML("<p>reply</p>"),
+				}},
+				"Role": &communities.CommunityViewerRole{IsMod: true, IsSubscriber: true},
+			}},
+		{"community_join_requests.html",
+			map[string]any{"Community": comm, "Requests": nil, "Invites": nil},
+			map[string]any{
+				"Requests": []*communities.CommunityJoinRequest{{
+					ID: 1, CommunityID: 1, Username: "bob", Message: "please",
+					PointsHeld: 5, CreatedAt: now,
+				}},
+				"Invites": []*communities.CommunityInvite{{
+					ID: 1, CommunityID: 1, Code: "abc", MaxUses: 1, CreatedAt: now,
+				}},
+			}},
+		{"community_settings.html",
+			map[string]any{"Community": comm}, nil},
+
 		// ── shared error page
 		{"error.html",
 			map[string]any{},
@@ -249,6 +336,7 @@ func TestEveryPluginTemplateHasAFixture(t *testing.T) {
 	// are legitimately fixture-free.
 	partialsOnly := map[string]bool{
 		"wiki_shared.html": true, "tickets_shared.html": true,
+		"communities_shared.html": true,
 	}
 	covered := map[string]bool{}
 	for _, f := range pluginFixtures() {

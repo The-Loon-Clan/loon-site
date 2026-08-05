@@ -1,0 +1,35 @@
+{{/* New thread in a community. Keys: Community, Flash.
+     Form: POST /c/:slug/submit  title body */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/c">Communities</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/c/{{.Community.Slug}}">{{.Community.Name}}</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">New thread</li>
+</ol>
+
+{{template "c-flash" .Flash}}
+
+<section class="panelV2">
+    <header class="panel__header"><h1 class="panel__heading">New thread in {{.Community.Name}}</h1></header>
+    <div class="panel__body">
+        <form method="post" action="/c/{{.Community.Slug}}/submit" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__group">
+                <label class="form__label" for="title">Title</label>
+                <input class="form__input" id="title" name="title" type="text" required>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="body">Body</label>
+                <textarea class="form__textarea" id="body" name="body" rows="12"></textarea>
+                <p class="form__help">Markdown. Inline HTML is not rendered — output is filtered through the site's allowlist.</p>
+            </div>
+            <div class="form__actions">
+                <button class="button button--primary" type="submit">Post</button>
+                <a class="button button--text" href="/c/{{.Community.Slug}}">Cancel</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+{{template "ffoot" .}}

@@ -1,0 +1,97 @@
+{{/* Join requests + invites (mods). Keys: Community, Requests, Invites, Flash.
+     Forms: POST /c/:slug/requests/:rid/approve|deny  response
+            POST /c/:slug/invites                     note max_uses expires_days */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/c">Communities</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/c/{{.Community.Slug}}">{{.Community.Name}}</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Requests</li>
+</ol>
+
+{{template "c-flash" .Flash}}
+
+<section class="panelV2">
+    <header class="panel__header"><h1 class="panel__heading">Pending requests</h1></header>
+    {{if .Requests}}
+    <ul class="list-rows">
+        {{$slug := .Community.Slug}}{{$csrf := .CSRFToken}}
+        {{range .Requests}}
+        <li>
+            <div class="list-row">
+                <span class="avatar avatar--sm avatar--round poster--h{{hue .Username}}">
+                    <span class="avatar__fallback">{{initials .Username}}</span>
+                </span>
+                <span class="list-row__body">
+                    <span class="list-row__title">{{template "user-tag" (dict "Name" .Username "Role" .Role "Plain" true)}}</span>
+                    <span class="list-row__meta">
+                        {{with timeAgo .CreatedAt}}<span>{{.}}</span>{{end}}
+                        {{/* points_held is ESCROW — refunded on denial — not a
+                             balance. Label it so a mod does not read it as one. */}}
+                        {{if .PointsHeld}}<span class="tag">{{.PointsHeld}} pts held</span>{{end}}
+                    </span>
+                    {{if .Message}}<span class="list-row__text">{{.Message}}</span>{{end}}
+                </span>
+                <span class="list-row__trail">
+                    <form method="post" action="/c/{{$slug}}/requests/{{.ID}}/approve" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{$csrf}}">
+                        <button class="button button--primary button--sm" type="submit">Approve</button>
+                    </form>
+                    <form method="post" action="/c/{{$slug}}/requests/{{.ID}}/deny" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{$csrf}}">
+                        <button class="button button--text button--sm button--danger" type="submit">Deny</button>
+                    </form>
+                </span>
+            </div>
+        </li>
+        {{end}}
+    </ul>
+    {{else}}
+    <div class="panel__body">No pending requests.</div>
+    {{end}}
+</section>
+
+<section class="panelV2">
+    <header class="panel__header"><h2 class="panel__heading">Invites</h2></header>
+    {{if .Invites}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead><tr><th>Code</th><th>Note</th><th class="data-table__num">Uses</th><th>Expires</th></tr></thead>
+            <tbody>
+                {{range .Invites}}
+                <tr>
+                    <td><code>{{.Code}}</code></td>
+                    <td>{{if .Note}}{{.Note}}{{else}}&mdash;{{end}}</td>
+                    <td class="data-table__num">{{.UseCount}}{{if .MaxUses}} / {{.MaxUses}}{{end}}</td>
+                    <td>{{if .ExpiresAt}}{{shortDate .ExpiresAt}}{{else}}never{{end}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="panel__body">No invites issued.</div>
+    {{end}}
+    <div class="panel__body">
+        <form method="post" action="/c/{{.Community.Slug}}/invites" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__group">
+                <label class="form__label" for="note">Note</label>
+                <input class="form__input" id="note" name="note" type="text" placeholder="who is this for?">
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="max_uses">Max uses</label>
+                <input class="form__input" id="max_uses" name="max_uses" type="number" min="0" value="1">
+                <p class="form__help">0 for unlimited.</p>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="expires_days">Expires in (days)</label>
+                <input class="form__input" id="expires_days" name="expires_days" type="number" min="0" value="0">
+                <p class="form__help">0 never expires.</p>
+            </div>
+            <div class="form__actions"><button class="button button--primary" type="submit">Create invite</button></div>
+        </form>
+    </div>
+</section>
+
+{{template "ffoot" .}}

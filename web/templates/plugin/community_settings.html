@@ -1,0 +1,89 @@
+{{/* Community settings (owner only — the plugin gates the route). Keys:
+     Community, Flash.
+     Form: POST /c/:slug/settings  name description sidebar_md banner_url
+           banner_position icon_url accent_color nsfw join_type
+           min_account_age_days min_role_level join_points_cost */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/c">Communities</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/c/{{.Community.Slug}}">{{.Community.Name}}</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Settings</li>
+</ol>
+
+{{template "c-flash" .Flash}}
+
+<section class="panelV2">
+    <header class="panel__header"><h1 class="panel__heading">Settings</h1></header>
+    <div class="panel__body">
+        <form method="post" action="/c/{{.Community.Slug}}/settings" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__group">
+                <label class="form__label" for="name">Name</label>
+                <input class="form__input" id="name" name="name" type="text" value="{{.Community.Name}}" required>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="description">Description</label>
+                <textarea class="form__textarea" id="description" name="description" rows="3">{{.Community.Description}}</textarea>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="sidebar_md">Sidebar</label>
+                <textarea class="form__textarea" id="sidebar_md" name="sidebar_md" rows="8">{{.Community.SidebarMD}}</textarea>
+                <p class="form__help">Markdown, rendered in the sidebar.</p>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="banner_url">Banner URL</label>
+                <input class="form__input" id="banner_url" name="banner_url" type="text" value="{{.Community.BannerURL}}">
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="banner_position">Banner focal point</label>
+                <input class="form__input" id="banner_position" name="banner_position" type="number" min="0" max="100" value="{{.Community.BannerPosition}}">
+                <p class="form__help">0&ndash;100; 50 is centred.</p>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="icon_url">Icon URL</label>
+                <input class="form__input" id="icon_url" name="icon_url" type="text" value="{{.Community.IconURL}}">
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="accent_color">Accent colour</label>
+                <input class="form__input" id="accent_color" name="accent_color" type="text" value="{{.Community.AccentColor}}" placeholder="#4c8dff">
+            </div>
+            <div class="form__group form__group--inline">
+                <input class="form__checkbox" id="nsfw" name="nsfw" type="checkbox" value="1" {{if .Community.NSFW}}checked{{end}}>
+                <label class="form__label" for="nsfw">NSFW</label>
+            </div>
+
+            <div class="form__group">
+                <label class="form__label" for="join_type">Who can join</label>
+                {{/* The three CommunityJoinType* constants. A select, because the
+                     plugin validates against exactly these and anything else is
+                     rejected. */}}
+                <select class="form__select" id="join_type" name="join_type">
+                    <option value="open"{{if eq .Community.JoinType "open"}} selected{{end}}>Open &mdash; anyone can join</option>
+                    <option value="request"{{if eq .Community.JoinType "request"}} selected{{end}}>Request &mdash; mods approve</option>
+                    <option value="invite_only"{{if eq .Community.JoinType "invite_only"}} selected{{end}}>Invite only</option>
+                </select>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="min_account_age_days">Minimum account age (days)</label>
+                <input class="form__input" id="min_account_age_days" name="min_account_age_days" type="number" min="0" value="{{.Community.MinAccountAgeDays}}">
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="min_role_level">Minimum role level</label>
+                <input class="form__input" id="min_role_level" name="min_role_level" type="number" min="0" value="{{.Community.MinRoleLevel}}">
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="join_points_cost">Points to join</label>
+                <input class="form__input" id="join_points_cost" name="join_points_cost" type="number" min="0" value="{{.Community.JoinPointsCost}}">
+                <p class="form__help">Held in escrow on a request and refunded if it is declined.</p>
+            </div>
+
+            <div class="form__actions">
+                <button class="button button--primary" type="submit">Save</button>
+                <a class="button button--text" href="/c/{{.Community.Slug}}">Cancel</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+{{template "ffoot" .}}

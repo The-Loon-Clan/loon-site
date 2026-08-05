@@ -417,6 +417,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Communities plugin seams (communities_web.go) — user-owned sub-forums at
+	// /c/*. Wired LAST of the gin-template plugins because its joins need
+	// users.avatar_path, users.points and users.reputation_tier, which the
+	// messages and points work added.
+	if err := wireCommunitiesPlugin(c, wsrv); err != nil {
+		logger.Error("communities wiring", "err", err)
+		os.Exit(1)
+	}
+
 	// Messages plugin seams (messages_web.go) — threaded DMs + admin
 	// announcements at /inbox. Distinct from /p/inbox, which is the baseline's
 	// NOTIFICATION inbox.

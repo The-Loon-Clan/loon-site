@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"os"
-	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
@@ -98,12 +97,16 @@ func wikiMarkdown(src string) template.HTML {
 	return template.HTML(sanitizeNewsHTML(buf.String()))
 }
 
-// wikiUploadRoot is where wiki image uploads land, and wikiUploadURL is the
-// path they are served under. Kept together because blob.NewLocal pairs them
-// and a mismatch shows up only as a broken image at render time.
 const (
-	wikiUploadRoot = "data/wiki-uploads"
-	wikiUploadURL  = "/uploads"
+	// uploadRoot is the on-disk parent for every user-uploaded image, and
+	// uploadURL is the path it is served under. Shared by the wiki and
+	// communities plugins: each saves into its OWN namespace beneath this
+	// (blob.Store.Save is called with a "wiki-uploads/…" or "communities/…"
+	// prefix), so one static route serves both and there is no second mount to
+	// keep in sync. Kept together because blob.NewLocal pairs them and a
+	// mismatch shows up only as a broken image at render time.
+	uploadRoot = "data"
+	uploadURL  = "/uploads"
 )
 
 // wireWikiPlugin installs the SetDeps seams and serves the upload directory.
@@ -115,19 +118,17 @@ func wireWikiPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 		}
 	}
 	// blob.NewLocal writes under root and reports URLs under the prefix; the
-	// plugin saves into a "wiki-uploads/" namespace beneath that, so the
-	// on-disk path ends up data/wiki-uploads/wiki-uploads/<uuid>.<ext>. Give it
-	// the parent so the served path matches what Save returns.
-	root := filepath.Dir(wikiUploadRoot)
-	if err := os.MkdirAll(root, 0o755); err != nil {
-		return fmt.Errorf("wiki upload dir: %w", err)
+	// plugin saves into a "wiki-uploads/" namespace beneath that, so passing
+	// the PARENT is what makes the served path match what Save returns.
+	if err := os.MkdirAll(uploadRoot, 0o755); err != nil {
+		return fmt.Errorf("upload dir: %w", err)
 	}
-	engine.Static(wikiUploadURL, root)
+	engine.Static(uploadURL, uploadRoot)
 
 	wiki.SetDeps(wiki.Deps{
 		BaseData: func(gc *gin.Context, extra gin.H) gin.H { return w.chromeData(gc, extra) },
 		Markdown: wikiMarkdown,
-		Files:    blob.NewLocal(root, wikiUploadURL),
+		Files:    blob.NewLocal(uploadRoot, uploadURL),
 	})
 	return nil
 }

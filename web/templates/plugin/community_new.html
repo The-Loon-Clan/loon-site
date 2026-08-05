@@ -1,0 +1,41 @@
+{{/* Create a community. Keys: Error, Slug, Name, Description — the last three
+     are the handler ECHOING the rejected input back, so the form must repopulate
+     from them or a validation failure loses what the user typed.
+     Form: POST /c  slug name description */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/c">Communities</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">New</li>
+</ol>
+
+{{if .Error}}<div class="notice notice--danger">{{.Error}}</div>{{end}}
+
+<section class="panelV2">
+    <header class="panel__header"><h1 class="panel__heading">Create a community</h1></header>
+    <div class="panel__body">
+        <form method="post" action="/c" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__group">
+                <label class="form__label" for="slug">Slug</label>
+                <input class="form__input" id="slug" name="slug" type="text" value="{{.Slug}}" required>
+                <p class="form__help">3–32 characters, starts with a letter, lowercase letters / digits / underscore / dash.</p>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="name">Name</label>
+                <input class="form__input" id="name" name="name" type="text" value="{{.Name}}" required>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="description">Description</label>
+                <textarea class="form__textarea" id="description" name="description" rows="4">{{.Description}}</textarea>
+            </div>
+            <div class="form__actions">
+                <button class="button button--primary" type="submit">Create</button>
+                <a class="button button--text" href="/c">Cancel</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+{{template "ffoot" .}}

@@ -285,11 +285,46 @@ Remaining, cheapest first:
 | `store` | **wired** | — | `/store`, `/store/history`, `/admin/store` |
 | `donations` | 3 | BaseData, Settings, IsDonateEnabled, LookupUsername/UserID | Needs BTCPay — see §5c |
 | `tickets` | **wired** | — | `/support`, `/admin/tickets` |
-| `communities` | 7 | + Markdown, Files, Pagination | Biggest; no UNIT3D equivalent |
+| `communities` | **wired, BLOCKED** | — | Schema mismatch on `users.role` — see §5d |
 | `anidbscraper` | 0 | Catalog, Nzbs, Matcher, Covers | We have Catalog + Covers already |
 | `backup` | 0 (ships `backup.html`) | DB, Config, FreeDisk, DBSize, Classes, Root, DBDumpDir | Distinct from the wired `backups` |
 | `dbmaint` | 0 | Diag, StatCache, Nzbs, Maintenance, ConfigStore, FreeDisk, Repack | Usenet ops surface |
 | `economy` | 0 | PointsPerGrab, UploaderGrabTotals, GrabsAlreadyCredited | **Blocked — see §5c** |
+
+## 5d. BLOCKED: communities and the users.role shape
+
+`communities` is fully wired — 8 tables migrated, 5 seams supplied, 7 host
+templates written and passing the execute sweep. `/c` and `/c/new` render, and
+creating a community works. **`/c/:slug` 500s**, and it is not a bug in any of
+that work:
+
+```
+pq: invalid input syntax for type integer: "user"
+```
+
+Four of the plugin's queries do `COALESCE(u.role, 'user')` — they assume the
+HOST's `users.role` is TEXT holding a role name. This host stores
+`role INTEGER`, the `core.Role` enum, and comparing the two is a type error in
+Postgres.
+
+This is a shape mismatch between the plugin's origin host and this one, not
+something either side got wrong. The options, none of which is a small edit:
+
+1. **Plugin-side seam.** The cleanest: the plugin takes a role resolver in
+   `Deps` (it already takes five others) and stops assuming a column shape.
+   Everything else it needs from `users` it reads through plain columns.
+2. **Plugin-side column.** Select `role_name` and let each host provide it.
+   Same idea, less flexible.
+3. **Host-side schema change.** Move this host to text roles. Rejected:
+   `core.Role` is an ordered enum and `AtLeast` compares it numerically, so a
+   text column would break every permission check in the stack for one plugin.
+
+It runs on a live site whose users table already satisfies the assumption, so
+**do not "fix" the plugin without checking there first** — a change here could
+break production there.
+
+Everything else about the wiring is done and correct, so this becomes a
+one-line change the day the seam exists.
 
 ## 5c. Missing features — what blocks a plugin we cannot simply wire
 
