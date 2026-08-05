@@ -349,8 +349,10 @@ func main() {
 	}
 
 	// Forum plugin seams + its gin-side templates (forum_web.go). Before
-	// Boot: SetDeps is checked at Provision.
-	if err := wireForumPlugin(c, engine); err != nil {
+	// Boot: SetDeps is checked at Provision. wsrv is passed so the plugin's
+	// pages get the host's chrome data (nav, theme, viewer tiles) from the
+	// SAME function render() uses — see chromeData.
+	if err := wireForumPlugin(c, engine, wsrv); err != nil {
 		logger.Error("forum wiring", "err", err)
 		os.Exit(1)
 	}

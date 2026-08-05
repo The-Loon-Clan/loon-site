@@ -44,18 +44,8 @@ services:
       # 2x0000000000000000000000000000000AA (always fail).
       TURNSTILE_SITEKEY: "${TURNSTILE_SITEKEY:-}"
       TURNSTILE_SECRET: "${TURNSTILE_SECRET:-}"
-      # UI dev loop. Templates and static assets are normally embedded in the
-      # binary, so a stylesheet tweak costs a full image rebuild. Set this and
-      # the site reads web/ from the bind mount below and re-parses templates
-      # per request instead — edit, refresh, done:
-      #   LOON_DEMO_DEV=1 docker compose up -d
-      # Leave it unset for anything resembling production: the embedded copy is
-      # what makes the distroless runtime image work with no filesystem at all.
-      LOON_DEMO_DEV: "${LOON_DEMO_DEV:-}"
-    volumes:
-      # Read-only, and inert unless LOON_DEMO_DEV=1 is set above. Mounted at /web
-      # because the image sets no WORKDIR, so the binary's os.DirFS(".") is /.
-      - ./web:/web:ro
+      # The UI dev loop (edit web/, refresh, no rebuild) lives in
+      # compose.dev.yml, NOT here — see that file for why.
     ports:
       - "8090:8090"
     depends_on:

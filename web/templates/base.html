@@ -1,5 +1,9 @@
 <!doctype html>
-<html lang="en">
+{{/* data-theme carries the resolved theme SLUG (theme.go's allowlisted
+     .Theme.Key, never the raw cookie) so a stylesheet can key off the document
+     element as well as off the token file site-head links. Same attribute on
+     the forum set's fhead. */}}
+<html lang="en" data-theme="{{.Theme.Key}}">
 <head>
     {{/* site-head leads with <meta charset>, so it goes before <title> — the
          title carries an em dash and must not be sniffed as anything else. */}}
@@ -9,7 +13,9 @@
 <body>
 {{template "site-sprite" .}}
 {{template "site-header" .}}
-    <main class="main-margin py-4">
+    {{/* id is site_chrome.html's skip-link target — keep it in step with the
+         forum set's fhead, which carries the same <main id>. */}}
+    <main class="main-margin py-4" id="main-content">
         <article>
             {{block "breadcrumbs" .}}{{end}}
             {{/* A <div>, not a <p>: the resend <form> inside would auto-close a

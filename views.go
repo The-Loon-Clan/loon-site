@@ -406,6 +406,10 @@ func (w *web) mount(e *gin.Engine) {
 	e.POST("/verify/resend", w.resendVerify)
 	e.GET("/u/:name", w.profilePage)
 	e.POST("/logout", w.logout)
+	// Theme switcher (theme.go). POST + CSRF like every other state-changing
+	// form here; the preference is a cookie, so it works for anonymous
+	// visitors too and sits outside any auth group.
+	e.POST(themeRoute, w.setTheme)
 }
 
 // profilePage renders a user's public profile: it resolves the subject by name,
@@ -446,7 +450,23 @@ func (w *web) profilePage(c *gin.Context) {
 	})
 }
 
-func (w *web) render(c *gin.Context, page string, data map[string]any) {
+// chromeData fills everything the SHARED site chrome (site_chrome.html) reads,
+// for any page in either template set.
+//
+// This exists because there are TWO render paths into the same chrome — this
+// file's render() for host pages, and forum.Deps.BaseData (forum_web.go) for
+// the plugin's own documents — and they had drifted: BaseData supplied five
+// keys where render() supplied ten, so for the SAME signed-in user the forum
+// rendered 13 nav links, 3 stat tiles and no bell badge where the home page
+// rendered 25, 8 and a badge. Nothing errored; the chrome just degraded, and
+// half the site quietly became a different site. Both callers now go through
+// here, so the two CANNOT diverge again without editing this function.
+//
+// Every key is either always-set (User, IsAdmin, IsMod, CSRFToken, Path,
+// AdminNav, SiteNav, Theme, Themes) or explicitly optional with a Has*
+// sentinel. Optional keys stay ABSENT rather than zero — see the note on
+// HasPoints/HasUnread below.
+func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	if data == nil {
 		data = map[string]any{}
 	}
@@ -456,6 +476,9 @@ func (w *web) render(c *gin.Context, page string, data map[string]any) {
 	// /admin/* routes sit behind Require(RoleAdmin), so a plain user
 	// clicking them lands on a 403 JSON blob instead of a page.
 	data["IsAdmin"] = u != nil && u.AtLeast(core.RoleAdmin)
+	// The forum's moderation routes (pin/lock, category admin) gate at RoleMod
+	// — templates must show those buttons to the role that can use them.
+	data["IsMod"] = u != nil && u.AtLeast(core.RoleMod)
 	data["CSRFToken"] = csrfToken(c) // hidden _csrf field for every POST form
 	if u != nil {
 		// Viewer identity bits the user panel + top bar show. Both come off the
@@ -476,8 +499,10 @@ func (w *web) render(c *gin.Context, page string, data map[string]any) {
 			}
 		}
 		// unverified-email banner: look up the full record (core.User omits the flag)
-		if full, err := w.store.ByID(c.Request.Context(), u.ID); err == nil && full != nil {
-			data["EmailUnverified"] = full.Email != "" && !full.EmailVerified
+		if w.store != nil {
+			if full, err := w.store.ByID(c.Request.Context(), u.ID); err == nil && full != nil {
+				data["EmailUnverified"] = full.Email != "" && !full.EmailVerified
+			}
 		}
 		if w.inbox != nil {
 			if n, err := w.inbox.UnreadCount(c.Request.Context(), u.ID); err == nil {
@@ -487,8 +512,36 @@ func (w *web) render(c *gin.Context, page string, data map[string]any) {
 		}
 	}
 	data["Path"] = c.Request.URL.Path
+	// PathQuery is Path PLUS the query string: the "send me back exactly here"
+	// target for the theme switcher's hidden next field. It has to be a SECOND
+	// key rather than a richer Path, because every nav active-state comparison
+	// matches Path against a literal href ({{if eq .Path "/browse"}}, the
+	// /community/forums and /admin/ prefix slices) — a query on Path would
+	// silently unhighlight the current tab on /browse?cat=5000.
+	//
+	// Without it the switcher posted the bare path, and theme.go backLink()
+	// prefers next over the Referer, so applying a theme on /search?q=foo landed
+	// on /search: the hidden field actively replaced a recoverable target with a
+	// lossy one. RequestURI() is EscapedPath + "?" + RawQuery, i.e. already the
+	// rooted same-origin form backLink() accepts.
+	data["PathQuery"] = c.Request.URL.RequestURI()
 	data["AdminNav"] = w.adminNav
 	data["SiteNav"] = w.siteNav(c) // plugin site pages the viewer may open
+	// Theme is resolved from an allowlist (theme.go): the cookie value never
+	// reaches the page, only the matching entry does — the head prints
+	// .Theme.Href, which is a constant. Both keys are ALWAYS set: the
+	// stylesheet link is unconditional and the switcher compares each
+	// .Themes entry's Key against .Theme.Key, and a field lookup (or `eq`)
+	// against an ABSENT key is an execute error, not a false. A forum page
+	// without them would render unthemed — exactly the drift this function
+	// exists to prevent.
+	data["Theme"] = currentTheme(c) // themeOption: .Key .Label .Href
+	data["Themes"] = siteThemes     // the allowlist itself, in menu order
+	return data
+}
+
+func (w *web) render(c *gin.Context, page string, data map[string]any) {
+	data = w.chromeData(c, data)
 	t := w.tmpls[page]
 	if t == nil {
 		c.String(http.StatusInternalServerError, "unknown page %q", page)
@@ -511,25 +564,92 @@ func (w *web) render(c *gin.Context, page string, data map[string]any) {
 	}
 }
 
-// home renders the front page. Every panel is OPTIONAL: each block below is
-// guarded so a missing capability (no usenet plugin, no catalog, no forum) or a
-// failed read just leaves its key out and the template drops that section —
-// nothing here can turn a slow or unconfigured dependency into a 500.
+// ── home page: the block stack ──────────────────────────────────────
+//
+// UNIT3D's home/index.blade.php is nothing but a foreach over a configurable
+// $blocks list (HomeController: an ordered slice, filtered by a per-user
+// visible flag) with one @include per block. This is the same shape in Go: an
+// ordered slice of names, filtered down to the blocks whose data actually
+// resolved, handed to the template as .Blocks.
+//
+// Go templates cannot take a dynamic template name ({{template .Name}} is a
+// compile error), so the page template switches on .Name the way the blade
+// switches on $block. Adding a block is four edits: a const, an entry in
+// homeBlockOrder, a line in home() that fills its data, and an arm in the
+// template's range.
+
+const (
+	blockWidgets        = "widgets"         // SlotSiteWidget fragments (plugin-injected)
+	blockFeatured       = "featured"        // poster carousel — UNIT3D's featured
+	blockLatestReleases = "latest_releases" // the listing table — UNIT3D's top_torrents
+	blockNoReleases     = "no_releases"     // that table's EMPTY state; Data is Configured
+	blockTopGroups      = "top_groups"      // busiest newsgroups (no UNIT3D analogue)
+	blockLatestTopics   = "latest_topics"   // forum threads — UNIT3D's latest_topics
+	blockTopPosters     = "top_posters"     // forum posters — UNIT3D's top_users
+)
+
+// homeBlockOrder is the demo's $blocks: the render order of the single-column
+// stack. Widgets lead (the slot a plugin uses for announcements, so it stands
+// where UNIT3D puts news), then the indexer's own content, then the community
+// panels — UNIT3D's own ordering of torrents-before-forum.
+var homeBlockOrder = []string{
+	blockWidgets,
+	blockFeatured,
+	blockLatestReleases,
+	blockNoReleases, // mutually exclusive with the one above; same slot either way
+	blockTopGroups,
+	blockLatestTopics,
+	blockTopPosters,
+}
+
+// homeBlock is one section of the stack. Data is the block's own view model —
+// []widgetVM, []searchRow, []groupRowVM, []forumThreadVM, []forumPosterVM, or
+// (for blockNoReleases) the Configured bool — depending on Name.
+type homeBlock struct {
+	Name string
+	Data any
+}
+
+// orderedBlocks filters the fixed order down to the blocks that actually have
+// content, so the template never has to guard a section: everything in the
+// returned slice is renderable. A name with no entry in content is simply
+// dropped — that is how a missing usenet/catalog/forum capability degrades.
+func orderedBlocks(content map[string]any) []homeBlock {
+	out := make([]homeBlock, 0, len(homeBlockOrder))
+	for _, name := range homeBlockOrder {
+		if d, ok := content[name]; ok {
+			out = append(out, homeBlock{Name: name, Data: d})
+		}
+	}
+	return out
+}
+
+// home renders the front page as that stack. Every block is OPTIONAL: each read
+// below is guarded so a missing capability (no usenet plugin, no catalog, no
+// forum) or a failed read just omits the block — nothing here can turn a slow
+// or unconfigured dependency into a 500. The releases slot is the exception:
+// when it resolves nothing it emits blockNoReleases instead, so the setup
+// guidance is never crowded out by whatever else happens to have rows.
 //
 // Caching: everything shared between viewers (release rows + their covers, the
-// category list, the group figures, the forum panels) goes through the
+// category count, the group figures, the forum panels) goes through the
 // short-TTL page cache under its own key. Per-viewer values — points, unread,
-// role, member-since — are injected by render() and are NEVER written to a
-// shared key. The X-Cache header reports the release block, the one read that
-// dominates the page.
+// role, member-since — are injected by chromeData() and are NEVER written to a
+// shared key. Widgets are per-viewer too (each view is role-gated), so they are
+// rendered live, not cached. The X-Cache header reports the release block, the
+// one read that dominates the page.
 func (w *web) home(c *gin.Context) {
 	ctx := c.Request.Context()
-	data := map[string]any{
-		"Title":   "Home",
-		"Widgets": w.homeWidgets(c),
-		// Configured separates "no indexer plugin in this build" from "the
-		// indexer is up but has nothing yet", which are different empty states.
-		"Configured": w.usenet != nil,
+	// No page-level "Configured": the flag that separates "no indexer plugin in
+	// this build" from "the indexer is up but has nothing yet" now rides with
+	// blockNoReleases as its Data, like every other block's view model.
+	data := map[string]any{"Title": "Home"}
+
+	// block name -> its view model. A block with no entry never renders.
+	content := map[string]any{}
+
+	if ws := w.homeWidgets(c); len(ws) > 0 {
+		content[blockWidgets] = ws
 	}
 
 	var stats siteStatsVM
@@ -539,18 +659,23 @@ func (w *web) home(c *gin.Context) {
 		rows, hit := w.homeReleases(ctx)
 		c.Header("X-Cache", map[bool]string{true: "hit", false: "miss"}[hit])
 		if len(rows) > 0 {
-			data["Recent"] = capRows(rows, homeTableRows)       // the main listing table
-			data["Featured"] = featuredRows(rows, homeFeatured) // the poster strip
+			content[blockLatestReleases] = capRows(rows, homeTableRows)
+			content[blockFeatured] = featuredRows(rows, homeFeatured)
 		}
 		if gs, ok := w.homeGroups(ctx); ok {
 			stats, haveStats = gs.Stats, true
-			data["TopGroups"] = gs.Top
+			if len(gs.Top) > 0 {
+				content[blockTopGroups] = gs.Top
+			}
 		}
 	}
 
+	// The catalog read survives ONLY as a stat-strip figure. The genre pills it
+	// used to fill were mockup furniture and are gone; /browse still reads the
+	// taxonomy through its own path (browse() → catalog.Enabled), so nothing
+	// about category browsing depends on this call.
 	if w.catalog != nil {
 		if cats, ok := w.homeCategories(ctx); ok {
-			data["Categories"] = cats // tab row + genre pills
 			stats.Categories, haveStats = len(cats), true
 		}
 	}
@@ -560,13 +685,29 @@ func (w *web) home(c *gin.Context) {
 
 	if fv, ok := w.homeForum(ctx); ok {
 		if len(fv.Threads) > 0 {
-			data["ForumThreads"] = fv.Threads
+			content[blockLatestTopics] = fv.Threads
 		}
 		if len(fv.Posters) > 0 {
-			data["ForumPosters"] = fv.Posters
+			content[blockTopPosters] = fv.Posters
 		}
 	}
 
+	// The releases panel is this page's reason to exist, so when nothing
+	// resolved for it, it renders as its OWN empty state rather than vanishing.
+	// That guidance used to hang off {{range}}'s else arm — reachable only when
+	// the ENTIRE stack was empty — so a build with no indexer but a seeded forum
+	// (which always has rows) silently dropped the one line telling an admin
+	// where to add one. Its Data is the bool the two messages differ on: an
+	// indexer that is wired but empty is not the same case as no indexer at all.
+	if _, ok := content[blockLatestReleases]; !ok {
+		content[blockNoReleases] = w.usenet != nil
+	}
+
+	// Always set: the template ranges over it unguarded, and {{range}} over an
+	// ABSENT map key is an execute error that truncates the page mid-document.
+	// It can no longer be EMPTY — the releases slot always fills one way or the
+	// other — but nothing here relies on that.
+	data["Blocks"] = orderedBlocks(content)
 	w.render(c, "home.html", data)
 }
 

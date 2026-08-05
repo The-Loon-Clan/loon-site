@@ -28,6 +28,19 @@ Open **http://localhost:8090/** and log in as **alice** (admin) or **bob** (user
 > `loon-plugins` as sibling checkouts via BuildKit named contexts, so keep them
 > checked out next to this repo. (That requirement drops once loon tags releases.)
 
+### Working on the UI
+
+Templates and stylesheets are compiled into the binary (`//go:embed`), which is
+what lets the runtime image be distroless — but it also means a one-line CSS
+tweak costs a full rebuild. For UI work, add the dev overlay:
+
+```
+docker compose -f docker-compose.yml -f compose.dev.yml up -d
+```
+
+That mounts `web/` and re-parses templates per request, so edits under
+`web/templates/` and `web/static/` show up on refresh. See `compose.dev.yml`.
+
 ### Index some Usenet
 
 1. Log in as **alice** → **Settings** (`/admin/settings`, the Usenet section is the setup wizard).

@@ -121,15 +121,20 @@ func (w *web) attachCovers(ctx context.Context, rows []searchRow) {
 
 // ── home page: catalog-derived blocks ───────────────────────────────
 
-// homeCatsKey caches the enabled taxonomy for the home page's tab row + genre
-// pills. The set only changes when an admin toggles a category, so the TTL is
-// generous compared to the release blocks.
+// homeCatsKey caches the enabled taxonomy for the home page. The set only
+// changes when an admin toggles a category, so the TTL is generous compared to
+// the release blocks.
 const homeCatsKey = "home:cats:v1"
 
 // homeCategories returns the admin-enabled top-level categories (each with its
-// subcats). ok is false when the read failed or nothing is enabled — the
-// caller then omits the tab row and the pills rather than rendering an empty
-// strip.
+// subcats). ok is false when the read failed or nothing is enabled.
+//
+// The home page now uses only the COUNT of these, for the stat strip's
+// "Categories" tile — the genre-pill row this used to fill was mockup furniture
+// and is gone with the UNIT3D block stack. /browse reads the taxonomy through
+// its own path (browse() → catalog.Enabled), so category browsing does not
+// depend on this call and the list is still returned in full for any caller
+// that wants it.
 func (w *web) homeCategories(ctx context.Context) ([]pluginapi.Category, bool) {
 	var cats []pluginapi.Category
 	if w.cacheGet(ctx, homeCatsKey, &cats) {

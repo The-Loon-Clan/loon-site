@@ -9,14 +9,18 @@
      name explicitly, web/templates/site_chrome.html. This file holds only the
      forum-specific wrappers around it.
 
-     Data keys come from the plugin + Deps.BaseData (forum_web.go): User,
-     IsAdmin, IsMod, CSRFToken, Path, plus per-page keys. Points, Unread,
-     SiteNav and AdminNav are NOT supplied there; the chrome degrades to
-     hiding those tiles/menus rather than erroring, because both sides feed it
-     a map and a missing key reads as absent. */}}
+     Deps.BaseData (forum_web.go) runs the HOST's chromeData (views.go), so
+     these pages get exactly the chrome data render() supplies — the site nav,
+     the admin subnav, the theme and the viewer tiles included — with the
+     plugin's per-page keys merged on top. The Has*-guarded optionals (Points,
+     Unread) are absent rather than zero when their service is unwired, on this
+     side and the host's alike. */}}
 
 {{define "fhead"}}<!doctype html>
-<html lang="en">
+{{/* Same data-theme base.html carries — chromeData() supplies .Theme on this
+     side too (forum_web.go BaseData runs through it), so the forum pages theme
+     themselves without a second code path. */}}
+<html lang="en" data-theme="{{.Theme.Key}}">
 <head>
     {{/* site-head leads with <meta charset>, so it goes before <title> — the
          title carries an em dash and must not be sniffed as anything else. */}}
@@ -26,7 +30,9 @@
 <body>
 {{template "site-sprite" .}}
 {{template "site-header" .}}
-    <main class="main-margin py-4">
+    {{/* Same id base.html uses — site_chrome.html's skip link is shared by both
+         parse sets, so its target has to exist on both. */}}
+    <main class="main-margin py-4" id="main-content">
         <article>
 {{end}}
 

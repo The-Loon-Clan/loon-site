@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io/fs"
 	"log/slog"
+	"path"
 	"sort"
 	"strings"
 	"testing"
@@ -178,20 +179,22 @@ func TestForumTemplatesParse(t *testing.T) {
 	}
 	assertInvocationsResolve(t, "forum set", tmpl)
 
-	// Execute each forum page with ONLY what forum.Deps.BaseData supplies. The
+	// Execute each forum page with ONLY what forum.Deps.BaseData supplies —
+	// which, since the chrome-parity fix, is exactly chromeData's always-set
+	// keys (forum_web.go BaseData calls the host's chromeData, the same
+	// function render() calls, so this list IS the host page list). The
 	// forum's own keys (Categories, Threads, Posts, Pagination …) are all
-	// legitimately empty on a fresh board, and Points/Unread/SiteNav/AdminNav
-	// are never supplied on this side at all — the shared chrome has to
-	// degrade rather than error. This is the path that broke before: {{len}}
-	// over an absent key aborts the render mid-document.
+	// legitimately empty on a fresh board, and the per-viewer optional keys
+	// (Points/Unread/RoleLabel/MemberSince/EmailUnverified) are still absent
+	// for a logged-out viewer — the shared chrome has to degrade rather than
+	// error. This is the path that broke before: {{len}} over an absent key
+	// aborts the render mid-document.
 	for _, page := range []string{
 		"community_forums.html", "community_category.html", "community_thread.html",
 		"community_new_thread.html", "admin_forum_categories.html",
 	} {
-		data := map[string]any{
-			"User": (*core.User)(nil), "IsAdmin": false, "IsMod": false,
-			"CSRFToken": "", "Path": "/community/forums",
-		}
+		data := chromeKeys()
+		data["Path"] = "/community/forums"
 		// community_thread.html is only ever reached for a thread that exists,
 		// so .Thread is structural, not optional (same contract as
 		// profile.html's .Subject). Everything else on the page — Posts,
@@ -328,9 +331,32 @@ func TestSpriteSymbolsCoverUses(t *testing.T) {
 //	admin_settings.html  Sections — admin_views.go renderSettingsPage always
 //	                     builds a (possibly empty) non-nil slice
 //	profile.html         exactly ONE of Missing / Subject — views.go profile
+//	home.html            Blocks — views.go home always sets the (possibly
+//	                     empty) ordered block list the page ranges over
 var structuralKeys = map[string]map[string]any{
 	"admin_settings.html": {"Sections": []settingsSection{}},
 	"profile.html":        {"Missing": true},
+	"home.html":           {"Blocks": []homeBlock{}},
+}
+
+// chromeKeys are the keys views.go chromeData sets on EVERY render, in both
+// template sets — the host's render() and the forum plugin's BaseData. They are
+// spelled out here (rather than derived) so the sweeps below render the same
+// shape production does, and so a key silently disappearing from chromeData
+// shows up as a template failure rather than as a quietly degraded page.
+func chromeKeys() map[string]any {
+	return map[string]any{
+		"User":      (*core.User)(nil),
+		"IsAdmin":   false,
+		"IsMod":     false,
+		"CSRFToken": "",
+		"Path":      "/",
+		"PathQuery": "/",
+		"AdminNav":  []navItem(nil),
+		"SiteNav":   []navNode(nil),
+		"Theme":     defaultTheme(),
+		"Themes":    siteThemes,
+	}
 }
 
 // TestPagesExecuteWithNoData renders every page with the keys render() always
@@ -348,14 +374,7 @@ func TestPagesExecuteWithNoData(t *testing.T) {
 		tmpl := template.Must(parseSet(w, page))
 
 		// Exactly what render() sets for a logged-out viewer.
-		data := map[string]any{
-			"User":      (*core.User)(nil),
-			"IsAdmin":   false,
-			"CSRFToken": "",
-			"Path":      "/",
-			"AdminNav":  []navItem(nil),
-			"SiteNav":   []siteNavEntry(nil),
-		}
+		data := chromeKeys()
 		for k, v := range structuralKeys[page] {
 			data[k] = v
 		}
@@ -378,13 +397,13 @@ func TestPagesExecuteForSignedInViewer(t *testing.T) {
 	u := &core.User{ID: 1, Username: "alice", Role: core.RoleAdmin, CreatedAt: time.Now().Add(-72 * time.Hour)}
 	for _, page := range pageTemplates {
 		tmpl := template.Must(parseSet(w, page))
-		data := map[string]any{
+		data := chromeKeys()
+		for k, v := range map[string]any{
 			"User":            u,
 			"IsAdmin":         true,
+			"IsMod":           true,
 			"CSRFToken":       "tok",
-			"Path":            "/",
 			"AdminNav":        []navItem{{Label: "Settings", Href: "/admin/settings"}},
-			"SiteNav":         []siteNavEntry(nil),
 			"RoleLabel":       roleName(u.Role),
 			"MemberSince":     u.CreatedAt,
 			"Points":          0,
@@ -392,6 +411,8 @@ func TestPagesExecuteForSignedInViewer(t *testing.T) {
 			"Unread":          0,
 			"HasUnread":       true,
 			"EmailUnverified": true,
+		} {
+			data[k] = v
 		}
 		for k, v := range structuralKeys[page] {
 			data[k] = v
@@ -441,23 +462,35 @@ func TestPagesExecuteWithRealData(t *testing.T) {
 		Author: "bob", Category: "General", CategoryID: 1, Replies: 4, LastPostAt: now.Add(-time.Hour), Pinned: true}}
 	posters := []forumPosterVM{{Rank: 1, UserID: 2, Username: "bob", URL: "/u/bob", Posts: 41}}
 
+	widgets := []widgetVM{{Title: "Guestbook", Fragment: template.HTML("<div class=\"card-body\">hi</div>")}}
+
 	viewer := func() map[string]any {
-		return map[string]any{
-			"User": u, "IsAdmin": true, "CSRFToken": "tok", "Path": "/",
+		data := chromeKeys()
+		for k, v := range map[string]any{
+			"User": u, "IsAdmin": true, "IsMod": true, "CSRFToken": "tok",
 			"AdminNav":  []navItem{{Label: "Settings", Href: "/admin/settings"}},
-			"SiteNav":   []siteNavEntry(nil),
 			"RoleLabel": roleName(u.Role), "MemberSince": u.CreatedAt,
 			"Points": 1250, "HasPoints": true, "Unread": 3, "HasUnread": true,
+		} {
+			data[k] = v
 		}
+		return data
 	}
 
 	cases := map[string]map[string]any{
+		// Built through the PRODUCTION orderedBlocks so the page is rendered
+		// with the same block order home() ships, and so every arm of the
+		// template's switch runs at least once.
 		"home.html": {
-			"Title": "Home", "Configured": true,
-			"Recent": rows, "Featured": rows,
-			"Stats": stats, "TopGroups": groups,
-			"ForumThreads": threads, "ForumPosters": posters,
-			"Widgets": []widgetVM{{Title: "Guestbook", Fragment: template.HTML("<div class=\"card-body\">hi</div>")}},
+			"Title": "Home", "Stats": stats,
+			"Blocks": orderedBlocks(map[string]any{
+				blockWidgets:        widgets,
+				blockFeatured:       rows,
+				blockLatestReleases: rows,
+				blockTopGroups:      groups,
+				blockLatestTopics:   threads,
+				blockTopPosters:     posters,
+			}),
 		},
 		"browse.html": {"Title": "Browse", "CatID": 5000, "CatName": "TV", "Results": rows, "Total": 4210},
 		"search.html": {"Title": "Search", "Q": "some show", "Results": rows},
@@ -532,5 +565,741 @@ func scanAttr(s, prefix string) []string {
 		}
 		out = append(out, s[start:start+k])
 		i = start + k
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Theme layer
+//
+// After the tokens/theme split, tokens.css DECLARES no visual value at all and
+// each theme file carries the COMPLETE visual set. That makes the theme layer
+// load-bearing in a way an override layer never was: a theme missing a token
+// silently drops that one property rather than inheriting a sane base.
+//
+// tokens.css does @import the DEFAULT theme, but only as the floor for pages
+// outside this app's chrome (loon's framework admin heads link bootstrap +
+// tokens.css + theme.css and nothing else). It is not a base layer for our own
+// pages: a linked theme sits later in the cascade and wins every property, so
+// the parity tests below still have to hold on their own.
+// ---------------------------------------------------------------------------
+
+// themeFSPath maps a themeOption.Href ("/static/css/themes/x.css") to its path
+// inside siteFS ("web/static/css/themes/x.css"). Href is a constant in
+// theme.go's allowlist, so this is the only place the two spellings meet.
+func themeFSPath(href string) string { return "web" + href }
+
+// cssStripComments removes /* … */ so a token mentioned in prose is not counted
+// as a declaration.
+func cssStripComments(s string) string {
+	for {
+		i := strings.Index(s, "/*")
+		if i < 0 {
+			return s
+		}
+		j := strings.Index(s[i:], "*/")
+		if j < 0 {
+			return s[:i]
+		}
+		s = s[:i] + s[i+j+len("*/"):]
+	}
+}
+
+// cssDeclaredTokens returns the custom properties a stylesheet DECLARES (the
+// left-hand side of `--name:`). A var(--name) reference has no colon after the
+// name, so references are not counted.
+func cssDeclaredTokens(src string) map[string]bool {
+	out := map[string]bool{}
+	s := cssStripComments(src)
+	for i := 0; ; {
+		j := strings.Index(s[i:], "--")
+		if j < 0 {
+			return out
+		}
+		start := i + j
+		k := start + 2
+		for k < len(s) && (s[k] == '-' || s[k] == '_' ||
+			(s[k] >= 'a' && s[k] <= 'z') || (s[k] >= 'A' && s[k] <= 'Z') ||
+			(s[k] >= '0' && s[k] <= '9')) {
+			k++
+		}
+		name := s[start:k]
+		// only a declaration if the next non-space character is ':'
+		e := k
+		for e < len(s) && (s[e] == ' ' || s[e] == '\t') {
+			e++
+		}
+		if e < len(s) && s[e] == ':' && name != "--" {
+			out[name] = true
+		}
+		i = k
+	}
+}
+
+// cssVarRefs returns every custom property a stylesheet READS via var(--x).
+func cssVarRefs(src string) []string { all, _ := cssScanVarRefs(src); return all }
+
+// cssRequiredVarRefs is cssVarRefs minus the references that carry a fallback.
+// The distinction matters: var(--x, 8px) still renders when --x is undefined,
+// while a bare var(--x) drops the whole DECLARATION. Only the bare form is a
+// hard requirement on the token set.
+func cssRequiredVarRefs(src string) []string { _, req := cssScanVarRefs(src); return req }
+
+// cssScanVarRefs is the one scanner behind both: it walks var( … ) and splits
+// the names by whether a comma (a fallback) followed the name or not.
+func cssScanVarRefs(src string) (all, required []string) {
+	s := cssStripComments(src)
+	const open = "var("
+	for i := 0; ; {
+		j := strings.Index(s[i:], open)
+		if j < 0 {
+			return all, required
+		}
+		start := i + j + len(open)
+		for start < len(s) && (s[start] == ' ' || s[start] == '\t') {
+			start++
+		}
+		k := start
+		for k < len(s) && s[k] != ',' && s[k] != ')' {
+			k++
+		}
+		name := strings.TrimSpace(s[start:k])
+		if strings.HasPrefix(name, "--") {
+			all = append(all, name)
+			if k < len(s) && s[k] == ')' {
+				required = append(required, name)
+			}
+		}
+		i = start
+	}
+}
+
+// cssImports returns the targets of every @import in a stylesheet, in source
+// order. Both spellings are recognised — @import url("x.css") and
+// @import "x.css" — because an import this scan MISSED would make the check
+// below quietly more lenient than a browser.
+func cssImports(src string) []string {
+	var out []string
+	s := cssStripComments(src)
+	for i := 0; ; {
+		j := strings.Index(s[i:], "@import")
+		if j < 0 {
+			return out
+		}
+		i += j + len("@import")
+		rest := strings.TrimSpace(s[i:])
+		rest = strings.TrimSpace(strings.TrimPrefix(rest, "url("))
+		if rest == "" {
+			continue
+		}
+		if q := rest[0]; q == '"' || q == '\'' {
+			if e := strings.IndexByte(rest[1:], q); e >= 0 {
+				out = append(out, rest[1:1+e])
+			}
+			continue
+		}
+		if e := strings.IndexAny(rest, ");"); e >= 0 {
+			out = append(out, strings.TrimSpace(rest[:e]))
+		}
+	}
+}
+
+// TestThemeStylesheetsExist guards the head's unconditional {{.Theme.Href}}:
+// every allowlist entry must resolve to a real file, or that theme renders an
+// unstyled page. Href is a literal in theme.go precisely so this is checkable.
+func TestThemeStylesheetsExist(t *testing.T) {
+	for _, th := range siteThemes {
+		b, err := fs.ReadFile(siteFS, themeFSPath(th.Href))
+		if err != nil {
+			t.Errorf("theme %q: %s is not readable: %v", th.Key, th.Href, err)
+			continue
+		}
+		if len(b) == 0 {
+			t.Errorf("theme %q: %s is empty", th.Key, th.Href)
+		}
+	}
+}
+
+// TestThemeFilesAreRootOnly enforces the one structural rule of the theme
+// layer: a theme file may contain nothing but :root. layout.css, components.css
+// and theme.css all load AFTER it, so any actual rule a theme tried to carry
+// would simply be overridden — silently, and only for that theme.
+func TestThemeFilesAreRootOnly(t *testing.T) {
+	for _, th := range siteThemes {
+		b, err := fs.ReadFile(siteFS, themeFSPath(th.Href))
+		if err != nil {
+			t.Fatalf("theme %q: %v", th.Key, err)
+		}
+		src := cssStripComments(string(b))
+		for i, prev := 0, 0; ; {
+			j := strings.IndexByte(src[i:], '{')
+			if j < 0 {
+				break
+			}
+			open := i + j
+			sel := strings.TrimSpace(src[prev:open])
+			if sel != ":root" {
+				t.Errorf("theme %q: contains a non-:root block %q — it would be overridden by the layers that load after it",
+					th.Key, sel)
+			}
+			end := strings.IndexByte(src[open:], '}')
+			if end < 0 {
+				t.Errorf("theme %q: unbalanced braces", th.Key)
+				break
+			}
+			i = open + end + 1
+			prev = i
+		}
+	}
+}
+
+// TestThemeFilesDeclareIdenticalTokenSets is the single most important check in
+// this file's theme half. Custom-property lookup fails SILENTLY: a var(--x)
+// with no --x in scope drops the declaration rather than erroring, so a token
+// present in two themes and missing from the third is invisible until someone
+// switches to that theme and notices one wrong colour.
+//
+// The three files must therefore declare exactly the same NAMES (the values are
+// what differ). A new token goes in all three, or in tokens.css if every theme
+// agrees on the value.
+func TestThemeFilesDeclareIdenticalTokenSets(t *testing.T) {
+	decls := map[string]map[string]bool{}
+	union := map[string]bool{}
+	for _, th := range siteThemes {
+		b, err := fs.ReadFile(siteFS, themeFSPath(th.Href))
+		if err != nil {
+			t.Fatalf("theme %q: %v", th.Key, err)
+		}
+		decls[th.Key] = cssDeclaredTokens(string(b))
+		for name := range decls[th.Key] {
+			union[name] = true
+		}
+	}
+	if len(union) == 0 {
+		t.Fatal("no tokens found in any theme — the scan is broken, not the CSS")
+	}
+	names := make([]string, 0, len(union))
+	for name := range union {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		for _, th := range siteThemes {
+			if !decls[th.Key][name] {
+				t.Errorf("token %s is declared by other themes but MISSING from %q — it silently falls back to nothing there",
+					name, th.Key)
+			}
+		}
+	}
+}
+
+// TestEveryReferencedTokenResolves walks every var(--x) in the consumer layers
+// and checks it is declared by tokens.css or by EACH theme. Same silent-failure
+// mode as the parity test, approached from the consumer side: it catches a rule
+// that reads a token no theme ever defined.
+func TestEveryReferencedTokenResolves(t *testing.T) {
+	consumers := []string{
+		"web/static/css/layout.css",
+		"web/static/css/components.css",
+		"web/static/css/theme.css",
+	}
+	base, err := fs.ReadFile(siteFS, "web/static/css/tokens.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	structural := cssDeclaredTokens(string(base))
+
+	type ref struct{ file, name string }
+	var refs []ref
+	for _, f := range consumers {
+		b, err := fs.ReadFile(siteFS, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range cssVarRefs(string(b)) {
+			refs = append(refs, ref{f, name})
+		}
+	}
+	if len(refs) == 0 {
+		t.Fatal("found no var() references — the scan is broken, not the CSS")
+	}
+	for _, th := range siteThemes {
+		b, err := fs.ReadFile(siteFS, themeFSPath(th.Href))
+		if err != nil {
+			t.Fatalf("theme %q: %v", th.Key, err)
+		}
+		themed := cssDeclaredTokens(string(b))
+		for _, r := range refs {
+			if structural[r.name] || themed[r.name] {
+				continue
+			}
+			t.Errorf("%s references %s, declared neither by tokens.css nor by theme %q",
+				r.file, r.name, th.Key)
+		}
+	}
+}
+
+// TestTokensAloneResolvesThemeCSS is the check the /admin/jobs/config bug
+// earned. Not every page that renders against theme.css is one of ours: loon's
+// framework admin pages build their own inline <head> and link exactly three
+// sheets —
+//
+//	bootstrap.min.css + tokens.css + theme.css
+//
+// (schedule/config_admin.go, schedule/admin.go, core/admin.go). They know
+// nothing about this app's theme allowlist and cannot read the viewer's cookie,
+// so THAT set is the whole cascade they get. When tokens.css declared no visual
+// value and imported nothing, 33 of the tokens theme.css reads resolved to
+// nothing: .bg-dark, .text-light, .card, every .alert and every border lost its
+// colour and /admin/jobs/config rendered black-on-white. tokens.css now
+// @imports the default theme to close that, and this test is what keeps it
+// closed — it models exactly what a browser loads from those three links.
+//
+// References with a fallback are excluded: var(--x, 8px) renders fine with no
+// --x, so only the bare form is a requirement.
+func TestTokensAloneResolvesThemeCSS(t *testing.T) {
+	const dir = "web/static/css"
+
+	base, err := fs.ReadFile(siteFS, dir+"/tokens.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Everything a browser has in scope after loading tokens.css by itself:
+	// its own declarations plus those of whatever it pulls in.
+	resolved := cssDeclaredTokens(string(base))
+	imports := cssImports(string(base))
+	if len(imports) == 0 {
+		t.Fatal("tokens.css @imports nothing — it declares no visual token either, so loon's three-link admin heads resolve none of theme.css's colours and render unstyled")
+	}
+	for _, imp := range imports {
+		b, err := fs.ReadFile(siteFS, path.Join(dir, imp))
+		if err != nil {
+			t.Fatalf("tokens.css @imports %q, which does not resolve to a file: %v", imp, err)
+		}
+		for name := range cssDeclaredTokens(string(b)) {
+			resolved[name] = true
+		}
+	}
+
+	tc, err := fs.ReadFile(siteFS, dir+"/theme.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	refs := cssRequiredVarRefs(string(tc))
+	if len(refs) == 0 {
+		t.Fatal("found no var() references in theme.css — the scan is broken, not the CSS")
+	}
+	seen := map[string]bool{}
+	var missing []string
+	for _, name := range refs {
+		if resolved[name] || seen[name] {
+			continue
+		}
+		seen[name] = true
+		missing = append(missing, name)
+	}
+	sort.Strings(missing)
+	for _, name := range missing {
+		t.Errorf("theme.css reads %s with no fallback, and tokens.css does not resolve it on its own — every loon admin page that links only bootstrap+tokens+theme.css renders that declaration unstyled", name)
+	}
+}
+
+// TestDefaultThemeIsTheImportedOne pins the OTHER half of that seam: the file
+// tokens.css imports must be the allowlist's default, or an un-themed framework
+// page and this app's own default page would disagree about what the site looks
+// like.
+func TestDefaultThemeIsTheImportedOne(t *testing.T) {
+	base, err := fs.ReadFile(siteFS, "web/static/css/tokens.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := themeFSPath(defaultTheme().Href) // web/static/css/themes/<default>.css
+	got := cssImports(string(base))
+	if len(got) != 1 {
+		t.Fatalf("tokens.css has %d @imports %v, want exactly 1 (the default theme)", len(got), got)
+	}
+	if p := path.Join("web/static/css", got[0]); p != want {
+		t.Errorf("tokens.css imports %q (%s), but theme.go's default is %s", got[0], p, want)
+	}
+}
+
+// wantSheetOrder is the stylesheet order site_chrome.html's "site-head" must
+// emit. Load-bearing in both directions: the theme has to come after tokens.css
+// and before the layers that consume it, and theme.css has to stay LAST because
+// its Bootstrap-subset utilities must beat the component defaults that loon's
+// admin pages and plugin-injected markup render against.
+var wantSheetOrder = []string{
+	"/static/css/bootstrap.min.css",
+	"/static/css/tokens.css",
+	"", // the active theme — filled in from .Theme.Href per case
+	"/static/css/layout.css",
+	"/static/css/components.css",
+	"/static/css/theme.css",
+}
+
+// TestStylesheetOrder renders the real head for every theme and asserts the
+// emitted <link> order — including that exactly ONE theme is linked (the themes
+// are complete token sets, so a second would silently win) and theme.css last.
+func TestStylesheetOrder(t *testing.T) {
+	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	tmpl := template.Must(parseSet(w, "home.html"))
+	for _, th := range siteThemes {
+		want := append([]string(nil), wantSheetOrder...)
+		want[2] = th.Href
+
+		data := chromeKeys()
+		data["Theme"] = th
+		for k, v := range structuralKeys["home.html"] {
+			data[k] = v
+		}
+		var buf bytes.Buffer
+		if err := tmpl.ExecuteTemplate(&buf, "base.html", data); err != nil {
+			t.Fatalf("theme %q: %v", th.Key, err)
+		}
+		got := scanAttr(buf.String(), `<link rel="stylesheet" href="`)
+		if len(got) != len(want) {
+			t.Fatalf("theme %q: got %d stylesheets %v, want %d %v", th.Key, len(got), got, len(want), want)
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("theme %q: stylesheet %d is %q, want %q (full order %v)", th.Key, i, got[i], want[i], got)
+			}
+		}
+		if got[len(got)-1] != "/static/css/theme.css" {
+			t.Errorf("theme %q: theme.css must be the LAST stylesheet, got %q", th.Key, got[len(got)-1])
+		}
+		n := 0
+		for _, href := range got {
+			if strings.Contains(href, "/themes/") {
+				n++
+			}
+		}
+		if n != 1 {
+			t.Errorf("theme %q: %d theme stylesheets linked, want exactly 1 (%v)", th.Key, n, got)
+		}
+	}
+}
+
+// TestHostileThemeNameNeverReachesThePage is the injection/traversal test at the
+// level that actually matters: the rendered document. theme_test.go proves
+// themeByName rejects hostile input; this proves the TEMPLATE cannot be made to
+// emit it even so, because the head prints a constant Href off the matched
+// allowlist entry rather than anything derived from the cookie.
+func TestHostileThemeNameNeverReachesThePage(t *testing.T) {
+	hostile := []string{
+		"../../etc/passwd",
+		"../../../../web/static/css/tokens.css",
+		"cosmic-void/../nord",
+		"cosmic-void/../../../../etc/shadow",
+		`x" onload="alert(1)`,
+		`" onerror="alert(1)`,
+		"nord'><script>alert(1)</script>",
+		"//evil.example/x.css",
+		"https://evil.example/x.css",
+		"data:text/css,body{display:none}",
+		"javascript:alert(1)",
+		"cosmic-void\x00nord",
+		"COSMIC-VOID",   // exact match only: no case folding
+		"  cosmic-void", // exact match only: no trimming
+		"cosmic-void ",
+		strings.Repeat("a", 4096),
+		"",
+	}
+	allowed := map[string]bool{}
+	for _, th := range siteThemes {
+		allowed[th.Href] = true
+	}
+
+	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	tmpl := template.Must(parseSet(w, "home.html"))
+
+	for _, name := range hostile {
+		// Exactly what chromeData does with the cookie value.
+		th := themeByName(name)
+		if !allowed[th.Href] {
+			t.Fatalf("themeByName(%q) resolved outside the allowlist: %+v", name, th)
+		}
+
+		data := chromeKeys()
+		data["Theme"] = th
+		for k, v := range structuralKeys["home.html"] {
+			data[k] = v
+		}
+		var buf bytes.Buffer
+		if err := tmpl.ExecuteTemplate(&buf, "base.html", data); err != nil {
+			t.Fatalf("theme %q: %v", name, err)
+		}
+		out := buf.String()
+
+		for _, href := range scanAttr(out, `<link rel="stylesheet" href="`) {
+			if strings.Contains(href, "/themes/") && !allowed[href] {
+				t.Errorf("input %q produced non-allowlisted stylesheet %q", name, href)
+			}
+		}
+		for _, key := range scanAttr(out, `data-theme="`) {
+			ok := false
+			for _, s := range siteThemes {
+				if s.Key == key {
+					ok = true
+				}
+			}
+			if !ok {
+				t.Errorf("input %q produced data-theme=%q, which is not an allowlist key", name, key)
+			}
+		}
+		// No fragment of the hostile string may appear anywhere. (Skip the
+		// inputs that are trivially substrings of the legitimate default.)
+		if len(name) > 8 && !strings.Contains("cosmic-void", strings.TrimSpace(name)) &&
+			strings.Contains(out, name) {
+			t.Errorf("input %q was echoed into the rendered page", name)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Home block stack
+// ---------------------------------------------------------------------------
+
+// homeBlockFixtures is one populated payload per block name, of the exact type
+// home() puts in homeBlock.Data. Keyed by the same constants views.go uses, so
+// a renamed block breaks compilation here rather than rendering nothing.
+func homeBlockFixtures() map[string]any {
+	now := time.Now()
+	rows := []searchRow{
+		{ID: 1, Title: "Some.Show.S01E02.1080p.WEB-DL.x264-GRP", Size: "1.4 GB", SizeBytes: 1503238553,
+			Posted: "2026-08-01", PostedAt: now.Add(-72 * time.Hour), Category: "TV/HD", CategoryID: 5040,
+			Group: "alt.binaries.tv", Resolution: "1080p", Source: "WEB-DL",
+			Cover: "https://image.tmdb.org/t/p/w300/x.jpg", Tags: []string{"1080p", "WEB-DL"}},
+		{ID: 2, Title: "[SubGrp] Another Title - 03", Size: "512 MB", SizeBytes: 536870912,
+			Posted: "—", Category: "TV/Anime", CategoryID: 5070, Group: "alt.binaries.anime"},
+	}
+	return map[string]any{
+		blockWidgets:        []widgetVM{{Title: "Guestbook", Fragment: template.HTML(`<div class="card-body">hi</div>`)}},
+		blockFeatured:       rows,
+		blockLatestReleases: rows,
+		blockTopGroups:      []groupRowVM{{Rank: 1, Name: "alt.binaries.tv", NZBs: 90210, URL: "/search?group=alt.binaries.tv"}},
+		blockLatestTopics: []forumThreadVM{{ID: 7, Title: "Welcome", URL: "/community/forums/thread/7",
+			Author: "bob", AuthorRole: "Member", Category: "General", CategoryID: 1,
+			Replies: 4, LastPostAt: now.Add(-time.Hour), Pinned: true}},
+		blockTopPosters: []forumPosterVM{{Rank: 1, UserID: 2, Username: "bob", Role: "Member", URL: "/u/bob", Posts: 41}},
+		// The releases slot's empty state. Its "payload" is the Configured bool,
+		// and in production it is mutually exclusive with blockLatestReleases —
+		// the tests that render the whole map at once are the only place both
+		// appear, which is fine: they assert per-block markers, not exclusivity.
+		blockNoReleases: true,
+	}
+}
+
+// renderHome executes home.html through base.html with the given block list.
+func renderHome(t *testing.T, blocks []homeBlock, extra map[string]any) string {
+	t.Helper()
+	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	tmpl := template.Must(parseSet(w, "home.html"))
+	data := chromeKeys()
+	data["Title"] = "Home"
+	data["Blocks"] = blocks
+	for k, v := range extra {
+		data[k] = v
+	}
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base.html", data); err != nil {
+		t.Fatalf("execute home.html: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "</html>") {
+		t.Fatal("render stopped early — no closing </html>")
+	}
+	if strings.Contains(out, "<no value>") {
+		t.Error("rendered a literal \"<no value>\" — a key the template reads is not set")
+	}
+	return out
+}
+
+// blockMarker is the class each block's <section> carries, so a test can assert
+// the arm actually RAN rather than that the page merely did not error.
+var blockMarker = map[string]string{
+	blockWidgets:        "blocks__widget",
+	blockFeatured:       "blocks__featured",
+	blockLatestReleases: "blocks__latest-releases",
+	// The empty state presents itself AS the releases panel, so it carries
+	// blocks__latest-releases too; blocks__no-releases is the class that tells
+	// the two apart. The "no other block appeared" checks below match on
+	// marker+'"', i.e. the last class in the attribute, which is why the empty
+	// state's own marker has to come last in its class list.
+	blockNoReleases:   "blocks__no-releases",
+	blockTopGroups:    "blocks__top-groups",
+	blockLatestTopics: "blocks__latest-topics",
+	blockTopPosters:   "blocks__top-posters",
+}
+
+// TestHomeBlockStackEachBlockAlone renders the page with exactly ONE block
+// present, for each block in turn. home() only emits a block whose data
+// resolved and is non-empty, so every subset of the stack is a real production
+// state — including the one where a plugin is the only thing wired up.
+func TestHomeBlockStackEachBlockAlone(t *testing.T) {
+	fixtures := homeBlockFixtures()
+	for _, name := range homeBlockOrder {
+		data, ok := fixtures[name]
+		if !ok {
+			t.Fatalf("block %q has no fixture — add one when adding a block", name)
+		}
+		out := renderHome(t, orderedBlocks(map[string]any{name: data}), nil)
+
+		marker := blockMarker[name]
+		if marker == "" {
+			t.Fatalf("block %q has no marker class registered", name)
+		}
+		if !strings.Contains(out, marker) {
+			t.Errorf("block %q rendered alone but its %q section is missing — the switch arm did not run",
+				name, marker)
+		}
+		for other, m := range blockMarker {
+			if other == name {
+				continue
+			}
+			if strings.Contains(out, m+`"`) {
+				t.Errorf("block %q rendered alone but %q also appeared", name, other)
+			}
+		}
+	}
+}
+
+// TestHomeBlockStackAllBlocks renders the full stack and asserts every arm ran
+// and that they appear in homeBlockOrder — the order IS the page design, and a
+// reordered switch in the template would otherwise go unnoticed.
+func TestHomeBlockStackAllBlocks(t *testing.T) {
+	out := renderHome(t, orderedBlocks(homeBlockFixtures()), map[string]any{
+		"Stats": siteStatsVM{Releases: 128394, Groups: 12, Categories: 6},
+	})
+	prev := -1
+	for _, name := range homeBlockOrder {
+		at := strings.Index(out, blockMarker[name])
+		if at < 0 {
+			t.Errorf("block %q is missing from the full stack", name)
+			continue
+		}
+		if at < prev {
+			t.Errorf("block %q renders out of homeBlockOrder", name)
+		}
+		prev = at
+	}
+}
+
+// TestHomeBlockStackEmpty is the other end: nothing resolved except the
+// releases slot's empty state, which home() emits whenever latest_releases came
+// back with no rows (no indexer in the build, or one that has not indexed
+// anything yet). The page must render that guidance, and — the rule this whole
+// indexer is built on — must not invent a single row it has no data for.
+//
+// Marker classes are deliberately NOT the probe here: "block-nothing-yet"
+// presents itself as the Latest releases panel with an empty body, so it
+// legitimately carries blocks__latest-releases. What must be absent is DATA.
+func TestHomeBlockStackEmpty(t *testing.T) {
+	// Markup that can only exist if a block actually had rows to render.
+	dataMarkers := []string{
+		"data-table__title",    // a release row
+		"carousel__item",       // a featured poster
+		"topic-listings__item", // a forum topic
+		"rank-chip",            // a top-groups / top-posters rank
+		"list-row__title",      // any populated list row
+	}
+	for _, configured := range []bool{true, false} {
+		out := renderHome(t, orderedBlocks(map[string]any{blockNoReleases: configured}), nil)
+		if !strings.Contains(out, "No releases.") {
+			t.Errorf("Configured=%v: empty stack rendered no empty state at all", configured)
+		}
+		for _, m := range dataMarkers {
+			if strings.Contains(out, m) {
+				t.Errorf("Configured=%v: empty stack rendered %q — the page invented data it does not have",
+					configured, m)
+			}
+		}
+		// The two causes get two different messages, both pointing at Setup.
+		wantsIndexerHint := strings.Contains(out, "no Usenet indexer")
+		if configured && wantsIndexerHint {
+			t.Error("Configured=true rendered the no-indexer message")
+		}
+		if !configured && !wantsIndexerHint {
+			t.Error("Configured=false did not render the no-indexer message")
+		}
+	}
+	// A nil slice is the same case as an empty one and must not panic. home()
+	// no longer produces one (the releases slot always fills), but the template
+	// must not depend on that.
+	renderHome(t, nil, nil)
+}
+
+// TestHomeEmptyStateSurvivesOtherBlocks is the regression that made no_releases
+// its own block. The guidance used to hang off {{range}}'s else arm, i.e. it
+// rendered only when the ENTIRE stack was empty — and the seeded forum always
+// has rows. So the single most common broken-install shape (no usenet plugin,
+// a working forum) showed latest topics and top posters and NOTHING telling an
+// admin where to add an indexer.
+func TestHomeEmptyStateSurvivesOtherBlocks(t *testing.T) {
+	fixtures := homeBlockFixtures()
+	// Exactly what home() builds with w.usenet == nil and a seeded forum.
+	out := renderHome(t, orderedBlocks(map[string]any{
+		blockNoReleases:   false, // Configured=false: no indexer in this build
+		blockLatestTopics: fixtures[blockLatestTopics],
+		blockTopPosters:   fixtures[blockTopPosters],
+	}), nil)
+
+	if !strings.Contains(out, "no Usenet indexer") {
+		t.Error("the forum blocks crowded out the no-indexer guidance — that is the bug this block exists to fix")
+	}
+	if !strings.Contains(out, blockMarker[blockNoReleases]) {
+		t.Errorf("the %q section is missing — its switch arm did not run", blockNoReleases)
+	}
+	// …and the panels that DID have rows still render alongside it.
+	for _, name := range []string{blockLatestTopics, blockTopPosters} {
+		if !strings.Contains(out, blockMarker[name]) {
+			t.Errorf("block %q stopped rendering once the empty state joined the stack", name)
+		}
+	}
+	// The empty state must still invent nothing: no release table, no posters.
+	for _, m := range []string{"data-table__title", "carousel__item"} {
+		if strings.Contains(out, m) {
+			t.Errorf("rendered %q with no releases at all", m)
+		}
+	}
+}
+
+// TestHomeBlockStackIgnoresUnknownNames pins the forward-compatibility half of
+// the contract: home.html dispatches on .Name, so a block Go starts emitting
+// before the template has an arm for it must render NOTHING rather than error
+// or leak its data. That is what lets a new block ship Go-side first.
+func TestHomeBlockStackIgnoresUnknownNames(t *testing.T) {
+	blocks := []homeBlock{
+		{Name: "not_a_real_block", Data: []string{"SENTINEL-VALUE"}},
+		{Name: blockTopGroups, Data: []groupRowVM{{Rank: 1, Name: "alt.binaries.tv", NZBs: 1, URL: "/x"}}},
+	}
+	out := renderHome(t, blocks, nil)
+	if strings.Contains(out, "SENTINEL-VALUE") {
+		t.Error("an unrecognised block leaked its data into the page")
+	}
+	if !strings.Contains(out, blockMarker[blockTopGroups]) {
+		t.Error("an unrecognised block stopped the blocks after it from rendering")
+	}
+}
+
+// TestHomeBlockOrderMatchesTemplateArms keeps the three places that must agree
+// in step: the block constants, homeBlockOrder, and the arms in home.html. A
+// block with no arm renders nothing at all, which is invisible in production.
+func TestHomeBlockOrderMatchesTemplateArms(t *testing.T) {
+	b, err := fs.ReadFile(siteFS, "web/templates/home.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := stripTmplComments(string(b))
+	for _, name := range homeBlockOrder {
+		if !strings.Contains(src, `eq .Name "`+name+`"`) {
+			t.Errorf("home.html has no {{if/else if eq .Name %q}} arm — the block would render nothing", name)
+		}
+		if _, ok := blockMarker[name]; !ok {
+			t.Errorf("block %q is in homeBlockOrder but has no marker registered in this test", name)
+		}
+	}
+	if len(blockMarker) != len(homeBlockOrder) {
+		t.Errorf("blockMarker has %d entries, homeBlockOrder has %d — they must list the same blocks",
+			len(blockMarker), len(homeBlockOrder))
 	}
 }

@@ -1,0 +1,305 @@
+/* COSMIC VOID — the default. Ported from UNIT3D's own theme:
+   resources/sass/themes/_cosmic-void.scss (read 2026-08, values below are that
+   file's, not an approximation of it).
+
+   Character: flat, square, dense, near-monochrome. Panels are #222 with a hard
+   3px rgba(14,21,34,.25) border and NO radius and NO shadow; headers are the
+   darker #19191b band; the only chromatic accent is UNIT3D's own interactive
+   blue (#2195f3, its --input-text-border-active / --label-fg-active), so
+   everything that is not a control reads greyscale.
+
+   UNIT3D's theme files also ship a handful of element rules (a {color}, .badge,
+   #frame …). Those are NOT copied: a theme file here is token-only, because it
+   loads before layout/components/theme and any selector it declared would lose
+   to them. Their intent is folded into tokens instead (a{color:#ddd} became
+   --link-fg).
+
+   Loads AFTER tokens.css and BEFORE layout.css. Exactly one theme at a time.
+   Token names and order mirror themes/midnight.css — keep the three in sync. */
+
+:root {
+    color-scheme: dark;
+
+    /* ---- raw palette ------------------------------------------------- */
+    /* UNIT3D --body-bg #222, --panel-head-bg/--data-table-th-bg #19191b:
+       "raised" in this theme is DARKER than the panel, not lighter. */
+    --bg: #222222;
+    --bg-sunken: #161618;
+    --surface: #222222;
+    --surface-2: #19191b;
+    --surface-3: #303030;
+    --bg-elevated: var(--surface-2);
+
+    --border: #404040;          /* UNIT3D --data-table-tr-border */
+    --border-strong: #555555;   /* UNIT3D --input-text-border / --fieldset-border */
+
+    --text: #dddddd;            /* UNIT3D's a{} and .text-bright */
+    --text-strong: #ffffff;
+    --muted: #aaaaaa;           /* --panel-action-fg / --alert-fg */
+    --muted-2: #888888;         /* --paginate-fg */
+
+    /* The one chromatic accent in an otherwise greyscale theme. */
+    --primary: #2195f3;
+    --primary-strong: #1877cc;
+    --primary-fg: #ffffff;
+    --primary-tint: #6cbcf7;
+    --primary-soft: rgba(33, 149, 243, 0.14);
+    --primary-soft-strong: rgba(33, 149, 243, 0.28);
+
+    --info: #58a6ff;            /* --bbcode-rendered-accent (github blue) */
+    --info-tint: #8ec1ff;
+    --success: #3fb618;         /* UNIT3D _dark-base .text-green */
+    --danger: #e0484f;
+    --warning: #ffb800;         /* --torrent-row-freeleech-fg */
+
+    --sheen: rgba(255, 255, 255, 0.06);
+    --scrim: rgba(0, 0, 0, 0.45);
+    --ink-on-image: rgba(255, 255, 255, 0.92);
+    --ink-on-image-muted: rgba(255, 255, 255, 0.6);
+    --row-stripe: rgba(255, 255, 255, 0.02);
+    --stripe-ink: rgba(255, 255, 255, 0.15);
+    --code-bg: rgba(110, 118, 129, 0.18);
+
+    --success-soft: color-mix(in srgb, var(--success) 32%, transparent);
+    --warning-soft: color-mix(in srgb, var(--warning) 32%, transparent);
+    --danger-soft: color-mix(in srgb, var(--danger) 32%, transparent);
+    --info-soft: color-mix(in srgb, var(--info) 32%, transparent);
+
+    /* ---- corners ------------------------------------------------------
+       Square everywhere structural (panels, tables, pagination, key-value);
+       controls keep UNIT3D's 5px, and its buttons/search are full pills. */
+    --radius-sm: 5px;
+    --radius: 5px;
+    --radius-lg: 0;
+    --radius-xl: 0;
+    --radius-pill: 999px;
+
+    /* ---- elevation ----------------------------------------------------
+       Panels are flat (--panel-box-shadow: none). These are the material
+       shadows UNIT3D keeps for things that genuinely float. */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow: 0 2px 1px -1px rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.14),
+        0 1px 3px 0 rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 12px 17px 2px rgba(0, 0, 0, 0.14), 0 5px 22px 4px rgba(0, 0, 0, 0.12),
+        0 7px 8px -4px rgba(0, 0, 0, 0.2);
+
+    --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--primary);
+
+    /* ---- semantic aliases (UNIT3D taxonomy) --------------------------- */
+    --body-bg: var(--bg);
+    --body-fg: var(--text);
+    --text-color: var(--text);
+    --text-muted: var(--muted);
+    --text-subtle: var(--muted-2);
+
+    --accent: var(--primary);
+    --accent-strong: var(--primary-strong);
+    --accent-fg: var(--primary-fg);
+    --accent-tint: var(--primary-tint);
+    --accent-soft: var(--primary-soft);
+    --accent-2: var(--info);
+    --accent-2-tint: var(--info-tint);
+
+    /* UNIT3D: a{color:#ddd}. Links are body-coloured; only hover lifts them. */
+    --link-fg: #dddddd;
+    --link-hover-fg: #ffffff;
+
+    --scrollbar-thumb: #3a3a3a;
+    --scrollbar-track: transparent;
+
+    /* ---- panelV2 ------------------------------------------------------ */
+    --panel-bg: #222222;
+    --panel-fg: var(--text);
+    --panel-border: 3px solid rgba(14, 21, 34, 0.25);
+    --panel-border-color: rgba(14, 21, 34, 0.25);
+    --panel-border-radius: 0;
+    --panel-head-border-radius: 0;
+    --panel-body-border-radius: 0;
+    --panel-box-shadow: none;
+    --panel-head-bg: #19191b;
+    --panel-head-fg: #ffffff;
+    --panel-head-border: none;  /* the head has its own bg; no rule needed */
+    --panel-action-fg: #aaaaaa;
+    --panel-group-fg: #888888;
+
+    /* Density. Dense: UNIT3D's panel head is 7px tall padding, ours keeps the
+       uppercase heading legible at 8px block / 12px inline. */
+    --panel-head-padding-block: 0;
+    --panel-head-padding-inline: var(--space-6);
+    --panel-heading-padding-block: var(--space-4);
+    --panel-heading-font-size: var(--fs-sm);
+    --panel-body-padding: var(--space-6);
+    --panel-body-font-size: var(--fs-base);
+
+    /* ---- data-table --------------------------------------------------- */
+    --data-table-fg: var(--text);
+    --data-table-padding: var(--space-3) var(--space-5);
+    --data-table-th-font-size: var(--fs-2xs);
+    --data-table-cell-font-size: var(--fs-md);
+    --data-table-border-radius: 0;
+    --data-table-th-bg: #19191b;
+    --data-table-th-fg: #aaaaaa;
+    --data-table-thead-border: none;
+    --data-table-tr-border: 1px solid #404040;
+    /* UNIT3D paints both stripes #222 — i.e. the panel colour. Transparent
+       gets the same result without pinning the rows to one background. */
+    --data-table-tr-odd-bg: transparent;
+    --data-table-tr-even-bg: transparent;
+    --data-table-tr-hover-bg: #282828;
+    --data-table-tfoot-border: 2px solid var(--border-strong);
+
+    /* ---- top nav ------------------------------------------------------ */
+    --top-nav-bg: #19191b;
+    --top-nav-fg: var(--text);
+    --top-nav-border: none;     /* UNIT3D separates with the shadow, not a rule */
+    --top-nav-box-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.2);
+    --top-nav-tagline-fg: #888888;
+    --top-nav-dropdown-menu-bg: #2a2a2c;
+    --top-nav-dropdown-menu-border: none;
+    --top-nav-dropdown-menu-border-radius: var(--radius-sm);
+    --top-nav-dropdown-menu-box-shadow: var(--shadow-lg);
+    --top-nav-dropdown-menu-item-fg: #bbbbbb;
+    --top-nav-dropdown-menu-item-hover-bg: #424242;
+    --top-nav-dropdown-menu-item-icon-fg: #cccccc;
+    --top-nav-icon-bar-icon-bg: #2a2a2c;
+    --top-nav-icon-bar-icon-fg: #bbbbbb;
+    --top-nav-icon-bar-icon-hover-bg: #424242;
+    --top-nav-icon-bar-icon-hover-fg: #ffffff;
+    --top-nav-icon-bar-icon-border-radius: 50%;
+    --top-nav-badge-bg: var(--danger);
+    --top-nav-badge-fg: #ffffff;
+
+    /* ---- quick search ------------------------------------------------- */
+    --quick-search-bg: #2c2c2e;
+    --quick-search-fg: #dddddd;
+    --quick-search-placeholder-fg: #777777;
+    --quick-search-border: 1px solid transparent;
+    --quick-search-border-radius: var(--radius-pill);
+    --quick-search-box-shadow: 0 4px 6px rgba(32, 33, 36, 0.28);
+    --quick-search-hotkey-bg: #3a3a3c;
+    --quick-search-hotkey-fg: #aaaaaa;
+
+    /* ---- secondary nav (the main icon+label row) ---------------------- */
+    --secondary-nav-bg: #292929;
+    --secondary-nav-box-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.2);
+    --secondary-nav-tab-fg: #aaaaaa;
+    --secondary-nav-tab-bg: transparent;
+    --secondary-nav-tab-hover-fg: #dddddd;
+    --secondary-nav-tab-hover-bg: transparent;
+    --secondary-nav-tab-active-fg: #ffffff;
+    --secondary-nav-tab-active-underline: #777777; /* UNIT3D: underline #777 2px */
+    --secondary-nav-tab-padding: var(--space-5) var(--space-6);
+    --secondary-nav-tab-menu-bg: #2a2a2c;
+    --secondary-nav-tab-menu-border: none;
+    --secondary-nav-tab-menu-border-radius: var(--radius-sm);
+    --secondary-nav-tab-menu-box-shadow: var(--shadow-lg);
+
+    /* ---- stat strip --------------------------------------------------- */
+    --stat-strip-bg: #19191b;
+    --stat-strip-border: 1px solid #303030;
+    --stat-strip-label-fg: #888888;
+    --stat-strip-value-fg: #dddddd;
+    --stat-strip-icon-fg: #aaaaaa;
+
+    /* ---- buttons ------------------------------------------------------
+       UNIT3D's buttons are pills in every dark theme, filled with plain #444
+       rather than the accent. */
+    --button-filled-bg: #444444;
+    --button-filled-fg: #dddddd;
+    --button-filled-border: none;
+    --button-outlined-bg: transparent;
+    --button-outlined-fg: var(--text);
+    --button-outlined-border: 1px solid #555555;
+    --button-text-fg: #aaaaaa;
+    --button-border-radius: var(--radius-pill);
+
+    /* ---- forms -------------------------------------------------------- */
+    --input-bg: #1b1b1d;
+    --input-fg: #bbbbbb;
+    --input-placeholder-fg: #777777;
+    --input-border: 1px solid #555555;
+    /* UNIT3D thickens to 2px on hover/focus and shaves a pixel of padding to
+       compensate; we hold 1px so nothing reflows under the cursor. */
+    --input-border-hover: 1px solid #999999;
+    --input-border-active: 1px solid #2195f3;
+    --input-border-radius: var(--radius-sm);
+    --label-fg: #aaaaaa;
+
+    /* ---- posters / chips ------------------------------------------ */
+
+    --poster-bg: #19191b;
+    --poster-radius: 0;
+    --poster-hue: 265;
+    /* Near-monochrome placeholder: the hue still varies per card, but at 12-16%
+       saturation it stays inside cosmic-void's greyscale. */
+    --poster-fallback-bg:
+        linear-gradient(115deg, var(--sheen) 0%, transparent 42%),
+        radial-gradient(120% 80% at 22% 6%, hsl(var(--poster-hue) 16% 30% / 0.9) 0%, transparent 62%),
+        linear-gradient(160deg, hsl(var(--poster-hue) 12% 22%) 0%, hsl(calc(var(--poster-hue) + 26) 10% 12%) 100%);
+    --avatar-fallback-bg: linear-gradient(150deg, hsl(var(--poster-hue) 14% 30%), hsl(calc(var(--poster-hue) + 30) 12% 19%));
+
+    --chip-bg: #19191b;
+    --chip-fg: #aaaaaa;
+    --chip-border: 1px solid #404040;
+
+    --pill-bg: #2c2c2e;
+    --pill-fg: #dddddd;
+    --pill-border: 1px solid #404040;
+    --pill-hover-bg: #303030;
+
+    --rank-chip-bg: #303030;
+    --rank-chip-fg: #aaaaaa;
+    --rank-1-bg: rgba(255, 184, 0, 0.16);
+    --rank-1-fg: #ffb800;
+    --rank-2-bg: rgba(204, 204, 204, 0.14);
+    --rank-2-fg: #cccccc;
+    --rank-3-bg: rgba(196, 122, 74, 0.16);
+    --rank-3-fg: #c47a4a;
+
+    /* ---- list rows ---------------------------------------------------- */
+    --list-row-padding: var(--space-4) var(--space-6);
+
+    /* ---- key-value / meta --------------------------------------------- */
+    --key-value-fg: var(--text);
+    --key-value-padding: var(--space-5);  /* UNIT3D: 10px */
+    --key-value-border-radius: 0;
+    --key-value-odd-bg: transparent;
+    --key-value-even-bg: rgba(255, 255, 255, 0.02);
+    --meta-chip-name-fg: #888888;
+    --meta-chip-value-fg: #dddddd;
+
+    /* ---- pagination --------------------------------------------------- */
+    --paginate-bg: #19191b;
+    --paginate-bg-hover: #222222;
+    --paginate-bg-current: #303030;
+    --paginate-fg: #aaaaaa;
+    --paginate-fg-disabled: #555555;
+    --paginate-divider: #303030;
+    --paginate-border-radius: 0;
+
+    /* ---- torrent-card --------------------------------------------- */
+    --torrent-card-bg: #222222;
+    --torrent-card-border: 3px solid rgba(14, 21, 34, 0.25);
+    --torrent-card-fg: var(--text);
+    --torrent-card-head-bg: #19191b;
+    --torrent-card-head-fg: #ffffff;
+
+    /* ---- footer ------------------------------------------------------- */
+    --footer-bg: #19191b;
+    --footer-fg: #aaaaaa;
+    --footer-heading-fg: #888888;
+    --footer-link-fg: #aaaaaa;
+    --footer-link-hover-fg: #ffffff;
+    --footer-hr-fg: #303030;
+    --footer-social-bg: #2a2a2c;
+    --footer-social-fg: #aaaaaa;
+    --footer-social-hover-bg: #444444;
+    --footer-social-hover-fg: #ffffff;
+
+    /* ---- Bootstrap-compat aliases ------------------------------------- */
+    --bs-secondary-color: var(--muted);
+    --bs-body-color: var(--text);
+    --bs-body-bg: var(--bg);
+    --bs-border-color: var(--border);
+    --bs-success: var(--success);
+}

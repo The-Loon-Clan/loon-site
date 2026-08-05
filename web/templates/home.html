@@ -1,24 +1,47 @@
 {{/* ===========================================================================
-     HOME — the front page.
+     HOME — UNIT3D's front page shape: layout/with-main (a SINGLE column, no
+     sidebar) wrapping nothing but a foreach over an ordered block list, one
+     include per block.
 
-     Every panel below is INDIVIDUALLY guarded on the key that backs it, because
-     views.go home() omits a key whenever its capability is missing or its read
-     failed (no usenet plugin → no Recent/Featured/Stats/TopGroups; no
-     catalog → no Categories and every .Cover is ""; forum not wired → no
-     ForumThreads/ForumPosters). A missing key must drop its whole section, not
-     render an empty shell.
+         home/index.blade.php    @foreach ($blocks as $block) @switch($block)
+         blocks/*.blade.php      <section class="panelV2 blocks__<name>">
 
-     Two structural rules worth knowing before editing:
-       • .sidebar2 > div carries max-width: calc(100% - 300px - 1rem)
-         UNCONDITIONALLY, so a .sidebar2 with no <aside> leaves 316px of dead
-         space. Only emit the wrapper when BOTH columns have content.
-       • hue() buckets 0..7, matching components.css's .poster--h0..h7.
+     The ordered list is .Blocks — []homeBlock, built by views.go orderedBlocks
+     from the fixed homeBlockOrder, exactly as UNIT3D's $blocks comes from
+     config. Nothing below hardcodes a sequence: add, drop or reorder a block by
+     editing that slice, not this file.
+
+     Two rules follow from how the host builds it, and they are why no section
+     below carries its own guard:
+
+       • PRESENCE is the host's call. orderedBlocks only emits a block whose
+         data actually resolved, so a missing capability (no usenet plugin, no
+         forum) and an empty read are the same case — the block is simply not in
+         the slice. Everything that IS in the slice is renderable.
+       • Each block's view model rides WITH it as .Data ([]widgetVM, []searchRow,
+         []groupRowVM, []forumThreadVM, []forumPosterVM — or, for no_releases,
+         the Configured bool — by .Name), so a block template receives its own
+         model as dot and reads no page-level key.
+
+     The one block that is not "present iff it has rows" is no_releases: the
+     releases slot always fills, with the table when there are rows and with the
+     empty state when there are not, so the setup guidance cannot be crowded out
+     by a forum panel that happens to have data. .Blocks therefore is never
+     empty and {{range}} needs no else arm.
+
+     Go templates cannot take a dynamic template name ({{template .Name}} does
+     not compile), so the range below switches on .Name the way the blade
+     switches on $block. An unknown name renders nothing, so the host can ship a
+     new block key before this file learns to draw it.
+
+     hue() buckets 0..7, matching components.css's .poster--h0..h7.
      =========================================================================== */}}
 
 {{/* ---------------------------------------------------------- stat strip --
-     Overrides base.html's {{block "stat-strip"}}: this page is the one place
-     that has the site-wide figures in hand. The viewer tiles base.html shows
-     are re-emitted here (via home-viewer-stats) so overriding costs nothing. */}}
+     Overrides site_chrome.html's {{block "stat-strip"}}: this page is the one
+     place that has the site-wide figures in hand. The viewer tiles the shared
+     strip shows are re-emitted here (via home-viewer-stats) so overriding
+     costs nothing. */}}
 {{define "stat-strip"}}
 {{- $any := false}}{{if .Stats}}{{$any = true}}{{end}}{{if .User}}{{$any = true}}{{end}}
 {{- if $any}}
@@ -63,9 +86,10 @@
 {{end}}
 {{end}}
 
-{{/* The viewer half of the strip. Same tiles base.html renders, same guards:
-     Points/Unread are absent (not zero) when their service is unwired, and a
-     template cannot tell an absent key from 0 — so a genuine zero hides too. */}}
+{{/* The viewer half of the strip. Same tiles the shared chrome renders, same
+     guards: Points/Unread are absent (not zero) when their service is unwired,
+     and a template cannot tell an absent key from 0 — so guard on the Has*
+     sentinel chromeData() sets, never on the value. */}}
 {{define "home-viewer-stats"}}
 {{- if .User}}
 <li class="stat-strip__item">
@@ -88,6 +112,122 @@
 </li>
 {{end}}
 {{end}}
+{{end}}
+
+{{/* ========================================================== block stack = */}}
+{{/* with-main.blade.php is one <article> around the @yield('main') stack, and
+     base.html already supplies that <article>. So "content" is the foreach and
+     nothing else — no hero banner, no quick-link tiles, no genre pills, no
+     .sidebar2 split. Each arm hands the block its OWN .Data as dot. */}}
+{{define "content"}}
+{{- range .Blocks}}
+    {{- if eq .Name "widgets"}}{{template "block-widgets" .Data}}
+    {{- else if eq .Name "featured"}}{{template "block-featured" .Data}}
+    {{- else if eq .Name "latest_releases"}}{{template "block-latest-releases" .Data}}
+    {{- else if eq .Name "no_releases"}}{{template "block-nothing-yet" .Data}}
+    {{- else if eq .Name "top_groups"}}{{template "block-top-groups" .Data}}
+    {{- else if eq .Name "latest_topics"}}{{template "block-latest-topics" .Data}}
+    {{- else if eq .Name "top_posters"}}{{template "block-top-posters" .Data}}
+    {{- end}}
+{{- end}}
+{{end}}{{/* content */}}
+
+
+{{/* ======================================================== nothing yet === */}}
+{{/* The releases panel's EMPTY state — a block of its own (no_releases), which
+     views.go emits in the releases slot whenever latest_releases resolved
+     nothing. It is deliberately not {{range}}'s else arm any more: that only
+     fired when the WHOLE stack was empty, so a build with no indexer but a
+     seeded forum lost this guidance entirely.
+
+     Dot is the Configured bool riding as .Data, per the "each block receives
+     its own view model" rule at the top of this file. Two causes, two messages,
+     both pointing an admin at the same place. Plain text inside .panel__body,
+     the treatment latest-topics.blade.php uses for "No topics."; the bordered
+     notice box the mockup had here is gone.
+
+     The section carries blocks__latest-releases because it IS that panel with
+     an empty body, plus blocks__no-releases so a test can tell the two apart. */}}
+{{define "block-nothing-yet"}}
+<section class="panelV2 blocks__latest-releases blocks__no-releases">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
+            Latest releases
+        </h2>
+    </header>
+    <div class="panel__body">
+        {{- if .}}
+        No releases. An admin sets up a Usenet server in <a href="/admin/settings#s-usenet">Setup</a> and enables a group, then releases appear here.
+        {{- else}}
+        No releases. This build has no Usenet indexer, so there is nothing to list — an admin adds one from <a href="/admin/settings#s-usenet">Setup</a>.
+        {{- end}}
+    </div>
+</section>
+{{end}}
+
+{{/* ============================================================= widgets == */}}
+{{/* SlotSiteWidget fragments the viewer may see. Plugins inject these and the
+     loop is LOAD-BEARING: dropping it silently breaks every plugin that ships a
+     home widget. One panelV2 per widget, straight into the single-column stack.
+     Dot is []widgetVM; .Fragment is pre-sanitised template.HTML from the view.
+
+     This block leads the stack because it is where a plugin puts an
+     announcement — the slot UNIT3D fills with blocks/news. */}}
+{{define "block-widgets"}}
+{{- range .}}
+<section class="panelV2 blocks__widget">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#store"></use></svg>{{.Title}}
+        </h2>
+    </header>
+    <div class="panel__body">{{.Fragment}}</div>
+</section>
+{{- end}}
+{{end}}
+
+{{/* ============================================================ featured == */}}
+{{/* blocks/featured.blade.php: a horizontal scroll strip whose prev/next
+     buttons live in .panel__actions — in the panel HEADER, not floating over
+     the track. Dot is []searchRow.
+
+     The track scrolls natively (touch, trackpad, keyboard, scroll-snap) with
+     ZERO JS; the two buttons are driven by the delegated [data-carousel]
+     handler site_chrome.html ships, so they are live controls rather than dead
+     chrome. Because they are no longer siblings of the track, they name it by
+     id. No .carousel__dots: nothing here paginates, and faked dots read as a
+     bug. */}}
+{{define "block-featured"}}
+<section class="panelV2 blocks__featured">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#film"></use></svg>
+            <a href="/browse">Featured releases</a>
+        </h2>
+        <div class="panel__actions">
+            <div class="panel__action">
+                <button class="icon-button" type="button" data-carousel="prev" data-carousel-target="featured-track">
+                    <svg class="icon" aria-hidden="true"><use href="#chevron-left"></use></svg>
+                    <span class="visually-hidden">Scroll featured releases left</span>
+                </button>
+            </div>
+            <div class="panel__action">
+                <button class="icon-button" type="button" data-carousel="next" data-carousel-target="featured-track">
+                    <svg class="icon" aria-hidden="true"><use href="#chevron-right"></use></svg>
+                    <span class="visually-hidden">Scroll featured releases right</span>
+                </button>
+            </div>
+        </div>
+    </header>
+    <div class="panel__body">
+        <div class="carousel">
+            <ul class="carousel__track" id="featured-track">
+                {{range .}}<li class="carousel__item">{{template "home-poster" .}}</li>{{end}}
+            </ul>
+        </div>
+    </div>
+</section>
 {{end}}
 
 {{/* One poster in the featured strip. Takes a searchRow.
@@ -117,425 +257,164 @@
 </a>
 {{- end}}
 
-{{/* ------------------------------------------------------------------------ */}}
-
-{{define "content"}}
-
-{{/* ============================================================== hero ==== */}}
-{{/* Art is a real cover from the featured set — the newest indexed release that
-     actually has one. Decorative (alt=""), and simply absent when nothing in
-     the window is covered; .hero-banner then renders as the gradient panel. */}}
-{{- $art := "" -}}
-{{- if .Featured}}{{range .Featured}}{{if and (eq $art "") .Cover}}{{$art = .Cover}}{{end}}{{end}}{{end -}}
-<section class="hero-banner">
-    <div class="hero-banner__body">
-        <p class="hero-banner__eyebrow"><svg class="icon" aria-hidden="true"><use href="#logo"></use></svg>loon demo indexer</p>
-        <h1 class="hero-banner__title">Usenet,<br><span>indexed</span></h1>
-        {{if .Stats}}
-        <ul class="hero-banner__tagline">
-            {{if .Stats.Releases}}<li>{{.Stats.Releases}} releases</li>{{end}}
-            {{if .Stats.Groups}}<li>{{.Stats.Groups}} groups</li>{{end}}
-            {{if .Stats.Categories}}<li>{{.Stats.Categories}} categories</li>{{end}}
-        </ul>
-        {{end}}
-        <p class="hero-banner__lede">A demonstration Usenet indexer built on the loon framework: it crawls
-            newsgroups over NNTP, assembles articles into releases, matches cover art, and serves the
-            lot over a Newznab API.</p>
-        <div class="hero-banner__actions">
-            <a class="button button--filled" href="/browse">Browse releases</a>
-            <a class="button button--outlined" href="/groups">Newsgroups</a>
-        </div>
-    </div>
-    {{if $art}}
-    <div class="hero-banner__art"><img class="hero-banner__art-img" src="{{$art}}" alt=""></div>
-    {{end}}
-    {{/* Promos are site facts, not perks — this stack has no freeleech, no
-         double-upload and no grabs to promote. */}}
-    <div class="hero-banner__strip">
-        {{if .Stats}}{{if .Stats.Releases}}
-        <div class="hero-promo">
-            <span class="hero-promo__icon"><svg class="icon" aria-hidden="true"><use href="#database"></use></svg></span>
-            <div>
-                <p class="hero-promo__label">{{.Stats.Releases}} releases indexed</p>
-                <p class="hero-promo__detail">{{if .Stats.Groups}}Summed across {{.Stats.Groups}} active newsgroups{{else}}Assembled from crawled articles{{end}}</p>
-            </div>
-        </div>
-        {{end}}{{if .Stats.RetentionDays}}
-        <div class="hero-promo">
-            <span class="hero-promo__icon"><svg class="icon" aria-hidden="true"><use href="#clock"></use></svg></span>
-            <div>
-                <p class="hero-promo__label">{{.Stats.RetentionDays}}-day retention</p>
-                <p class="hero-promo__detail">The deepest crawl window on this host</p>
-            </div>
-        </div>
-        {{end}}{{end}}
-        <div class="hero-promo">
-            <span class="hero-promo__icon"><svg class="icon" aria-hidden="true"><use href="#code"></use></svg></span>
-            <div>
-                <p class="hero-promo__label">Newznab API</p>
-                <p class="hero-promo__detail">Point any downloader at <a href="/api?t=caps">/api</a></p>
-            </div>
-        </div>
-    </div>
-</section>
-
-{{/* ====================================================== quick tiles ===== */}}
-{{/* Five routes this demo actually serves — no aspirational destinations. */}}
-<div class="tile-row">
-    <a class="tile" href="/browse">
-        <span class="tile__icon"><svg class="icon" aria-hidden="true"><use href="#browse"></use></svg></span>
-        <span class="tile__title">Browse</span>
-        <span class="tile__subtitle">By category</span>
-    </a>
-    <a class="tile" href="/search">
-        <span class="tile__icon"><svg class="icon" aria-hidden="true"><use href="#search"></use></svg></span>
-        <span class="tile__title">Search</span>
-        <span class="tile__subtitle">Find a release</span>
-    </a>
-    <a class="tile" href="/groups">
-        <span class="tile__icon"><svg class="icon" aria-hidden="true"><use href="#groups"></use></svg></span>
-        <span class="tile__title">Groups</span>
-        <span class="tile__subtitle">Newsgroups crawled</span>
-    </a>
-    <a class="tile" href="/community/forums">
-        <span class="tile__icon"><svg class="icon" aria-hidden="true"><use href="#forums"></use></svg></span>
-        <span class="tile__title">Forums</span>
-        <span class="tile__subtitle">Ask and discuss</span>
-    </a>
-    <a class="tile" href="/api?t=caps">
-        <span class="tile__icon"><svg class="icon" aria-hidden="true"><use href="#code"></use></svg></span>
-        <span class="tile__title">API</span>
-        <span class="tile__subtitle">Newznab and RSS</span>
-    </a>
-</div>
-
-{{/* ======================================================= plugin widgets = */}}
-{{/* SlotSiteWidget cards the viewer may see. Plugins inject these; the loop is
-     load-bearing, and .Fragment is pre-sanitised template.HTML from the view. */}}
-{{if .Widgets}}
-<div class="grid{{if gt (len .Widgets) 1}} grid--2{{end}}">
-    {{range .Widgets}}
-    <section class="panelV2 panel--grid-item">
-        <header class="panel__header">
-            <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#store"></use></svg>{{.Title}}</h2>
-        </header>
-        <div class="panel__body">{{.Fragment}}</div>
-    </section>
-    {{end}}
-</div>
-{{end}}
-
-{{/* ============================ featured strip / empty state + user stats = */}}
-{{/* The main column is the poster carousel, or — when nothing is indexed — the
-     empty state that replaces it. The aside only exists for a signed-in viewer,
-     so the .sidebar2 wrapper is only emitted when there IS an aside. */}}
-{{if .User}}
-<div class="sidebar2">
-    <div>{{template "home-featured" .}}</div>
-    <aside>{{template "home-user-stats" .}}</aside>
-</div>
-{{else}}
-{{template "home-featured" .}}
-{{end}}
-
 {{/* ===================================================== latest releases == */}}
-{{/* Full width, and the ONLY view of .Recent on the page. The mockup's second
-     "latest uploads" aside beside it had no distinct data behind it — it was
-     .Recent[0:6] from the same fetch, so it repeated the first six rows of the
-     table verbatim. A duplicate slot is worse than no slot. */}}
-{{if .Recent}}
-{{template "home-latest-table" .}}
-{{end}}
+{{/* livewire/top-torrents.blade.php's shape: panel__header, then
+     .data-table-wrapper as a DIRECT child of the panel — no panel__body around
+     the table. Dot is []searchRow.
 
-{{/* ============================================================= genres === */}}
-{{if .Categories}}
-<section class="panelV2">
-    <header class="panel__header">
-        <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#tag"></use></svg>Categories</h2>
-        <div class="panel__actions"><a class="panel__action" href="/browse">Browse all <svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-right"></use></svg></a></div>
-    </header>
-    <div class="panel__body">
-        <ul class="pill-row">
-            {{range .Categories}}
-            <li><a class="pill" href="/browse?cat={{.ID}}"><svg class="icon pill__icon" aria-hidden="true">{{template "cat-icon" .ID}}</svg>{{.Name}}</a></li>
-            {{end}}
-            <li><a class="pill pill--more" href="/browse">All <svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-right"></use></svg></a></li>
-        </ul>
-    </div>
-</section>
-{{end}}
-
-{{/* ================================================== community / groups == */}}
-{{/* Three panels, each dropped independently — so the row width follows how
-     many actually have data rather than leaving holes in a fixed 3-up grid. */}}
-{{- $n := 0}}
-{{- if .ForumThreads}}{{$n = add $n 1}}{{end}}
-{{- if .TopGroups}}{{$n = add $n 1}}{{end}}
-{{- if .ForumPosters}}{{$n = add $n 1}}{{end}}
-{{if $n}}
-<div class="grid{{if gt $n 1}} grid--{{$n}}{{end}}">
-
-    {{if .ForumThreads}}
-    <section class="panelV2 panel--grid-item">
-        <header class="panel__header">
-            <h2 class="panel__heading">
-                <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#forums"></use></svg>Recent forum threads
-            </h2>
-            <div class="panel__actions"><a class="panel__action" href="/community/forums">View all <svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-right"></use></svg></a></div>
-        </header>
-        <div class="panel__body panel__body--flush">
-            <ul class="list-rows">
-                {{range .ForumThreads}}
-                {{$h := hue .Author}}
-                <li>
-                    <a class="list-row" href="{{.URL}}">
-                        <span class="avatar avatar--sm avatar--round poster--h{{$h}}"><span class="avatar__fallback">{{initials .Author}}</span></span>
-                        <span class="list-row__body">
-                            <span class="list-row__title">{{.Title}}</span>
-                            <span class="list-row__meta">
-                                {{if .Pinned}}<span class="tag tag--warning">Pinned</span>{{end}}
-                                <span>{{.Author}}</span>
-                                {{if .Category}}<span>{{.Category}}</span>{{end}}
-                                {{with timeAgo .LastPostAt}}<span>{{.}}</span>{{end}}
-                            </span>
-                        </span>
-                        {{/* Replies only: forum_threads records reply_count and
-                             no view counter, so the mockup's second metric has
-                             no source and is not invented here. */}}
-                        <span class="list-row__trail">
-                            <span class="list-row__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#comment"></use></svg>{{.Replies}}</span>
-                            <svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg>
-                        </span>
-                    </a>
-                </li>
-                {{end}}
-            </ul>
-        </div>
-    </section>
-    {{end}}
-
-    {{/* NOT "popular this week": this indexer records no grabs and no per-week
-         activity. These are the newsgroups with the most indexed releases,
-         all time — labelled as exactly that. */}}
-    {{if .TopGroups}}
-    <section class="panelV2 panel--grid-item">
-        <header class="panel__header">
-            <h2 class="panel__heading">
-                <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#groups"></use></svg>Most indexed groups
-                <span class="panel__grouping">all time</span>
-            </h2>
-            <div class="panel__actions"><a class="panel__action" href="/groups">View all <svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-right"></use></svg></a></div>
-        </header>
-        <div class="panel__body panel__body--flush">
-            <ul class="list-rows">
-                {{range .TopGroups}}
-                <li>
-                    <a class="list-row" href="{{.URL}}">
-                        <span class="rank-chip{{if eq .Rank 1}} rank-chip--1{{else if eq .Rank 2}} rank-chip--2{{else if eq .Rank 3}} rank-chip--3{{end}}">{{.Rank}}</span>
-                        <span class="list-row__body">
-                            <span class="list-row__title">{{.Name}}</span>
-                            <span class="list-row__meta"><span>{{ordinal .Rank}} by indexed releases</span></span>
-                        </span>
-                        <span class="list-row__trail">
-                            <span class="list-row__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#database"></use></svg>{{.NZBs}}</span>
-                            <svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg>
-                        </span>
-                    </a>
-                </li>
-                {{end}}
-            </ul>
-        </div>
-    </section>
-    {{end}}
-
-    {{/* NOT "top contributors": there are no per-user upload totals in this
-         stack. .Posts is a visible forum post count, all time. */}}
-    {{if .ForumPosters}}
-    <section class="panelV2 panel--grid-item">
-        <header class="panel__header">
-            <h2 class="panel__heading">
-                <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>Top posters
-                <span class="panel__grouping">by forum posts</span>
-            </h2>
-        </header>
-        <div class="panel__body panel__body--flush">
-            <ul class="list-rows">
-                {{range .ForumPosters}}
-                {{$h := hue .Username}}
-                <li>
-                    <a class="list-row" href="{{.URL}}">
-                        <span class="rank-chip{{if eq .Rank 1}} rank-chip--1{{else if eq .Rank 2}} rank-chip--2{{else if eq .Rank 3}} rank-chip--3{{end}}">{{.Rank}}</span>
-                        <span class="avatar avatar--sm avatar--round poster--h{{$h}}"><span class="avatar__fallback">{{initials .Username}}</span></span>
-                        <span class="list-row__body">
-                            <span class="list-row__title">{{.Username}}</span>
-                        </span>
-                        <span class="list-row__trail">
-                            <span class="list-row__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#comment"></use></svg>{{.Posts}}</span>
-                            <svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg>
-                        </span>
-                    </a>
-                </li>
-                {{end}}
-            </ul>
-        </div>
-    </section>
-    {{end}}
-
-</div>
-{{end}}
-
-{{end}}{{/* content */}}
-
-
-{{/* ================================================= featured / empty ===== */}}
-{{/* The carousel track scrolls natively (touch, trackpad, keyboard, scroll-snap)
-     with zero JS; the arrows are driven by the delegated .carousel__nav handler
-     base.html already ships, so they are live controls rather than dead chrome.
-     No .carousel__dots: nothing here paginates, and faked dots read as a bug. */}}
-{{define "home-featured"}}
-{{- if .Featured}}
-<section class="panelV2">
-    <header class="panel__header">
-        <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#film"></use></svg>Featured releases</h2>
-        <div class="panel__actions"><a class="panel__action" href="/browse">View all <svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-right"></use></svg></a></div>
-    </header>
-    <div class="panel__body">
-        <div class="carousel">
-            <button class="carousel__nav carousel__nav--prev" type="button"><svg class="icon" aria-hidden="true"><use href="#chevron-left"></use></svg><span class="visually-hidden">Scroll featured releases left</span></button>
-            <ul class="carousel__track">
-                {{range .Featured}}<li class="carousel__item">{{template "home-poster" .}}</li>{{end}}
-            </ul>
-            <button class="carousel__nav carousel__nav--next" type="button"><svg class="icon" aria-hidden="true"><use href="#chevron-right"></use></svg><span class="visually-hidden">Scroll featured releases right</span></button>
-        </div>
-    </div>
-</section>
-{{- else}}
-{{/* Nothing indexed. Two different causes, two different messages — but both
-     point an admin at the same place, exactly as the old empty state did. */}}
-<section class="panelV2">
-    <header class="panel__header">
-        <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>Latest releases</h2>
-    </header>
-    <div class="panel__body">
-        <p class="notice notice--info">
-            <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
-            <span>
-            {{- if .Configured}}
-            Nothing indexed yet. An admin sets up a Usenet server in <a href="/admin/settings#s-usenet">Setup</a> and enables a group, then releases appear here.
-            {{- else}}
-            This build has no Usenet indexer, so there is nothing to list. An admin adds one from <a href="/admin/settings#s-usenet">Setup</a>.
-            {{- end}}
-            </span>
-        </p>
-    </div>
-</section>
-{{- end}}
-{{end}}
-
-{{/* ========================================================== user stats == */}}
-{{/* No ratio, upload, download, buffer or seeding figures exist anywhere in this
-     stack, and there is no level ladder (user_display.reputation_tier is a
-     constant 0), so there is no .meter here either — a progress bar towards an
-     invented threshold would be fabricated data. Avatars are likewise not a
-     thing: user_display.avatar_path is a literal '' for every user, so the
-     initials tile IS the real state, not a placeholder.
-     No .user-stat-card__verified: the host exposes EmailUnverified but nothing
-     that distinguishes "verified" from "no email on file", so the blue check
-     cannot be drawn truthfully. */}}
-{{define "home-user-stats"}}
-{{- if .User}}
-{{- $h := hue .User.Username}}
-<section class="panelV2">
-    <header class="panel__header">
-        <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#user"></use></svg>Your account</h2>
-    </header>
-    <div class="panel__body">
-        <div class="user-stat-card">
-            <span class="avatar avatar--lg user-stat-card__avatar poster--h{{$h}}"><span class="avatar__fallback">{{initials .User.Username}}</span></span>
-            <h3 class="user-stat-card__username">{{.User.Username}}</h3>
-            <span class="user-stat-card__rank">{{if .RoleLabel}}{{.RoleLabel}}{{else}}{{roleName .User.Role}}{{end}}</span>
-            {{with shortDate .MemberSince}}<p class="user-stat-card__stat">Member since {{.}}</p>{{end}}
-        </div>
-
-        {{/* Points and Unread are the only per-viewer numbers this host
-             computes. Guard on HasPoints/HasUnread, not on the value: render()
-             sets the Has* flag only when the service actually answered, so a
-             genuine balance of 0 still gets a tile. */}}
-        {{- $tiles := 0}}
-        {{- if .HasPoints}}{{$tiles = add $tiles 1}}{{end}}
-        {{- if .HasUnread}}{{$tiles = add $tiles 1}}{{end}}
-        {{if $tiles}}
-        <div class="mt-3{{if eq $tiles 2}} stat-grid stat-grid--2{{end}}">
-            {{if .HasPoints}}
-            <div class="stat-tile">
-                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#coin"></use></svg>
-                <span class="stat-tile__label">Points</span>
-                <span class="stat-tile__value">{{.Points}}</span>
-            </div>
-            {{end}}
-            {{if .HasUnread}}
-            <div class="stat-tile">
-                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#bell"></use></svg>
-                <span class="stat-tile__label">Unread</span>
-                <span class="stat-tile__value">{{.Unread}}</span>
-            </div>
-            {{end}}
-        </div>
-        {{end}}
-
-        {{if .EmailUnverified}}
-        <p class="notice notice--warning mt-3">
-            <svg class="icon notice__icon" aria-hidden="true"><use href="#envelope"></use></svg>
-            <span>Your email address is not verified yet.</span>
-        </p>
-        {{end}}
-
-        <a class="button button--outlined button--block mt-3" href="/u/{{.User.Username}}">View my profile</a>
-    </div>
-</section>
-{{- end}}
-{{end}}
-
-{{/* ====================================================== latest releases = */}}
-{{/* The mockup's SE/LE/grab columns are gone: this is a Usenet indexer and no
-     swarm figures exist. Columns are RELEASE (+ real quality badges), CATEGORY,
-     SIZE, ADDED, NZB — and the rows come from listing.html's "release-row", the
-     SAME block /browse and /search render, so the three tables cannot drift.
-     The tab row is real links into /browse?cat=N, not JS tabs — the home page
-     has no category filter key, so "All" is the state actually on screen and is
-     rendered as a non-link. */}}
-{{define "home-latest-table"}}
-<section class="panelV2">
+     No SE/LE/grab columns: this is a Usenet indexer and no swarm figures exist.
+     The rows come from listing.html's "release-row", the SAME block /browse and
+     /search render, so the three tables cannot drift. No .panel__tabs either —
+     UNIT3D's are live filters, ours would have been links out to /browse, and
+     home() no longer carries a category list to build them from. */}}
+{{define "block-latest-releases"}}
+<section class="panelV2 blocks__latest-releases">
     <header class="panel__header">
         <h2 class="panel__heading">
-            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>Latest releases
-            <span class="panel__grouping">({{len .Recent}})</span>
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
+            <a href="/browse">Latest releases</a>
+            <span class="panel__grouping">({{len .}})</span>
         </h2>
-        <div class="panel__actions"><a class="panel__action" href="/browse">View all <svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-right"></use></svg></a></div>
     </header>
-    {{if .Categories}}
-    <ul class="panel__tabs">
-        <li><span class="panel__tab panel__tab--active">All</span></li>
-        {{range .Categories}}<li><a class="panel__tab" href="/browse?cat={{.ID}}">{{.Name}}</a></li>{{end}}
-    </ul>
-    {{end}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Release</th>
+                    <th class="data-table__nowrap">Category</th>
+                    <th class="data-table__num">Size</th>
+                    <th class="data-table__nowrap">Added</th>
+                    <th class="data-table__shrink"><span class="visually-hidden">Download</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .}}{{template "release-row" .}}{{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}
+
+{{/* ========================================================== top groups == */}}
+{{/* No UNIT3D analogue — this is the indexer's own leaderboard, in UNIT3D's
+     block shape. Dot is []groupRowVM.
+
+     NOT "popular this week": this indexer records no grabs and no per-week
+     activity. These are the newsgroups with the most indexed releases, all
+     time — labelled as exactly that. */}}
+{{define "block-top-groups"}}
+<section class="panelV2 blocks__top-groups">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#groups"></use></svg>
+            <a href="/groups">Most indexed groups</a>
+            <span class="panel__grouping">all time</span>
+        </h2>
+    </header>
     <div class="panel__body panel__body--flush">
-        <div class="data-table-wrapper">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Release</th>
-                        <th class="data-table__nowrap">Category</th>
-                        <th class="data-table__num">Size</th>
-                        <th class="data-table__nowrap">Added</th>
-                        <th class="data-table__shrink"><span class="visually-hidden">Download</span></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{range .Recent}}{{template "release-row" .}}{{end}}
-                </tbody>
-            </table>
-        </div>
+        <ul class="list-rows">
+            {{range .}}
+            <li>
+                <a class="list-row" href="{{.URL}}">
+                    <span class="rank-chip{{if eq .Rank 1}} rank-chip--1{{else if eq .Rank 2}} rank-chip--2{{else if eq .Rank 3}} rank-chip--3{{end}}">{{.Rank}}</span>
+                    <span class="list-row__body">
+                        <span class="list-row__title">{{.Name}}</span>
+                        <span class="list-row__meta"><span>{{ordinal .Rank}} by indexed releases</span></span>
+                    </span>
+                    <span class="list-row__trail">
+                        <span class="list-row__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#database"></use></svg>{{.NZBs}}</span>
+                        <svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg>
+                    </span>
+                </a>
+            </li>
+            {{end}}
+        </ul>
+    </div>
+</section>
+{{end}}
+
+{{/* ======================================================= latest topics == */}}
+{{/* blocks/latest-topics.blade.php puts <ul class="topic-listings"> as a
+     SIBLING of panel__header, NOT inside a panel__body, and links the heading
+     to the topic index. Both are reproduced verbatim. Dot is []forumThreadVM.
+
+     The <ul> carries UNIT3D's structural names only (topic-listings, and
+     topic-listings__item on its rows): components.css aliases them onto the
+     design system's .list-rows so both spellings share ONE set of
+     declarations, so there is no second class to co-apply here.
+
+     Replies only: forum_threads records reply_count and no view counter, so the
+     mockup's second metric has no source and is not invented here. */}}
+{{define "block-latest-topics"}}
+<section class="panelV2 blocks__latest-topics">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#forums"></use></svg>
+            <a href="/community/forums">Latest topics</a>
+        </h2>
+    </header>
+    <ul class="topic-listings">
+        {{range .}}
+        {{- $h := hue .Author}}
+        <li class="topic-listings__item">
+            <a class="list-row" href="{{.URL}}">
+                <span class="avatar avatar--sm avatar--round poster--h{{$h}}"><span class="avatar__fallback">{{initials .Author}}</span></span>
+                <span class="list-row__body">
+                    <span class="list-row__title">{{.Title}}</span>
+                    <span class="list-row__meta">
+                        {{if .Pinned}}<span class="tag tag--warning">Pinned</span>{{end}}
+                        <span>{{.Author}}</span>
+                        {{if .Category}}<span>{{.Category}}</span>{{end}}
+                        {{with timeAgo .LastPostAt}}<span>{{.}}</span>{{end}}
+                    </span>
+                </span>
+                <span class="list-row__trail">
+                    <span class="list-row__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#comment"></use></svg>{{.Replies}}</span>
+                    <svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg>
+                </span>
+            </a>
+        </li>
+        {{end}}
+    </ul>
+</section>
+{{end}}
+
+{{/* ========================================================= top posters == */}}
+{{/* UNIT3D's top_users slot (livewire/top-users.blade.php, .blocks__uploaders)
+     with the only leaderboard this stack can compute honestly. Dot is
+     []forumPosterVM.
+
+     NOT "top contributors": there are no per-user upload totals anywhere here.
+     .Posts is a visible forum post count, all time. No heading link either —
+     this host serves no user index to point one at. */}}
+{{define "block-top-posters"}}
+<section class="panelV2 blocks__top-posters">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>
+            Top posters
+            <span class="panel__grouping">by forum posts</span>
+        </h2>
+    </header>
+    <div class="panel__body panel__body--flush">
+        <ul class="list-rows">
+            {{range .}}
+            {{- $h := hue .Username}}
+            <li>
+                <a class="list-row" href="{{.URL}}">
+                    <span class="rank-chip{{if eq .Rank 1}} rank-chip--1{{else if eq .Rank 2}} rank-chip--2{{else if eq .Rank 3}} rank-chip--3{{end}}">{{.Rank}}</span>
+                    <span class="avatar avatar--sm avatar--round poster--h{{$h}}"><span class="avatar__fallback">{{initials .Username}}</span></span>
+                    <span class="list-row__body">
+                        <span class="list-row__title">{{.Username}}</span>
+                    </span>
+                    <span class="list-row__trail">
+                        <span class="list-row__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#comment"></use></svg>{{.Posts}}</span>
+                        <svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg>
+                    </span>
+                </a>
+            </li>
+            {{end}}
+        </ul>
     </div>
 </section>
 {{end}}

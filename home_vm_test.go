@@ -137,6 +137,87 @@ func TestFeaturedRows(t *testing.T) {
 	}
 }
 
+// The home page is UNIT3D's foreach over $blocks: a FIXED order, filtered down
+// to the blocks that resolved. Both halves matter — a block with no data must
+// vanish (that is how a missing usenet/catalog/forum capability degrades), and
+// the ones that remain must keep the declared order regardless of the order
+// home() happened to fill them in.
+func TestOrderedBlocks(t *testing.T) {
+	got := orderedBlocks(map[string]any{
+		blockTopPosters:     []forumPosterVM{{Rank: 1}},
+		blockFeatured:       rows(1, 2),
+		blockLatestReleases: rows(1),
+	})
+	var names []string
+	for _, b := range got {
+		names = append(names, b.Name)
+	}
+	want := []string{blockFeatured, blockLatestReleases, blockTopPosters}
+	if len(names) != len(want) {
+		t.Fatalf("blocks = %v, want %v", names, want)
+	}
+	for i := range want {
+		if names[i] != want[i] {
+			t.Fatalf("blocks = %v, want %v (homeBlockOrder is the source of truth)", names, want)
+		}
+	}
+	if _, ok := got[0].Data.([]searchRow); !ok {
+		t.Errorf("featured carries %T, want the []searchRow the template ranges over", got[0].Data)
+	}
+
+	// No capability wired at all: an empty stack, never a nil-deref or a
+	// block with nothing in it.
+	if n := len(orderedBlocks(map[string]any{})); n != 0 {
+		t.Errorf("an empty host produced %d blocks, want 0", n)
+	}
+	// A name nobody declared is ignored rather than appended blind — the
+	// template has no arm for it and would render a hole.
+	if n := len(orderedBlocks(map[string]any{"not_a_block": []int{1}})); n != 0 {
+		t.Errorf("an unknown block name produced %d blocks, want 0", n)
+	}
+}
+
+// Every declared block must be spelled the same way in the order list and in
+// the constants the handler fills, or a block silently never renders.
+func TestHomeBlockOrderIsComplete(t *testing.T) {
+	want := map[string]bool{
+		blockWidgets: true, blockFeatured: true, blockLatestReleases: true,
+		blockNoReleases: true, blockTopGroups: true, blockLatestTopics: true,
+		blockTopPosters: true,
+	}
+	seen := map[string]bool{}
+	for _, name := range homeBlockOrder {
+		if !want[name] {
+			t.Errorf("homeBlockOrder names %q, which is not one of the block constants", name)
+		}
+		if seen[name] {
+			t.Errorf("homeBlockOrder lists %q twice — it would render twice", name)
+		}
+		seen[name] = true
+	}
+	for name := range want {
+		if !seen[name] {
+			t.Errorf("block %q has a constant but is not in homeBlockOrder, so it can never render", name)
+		}
+	}
+
+	// The empty state is the releases panel, so it has to occupy the releases
+	// SLOT. Anywhere else and a build with no indexer would show the setup
+	// guidance under the forum panels instead of where the table belongs.
+	at := func(name string) int {
+		for i, n := range homeBlockOrder {
+			if n == name {
+				return i
+			}
+		}
+		return -1
+	}
+	if at(blockNoReleases) != at(blockLatestReleases)+1 {
+		t.Errorf("homeBlockOrder puts %q at %d and %q at %d — the empty state must sit directly in the releases slot",
+			blockLatestReleases, at(blockLatestReleases), blockNoReleases, at(blockNoReleases))
+	}
+}
+
 func TestCapRows(t *testing.T) {
 	if n := len(capRows(rows(1, 2, 3), 2)); n != 2 {
 		t.Errorf("capRows(3, 2) = %d rows, want 2", n)

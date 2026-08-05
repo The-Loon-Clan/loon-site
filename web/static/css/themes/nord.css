@@ -1,0 +1,295 @@
+/* NORD — ported from UNIT3D's own theme:
+   resources/sass/themes/_nord.scss (read 2026-08).
+
+   Character: flat, square, BORDERLESS. --panel-border is none, radius 0, no
+   shadow; the panel separates from the page by colour alone — body #2e3440,
+   panel body #3b4252, header the page colour again. Palette is Nord: polar
+   night #2e3440/#3b4252/#434c5e/#4c566a, snow storm #d8dee9/#e5e9f0/#eceff4,
+   frost #88c0d0/#81a1c1/#8fbcbb, aurora #bf616a/#d08770/#ebcb8b/#a3be8c.
+
+   Two deliberate departures from the .scss, both for legibility:
+     - UNIT3D's --panel-bg is a leftover #272727 that its own extra CSS then
+       overrides with .panel__body{background:#3b4252} and
+       .panelV2{background:transparent}. A theme file here is token-only, so
+       the ported values are what that combination actually renders:
+       --panel-bg #3b4252 with --panel-head-bg #2e3440 (the page colour).
+     - --button-filled-fg is #2e3440, not UNIT3D's #eceff4 — white on the
+       #8fbcbb frost fill fails contrast.
+
+   Loads AFTER tokens.css and BEFORE layout.css. Exactly one theme at a time.
+   Token names and order mirror themes/midnight.css — keep the three in sync. */
+
+:root {
+    color-scheme: dark;
+
+    /* ---- raw palette ------------------------------------------------- */
+    --bg: #2e3440;              /* polar night 0 */
+    --bg-sunken: #232833;       /* UNIT3D --footer-bg */
+    --surface: #3b4252;         /* polar night 1 — panel body */
+    --surface-2: #434c5e;       /* polar night 2 — thead, chips, hover */
+    --surface-3: #4c566a;       /* polar night 3 — pressed */
+    --bg-elevated: var(--surface-2);
+
+    --border: #4c566a;
+    --border-strong: #616e88;
+
+    --text: #d8dee9;            /* snow storm 0 */
+    --text-strong: #eceff4;     /* snow storm 2 */
+    /* Nord has no mid grey for text; these sit between nord3 and nord4. */
+    --muted: #9aa4b8;
+    --muted-2: #7b869d;
+
+    --primary: #88c0d0;         /* frost — UNIT3D's link + active-border colour */
+    --primary-strong: #6fa8bd;
+    --primary-fg: #2e3440;      /* dark ink on the light frost fill */
+    --primary-tint: #a1d0dd;
+    --primary-soft: rgba(136, 192, 208, 0.14);
+    --primary-soft-strong: rgba(136, 192, 208, 0.28);
+
+    --info: #81a1c1;
+    --info-tint: #a8c0d8;
+    --success: #a3be8c;
+    --danger: #bf616a;
+    --warning: #ebcb8b;
+
+    --sheen: rgba(255, 255, 255, 0.06);
+    --scrim: rgba(46, 52, 64, 0.55);
+    --ink-on-image: rgba(236, 239, 244, 0.94);
+    --ink-on-image-muted: rgba(236, 239, 244, 0.64);
+    --row-stripe: rgba(255, 255, 255, 0.03);
+    --stripe-ink: rgba(255, 255, 255, 0.14);
+    --code-bg: rgba(76, 86, 106, 0.4);
+
+    --success-soft: color-mix(in srgb, var(--success) 32%, transparent);
+    --warning-soft: color-mix(in srgb, var(--warning) 32%, transparent);
+    --danger-soft: color-mix(in srgb, var(--danger) 32%, transparent);
+    --info-soft: color-mix(in srgb, var(--info) 32%, transparent);
+
+    /* ---- corners ------------------------------------------------------
+       Panels square; UNIT3D's nord rounds everything that is a control or a
+       card to 10px, and buttons to a pill. */
+    --radius-sm: 6px;
+    --radius: 10px;
+    --radius-lg: 10px;
+    --radius-xl: 10px;
+    --radius-pill: 999px;
+
+    /* ---- elevation ----------------------------------------------------- */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow: 0 2px 1px -1px rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.14),
+        0 1px 3px 0 rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 12px 17px 2px rgba(0, 0, 0, 0.14), 0 5px 22px 4px rgba(0, 0, 0, 0.12),
+        0 7px 8px -4px rgba(0, 0, 0, 0.2);
+
+    --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--primary);
+
+    /* ---- semantic aliases (UNIT3D taxonomy) --------------------------- */
+    --body-bg: var(--bg);
+    --body-fg: var(--text);
+    --text-color: var(--text);
+    --text-muted: var(--muted);
+    --text-subtle: var(--muted-2);
+
+    --accent: var(--primary);
+    --accent-strong: var(--primary-strong);
+    --accent-fg: var(--primary-fg);
+    --accent-tint: var(--primary-tint);
+    --accent-soft: var(--primary-soft);
+    --accent-2: var(--info);
+    --accent-2-tint: var(--info-tint);
+
+    --link-fg: #88c0d0;         /* UNIT3D: a{color:#88c0d0} */
+    --link-hover-fg: #eceff4;   /* UNIT3D: a:hover{color:#eceff4} */
+
+    --scrollbar-thumb: #4c566a;
+    --scrollbar-track: transparent;
+
+    /* ---- panelV2 ------------------------------------------------------ */
+    --panel-bg: #3b4252;
+    --panel-fg: var(--text);
+    --panel-border: none;
+    --panel-border-color: transparent;
+    --panel-border-radius: 0;
+    --panel-head-border-radius: 0;
+    --panel-body-border-radius: 0;
+    --panel-box-shadow: none;
+    --panel-head-bg: #2e3440;   /* = --bg: nord's header is the page showing through */
+    --panel-head-fg: #eceff4;
+    --panel-head-border: none;
+    --panel-action-fg: #9aa4b8;
+    --panel-group-fg: #7b869d;
+
+    /* Density. Dense, same proportions as cosmic-void. */
+    --panel-head-padding-block: 0;
+    --panel-head-padding-inline: var(--space-6);
+    --panel-heading-padding-block: var(--space-4);
+    --panel-heading-font-size: var(--fs-sm);
+    --panel-body-padding: var(--space-6);
+    --panel-body-font-size: var(--fs-base);
+
+    /* ---- data-table --------------------------------------------------- */
+    --data-table-fg: var(--text);
+    --data-table-padding: var(--space-3) var(--space-5);
+    --data-table-th-font-size: var(--fs-2xs);
+    --data-table-cell-font-size: var(--fs-md);
+    --data-table-border-radius: 0;
+    --data-table-th-bg: #434c5e;
+    --data-table-th-fg: #d8dee9;
+    --data-table-thead-border: none;
+    --data-table-tr-border: none;   /* UNIT3D nord separates rows by stripe only */
+    --data-table-tr-odd-bg: transparent;
+    --data-table-tr-even-bg: rgba(255, 255, 255, 0.03);
+    --data-table-tr-hover-bg: #434c5e;
+    --data-table-tfoot-border: 2px solid #4c566a;
+
+    /* ---- top nav ------------------------------------------------------ */
+    --top-nav-bg: #2c323d;
+    --top-nav-fg: var(--text);
+    --top-nav-border: none;
+    --top-nav-box-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.2);
+    --top-nav-tagline-fg: #7b869d;
+    --top-nav-dropdown-menu-bg: #2e3440;
+    --top-nav-dropdown-menu-border: none;
+    --top-nav-dropdown-menu-border-radius: var(--radius-sm);
+    --top-nav-dropdown-menu-box-shadow: var(--shadow-lg);
+    --top-nav-dropdown-menu-item-fg: #d8dee9;
+    --top-nav-dropdown-menu-item-hover-bg: #3b4252;
+    --top-nav-dropdown-menu-item-icon-fg: #d8dee9;
+    --top-nav-icon-bar-icon-bg: #434c5e;
+    --top-nav-icon-bar-icon-fg: #d8dee9;
+    --top-nav-icon-bar-icon-hover-bg: #4c566a;
+    --top-nav-icon-bar-icon-hover-fg: #eceff4;
+    --top-nav-icon-bar-icon-border-radius: 50%;
+    --top-nav-badge-bg: #bf616a;
+    --top-nav-badge-fg: #eceff4;
+
+    /* ---- quick search ------------------------------------------------- */
+    --quick-search-bg: #3b4252;
+    --quick-search-fg: #d8dee9;
+    --quick-search-placeholder-fg: #7b869d;
+    --quick-search-border: 1px solid transparent;
+    --quick-search-border-radius: var(--radius-pill);
+    --quick-search-box-shadow: 0 4px 6px rgba(32, 33, 36, 0.28);
+    --quick-search-hotkey-bg: #4c566a;
+    --quick-search-hotkey-fg: #d8dee9;
+
+    /* ---- secondary nav (the main icon+label row) ---------------------- */
+    --secondary-nav-bg: #242933;
+    --secondary-nav-box-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.2);
+    --secondary-nav-tab-fg: #d8dee9;
+    --secondary-nav-tab-bg: transparent;
+    --secondary-nav-tab-hover-fg: #88c0d0;
+    --secondary-nav-tab-hover-bg: transparent;
+    --secondary-nav-tab-active-fg: #eceff4;
+    --secondary-nav-tab-active-underline: #81a1c1;
+    --secondary-nav-tab-padding: var(--space-5) var(--space-6);
+    --secondary-nav-tab-menu-bg: #2e3440;
+    --secondary-nav-tab-menu-border: none;
+    --secondary-nav-tab-menu-border-radius: var(--radius-sm);
+    --secondary-nav-tab-menu-box-shadow: var(--shadow-lg);
+
+    /* ---- stat strip --------------------------------------------------- */
+    --stat-strip-bg: #242933;
+    --stat-strip-border: 1px solid #4c566a;
+    --stat-strip-label-fg: #7b869d;
+    --stat-strip-value-fg: #d8dee9;
+    --stat-strip-icon-fg: #88c0d0;
+
+    /* ---- buttons ------------------------------------------------------ */
+    --button-filled-bg: #8fbcbb;
+    --button-filled-fg: #2e3440;
+    --button-filled-border: none;
+    --button-outlined-bg: transparent;
+    --button-outlined-fg: var(--text);
+    --button-outlined-border: 1px solid #4c566a;
+    --button-text-fg: #9aa4b8;
+    --button-border-radius: var(--radius-pill);
+
+    /* ---- forms -------------------------------------------------------- */
+    --input-bg: #2e3440;
+    --input-fg: #d8dee9;
+    --input-placeholder-fg: #7b869d;
+    --input-border: 1px solid #4c566a;
+    /* 1px at every state: UNIT3D's 2px hover/active would reflow the control. */
+    --input-border-hover: 1px solid #8fbcbb;
+    --input-border-active: 1px solid #88c0d0;
+    --input-border-radius: var(--radius-sm);
+    --label-fg: #9aa4b8;
+
+    /* ---- posters / chips ------------------------------------------ */
+
+    --poster-bg: #434c5e;
+    --poster-radius: var(--radius);
+    --poster-hue: 265;
+    /* Muted, cool placeholders so they sit inside the Nord palette. */
+    --poster-fallback-bg:
+        linear-gradient(115deg, var(--sheen) 0%, transparent 42%),
+        radial-gradient(120% 80% at 22% 6%, hsl(var(--poster-hue) 26% 42% / 0.9) 0%, transparent 62%),
+        linear-gradient(160deg, hsl(var(--poster-hue) 22% 32%) 0%, hsl(calc(var(--poster-hue) + 26) 20% 22%) 100%);
+    --avatar-fallback-bg: linear-gradient(150deg, hsl(var(--poster-hue) 24% 40%), hsl(calc(var(--poster-hue) + 30) 22% 28%));
+
+    --chip-bg: #434c5e;
+    --chip-fg: #d8dee9;
+    --chip-border: 1px solid #4c566a;
+
+    --pill-bg: #3b4252;
+    --pill-fg: #d8dee9;
+    --pill-border: 1px solid #4c566a;
+    --pill-hover-bg: #434c5e;
+
+    --rank-chip-bg: #4c566a;
+    --rank-chip-fg: #d8dee9;
+    --rank-1-bg: rgba(235, 203, 139, 0.18);
+    --rank-1-fg: #ebcb8b;
+    --rank-2-bg: rgba(216, 222, 233, 0.16);
+    --rank-2-fg: #d8dee9;
+    --rank-3-bg: rgba(208, 135, 112, 0.18);
+    --rank-3-fg: #d08770;
+
+    /* ---- list rows ---------------------------------------------------- */
+    --list-row-padding: var(--space-4) var(--space-6);
+
+    /* ---- key-value / meta --------------------------------------------- */
+    --key-value-fg: var(--text);
+    --key-value-padding: var(--space-5);  /* UNIT3D: 10px */
+    --key-value-border-radius: 0;
+    --key-value-odd-bg: transparent;
+    --key-value-even-bg: rgba(255, 255, 255, 0.03);
+    --meta-chip-name-fg: #7b869d;
+    --meta-chip-value-fg: #d8dee9;
+
+    /* ---- pagination --------------------------------------------------- */
+    --paginate-bg: #3b4252;
+    --paginate-bg-hover: #434c5e;
+    --paginate-bg-current: #4c566a;
+    --paginate-fg: #d8dee9;
+    --paginate-fg-disabled: #7b869d;
+    --paginate-divider: #4c566a;
+    --paginate-border-radius: 0;
+
+    /* ---- torrent-card --------------------------------------------- */
+    --torrent-card-bg: #434c5e;
+    --torrent-card-border: none;
+    --torrent-card-fg: #d8dee9;
+    --torrent-card-head-bg: #434c5e;
+    --torrent-card-head-fg: #d8dee9;
+
+    /* ---- footer ------------------------------------------------------- */
+    --footer-bg: #232833;
+    --footer-fg: #d8dee9;
+    --footer-heading-fg: #9aa4b8;
+    --footer-link-fg: #d8dee9;
+    --footer-link-hover-fg: #eceff4;
+    --footer-hr-fg: #4c566a;
+    --footer-social-bg: #3b4252;
+    --footer-social-fg: #d8dee9;
+    --footer-social-hover-bg: #88c0d0;
+    --footer-social-hover-fg: #2e3440;
+
+    /* ---- Bootstrap-compat aliases ------------------------------------- */
+    --bs-secondary-color: var(--muted);
+    --bs-body-color: var(--text);
+    --bs-body-bg: var(--bg);
+    --bs-border-color: var(--border);
+    --bs-success: var(--success);
+}

@@ -314,10 +314,10 @@ func (devForumRender) Instance(name string, data any) render.Render {
 }
 
 // wireForumPlugin installs the SetDeps seams and loads the five forum
-// templates into gin's HTML set. Call after core.New (the BaseData closure
-// resolves the session user through c.Auth) and before core.Boot (SetDeps is
-// checked at Provision).
-func wireForumPlugin(c *core.Core, engine *gin.Engine) error {
+// templates into gin's HTML set. Call after core.New and after newWeb (the
+// BaseData closure enriches through the host's chromeData) and before core.Boot
+// (SetDeps is checked at Provision).
+func wireForumPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 	// The forum templates are a SEPARATE set: full documents rendered by name
 	// through gin's HTML set, not the demo's per-page map. They still need the
 	// site header/footer/sprite, so this set names web/templates/site_chrome.html
@@ -341,21 +341,20 @@ func wireForumPlugin(c *core.Core, engine *gin.Engine) error {
 	}
 
 	forum.SetDeps(forum.Deps{
+		// The forum's pages render the SAME site_chrome.html the host pages do,
+		// so they need the same data. This used to hand-roll five keys against
+		// render()'s ten and the shared chrome silently degraded: on a forum
+		// page the same signed-in user lost the plugin site-nav, the admin
+		// subnav, the points/unread tiles and the bell badge. It now calls the
+		// host's own enrichment (views.go chromeData) — one function, two
+		// callers, no way to drift. Theme comes with it, which is what keeps a
+		// forum page from rendering unthemed.
 		BaseData: func(gc *gin.Context, extra gin.H) gin.H {
 			data := gin.H{}
 			for k, v := range extra {
 				data[k] = v
 			}
-			if u, ok := c.Auth.CurrentUser(gc); ok {
-				data["User"] = u
-				data["IsAdmin"] = u.AtLeast(core.RoleAdmin)
-				// The forum's moderation routes (pin/lock, category admin)
-				// gate at RoleMod — the templates must show the buttons to
-				// the role that can actually use them.
-				data["IsMod"] = u.AtLeast(core.RoleMod)
-			}
-			data["CSRFToken"] = csrfToken(gc)
-			data["Path"] = gc.Request.URL.Path
+			w.chromeData(gc, data)
 			return data
 		},
 		Markdown: demoForumMarkdown,

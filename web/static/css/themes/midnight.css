@@ -1,0 +1,296 @@
+/* MIDNIGHT — this port's own theme. NOT a UNIT3D theme.
+
+   Near-black navy canvas, indigo/violet primary, blue secondary, rounded
+   panels, airy spacing: the look that shipped with the design-system port and
+   that the user signed off on. It is preserved here verbatim so choosing
+   cosmic-void as the default never costs us the approved look.
+
+   Loads AFTER tokens.css and BEFORE layout.css. Exactly one theme file is
+   linked at a time. Token-only: no selector other than :root may appear in a
+   theme file, or it would lose to layout/components/theme, which load later.
+
+   This file is also the reference ORDER and NAME list for the token set. A
+   token that exists here must exist in cosmic-void.css and nord.css too. */
+
+:root {
+    color-scheme: dark;
+
+    /* ---- raw palette ------------------------------------------------- */
+    /* Roles, not hues, so a light theme could reuse every name below. */
+    --bg: #0a0e17;              /* page canvas — near-black navy */
+    --bg-sunken: #070a11;       /* recessed: footer, table gutters, wells */
+    --surface: #111826;         /* panel body */
+    --surface-2: #171f31;       /* raised inside a panel: thead, chips, inputs */
+    --surface-3: #1e2740;       /* hover / pressed */
+    --bg-elevated: var(--surface-2); /* legacy alias: backup plugin inlines it */
+
+    --border: #212b42;
+    --border-strong: #2e3a58;
+
+    --text: #e6ecf7;
+    --text-strong: #ffffff;
+    --muted: #8b97b1;           /* secondary copy */
+    --muted-2: #5f6b85;         /* tertiary: timestamps, captions, disabled */
+
+    --primary: #7c5cff;         /* indigo/violet — the one brand accent */
+    --primary-strong: #6a45ff;
+    --primary-fg: #ffffff;      /* text ON a filled primary surface */
+    --primary-tint: #b6a4ff;    /* primary readable AS text on dark */
+    --primary-soft: rgba(124, 92, 255, 0.14);
+    --primary-soft-strong: rgba(124, 92, 255, 0.28);
+
+    --info: #4d8dfd;            /* blue secondary */
+    --info-tint: #7fb0ff;
+    --success: #35c37d;
+    --danger: #f2545b;
+    --warning: #eaa640;
+
+    /* Translucent inks. Not palette colours — overlays that have to work on top
+       of arbitrary artwork or an arbitrary hue, so they stay alpha-on-white /
+       alpha-on-black rather than resolving to a surface colour. */
+    --sheen: rgba(255, 255, 255, 0.08);
+    --scrim: rgba(0, 0, 0, 0.35);
+    --ink-on-image: rgba(255, 255, 255, 0.92);
+    --ink-on-image-muted: rgba(255, 255, 255, 0.62);
+    --row-stripe: rgba(255, 255, 255, 0.02);
+    --stripe-ink: rgba(255, 255, 255, 0.15);
+    --code-bg: rgba(110, 118, 129, 0.15);
+
+    /* Status colours at low alpha, for borders and soft fills. */
+    --success-soft: color-mix(in srgb, var(--success) 32%, transparent);
+    --warning-soft: color-mix(in srgb, var(--warning) 32%, transparent);
+    --danger-soft: color-mix(in srgb, var(--danger) 32%, transparent);
+    --info-soft: color-mix(in srgb, var(--info) 32%, transparent);
+
+    /* ---- corners ------------------------------------------------------
+       Theme character, not structure: cosmic-void zeroes these. */
+    --radius-sm: 6px;
+    --radius: 10px;             /* legacy name — default corner */
+    --radius-lg: 16px;
+    --radius-xl: 22px;
+    --radius-pill: 999px;
+
+    /* ---- elevation ----------------------------------------------------- */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 10px 26px -14px rgba(0, 0, 0, 0.85);
+    --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.4), 0 24px 48px -20px rgba(0, 0, 0, 0.9);
+
+    /* Focus ring drawn as two shadows so it reads on any surface colour. */
+    --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--primary);
+
+    /* ---- semantic aliases (UNIT3D taxonomy) --------------------------- */
+    --body-bg: var(--bg);
+    --body-fg: var(--text);
+    --text-color: var(--text);
+    --text-muted: var(--muted);
+    --text-subtle: var(--muted-2);
+
+    --accent: var(--primary);
+    --accent-strong: var(--primary-strong);
+    --accent-fg: var(--primary-fg);
+    --accent-tint: var(--primary-tint);
+    --accent-soft: var(--primary-soft);
+    --accent-2: var(--info);
+    --accent-2-tint: var(--info-tint);
+
+    --link-fg: var(--info-tint);
+    --link-hover-fg: var(--text-strong);
+
+    --scrollbar-thumb: #26314c;
+    --scrollbar-track: transparent;
+
+    /* ---- panelV2 ------------------------------------------------------ */
+    --panel-bg: var(--surface);
+    --panel-fg: var(--text);
+    --panel-border: 1px solid var(--border);
+    --panel-border-color: var(--border);
+    --panel-border-radius: var(--radius-lg);
+    --panel-head-border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    --panel-body-border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    --panel-box-shadow: var(--shadow);
+    --panel-head-bg: transparent;   /* header reads as part of the panel, with a rule under it */
+    --panel-head-fg: var(--text-strong);
+    --panel-head-border: 1px solid var(--border);
+    --panel-action-fg: var(--muted);
+    --panel-group-fg: var(--muted-2);
+
+    /* Density. Airy — this is the mockup's spacing, kept as approved. */
+    --panel-head-padding-block: 0;
+    --panel-head-padding-inline: var(--space-8);
+    --panel-heading-padding-block: var(--space-7);
+    --panel-heading-font-size: var(--fs-md);
+    --panel-body-padding: var(--space-8);
+    --panel-body-font-size: var(--fs-lg);
+
+    /* ---- data-table --------------------------------------------------- */
+    --data-table-fg: var(--text);
+    --data-table-padding: var(--space-5) var(--space-6);
+    --data-table-th-font-size: var(--fs-2xs);
+    --data-table-cell-font-size: var(--fs-base);
+    --data-table-border-radius: var(--radius-lg);
+    --data-table-th-bg: var(--surface-2);
+    --data-table-th-fg: var(--muted);
+    --data-table-thead-border: 1px solid var(--border);
+    --data-table-tr-border: 1px solid var(--border);
+    --data-table-tr-odd-bg: transparent;
+    --data-table-tr-even-bg: rgba(255, 255, 255, 0.014);
+    --data-table-tr-hover-bg: var(--surface-2);
+    --data-table-tfoot-border: 2px solid var(--border-strong);
+
+    /* ---- top nav ------------------------------------------------------ */
+    --top-nav-bg: #0c1220;
+    --top-nav-fg: var(--text);
+    --top-nav-border: 1px solid var(--border);
+    --top-nav-box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03), 0 10px 24px -18px #000;
+    --top-nav-tagline-fg: var(--muted-2);
+    --top-nav-dropdown-menu-bg: #131b2c;
+    --top-nav-dropdown-menu-border: 1px solid var(--border-strong);
+    --top-nav-dropdown-menu-border-radius: var(--radius);
+    --top-nav-dropdown-menu-box-shadow: var(--shadow-lg);
+    --top-nav-dropdown-menu-item-fg: var(--text);
+    --top-nav-dropdown-menu-item-hover-bg: var(--surface-3);
+    --top-nav-dropdown-menu-item-icon-fg: var(--muted);
+    --top-nav-icon-bar-icon-bg: var(--surface-2);
+    --top-nav-icon-bar-icon-fg: var(--muted);
+    --top-nav-icon-bar-icon-hover-bg: var(--surface-3);
+    --top-nav-icon-bar-icon-hover-fg: var(--text-strong);
+    --top-nav-icon-bar-icon-border-radius: var(--radius);
+    --top-nav-badge-bg: var(--danger);
+    --top-nav-badge-fg: #fff;
+
+    /* ---- quick search ------------------------------------------------- */
+    --quick-search-bg: var(--surface-2);
+    --quick-search-fg: var(--text);
+    --quick-search-placeholder-fg: var(--muted-2);
+    --quick-search-border: 1px solid var(--border);
+    --quick-search-border-radius: var(--radius-pill);
+    --quick-search-box-shadow: 0 0 0 3px var(--primary-soft);
+    --quick-search-hotkey-bg: var(--surface-3);
+    --quick-search-hotkey-fg: var(--muted);
+
+    /* ---- secondary nav (the main icon+label row) ---------------------- */
+    --secondary-nav-bg: #0b1120;
+    --secondary-nav-box-shadow: inset 0 -1px 0 var(--border);
+    --secondary-nav-tab-fg: var(--muted);
+    --secondary-nav-tab-bg: transparent;
+    --secondary-nav-tab-hover-fg: var(--text);
+    --secondary-nav-tab-hover-bg: transparent;
+    --secondary-nav-tab-active-fg: var(--text-strong);
+    --secondary-nav-tab-active-underline: var(--primary);
+    --secondary-nav-tab-padding: var(--space-6) var(--space-7);
+    --secondary-nav-tab-menu-bg: var(--top-nav-dropdown-menu-bg);
+    --secondary-nav-tab-menu-border: var(--top-nav-dropdown-menu-border);
+    --secondary-nav-tab-menu-border-radius: var(--radius);
+    --secondary-nav-tab-menu-box-shadow: var(--shadow-lg);
+
+    /* ---- stat strip --------------------------------------------------- */
+    --stat-strip-bg: rgba(255, 255, 255, 0.018);
+    --stat-strip-border: 1px solid var(--border);
+    --stat-strip-label-fg: var(--muted-2);
+    --stat-strip-value-fg: var(--text);
+    --stat-strip-icon-fg: var(--primary-tint);
+    /* Solid end of the gradient that fades the hero artwork into the copy. Must
+       match --hero-bg's last stop or the seam shows. */
+
+    /* ---- buttons ------------------------------------------------------ */
+    --button-filled-bg: linear-gradient(180deg, var(--primary) 0%, var(--primary-strong) 100%);
+    --button-filled-fg: var(--primary-fg);
+    --button-filled-border: 1px solid var(--primary-strong);
+    --button-outlined-bg: transparent;
+    --button-outlined-fg: var(--text);
+    --button-outlined-border: 1px solid var(--border-strong);
+    --button-text-fg: var(--muted);
+    --button-border-radius: var(--radius);
+
+    /* ---- forms -------------------------------------------------------- */
+    --input-bg: var(--surface-2);
+    --input-fg: var(--text);
+    --input-placeholder-fg: var(--muted-2);
+    --input-border: 1px solid var(--border);
+    --input-border-hover: 1px solid var(--border-strong);
+    --input-border-active: 1px solid var(--primary);
+    --input-border-radius: var(--radius-sm);
+    --label-fg: var(--muted);
+
+    /* ---- posters / chips ------------------------------------------ */
+
+    --poster-bg: var(--surface-2);
+    --poster-radius: var(--radius);
+    --poster-hue: 265;             /* overridden by .poster--hN */
+    /* Cover-art placeholder. Reads --poster-hue off the element it paints, so
+       .poster--hN still picks the stop; the theme owns saturation/lightness. */
+    --poster-fallback-bg:
+        linear-gradient(115deg, var(--sheen) 0%, transparent 42%),
+        radial-gradient(120% 80% at 22% 6%, hsl(var(--poster-hue) 62% 38% / 0.9) 0%, transparent 62%),
+        linear-gradient(160deg, hsl(var(--poster-hue) 48% 24%) 0%, hsl(calc(var(--poster-hue) + 26) 44% 12%) 100%);
+    --avatar-fallback-bg: linear-gradient(150deg, hsl(var(--poster-hue) 50% 34%), hsl(calc(var(--poster-hue) + 30) 46% 20%));
+
+    --chip-bg: var(--surface-2);
+    --chip-fg: var(--muted);
+    --chip-border: 1px solid var(--border);
+
+    --pill-bg: var(--surface-2);
+    --pill-fg: var(--text);
+    --pill-border: 1px solid var(--border);
+    --pill-hover-bg: var(--surface-3);
+
+    --rank-chip-bg: var(--surface-3);
+    --rank-chip-fg: var(--muted);
+    --rank-1-bg: rgba(234, 166, 64, 0.18);
+    --rank-1-fg: #f0be6d;
+    --rank-2-bg: rgba(176, 190, 214, 0.16);
+    --rank-2-fg: #c3cede;
+    --rank-3-bg: rgba(196, 122, 74, 0.18);
+    --rank-3-fg: #d79466;
+
+    /* ---- list rows ---------------------------------------------------- */
+    --list-row-padding: var(--space-5) var(--space-8);
+
+    /* ---- key-value / meta --------------------------------------------- */
+    --key-value-fg: var(--text);
+    --key-value-padding: var(--space-6);
+    --key-value-border-radius: var(--radius-sm);
+    --key-value-odd-bg: transparent;
+    --key-value-even-bg: rgba(255, 255, 255, 0.02);
+    --meta-chip-name-fg: var(--muted-2);
+    --meta-chip-value-fg: var(--text);
+
+    /* ---- pagination --------------------------------------------------- */
+    --paginate-bg: var(--surface-2);
+    --paginate-bg-hover: var(--surface-3);
+    --paginate-bg-current: var(--primary-soft-strong);
+    --paginate-fg: var(--text);
+    --paginate-fg-disabled: var(--muted-2);
+    --paginate-divider: var(--border);
+    --paginate-border-radius: var(--radius);
+
+    /* ---- torrent-card --------------------------------------------- */
+    --torrent-card-bg: var(--surface);
+    --torrent-card-border: 1px solid var(--border);
+    --torrent-card-fg: var(--text);
+    --torrent-card-head-bg: var(--surface-2);
+    --torrent-card-head-fg: var(--muted);
+
+    /* ---- footer ------------------------------------------------------- */
+    --footer-bg: var(--bg-sunken);
+    --footer-fg: var(--muted);
+    --footer-heading-fg: var(--muted-2);
+    --footer-link-fg: var(--muted);
+    --footer-link-hover-fg: var(--text-strong);
+    --footer-hr-fg: var(--border);
+    --footer-social-bg: var(--surface-2);
+    --footer-social-fg: var(--muted);
+    --footer-social-hover-bg: var(--primary);
+    --footer-social-hover-fg: var(--primary-fg);
+
+    /* ---- Bootstrap-compat aliases ------------------------------------- */
+    /* The usenet plugin's settings page styles .nav-pills against
+       --bs-secondary-color and paints its coverage cells with --bs-success;
+       without values those rules compute to inherit/transparent and the
+       controls go unreadable. */
+    --bs-secondary-color: var(--muted);
+    --bs-body-color: var(--text);
+    --bs-body-bg: var(--bg);
+    --bs-border-color: var(--border);
+    --bs-success: var(--success);
+}

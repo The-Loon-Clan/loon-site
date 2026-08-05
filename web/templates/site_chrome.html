@@ -14,18 +14,41 @@
 
      If you add a page-set or a new parse site, name this file there too.
 
-     Both sets feed these blocks a map, so a key only one side sets (Points,
-     Unread, SiteNav, AdminNav — the forum's Deps.BaseData supplies none of
-     them) renders as absent rather than erroring. The only funcs used below
-     come from views.go tmplHelpers(), which forum_web.go registers on the
-     forum set as well; nothing here may call a host-state helper such as
-     {{captcha}}, which exists only in the demo set.
+     Both sets now build their data through views.go chromeData() — the forum's
+     Deps.BaseData calls it too — so the keys the blocks below read UNGUARDED
+     (User, IsAdmin, IsMod, CSRFToken, Path, PathQuery, AdminNav, SiteNav,
+     Theme, Themes) are present on both sides. What the map-not-struct shape
+     buys is the OPTIONAL half: Points and Unread are absent, not zero, when
+     their service is unwired, so the Has*-guarded tiles simply do not render
+     instead of erroring — and they are absent on both sides equally.
+
+     The only funcs used below come from views.go tmplHelpers(), which
+     forum_web.go registers on the forum set as well; nothing here may call a
+     host-state helper such as {{captcha}}, which exists only in the demo set.
      ========================================================================== */}}
 
 {{/* ---------------------------------------------------------------- head --
-     Stylesheet order is load-bearing: bootstrap (reset) → tokens → layout →
-     components → theme. theme.css must load last so its Bootstrap-subset
-     utilities beat the component defaults the admin/plugin pages render on. */}}
+     Stylesheet order is load-bearing:
+
+         bootstrap (reset) → tokens → THEME → layout → components → theme.css
+
+     The split is structure vs. skin, not base vs. override. tokens.css holds
+     only what every theme shares (spacing, type, z-layers, motion, breakpoints)
+     and carries no colour, radius, border or shadow; each theme file is a
+     single :root block defining the COMPLETE visual set on its own (UNIT3D
+     ships 17 themes over identical markup for exactly this reason). Exactly one
+     theme is linked, and it sits after tokens.css and before anything that
+     consumes them — the ordering states that intent, and it is what makes a
+     theme win any future collision. theme.css keeps the last slot regardless:
+     its Bootstrap-subset utilities have to beat the component defaults the
+     admin/plugin pages render on.
+
+     .Theme is a themeOption from theme.go, resolved by chromeData() on EVERY
+     render of both sets. What is emitted here is .Theme.Href — a string
+     CONSTANT off the allowlist entry that matched, printed as a whole attribute
+     value. This template neither parses nor joins a path, and the cookie the
+     visitor controls never reaches it; an unknown or hostile name resolved to
+     the default long before this point. */}}
 {{define "site-head"}}
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -33,6 +56,7 @@
     <meta name="color-scheme" content="dark">
     <link rel="stylesheet" href="/static/css/bootstrap.min.css">
     <link rel="stylesheet" href="/static/css/tokens.css">
+    <link rel="stylesheet" href="{{.Theme.Href}}">
     <link rel="stylesheet" href="/static/css/layout.css">
     <link rel="stylesheet" href="/static/css/components.css">
     <link rel="stylesheet" href="/static/css/theme.css">
@@ -51,7 +75,6 @@
 <symbol id="search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m16.2 16.2 4.8 4.8"/></symbol>
 <symbol id="bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
 <symbol id="envelope" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2.5 6.5 9.5 7 9.5-7"/></symbol>
-<symbol id="menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
 <symbol id="chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
 <symbol id="chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></symbol>
 <symbol id="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
@@ -73,7 +96,6 @@
 <symbol id="verified" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2.2 2.6 2 3.2-.2.9 3.1 2.7 1.8-1.3 3 1.3 3-2.7 1.8-.9 3.1-3.2-.2-2.6 2-2.6-2-3.2.2-.9-3.1-2.7-1.8 1.3-3-1.3-3 2.7-1.8.9-3.1 3.2.2z"/><path d="m8.8 12.2 2.2 2.2 4.2-4.4"/></symbol>
 <symbol id="coin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.5v11"/><path d="M14.8 9.4c0-1.3-1.3-2.4-2.8-2.4s-2.8 1.1-2.8 2.4 1.3 2.4 2.8 2.4 2.8 1.1 2.8 2.4-1.3 2.4-2.8 2.4-2.8-1.1-2.8-2.4"/></symbol>
 <symbol id="comment" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.6a8.4 8.4 0 0 1-12.8 7.4L3 20.9l1.9-5.2A8.4 8.4 0 1 1 21 11.6z"/></symbol>
-<symbol id="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
 <symbol id="users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
 <symbol id="user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></symbol>
 <symbol id="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="10.5" width="17" height="10.5" rx="2"/><path d="M7.5 10.5V7a4.5 4.5 0 0 1 9 0v3.5"/></symbol>
@@ -96,12 +118,67 @@
 </svg>
 {{end}}
 
+{{/* ------------------------------------------------------ theme switcher --
+     UNIT3D's theme is a per-viewer setting with no site-wide default (17 themes
+     over identical markup, chosen in the user's own settings), so the account
+     menu is where this belongs: /admin/settings is SITE configuration, and this
+     host serves no other per-viewer settings page.
+
+     A plain POST form — <select> + submit — so it works with JavaScript off,
+     like every other state-changing control here. Four things are load-bearing
+     and have to match theme.go exactly:
+
+       • action="/settings/theme"  (themeRoute, mounted in views.go)
+       • name="theme"              (themeFormField)
+       • name="next"               (themeNextField — where to return to. It is
+                                    .PathQuery, the path AND query, not .Path:
+                                    backLink() prefers next over the Referer, so
+                                    posting the bare path would strand a viewer
+                                    who switched themes on /search?q=foo at
+                                    /search. backLink() still refuses anything
+                                    that is not a same-origin path, so this
+                                    cannot open-redirect.)
+       • the hidden _csrf, since csrfMiddleware gates every POST.
+
+     The options come from .Themes, which IS theme.go's allowlist — the same
+     slice themeByName() validates the submitted value against — so the form can
+     only ever submit something the host already accepts, and .Theme.Key is by
+     construction one of them.
+
+     Rendered inside a .dropdown__menu, and exactly once per page (the two call
+     sites are the two arms of {{if .User}}), so #theme-select stays unique.
+     .Theme and .Themes are set by chromeData() on every render of BOTH template
+     sets, so this works unchanged on the forum plugin's pages. */}}
+{{define "theme-switcher"}}
+    <form class="form theme-switcher" method="post" action="/settings/theme">
+        <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+        <input type="hidden" name="next" value="{{.PathQuery}}">
+        <div class="form__group">
+            <label class="form__label" for="theme-select">Theme</label>
+            <select class="form__select" id="theme-select" name="theme">
+                {{range .Themes}}<option value="{{.Key}}"{{if eq .Key $.Theme.Key}} selected{{end}}>{{.Label}}</option>{{end}}
+            </select>
+        </div>
+        <button class="form__button form__button--outlined" type="submit">Apply theme</button>
+    </form>
+{{end}}
+
 {{/* -------------------------------------------------------------- header --
      UNIT3D's shell, translated: partials/top-nav (branding + quick search +
      icon bar + avatar menu), then the main nav row, then the stat strip.
      Alpine's x-data/x-bind menus become native <details>, so every menu works
      on touch and with JavaScript disabled. */}}
 {{define "site-header"}}
+    {{/* First focusable element in the document, on EVERY page of both parse
+         sets — the sprite that precedes it is a display:none <svg> with no
+         tabbable content. Without it a keyboard or screen-reader user tabs
+         through branding, quick search, the whole nav row (five host tabs plus
+         every plugin page and admin entry) and the icon bar before reaching the
+         page itself, on every single navigation.
+         Target is <main id="main-content">, which base.html and the forum's
+         fhead both carry. .skip-link is off-screen until :focus. */}}
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
     <header class="top-nav">
         <div class="top-nav__left">
             <a class="top-nav__branding" href="/">
@@ -159,6 +236,8 @@
                     </a>
                     {{end}}
                     <span class="dropdown__divider"></span>
+                    {{template "theme-switcher" .}}
+                    <span class="dropdown__divider"></span>
                     <form method="post" action="/logout" style="display:contents">
                         <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
                         <button class="dropdown__item" type="submit">
@@ -168,6 +247,22 @@
                 </div>
             </details>
             {{else}}
+            {{/* Signed-out visitors get the SAME switcher in its own menu:
+                 theme.go keeps the preference in a cookie and views.go mounts
+                 POST /settings/theme outside every auth group precisely so it
+                 works without an account. Without this the route would be dead
+                 for most of a demo site's traffic — and a theme picker you have
+                 to register to reach is not a demo of the themes. One instance
+                 per page either way: this and the account menu are the two
+                 mutually exclusive arms of {{if .User}}, so the #theme-select id
+                 is never duplicated. */}}
+            <details class="dropdown dropdown--end">
+                <summary class="button button--outlined button--sm">
+                    <svg class="icon" aria-hidden="true"><use href="#settings"></use></svg>Theme
+                    <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
+                </summary>
+                <div class="dropdown__menu">{{template "theme-switcher" .}}</div>
+            </details>
             <a class="button button--outlined button--sm" href="/login"><svg class="icon" aria-hidden="true"><use href="#log-in"></use></svg>Log in</a>
             <a class="button button--filled button--sm" href="/register">Register</a>
             {{end}}
@@ -224,9 +319,13 @@
                     </summary>
                     <div class="dropdown__menu">
                         {{/* AdminNav is the host's real registry (Settings + every
-                             plugin admin page + Jobs + Plugins). It is absent on
-                             pages the forum plugin renders, so fall back to the
-                             three routes main.go always mounts. */}}
+                             plugin admin page + Jobs + Plugins). chromeData()
+                             sets it on BOTH parse sets — the forum plugin's
+                             Deps.BaseData runs through that same function — so
+                             every page rendering this chrome gets the whole
+                             registry. The fallback below is the EMPTY-registry
+                             default (the three routes main.go always mounts),
+                             not a forum-page path. */}}
                         {{if .AdminNav}}
                             {{range .AdminNav}}<a class="dropdown__item{{if eq $.Path .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#settings"></use></svg>{{.Label}}</a>{{end}}
                         {{else}}
@@ -397,14 +496,18 @@
         box.focus();
     });
 
-    // Carousel arrows. The track scrolls natively (and on touch) without this;
-    // these two handlers are only what makes the prev/next buttons work.
+    // Carousel arrows. The track scrolls natively (touch, trackpad, keyboard,
+    // scroll-snap) without a line of this; the handler is only what makes the
+    // prev/next buttons work. The buttons sit in .panel__actions — UNIT3D's
+    // blocks/featured.blade.php puts them in the panel header, not over the
+    // strip — so they are NOT siblings of the track and address it by id
+    // instead of by DOM proximity.
     document.addEventListener('click', function (e) {
-        var btn = e.target.closest ? e.target.closest('.carousel__nav') : null;
+        var btn = e.target.closest ? e.target.closest('[data-carousel]') : null;
         if (!btn) return;
-        var track = btn.parentNode.querySelector('.carousel__track');
+        var track = document.getElementById(btn.getAttribute('data-carousel-target'));
         if (!track) return;
-        var dir = btn.classList.contains('carousel__nav--prev') ? -1 : 1;
+        var dir = btn.getAttribute('data-carousel') === 'prev' ? -1 : 1;
         track.scrollBy({ left: dir * track.clientWidth * 0.8, behavior: 'smooth' });
     });
     </script>
