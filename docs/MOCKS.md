@@ -72,5 +72,12 @@ Recorded here so nobody adds them to the list by mistake:
 - **Grab counts** — genuinely absent, and deliberately NOT mocked. Faking a
   download count would corrupt the trending and economy features that will read
   it later. It stays missing until `/nzb/:id` records one.
+- **`users.reputation_tier`** — a column that exists ONLY so the communities
+  plugin's `COALESCE(u.reputation_tier, 0)` join resolves. Nothing in this stack
+  computes reputation, so it is always 0. Not a mock because nothing displays it
+  as a measurement; if reputation ever becomes real it gets a plugin, not an
+  UPDATE. Contrast `users.points`, which was deliberately made REAL rather than
+  added as a zero column — a number on a page that is confidently wrong is worse
+  than no number.
 - **Ratio, buffer, seeding, peers** — n/a for a Usenet indexer. Not mocked, not
   planned, not missing. See the parity doc's n/a rule.

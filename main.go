@@ -19,7 +19,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -260,7 +259,16 @@ func main() {
 
 	// --- In-memory points ledger. A real host writes the ledger
 	// row + balance update atomically; the demo keeps a map.
-	points := &demoPoints{balances: map[int64]int{}}
+	// Points are DURABLE: users.points for the balance, points_ledger for the
+	// history, both moved in one statement pair so they cannot disagree. The
+	// previous in-memory map lost every balance on restart, and the communities
+	// plugin SELECTs COALESCE(u.points, 0) — a column that exists but never
+	// matches the real balance is worse than no column. See points_web.go.
+	if err := pointsMigrate(db); err != nil {
+		logger.Error("points migrate", "err", err)
+		os.Exit(1)
+	}
+	points := pgPoints{db: db}
 	pointsSvc := core.NewPoints(points.adapter())
 	wsrv.points = pointsSvc // navbar balance readout
 
@@ -729,83 +737,6 @@ func getenvDefault(key, def string) string {
 		return v
 	}
 	return def
-}
-
-// demoPoints is the in-memory PointsService backing. Deduct
-// enforces the non-negative-balance rule with the framework's
-// typed sentinel so plugins can errors.Is against it.
-type demoPoints struct {
-	mu       sync.Mutex
-	balances map[int64]int
-	// ledger is the per-user transaction log behind HistoryFn, newest LAST
-	// (append order); History reverses it. In memory like the balances, so it
-	// dies with the process — a real host reads its points_ledger table.
-	ledger map[int64][]core.LedgerEntry
-}
-
-func (p *demoPoints) adapter() core.PointsAdapter {
-	// change applies a delta AND records the ledger row, because a balance
-	// that moves without a ledger entry is exactly the inconsistency the
-	// history page exists to expose.
-	change := func(userID int64, delta int, kind, desc string, ref int64) (int, error) {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		if p.balances[userID]+delta < 0 {
-			return p.balances[userID], core.ErrInsufficientPoints
-		}
-		p.balances[userID] += delta
-		if p.ledger == nil {
-			p.ledger = map[int64][]core.LedgerEntry{}
-		}
-		e := core.LedgerEntry{
-			Amount: delta, Balance: p.balances[userID],
-			Type: kind, Description: desc, CreatedAt: time.Now(),
-		}
-		if ref != 0 {
-			r := ref
-			e.ReferenceID = &r
-		}
-		p.ledger[userID] = append(p.ledger[userID], e)
-		return p.balances[userID], nil
-	}
-	return core.PointsAdapter{
-		BalanceFn: func(_ context.Context, userID int64) (int, error) {
-			p.mu.Lock()
-			defer p.mu.Unlock()
-			return p.balances[userID], nil
-		},
-		AwardFn: func(_ context.Context, userID int64, n int, kind, desc string, ref int64) (int, error) {
-			return change(userID, n, kind, desc, ref)
-		},
-		DeductFn: func(_ context.Context, userID int64, n int, kind, desc string, ref int64) (int, error) {
-			return change(userID, -n, kind, desc, ref)
-		},
-		RefundFn: func(_ context.Context, userID int64, n int, kind, desc string, ref int64) (int, error) {
-			return change(userID, n, kind, desc, ref)
-		},
-		// Without this the service returns ErrPointsNotWired, and any plugin
-		// offering a points ledger renders its error branch instead of a page —
-		// which is exactly what the store's /store/history did before.
-		HistoryFn: func(_ context.Context, userID int64, limit, offset int) ([]core.LedgerEntry, int, error) {
-			p.mu.Lock()
-			defer p.mu.Unlock()
-			all := p.ledger[userID]
-			total := len(all)
-			// Newest first, which is what a ledger page shows.
-			rev := make([]core.LedgerEntry, 0, total)
-			for i := total - 1; i >= 0; i-- {
-				rev = append(rev, all[i])
-			}
-			if offset >= len(rev) {
-				return nil, total, nil
-			}
-			rev = rev[offset:]
-			if limit > 0 && limit < len(rev) {
-				rev = rev[:limit]
-			}
-			return rev, total, nil
-		},
-	}
 }
 
 // catalogLogSink is the demo's pluginapi.CatalogSink: a real host writes each
