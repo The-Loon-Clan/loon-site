@@ -1,0 +1,112 @@
+{{/* Public donate page — UNIT3D's donation/index.blade.php equivalent.
+
+     DEV-ONLY SURFACE. The route 404s for non-admins unless the host reports
+     IsDonateEnabled(), which is gated on LOON_DEMO_DONATIONS=1 (see
+     donations_web.go). Reaching this page at all means the flag is set.
+
+     Keys (donations plugin, Handlers.DonatePage + Deps.BaseData):
+       Groups          []*DonationGoalGroup — Name Locks MonthlyGoalUSD
+                          MonthlyRaisedUSD YearlyGoalUSD YearlyRaisedUSD
+                          Items []*SiteCost (Label Category Period AmountUSD
+                          Notes Active) MonthlyResetAt YearlyResetAt
+       PointsConfig / PointsPreview
+       BTCAddress ETHAddress XMRAddress · AddressesHidden bool
+       RecentDonations · TipJarGoals · Packages · FundedPackages
+       TotalMonthlyUSD TotalYearlyUSD TotalAnnualUSD
+
+     This renders the cost breakdown and the wallet addresses honestly and
+     guards every optional key. It deliberately does NOT reproduce UNIT3D's
+     full donation-package storefront: this surface is dev-gated, and building
+     a payment funnel for a demo that cannot take payments would be theatre. */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Donate</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon" aria-hidden="true"><use href="#coin"></use></svg>
+            Running costs
+        </h1>
+        {{if .TotalMonthlyUSD}}
+        <div class="panel__actions"><span class="panel__action">${{printf "%.2f" .TotalMonthlyUSD}} / month</span></div>
+        {{end}}
+    </header>
+
+    {{if .Groups}}
+    {{range .Groups}}
+    <div class="panel__body">
+        <h2 class="h5">{{.Name}}{{if .Locks}} <span class="tag">locks when funded</span>{{end}}</h2>
+        {{if .MonthlyGoalUSD}}
+        <p class="meta__line">
+            <span class="meta__item">${{printf "%.2f" .MonthlyRaisedUSD}} of ${{printf "%.2f" .MonthlyGoalUSD}} monthly</span>
+            {{if .YearlyGoalUSD}}<span class="meta__item">${{printf "%.2f" .YearlyRaisedUSD}} of ${{printf "%.2f" .YearlyGoalUSD}} yearly</span>{{end}}
+        </p>
+        {{end}}
+        {{if .Items}}
+        <div class="data-table-wrapper">
+            <table class="data-table">
+                <thead><tr><th>Item</th><th>Category</th><th>Period</th><th class="num">USD</th></tr></thead>
+                <tbody>
+                    {{range .Items}}{{if .Active}}
+                    <tr>
+                        <td>
+                            <div class="data-table__name-body">
+                                <span class="data-table__title">{{.Label}}</span>
+                                {{if .Notes}}<div class="data-table__meta">{{.Notes}}</div>{{end}}
+                            </div>
+                        </td>
+                        <td><span class="tag">{{.Category}}</span></td>
+                        <td>{{.Period}}</td>
+                        <td class="num">{{printf "%.2f" .AmountUSD}}</td>
+                    </tr>
+                    {{end}}{{end}}
+                </tbody>
+            </table>
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+    {{else}}
+    <div class="panel__body">No costs published.</div>
+    {{end}}
+</section>
+
+{{/* AddressesHidden is the admin's "do not display wallets" switch, so it
+     gates the whole panel rather than each address. */}}
+{{if not .AddressesHidden}}
+{{if or .BTCAddress .ETHAddress .XMRAddress}}
+<section class="panelV2">
+    <header class="panel__header"><h2 class="panel__heading">Direct donation</h2></header>
+    <div class="panel__body">
+        <dl class="key-value">
+            {{if .BTCAddress}}<dt>Bitcoin</dt><dd><code>{{.BTCAddress}}</code></dd>{{end}}
+            {{if .ETHAddress}}<dt>Ethereum</dt><dd><code>{{.ETHAddress}}</code></dd>{{end}}
+            {{if .XMRAddress}}<dt>Monero</dt><dd><code>{{.XMRAddress}}</code></dd>{{end}}
+        </dl>
+        <p class="form__help">
+            Send directly, then contact an admin so the donation can be matched
+            to your account.
+        </p>
+    </div>
+</section>
+{{end}}
+{{end}}
+
+{{if .TipJarGoals}}
+<section class="panelV2">
+    <header class="panel__header"><h2 class="panel__heading">Tip jar</h2></header>
+    <div class="panel__body">
+        <ul class="list-rows">
+            {{range .TipJarGoals}}
+            <li><div class="list-row"><span class="list-row__body"><span class="list-row__title">{{.}}</span></span></div></li>
+            {{end}}
+        </ul>
+    </div>
+</section>
+{{end}}
+
+{{template "ffoot" .}}

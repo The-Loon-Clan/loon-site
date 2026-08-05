@@ -104,7 +104,7 @@ only to work around hover on touch devices.
 | `wiki/*` | `/wiki`, `/wiki/:topic/:post`, `/admin/wiki` | have |
 | `ticket/*` (helpdesk) | `/support`, `/support/public`, `/admin/tickets` | have |
 | `event/*` | — | todo |
-| `donation/*` | — | todo |
+| `donation/*` | `/help/donate`, `/admin/donate` | have (**dev-only, flag-gated**) |
 
 ### User
 
@@ -308,10 +308,25 @@ template.
      (`threads, _ = ...`), so the inbox rendered empty while the rows sat in
      the database. Added host-side.
 
-3. **A payment gateway.** `donations` wants BTCPay — an invoice API and a
-   webhook endpoint. That is an external service with credentials, so it is a
-   deployment decision rather than a wiring task. The plugin also wants
-   `LookupUsername`/`LookupUserID`, which the host can supply trivially.
+3. **A payment gateway.** `donations` is wired but **DEV-ONLY**, gated on
+   `LOON_DEMO_DONATIONS=1`. The gate is the ENV VAR, not the admin toggle:
+   `IsDonateEnabled` ANDs the two, so a deployment without the flag reports
+   disabled even with `donate_enabled=1` persisted — verified. `SetDonateEnabled`
+   refuses with an explanation rather than silently no-opping, since an admin
+   who clicks "enable" and sees nothing happen would reasonably assume the
+   feature is broken rather than deliberately gated.
+
+   Two things still missing for a real deployment: BTCPay credentials
+   (`btcpay_*` keys in `site_settings`), and the wallet/package admin surface —
+   the template covers the toggle, cost lines and donation log, not payment
+   configuration. The plugin's own `/admin/donate/btcpay` routes remain
+   available for anyone who needs it.
+
+   NOTE the webhook at `POST /api/btcpay/webhook` registers regardless of the
+   flag — routes bind at Provision and core has no per-plugin disable. That is
+   safe because the plugin authenticates it by HMAC-SHA256 over the raw body
+   ("the HMAC verification IS the auth"), so with no secret configured nothing
+   can validate. Verified: an unsigned callback gets 403.
 
 4. **A user directory.** `messages.ListUsers` is optional precisely because
    core has no "list every user" method. The composer degrades to a username

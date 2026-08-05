@@ -1,0 +1,169 @@
+{{/* Donations admin. Gated at the plugin's own admin route group.
+
+     DEV-ONLY SURFACE — see donations_web.go. The master toggle below is ANDed
+     with LOON_DEMO_DONATIONS at the host, so on a deployment without that flag
+     the switch refuses with an explanation rather than silently doing nothing.
+
+     Keys (donations plugin, Handlers.AdminDonate + Deps.BaseData):
+       DonateEnabled bool · IsAdmin bool
+       Costs []*SiteCost — ID Label Category GoalGroup Period AmountUSD Notes
+                           SortOrder Active
+       Edit  *SiteCost — the row being edited, from ?edit=<id>
+       Config · Preview · LockingGroups
+       Donations · Usernames — the donation log and its id→username map
+
+     Deliberately covers the master toggle, the cost lines and the log, not
+     BTCPay wallet configuration: credentials belong in a real deployment's
+     admin, and this surface exists to prove the plugin wires, not to be a
+     payment console. The plugin's own /admin/donate/btcpay routes still
+     accept configuration for anyone who needs it. */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Donations</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">Donations</h1>
+        <div class="panel__actions">
+            <span class="panel__action">
+                {{if .DonateEnabled}}<span class="tag tag--success">Enabled</span>
+                {{else}}<span class="tag">Disabled</span>{{end}}
+            </span>
+            <a class="panel__action" href="/help/donate">Public page</a>
+        </div>
+    </header>
+    <div class="panel__body">
+        <p class="form__help">
+            This surface is gated on <code>LOON_DEMO_DONATIONS=1</code>. Without
+            it the toggle below refuses and the public donate page 404s for
+            non-admins, whatever the stored setting says.
+        </p>
+        <form method="post" action="/admin/donate/points" class="form form--inline">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <input type="hidden" name="donate_enabled" value="{{if .DonateEnabled}}0{{else}}1{{end}}">
+            <button class="button button--primary button--sm" type="submit">
+                {{if .DonateEnabled}}Disable donations{{else}}Enable donations{{end}}
+            </button>
+        </form>
+    </div>
+</section>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">Running costs</h2>
+    </header>
+    {{if .Costs}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr><th>Label</th><th>Group</th><th>Category</th><th>Period</th><th class="num">USD</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+                {{range .Costs}}
+                <tr>
+                    <td>
+                        <div class="data-table__name-body">
+                            <span class="data-table__title">{{.Label}}</span>
+                            {{if .Notes}}<div class="data-table__meta">{{.Notes}}</div>{{end}}
+                        </div>
+                    </td>
+                    <td>{{.GoalGroup}}</td>
+                    <td><span class="tag">{{.Category}}</span></td>
+                    <td>{{.Period}}</td>
+                    <td class="num">{{printf "%.2f" .AmountUSD}}</td>
+                    <td>{{if .Active}}<span class="tag tag--success">Active</span>{{else}}<span class="tag">Hidden</span>{{end}}</td>
+                    <td class="data-table__actions">
+                        {{/* $.CSRFToken — inside range the dot is a SiteCost. */}}
+                        <form method="post" action="/admin/donate/costs/{{.ID}}/del" class="inline-form">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <button class="button button--text button--sm button--danger" type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="panel__body">No cost lines yet.</div>
+    {{end}}
+
+    <div class="panel__body">
+        <form method="post" action="/admin/donate/costs" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            {{if .Edit}}<input type="hidden" name="id" value="{{.Edit.ID}}">{{end}}
+            <div class="form__group">
+                <label class="form__label" for="label">Label</label>
+                <input class="form__input" id="label" name="label" type="text"
+                       value="{{if .Edit}}{{.Edit.Label}}{{end}}" required>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="amount_usd">Amount (USD)</label>
+                <input class="form__input" id="amount_usd" name="amount_usd" type="number" step="0.01" min="0"
+                       value="{{if .Edit}}{{printf "%.2f" .Edit.AmountUSD}}{{end}}" required>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="category">Category</label>
+                {{/* The column's documented values, per models.go. */}}
+                <select class="form__select" id="category" name="category">
+                    <option value="server">Server</option>
+                    <option value="url">Domain / URL</option>
+                    <option value="usenet">Usenet</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="goal_group">Goal group</label>
+                <input class="form__input" id="goal_group" name="goal_group" type="text"
+                       value="{{if .Edit}}{{.Edit.GoalGroup}}{{else}}site{{end}}">
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="period">Period</label>
+                <input class="form__input" id="period" name="period" type="text"
+                       value="{{if .Edit}}{{.Edit.Period}}{{else}}monthly{{end}}">
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="notes">Notes</label>
+                <input class="form__input" id="notes" name="notes" type="text"
+                       value="{{if .Edit}}{{.Edit.Notes}}{{end}}">
+            </div>
+            <div class="form__group form__group--inline">
+                <input class="form__checkbox" id="active" name="active" type="checkbox" value="1"
+                       {{if or (not .Edit) .Edit.Active}}checked{{end}}>
+                <label class="form__label" for="active">Active</label>
+            </div>
+            <div class="form__actions">
+                <button class="button button--primary" type="submit">{{if .Edit}}Save cost{{else}}Add cost{{end}}</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+{{if .Donations}}
+<section class="panelV2">
+    <header class="panel__header"><h2 class="panel__heading">Donation log</h2></header>
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead><tr><th>When</th><th>Donor</th><th class="num">Amount</th></tr></thead>
+            <tbody>
+                {{$names := .Usernames}}
+                {{range .Donations}}
+                <tr>
+                    <td>{{shortDate .CreatedAt}}</td>
+                    <td>
+                        {{$n := index $names .UserID}}
+                        {{if $n}}{{template "user-tag" (dict "Name" $n)}}{{else}}<span class="text-muted">unattributed</span>{{end}}
+                    </td>
+                    <td class="num">{{printf "%.2f" .AmountUSD}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}
+
+{{template "ffoot" .}}

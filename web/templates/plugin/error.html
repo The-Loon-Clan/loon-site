@@ -1,0 +1,25 @@
+{{/* Generic plugin error page. The donations plugin renders this by name for
+     its 502/503 states (claim.go), so the NAME is a contract — it cannot be
+     renamed without breaking that plugin.
+
+     A CAUTION for whoever adds the next plugin: pluginTemplates() parses this
+     whole directory into ONE flat namespace keyed by base filename, and
+     "error.html" is exactly the name a second plugin is likely to want. If that
+     happens, the two silently collide and one wins. See pluginTemplates() in
+     views.go.
+
+     Keys: Code int · Title string · Message string, plus BaseData chrome. */}}
+{{template "fhead" .}}
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">{{if .Title}}{{.Title}}{{else}}Something went wrong{{end}}</h1>
+        {{if .Code}}<div class="panel__actions"><span class="panel__action">{{.Code}}</span></div>{{end}}
+    </header>
+    <div class="panel__body">
+        {{if .Message}}<p>{{.Message}}</p>{{end}}
+        <p><a class="button button--text" href="/">Back to the site</a></p>
+    </div>
+</section>
+
+{{template "ffoot" .}}

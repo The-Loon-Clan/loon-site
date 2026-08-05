@@ -24,6 +24,14 @@ services:
   app:
     environment:
       LOON_DEMO_DEV: "1"
+      # Donations are DEV-ONLY and off unless this is set — the plugin takes
+      # real money through BTCPay. Passed through from the shell rather than
+      # pinned to "1" so even the dev overlay does not enable payments by
+      # accident:
+      #   LOON_DEMO_DONATIONS=1 docker compose -f docker-compose.yml -f compose.dev.yml up -d
+      # With it unset the public donate page 404s for non-admins and the admin
+      # toggle refuses, whatever the stored setting says.
+      LOON_DEMO_DONATIONS: "${LOON_DEMO_DONATIONS:-}"
     volumes:
       # Read-only: the site only ever reads these. Mounted at /web because the
       # image sets no WORKDIR, so the binary's os.DirFS(".") resolves from /.

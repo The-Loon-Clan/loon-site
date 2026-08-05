@@ -417,6 +417,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Donations plugin seams (donations_web.go). DEV-ONLY: gated on
+	// LOON_DEMO_DONATIONS=1, and OFF without it regardless of the persisted
+	// admin toggle — this plugin takes real money through BTCPay.
+	if err := wireDonationsPlugin(c, wsrv); err != nil {
+		logger.Error("donations wiring", "err", err)
+		os.Exit(1)
+	}
+	logger.Info("donations", "enabled", donationsEnabled)
+
 	// --- loon-plugins wiring (all worker plugins; they boot under Process
 	// "all"). The scraper needs the shared catalog.Registry on the extension
 	// registry — empty here until a source module lands — plus a write sink;
