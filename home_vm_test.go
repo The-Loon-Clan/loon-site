@@ -182,8 +182,8 @@ func TestOrderedBlocks(t *testing.T) {
 func TestHomeBlockOrderIsComplete(t *testing.T) {
 	want := map[string]bool{
 		blockWidgets: true, blockFeatured: true, blockLatestReleases: true,
-		blockNoReleases: true, blockTopGroups: true, blockLatestTopics: true,
-		blockTopPosters: true,
+		blockNoReleases: true, blockPopular: true, blockTopGroups: true,
+		blockLatestTopics: true, blockTopPosters: true,
 	}
 	seen := map[string]bool{}
 	for _, name := range homeBlockOrder {

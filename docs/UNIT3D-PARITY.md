@@ -93,7 +93,7 @@ only to work around hover on touch devices.
 | `torrent/create` (upload) | — | n/a | Releases come from crawling, not uploads |
 | `torrents/pending` | — | n/a | No upload moderation queue |
 | `requests/*` (12 views) | — | todo | Wants a request board; needs schema |
-| `trending/index` | — | todo | Needs a grab/view counter that doesn't exist yet |
+| `trending/index` | home "Most grabbed this week" | partial | Grabs are recorded now; a dedicated /trending page is still todo |
 | `missing/index` | — | todo | Honest analogue: groups with coverage gaps |
 | `mediahub/*` (8 views) | — | todo | Browse by genre/network/company/person; TMDB data lands this |
 | `torrent-reseed` | — | n/a | Peer concept |
@@ -296,15 +296,20 @@ Remaining, cheapest first:
 These are gaps in the HOST, not in the plugins. Each is a real feature, not a
 template.
 
-1. **Grab / download counter.** Nothing counts NZB downloads. `/nzb/:id` serves
-   the file and records nothing. This blocks:
-   - `economy` outright — its whole job is the per-grab uploader bonus, and
-     `UploaderGrabTotals` / `GrabsAlreadyCredited` have no source.
-   - UNIT3D's `trending/*` and "popular this week", still unbuilt for the same
-     reason.
-   - The "N downloads" figure every UNIT3D listing shows.
-   Smallest honest version: a `release_grab` table written on the NZB route,
-   plus a count read back into the listing view-models.
+1. ~~Grab / download counter~~ — **done**. `release_grab` records one row per
+   NZB download (a row, not a counter column: a counter cannot answer "this
+   week", which is what trending asks). `user_id` is nullable on purpose —
+   `/nzb/:id` is reachable anonymously and by API key, and NOT NULL would drop
+   exactly the traffic a public indexer sees most.
+
+   Unblocked by it: the "Grabs" column on every listing, the home "Most grabbed
+   this week" block, and `uploaderGrabTotals` — the read the `economy` plugin's
+   seam wants.
+
+   `economy` still stays unwired, but for a DIFFERENT and more honest reason
+   than "no data": its job is a per-grab **uploader** bonus, and releases here
+   come from crawling rather than uploads, so there is nobody to pay. That is a
+   domain mismatch, not a missing table.
 
 2. ~~Threaded private messages~~ — **done**, `messages` is wired. Two host
    gaps surfaced while wiring it, both now fixed and worth knowing about:

@@ -125,6 +125,7 @@
     {{- else if eq .Name "featured"}}{{template "block-featured" .Data}}
     {{- else if eq .Name "latest_releases"}}{{template "block-latest-releases" .Data}}
     {{- else if eq .Name "no_releases"}}{{template "block-nothing-yet" .Data}}
+    {{- else if eq .Name "popular"}}{{template "block-popular" .Data}}
     {{- else if eq .Name "top_groups"}}{{template "block-top-groups" .Data}}
     {{- else if eq .Name "latest_topics"}}{{template "block-latest-topics" .Data}}
     {{- else if eq .Name "top_posters"}}{{template "block-top-posters" .Data}}
@@ -283,6 +284,7 @@
                     <th>Release</th>
                     <th class="data-table__nowrap">Category</th>
                     <th class="data-table__num">Size</th>
+                        <th class="data-table__num" title="NZB downloads">Grabs</th>
                     <th class="data-table__nowrap">Added</th>
                     <th class="data-table__shrink"><span class="visually-hidden">Download</span></th>
                 </tr>
@@ -416,5 +418,42 @@
             {{end}}
         </ul>
     </div>
+</section>
+{{end}}
+
+{{/* Most grabbed this week — UNIT3D's trending block, real now that /nzb/:id
+     records a row per download. Data is []searchRow with Grabs populated.
+     The block is omitted entirely when nothing has been grabbed, so a quiet
+     site shows no ranking rather than a table of zeroes. */}}
+{{define "block-popular"}}
+<section class="panelV2 blocks__popular">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#download"></use></svg>
+            Most grabbed this week
+        </h2>
+    </header>
+    <ul class="list-rows">
+        {{range $i, $r := .}}
+        <li>
+            <a class="list-row" href="/release/{{$r.ID}}">
+                <span class="rank-chip{{if eq $i 0}} rank-chip--1{{else if eq $i 1}} rank-chip--2{{else if eq $i 2}} rank-chip--3{{end}}">{{add $i 1}}</span>
+                <span class="list-row__body">
+                    <span class="list-row__title">{{$r.Title}}</span>
+                    <span class="list-row__meta">
+                        {{if $r.Category}}<span>{{$r.Category}}</span>{{end}}
+                        <span>{{$r.Size}}</span>
+                    </span>
+                </span>
+                <span class="list-row__trail">
+                    <span class="list-row__stat">
+                        <svg class="icon icon--sm" aria-hidden="true"><use href="#download"></use></svg>{{$r.Grabs}}
+                    </span>
+                    <svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg>
+                </span>
+            </a>
+        </li>
+        {{end}}
+    </ul>
 </section>
 {{end}}

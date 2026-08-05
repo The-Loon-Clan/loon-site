@@ -57,6 +57,10 @@
         {{else}}<span class="text-muted">&mdash;</span>{{end}}
     </td>
     <td class="data-table__num">{{.Size}}</td>
+    {{/* Grabs is 0 both for "nobody grabbed it" and for "this page did not
+         measure it" (only pages calling attachGrabs populate it), so render
+         nothing rather than a 0 we cannot stand behind. */}}
+    <td class="data-table__num">{{if .Grabs}}{{.Grabs}}{{else}}<span class="text-muted">—</span>{{end}}</td>
     <td class="data-table__nowrap">
         {{if .PostedAt.IsZero}}<span class="text-muted">{{.Posted}}</span>
         {{else}}<span title="{{.Posted}}">{{timeAgo .PostedAt}}</span>{{end}}

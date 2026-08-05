@@ -207,6 +207,16 @@ func (w *web) nzbDownload(c *gin.Context) {
 	if filename == "" {
 		filename = "download.nzb"
 	}
+	// Count the grab BEFORE writing the body, while the request context is
+	// still live — after c.Data the client may already be gone. Best-effort:
+	// recordGrab swallows its own errors, because a download that worked must
+	// not fail on a counter that did not.
+	var uid int64
+	if u, ok := w.currentUser(c); ok && u != nil {
+		uid = u.ID
+	}
+	recordGrab(c.Request.Context(), id, uid)
+
 	c.Header("Content-Disposition", `attachment; filename="`+sanitizeFilename(filename)+`"`)
 	c.Data(http.StatusOK, "application/x-nzb", data)
 }
@@ -232,6 +242,32 @@ type searchRow struct {
 	Source     string    // "BluRay"/"WEB-DL" etc; "" when unknown
 	Cover      string    // cover-art URL; "" = none, render the fallback tile
 	Tags       []string  // the non-empty Resolution/Source/Codec/Audio/Language
+	// Grabs is how many times the NZB has been downloaded. ZERO means "not
+	// measured on this path", not "nobody grabbed it" — only the pages that
+	// call attachGrabs populate it, and the templates guard on it so an
+	// unmeasured row renders no figure rather than a false 0.
+	Grabs int
+}
+
+// attachGrabs fills Grabs for a page of rows in ONE query. Rows with no
+// recorded grab keep 0 and their templates render nothing, which is the honest
+// state: the table stores downloads, not zeroes.
+func attachGrabs(ctx context.Context, rows []searchRow) []searchRow {
+	if len(rows) == 0 {
+		return rows
+	}
+	ids := make([]int64, 0, len(rows))
+	for _, r := range rows {
+		ids = append(ids, r.ID)
+	}
+	counts := grabCounts(ctx, ids)
+	if counts == nil {
+		return rows
+	}
+	for i := range rows {
+		rows[i].Grabs = counts[rows[i].ID]
+	}
+	return rows
 }
 
 func toSearchRows(rs []pluginapi.Release) []searchRow {

@@ -727,6 +727,7 @@ const (
 	blockLatestReleases = "latest_releases" // the listing table — UNIT3D's top_torrents
 	blockNoReleases     = "no_releases"     // that table's EMPTY state; Data is Configured
 	blockTopGroups      = "top_groups"      // busiest newsgroups (no UNIT3D analogue)
+	blockPopular        = "popular"         // most-grabbed this week — UNIT3D's trending
 	blockLatestTopics   = "latest_topics"   // forum threads — UNIT3D's latest_topics
 	blockTopPosters     = "top_posters"     // forum posters — UNIT3D's top_users
 )
@@ -740,6 +741,7 @@ var homeBlockOrder = []string{
 	blockFeatured,
 	blockLatestReleases,
 	blockNoReleases, // mutually exclusive with the one above; same slot either way
+	blockPopular,
 	blockTopGroups,
 	blockLatestTopics,
 	blockTopPosters,
@@ -802,8 +804,15 @@ func (w *web) home(c *gin.Context) {
 		rows, hit := w.homeReleases(ctx)
 		c.Header("X-Cache", map[bool]string{true: "hit", false: "miss"}[hit])
 		if len(rows) > 0 {
-			content[blockLatestReleases] = capRows(rows, homeTableRows)
+			content[blockLatestReleases] = attachGrabs(ctx, capRows(rows, homeTableRows))
 			content[blockFeatured] = featuredRows(rows, homeFeatured)
+		}
+		// Most-grabbed this week — UNIT3D's trending, now that grabs are
+		// recorded. Resolved from the rows already fetched rather than a second
+		// index read; an id that has aged out of the recent window simply does
+		// not appear, which is why the table stores no titles of its own.
+		if pop := popularRows(ctx, rows, homePopularRows); len(pop) > 0 {
+			content[blockPopular] = pop
 		}
 		if gs, ok := w.homeGroups(ctx); ok {
 			stats, haveStats = gs.Stats, true
@@ -1123,4 +1132,39 @@ func (w *web) usersAdapter() core.UsersAdapter {
 			return out, nil
 		},
 	}
+}
+
+// homePopularRows is how many rows the "most grabbed" block shows.
+const homePopularRows = 5
+
+// popularRows ranks the rows already on hand by their grab count over the last
+// week. Deliberately NOT a second index query: this block is a view of what the
+// page already fetched, so a release that has aged out of the recent window is
+// absent rather than resurrected — the grab table stores ids, not titles, for
+// exactly that reason.
+//
+// Returns nothing when no row has a grab, so a site nobody has downloaded from
+// shows no block at all instead of a ranking of zeroes.
+func popularRows(ctx context.Context, rows []searchRow, limit int) []searchRow {
+	ids, counts := popularGrabs(ctx, 7, limit*4)
+	if len(ids) == 0 {
+		return nil
+	}
+	byID := make(map[int64]searchRow, len(rows))
+	for _, r := range rows {
+		byID[r.ID] = r
+	}
+	out := make([]searchRow, 0, limit)
+	for _, id := range ids {
+		r, ok := byID[id]
+		if !ok {
+			continue // aged out of the index, or not on this page
+		}
+		r.Grabs = counts[id]
+		out = append(out, r)
+		if len(out) == limit {
+			break
+		}
+	}
+	return out
 }

@@ -268,6 +268,14 @@ func main() {
 		logger.Error("points migrate", "err", err)
 		os.Exit(1)
 	}
+	// Grab counting (grabs_web.go) — the source trending, "N downloads" and the
+	// economy plugin's uploader bonus were all waiting on.
+	if err := grabsMigrate(db); err != nil {
+		logger.Error("grabs migrate", "err", err)
+		os.Exit(1)
+	}
+	grabsDB = db
+
 	points := pgPoints{db: db}
 	pointsSvc := core.NewPoints(points.adapter())
 	wsrv.points = pointsSvc // navbar balance readout

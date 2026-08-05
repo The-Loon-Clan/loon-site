@@ -1077,6 +1077,7 @@ func homeBlockFixtures() map[string]any {
 		blockWidgets:        []widgetVM{{Title: "Guestbook", Fragment: template.HTML(`<div class="card-body">hi</div>`)}},
 		blockFeatured:       rows,
 		blockLatestReleases: rows,
+		blockPopular:        []searchRow{{ID: 7, Title: "Grabbed", Size: "1 GB", Category: "TV", Grabs: 12}},
 		blockTopGroups:      []groupRowVM{{Rank: 1, Name: "alt.binaries.tv", NZBs: 90210, URL: "/search?group=alt.binaries.tv"}},
 		blockLatestTopics: []forumThreadVM{{ID: 7, Title: "Welcome", URL: "/community/forums/thread/7",
 			Author: "bob", AuthorRole: "Member", Category: "General", CategoryID: 1,
@@ -1127,6 +1128,7 @@ var blockMarker = map[string]string{
 	// marker+'"', i.e. the last class in the attribute, which is why the empty
 	// state's own marker has to come last in its class list.
 	blockNoReleases:   "blocks__no-releases",
+	blockPopular:      "blocks__popular",
 	blockTopGroups:    "blocks__top-groups",
 	blockLatestTopics: "blocks__latest-topics",
 	blockTopPosters:   "blocks__top-posters",
@@ -1271,6 +1273,7 @@ func TestHomeEmptyStateSurvivesOtherBlocks(t *testing.T) {
 func TestHomeBlockStackIgnoresUnknownNames(t *testing.T) {
 	blocks := []homeBlock{
 		{Name: "not_a_real_block", Data: []string{"SENTINEL-VALUE"}},
+		{Name: blockPopular, Data: []searchRow{{ID: 7, Title: "Grabbed", Size: "1 GB", Grabs: 12}}},
 		{Name: blockTopGroups, Data: []groupRowVM{{Rank: 1, Name: "alt.binaries.tv", NZBs: 1, URL: "/x"}}},
 	}
 	out := renderHome(t, blocks, nil)
