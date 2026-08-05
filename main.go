@@ -407,6 +407,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Store plugin seams (store_web.go). No error return: it self-migrates and
+	// its only seams are the chrome closure plus two pagination helpers.
+	wireStorePlugin(wsrv)
+
 	// --- loon-plugins wiring (all worker plugins; they boot under Process
 	// "all"). The scraper needs the shared catalog.Registry on the extension
 	// registry — empty here until a source module lands — plus a write sink;
@@ -716,16 +720,35 @@ func getenvDefault(key, def string) string {
 type demoPoints struct {
 	mu       sync.Mutex
 	balances map[int64]int
+	// ledger is the per-user transaction log behind HistoryFn, newest LAST
+	// (append order); History reverses it. In memory like the balances, so it
+	// dies with the process — a real host reads its points_ledger table.
+	ledger map[int64][]core.LedgerEntry
 }
 
 func (p *demoPoints) adapter() core.PointsAdapter {
-	change := func(userID int64, delta int) (int, error) {
+	// change applies a delta AND records the ledger row, because a balance
+	// that moves without a ledger entry is exactly the inconsistency the
+	// history page exists to expose.
+	change := func(userID int64, delta int, kind, desc string, ref int64) (int, error) {
 		p.mu.Lock()
 		defer p.mu.Unlock()
 		if p.balances[userID]+delta < 0 {
 			return p.balances[userID], core.ErrInsufficientPoints
 		}
 		p.balances[userID] += delta
+		if p.ledger == nil {
+			p.ledger = map[int64][]core.LedgerEntry{}
+		}
+		e := core.LedgerEntry{
+			Amount: delta, Balance: p.balances[userID],
+			Type: kind, Description: desc, CreatedAt: time.Now(),
+		}
+		if ref != 0 {
+			r := ref
+			e.ReferenceID = &r
+		}
+		p.ledger[userID] = append(p.ledger[userID], e)
 		return p.balances[userID], nil
 	}
 	return core.PointsAdapter{
@@ -734,14 +757,36 @@ func (p *demoPoints) adapter() core.PointsAdapter {
 			defer p.mu.Unlock()
 			return p.balances[userID], nil
 		},
-		AwardFn: func(_ context.Context, userID int64, n int, _, _ string, _ int64) (int, error) {
-			return change(userID, n)
+		AwardFn: func(_ context.Context, userID int64, n int, kind, desc string, ref int64) (int, error) {
+			return change(userID, n, kind, desc, ref)
 		},
-		DeductFn: func(_ context.Context, userID int64, n int, _, _ string, _ int64) (int, error) {
-			return change(userID, -n)
+		DeductFn: func(_ context.Context, userID int64, n int, kind, desc string, ref int64) (int, error) {
+			return change(userID, -n, kind, desc, ref)
 		},
-		RefundFn: func(_ context.Context, userID int64, n int, _, _ string, _ int64) (int, error) {
-			return change(userID, n)
+		RefundFn: func(_ context.Context, userID int64, n int, kind, desc string, ref int64) (int, error) {
+			return change(userID, n, kind, desc, ref)
+		},
+		// Without this the service returns ErrPointsNotWired, and any plugin
+		// offering a points ledger renders its error branch instead of a page —
+		// which is exactly what the store's /store/history did before.
+		HistoryFn: func(_ context.Context, userID int64, limit, offset int) ([]core.LedgerEntry, int, error) {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			all := p.ledger[userID]
+			total := len(all)
+			// Newest first, which is what a ledger page shows.
+			rev := make([]core.LedgerEntry, 0, total)
+			for i := total - 1; i >= 0; i-- {
+				rev = append(rev, all[i])
+			}
+			if offset >= len(rev) {
+				return nil, total, nil
+			}
+			rev = rev[offset:]
+			if limit > 0 && limit < len(rev) {
+				rev = rev[:limit]
+			}
+			return rev, total, nil
 		},
 	}
 }

@@ -271,7 +271,7 @@ Remaining, cheapest first:
 | plugin | host templates | other seams | notes |
 |---|---|---|---|
 | `messages` | **wired** | — | `/inbox`, `/admin/messages` |
-| `store` | 3 | BaseData, Paginate, PageOffset | Points spending; `pointstore` already wired |
+| `store` | **wired** | — | `/store`, `/store/history`, `/admin/store` |
 | `donations` | 3 | BaseData, Settings, IsDonateEnabled, LookupUsername/UserID | Needs BTCPay — see §5c |
 | `tickets` | 4 | + PageOffset, Pagination, Viewer, OwnerRole, RoleBadge, NotifyNewTicket, NotifyReply | UNIT3D's helpdesk |
 | `communities` | 7 | + Markdown, Files, Pagination | Biggest; no UNIT3D equivalent |
@@ -323,6 +323,29 @@ template.
 
 6. **Cover art.** Still unexercised: no `TMDB_API_KEY` is set, so every poster
    is a gradient fallback. Blocks `mediahub` parity entirely.
+
+7. **An InviteGranter.** `store` can now sell invite items, but the buy path
+   needs `pluginapi.InviteGranterName` published by the HOST — invites live on
+   users, not in a sibling plugin. Unpublished here, so an invite purchase
+   fails cleanly rather than silently. Rank items work today, since `ranks` is
+   wired and publishes the RankGranter.
+
+### A pattern worth naming
+
+Every plugin wired so far has surfaced at least one HOST seam left nil or
+half-wired, and **every one of them failed silently**:
+
+| plugin | gap | symptom |
+|---|---|---|
+| `news` | — | (plugin-side: list path skipped Sanitize) |
+| `wiki` | — | (plugin-side: form handlers skipped BaseData) |
+| `messages` | Entitlements had no `Baseline` | every DM send failed closed, incl. admins |
+| `messages` | `users.avatar_path` missing | inbox rendered empty, error discarded |
+| `store` | PointsAdapter had no `HistoryFn` | ledger page rendered its error branch |
+
+None was a crash. The lesson for wiring the rest: **exercise the feature, do
+not just load the page.** Four of those five look fine until you send a
+message, open a ledger, or create an item.
 
 ## 6. Suggested order
 
