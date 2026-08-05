@@ -360,11 +360,12 @@ template.
 6. **Cover art.** Still unexercised: no `TMDB_API_KEY` is set, so every poster
    is a gradient fallback. Blocks `mediahub` parity entirely.
 
-7. **An InviteGranter.** `store` can now sell invite items, but the buy path
-   needs `pluginapi.InviteGranterName` published by the HOST — invites live on
-   users, not in a sibling plugin. Unpublished here, so an invite purchase
-   fails cleanly rather than silently. Rank items work today, since `ranks` is
-   wired and publishes the RankGranter.
+7. ~~An InviteGranter~~ — **done**. Published on the extension registry; an
+   invite purchase now credits `users.invites` instead of producing a
+   spend/refund pair. A BALANCE, not a table of codes: UNIT3D issues individual
+   invite rows with codes and an invite tree, but this host has no registration
+   gate for a code to unlock, and the granter contract only asks for "credit N
+   invites". The counter is real spendable state, not a display number.
 
 ### A pattern worth naming
 

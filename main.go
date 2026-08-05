@@ -474,6 +474,13 @@ func main() {
 		logger.Error("register catalog registry", "err", err)
 		os.Exit(1)
 	}
+	// Invites: the host capability the store's invite items need. Invites live
+	// on users, so no sibling plugin can own this — see invites_web.go.
+	if err := wireInvites(c, db); err != nil {
+		logger.Error("invites wiring", "err", err)
+		os.Exit(1)
+	}
+
 	// Publish the Turnstile verifier as a cross-cutting capability so plugins
 	// (e.g. the dailyreward claim button) can require a captcha without importing
 	// loon-baseline. Registered before Boot so plugin Provision can Lookup it; a

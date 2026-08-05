@@ -94,13 +94,25 @@
                     {{end}}
 
                     {{if .IsSelf}}
-                    {{if .HasUnread}}
+                    {{/* Viewer-only tiles: your unread count and your spendable
+                         invite balance. Someone else's invites are not your
+                         business, so the handler only sets them for IsSelf. */}}
+                    {{if or .HasUnread .HasInvites}}
                     <div class="stat-grid stat-grid--2">
+                        {{if .HasUnread}}
                         <div class="stat-tile">
                             <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#bell"></use></svg>
                             <span class="stat-tile__label">Unread</span>
                             <span class="stat-tile__value">{{.Unread}}</span>
                         </div>
+                        {{end}}
+                        {{if .HasInvites}}
+                        <div class="stat-tile">
+                            <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#plus"></use></svg>
+                            <span class="stat-tile__label">Invites</span>
+                            <span class="stat-tile__value">{{.Invites}}</span>
+                        </div>
+                        {{end}}
                     </div>
                     {{end}}
                     <a class="button button--outlined button--block" href="/p/account">

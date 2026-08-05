@@ -590,6 +590,13 @@ func (w *web) profilePage(c *gin.Context) {
 			data["SubjectPosts"], data["HasSubjectPosts"] = n, true
 		}
 	}
+	// Invites are the viewer's own spendable balance, so they only show on
+	// your own profile — someone else's invite count is not your business.
+	if viewer != nil && viewer.ID == subject.ID {
+		if n, ok := inviteBalance(ctx, subject.ID); ok {
+			data["Invites"], data["HasInvites"] = n, true
+		}
+	}
 	w.render(c, "profile.html", data)
 }
 
