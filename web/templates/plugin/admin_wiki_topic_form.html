@@ -1,0 +1,83 @@
+{{/* Wiki topic create/edit form.
+
+     STANDALONE DOCUMENT ON PURPOSE. handlers.go renders this with a plain
+     gin.H, NOT deps.BaseData — so .User, .Path, .Theme, .SiteNav and
+     .CSRFToken are all ABSENT here. It therefore cannot use {{template
+     "fhead"}}, which dereferences .Theme.Href and would abort the render.
+     Reported upstream as a plugin bug; this template is written to work as the
+     plugin actually calls it, not as it ought to.
+
+     Two consequences, both deliberate:
+       - The stylesheets are linked directly. That still themes correctly
+         because tokens.css @imports the default theme (see tokens.css) — the
+         same mechanism that fixes loon's own framework admin pages.
+       - There is no server-rendered _csrf value to embed. The double-submit
+         shim in site-scripts injects it from the JS-readable cookie on submit,
+         so this form works with JS and fails closed without it. That is the
+         plugin bug's real cost.
+
+     Keys: Action "Create"|"Edit" · Topic (edit only) · Icons []{Key,Label} */}}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{.Action}} wiki topic</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/tokens.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/theme.css">
+</head>
+<body>
+<main class="page-main">
+<section class="panelV2">
+    <header class="panel__header"><h1 class="panel__heading">{{.Action}} wiki topic</h1></header>
+    <div class="panel__body">
+        <form method="post" action="{{if .Topic}}/admin/wiki/topics/{{.Topic.ID}}/update{{else}}/admin/wiki/topics{{end}}" class="form">
+            <div class="form__group">
+                <label class="form__label" for="name">Name</label>
+                <input class="form__input" id="name" name="name" type="text" value="{{if .Topic}}{{.Topic.Name}}{{end}}" required>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="description">Description</label>
+                <input class="form__input" id="description" name="description" type="text" value="{{if .Topic}}{{.Topic.Description}}{{end}}">
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="icon">Icon</label>
+                <select class="form__select" id="icon" name="icon">
+                    {{$cur := ""}}{{if .Topic}}{{$cur = .Topic.Icon}}{{end}}
+                    {{range .Icons}}
+                    <option value="{{.Key}}"{{if eq (printf "%s" .Key) $cur}} selected{{end}}>{{.Label}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="color">Colour</label>
+                <input class="form__input" id="color" name="color" type="text" placeholder="#4c8dff"
+                       value="{{if .Topic}}{{.Topic.Color}}{{end}}">
+                <p class="form__help">A #rrggbb accent for the icon tile, or blank for the default.</p>
+            </div>
+            <div class="form__actions">
+                <button class="button button--primary" type="submit">{{.Action}} topic</button>
+                <a class="button button--text" href="/admin/wiki">Cancel</a>
+            </div>
+        </form>
+    </div>
+</section>
+</main>
+<script>
+// Same double-submit CSRF shim base.html ships. Repeated here because this
+// document does not go through the shared chrome — see the header comment.
+document.addEventListener('submit', function (e) {
+    var f = e.target;
+    if (!f || (f.method || '').toLowerCase() !== 'post') return;
+    var m = document.cookie.match(/(?:^|;\s*)csrf_tok=([^;]+)/);
+    if (!m) return;
+    var inp = f.querySelector('input[name="_csrf"]');
+    if (!inp) { inp = document.createElement('input'); inp.type = 'hidden'; inp.name = '_csrf'; f.appendChild(inp); }
+    inp.value = decodeURIComponent(m[1]);
+}, true);
+</script>
+</body>
+</html>

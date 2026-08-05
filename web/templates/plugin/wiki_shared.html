@@ -1,0 +1,32 @@
+{{/* Wiki partials shared by the plugin's pages. Parsed into the same flat gin
+     namespace as everything in this directory, so the names are prefixed.
+
+     "wiki-icon" is a CONTRACT with the plugin: icons.go says "the keys match
+     the branches of the wiki-icon template", so this must carry one branch per
+     TopicIcons key. Icons are a fixed key set rather than admin-supplied markup
+     precisely so a folder picture cannot become stored XSS — keep it that way.
+     Dot is the icon key string. */}}
+{{define "wiki-icon"}}
+    <svg class="icon"><use href="#{{if eq . "book"}}book{{else if eq . "tools"}}settings{{else if eq . "server"}}server{{else if eq . "code"}}code{{else if eq . "shield"}}shield{{else if eq . "people"}}users{{else if eq . "star"}}star{{else if eq . "question"}}info{{else if eq . "warning"}}info{{else}}folder{{end}}"></use></svg>
+{{end}}
+
+{{/* One row in a recent/popular list. Dot is a wiki.RecentPost. */}}
+{{define "wiki-post-row"}}
+<li>
+    <a class="list-row" href="/wiki/{{.TopicSlug}}/{{.Slug}}">
+        <span class="list-row__icon" aria-hidden="true"><svg class="icon"><use href="#book"></use></svg></span>
+        <span class="list-row__body">
+            <span class="list-row__title">{{.Title}}</span>
+            <span class="list-row__meta">
+                <span>{{.TopicName}}</span>
+                {{if .CreatedByUsername}}<span>{{.CreatedByUsername}}</span>{{end}}
+                {{with timeAgo .UpdatedAt}}<span>{{.}}</span>{{end}}
+            </span>
+        </span>
+        <span class="list-row__trail">
+            {{if .ViewCount}}<span class="list-row__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#search"></use></svg>{{.ViewCount}}</span>{{end}}
+            <svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg>
+        </span>
+    </a>
+</li>
+{{end}}

@@ -366,6 +366,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Wiki plugin seams (wiki_web.go). Needs the engine as well as the chrome
+	// closure: it serves admin image uploads off a static route.
+	if err := wireWikiPlugin(c, engine, wsrv); err != nil {
+		logger.Error("wiki wiring", "err", err)
+		os.Exit(1)
+	}
+
 	// --- loon-plugins wiring (all worker plugins; they boot under Process
 	// "all"). The scraper needs the shared catalog.Registry on the extension
 	// registry — empty here until a source module lands — plus a write sink;

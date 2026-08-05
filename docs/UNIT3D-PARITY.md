@@ -101,7 +101,7 @@ only to work around hover on touch devices.
 | `article/*` (news) | `/news`, `/news/:slug`, `/admin/news` | have |
 | `contact` | — | todo |
 | `page/*` (static pages: rules, FAQ, about, staff, internal, client blacklist) | `site_page.html` | partial |
-| `wiki/*` | — | todo |
+| `wiki/*` | `/wiki`, `/wiki/:topic/:post`, `/admin/wiki` | have |
 | `ticket/*` (helpdesk) | — | todo |
 | `event/*` | — | todo |
 | `donation/*` | — | todo |
@@ -226,7 +226,7 @@ and none is referenced by the demo:
 | plugin | UNIT3D equivalent | needs |
 |---|---|---|
 | `news` | `article/*` | **wired** — see below |
-| `wiki` | `wiki/*` | BaseData + Markdown |
+| `wiki` | `wiki/*` | **wired** |
 | `tickets` | `ticket/*` (helpdesk) | BaseData + PageOffset + Pagination + Viewer |
 | `messages` | `users.conversations` (PM) | Store + BaseData |
 | `donations` | `donation/*` | BaseData |

@@ -1,0 +1,56 @@
+{{/* One wiki topic — its article list, with the other topics alongside.
+     Keys (Handlers.TopicPage + Deps.BaseData):
+       Topic Topic · Posts []Post · AllTopics []Topic · PostsByTopic map[int][]Post */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/wiki">Wiki</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">{{.Topic.Name}}</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <span{{if .Topic.Color}} style="color: {{.Topic.Color}}"{{end}}>{{template "wiki-icon" .Topic.Icon}}</span>
+            {{.Topic.Name}}
+        </h1>
+        {{if .IsMod}}<div class="panel__actions"><a class="panel__action" href="/admin/wiki">Manage</a></div>{{end}}
+    </header>
+    {{if .Topic.Description}}<div class="panel__body">{{.Topic.Description}}</div>{{end}}
+    {{if .Posts}}
+    <ul class="list-rows">
+        {{$topic := .Topic}}
+        {{range .Posts}}
+        <li>
+            <a class="list-row" href="/wiki/{{$topic.Slug}}/{{.Slug}}">
+                <span class="list-row__icon" aria-hidden="true"><svg class="icon"><use href="#book"></use></svg></span>
+                <span class="list-row__body">
+                    <span class="list-row__title">{{.Title}}</span>
+                    {{with timeAgo .UpdatedAt}}<span class="list-row__meta">{{.}}</span>{{end}}
+                </span>
+                <span class="list-row__trail"><svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg></span>
+            </a>
+        </li>
+        {{end}}
+    </ul>
+    {{else}}
+    <div class="panel__body">No articles in this topic yet.</div>
+    {{end}}
+</section>
+
+{{if .AllTopics}}
+<section class="panelV2">
+    <header class="panel__header"><h2 class="panel__heading">All topics</h2></header>
+    <div class="panel__body">
+        <div class="pill-row">
+            {{$cur := .Topic}}
+            {{range .AllTopics}}
+            <a class="pill{{if eq .ID $cur.ID}} pill--active{{end}}" href="/wiki/{{.Slug}}">{{.Name}}</a>
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}
+
+{{template "ffoot" .}}

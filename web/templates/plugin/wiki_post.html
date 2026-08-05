@@ -1,0 +1,52 @@
+{{/* One wiki article.
+     Keys (Handlers.PostPage + Deps.BaseData):
+       Topic Topic · Post Post · RenderedContent template.HTML
+       AllTopics []Topic · Posts []Post (siblings) · PostsByTopic map[int][]Post
+
+     RenderedContent is ALREADY safe: the plugin calls deps.Markdown, which is
+     wiki_web.go's wikiMarkdown — goldmark with raw HTML disabled, then the
+     host's allowlist sanitizer. Never render .Post.Content here; that is the
+     raw markdown source and is untrusted. */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/wiki">Wiki</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/wiki/{{.Topic.Slug}}">{{.Topic.Name}}</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">{{.Post.Title}}</li>
+</ol>
+
+<article class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">{{.Post.Title}}</h1>
+        {{if .IsMod}}
+        <div class="panel__actions"><a class="panel__action" href="/admin/wiki/posts/{{.Post.ID}}/edit">Edit</a></div>
+        {{end}}
+    </header>
+    <div class="panel__body">
+        <p class="meta__line">
+            {{with timeAgo .Post.UpdatedAt}}<span class="meta__item">Updated {{.}}</span>{{end}}
+            {{if .Post.ViewCount}}<span class="meta__item">{{.Post.ViewCount}} views</span>{{end}}
+        </p>
+        <div class="prose">{{.RenderedContent}}</div>
+    </div>
+</article>
+
+{{if .Posts}}
+<section class="panelV2">
+    <header class="panel__header"><h2 class="panel__heading">More in {{.Topic.Name}}</h2></header>
+    <ul class="list-rows">
+        {{$topic := .Topic}}{{$cur := .Post}}
+        {{range .Posts}}{{if ne .ID $cur.ID}}
+        <li>
+            <a class="list-row" href="/wiki/{{$topic.Slug}}/{{.Slug}}">
+                <span class="list-row__body"><span class="list-row__title">{{.Title}}</span></span>
+                <span class="list-row__trail"><svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg></span>
+            </a>
+        </li>
+        {{end}}{{end}}
+    </ul>
+</section>
+{{end}}
+
+{{template "ffoot" .}}
