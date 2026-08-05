@@ -1,0 +1,52 @@
+{{/* Privacy settings — UNIT3D's user/privacy-setting/edit.
+
+     Keys: .PrivateProfile bool · .Saved bool
+
+     The toggle is REAL: profilePage checks it and stops before fetching a
+     subject's figures, so a private profile is not merely un-rendered. Staff
+     and the owner still see everything, because a setting that hid a member
+     from moderation would be a moderation hole rather than a privacy feature. */}}
+{{define "content"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Privacy</li>
+</ol>
+
+{{if .Saved}}<div class="notice notice--success">Saved.</div>{{end}}
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#lock"></use></svg>
+            Privacy
+        </h1>
+        <div class="panel__actions">
+            <a class="panel__action" href="/settings/notifications">Notifications</a>
+            <a class="panel__action" href="/p/account">Account</a>
+        </div>
+    </header>
+    <div class="panel__body">
+        <form method="post" action="/settings/privacy" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            {{/* A hidden 0 before the checkbox so an unchecked box still posts
+                 a value — otherwise turning the setting OFF would post nothing
+                 and silently leave it on. The checkbox wins when checked
+                 because it is later in the form. */}}
+            <input type="hidden" name="private_profile" value="0">
+            <div class="form__group form__group--inline">
+                <input class="form__checkbox" id="private_profile" name="private_profile"
+                       type="checkbox" value="1" {{if .PrivateProfile}}checked{{end}}>
+                <label class="form__label" for="private_profile">Private profile</label>
+            </div>
+            <p class="form__help">
+                Hides your points, post count and activity from other members.
+                Your username and rank stay visible, and staff can always see
+                your profile.
+            </p>
+            <div class="form__actions">
+                <button class="button button--primary" type="submit">Save</button>
+            </div>
+        </form>
+    </div>
+</section>
+{{end}}

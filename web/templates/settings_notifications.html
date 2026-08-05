@@ -1,0 +1,51 @@
+{{/* Notification settings — UNIT3D's user/notification-setting/edit.
+
+     Keys: .Kinds []{Kind Label Help Enabled} · .Saved bool
+
+     The toggles are REAL and enforced in the DELIVERY path (settings_web.go
+     prefFiltered), not at render time: a disabled kind is never written to the
+     inbox at all. They fail OPEN — an unknown kind or a failed lookup still
+     delivers, because the cost of an unwanted notification is mild annoyance
+     and the cost of a silent drop is never learning your ticket was answered. */}}
+{{define "content"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Notifications</li>
+</ol>
+
+{{if .Saved}}<div class="notice notice--success">Saved.</div>{{end}}
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#bell"></use></svg>
+            Notifications
+        </h1>
+        <div class="panel__actions">
+            <a class="panel__action" href="/settings/privacy">Privacy</a>
+            <a class="panel__action" href="/p/inbox">Inbox</a>
+        </div>
+    </header>
+    <div class="panel__body">
+        <form method="post" action="/settings/notifications" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            {{range .Kinds}}
+            <div class="form__group form__group--inline">
+                {{/* No hidden 0 companion here: the handler writes EVERY known
+                     kind on save, reading an unchecked box as false. That is
+                     the same fix the privacy page needs a hidden field for, done
+                     server-side instead — with several toggles it is the safer
+                     half, since a new kind cannot be forgotten in the markup. */}}
+                <input class="form__checkbox" id="{{.Kind}}" name="{{.Kind}}"
+                       type="checkbox" value="1" {{if .Enabled}}checked{{end}}>
+                <label class="form__label" for="{{.Kind}}">{{.Label}}</label>
+            </div>
+            {{if .Help}}<p class="form__help">{{.Help}}</p>{{end}}
+            {{end}}
+            <div class="form__actions">
+                <button class="button button--primary" type="submit">Save</button>
+            </div>
+        </form>
+    </div>
+</section>
+{{end}}

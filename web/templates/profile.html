@@ -125,6 +125,17 @@
     </aside>
 
     <div>
+        {{if .Private}}
+        {{/* A private profile renders its identity card and nothing else. The
+             handler stops before fetching any of it, so there is nothing here
+             to leak — this branch exists to explain the absence. */}}
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#lock"></use></svg>Private profile</h2>
+            </header>
+            <div class="panel__body">This member has chosen to keep their profile private.</div>
+        </section>
+        {{else}}
         {{if .Widgets}}
         {{/* Each fragment ships its own <div class="card-body"> + heading, so the
              wrapper stays a Bootstrap-subset .card (padding collapses to 0 when
@@ -204,6 +215,7 @@
                 </div>
             </div>
         </section>
+        {{end}}{{/* .Private */}}
     </div>
 </div>
 {{end}}

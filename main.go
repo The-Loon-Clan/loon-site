@@ -268,6 +268,12 @@ func main() {
 		logger.Error("points migrate", "err", err)
 		os.Exit(1)
 	}
+	// Privacy + notification preferences (settings_web.go).
+	if err := settingsMigrate(db); err != nil {
+		logger.Error("settings migrate", "err", err)
+		os.Exit(1)
+	}
+
 	// Grab counting (grabs_web.go) — the source trending, "N downloads" and the
 	// economy plugin's uploader bonus were all waiting on.
 	if err := grabsMigrate(db); err != nil {
@@ -349,8 +355,12 @@ func main() {
 			// falling back). Flip with USENET_STAGING=redis.
 			"usenet": map[string]any{"staging": usenetStaging},
 		}),
-		Notifications: core.NewNotifications(core.NotificationsAdapter{NotifyFn: notifications.Deliver}),
-		Points:        pointsSvc,
+		// prefFiltered enforces per-kind notification preferences at the ONE
+		// entry point every plugin's Notify goes through — see settings_web.go.
+		Notifications: core.NewNotifications(core.NotificationsAdapter{
+			NotifyFn: prefFiltered(db, notifications.Deliver),
+		}),
+		Points: pointsSvc,
 		// In-memory grants (lost on restart) — a real host backs this
 		// with a user_entitlements table.
 		//

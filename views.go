@@ -109,6 +109,8 @@ var pageTemplates = []string{
 	"admin_jobs.html", "admin_plugins.html",
 	// Fixed host pages — UNIT3D's page/* and stats/index (pages_web.go).
 	"staff.html", "stats.html", "rules.html", "faq.html", "about.html",
+	// Viewer settings (settings_web.go) — UNIT3D's privacy/notification pages.
+	"settings_privacy.html", "settings_notifications.html",
 }
 
 // sharedPartials maps a page to the partials it needs beyond the shell. Each
@@ -513,6 +515,8 @@ func (w *web) mount(e *gin.Engine) {
 	e.GET("/nzb/:id", w.nzbDownload)
 	// Fixed host pages: /staff /stats /rules /faq /about (pages_web.go).
 	w.mountSitePages(e)
+	// Viewer settings: /settings/privacy, /settings/notifications.
+	w.mountSettings(e)
 	e.GET("/login", w.loginPage)
 	e.POST("/login", w.loginPost)
 	e.GET("/register", w.registerPage)
@@ -564,12 +568,27 @@ func (w *web) profilePage(c *gin.Context) {
 
 	viewer, _ := w.currentUser(c)
 	subj := subject.ToCore()
+	// Privacy is ENFORCED here, not just rendered: a private profile shows its
+	// identity card and nothing else. Staff and the owner still see everything —
+	// a setting that hid a user from moderation would be a moderation hole, not
+	// a privacy feature.
+	isSelf := viewer != nil && viewer.ID == subject.ID
+	isStaff := viewer != nil && viewer.AtLeast(core.RoleMod)
+	private := !isSelf && !isStaff && isPrivateProfile(c.Request.Context(), subject.ID)
 	data := map[string]any{
 		"Title":   subject.Username,
 		"Subject": subj,
-		"IsSelf":  viewer != nil && viewer.ID == subject.ID,
+		"IsSelf":  isSelf,
 		"Widgets": widgets,
 		"Role":    roleLabel(subj.Role),
+		"Private": private,
+	}
+	if private {
+		// Stop before every read below. Skipping the render is not enough —
+		// the figures must never be FETCHED, or a timing difference still
+		// answers the question the setting exists to refuse.
+		w.render(c, "profile.html", data)
+		return
 	}
 	// Real profile figures only. Each is guarded: a missing capability drops
 	// the tile rather than showing a zero, because "0 points" and "points are

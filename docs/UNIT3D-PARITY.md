@@ -123,7 +123,9 @@ only to work around hover on touch devices.
 | UNIT3D area | Status | Notes |
 |---|---|---|
 | Profile | partial | user-tag heading, subject points + post count, mocked panels (see `docs/MOCKS.md`) |
-| General/privacy/notification settings | partial | Split across plugin pages |
+| Privacy settings | have | `/settings/privacy` — enforced, not cosmetic |
+| Notification settings | have | `/settings/notifications` — enforced in the DELIVERY path |
+| General settings | n/a | Locale/timezone/per-page unsupported; the theme is already a header switcher |
 | Email, password, 2FA, passkeys, API keys, RSS keys | partial | `/p/account`, `/p/api-key` |
 | Conversations (PM) | have | `/inbox` — threaded DMs + announcements (messages plugin). `/p/inbox` remains the separate NOTIFICATION inbox |
 | Notifications | have | |
