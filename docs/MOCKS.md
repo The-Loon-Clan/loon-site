@@ -1,0 +1,76 @@
+# Mock register
+
+Every place this demo shows data it does not really have.
+
+The site is a reference host for loon, and several UNIT3D parity pages exist
+before the plugin that would back them. Rather than leave those pages out (and
+lose the layout work) or fill them in silently (and lose the ability to tell
+real from fake), each stub is listed here with the seam that would replace it.
+
+**Rules for anything on this list:**
+
+1. It is marked in the UI. Mocked panels carry `data-mock="1"` on their
+   container and render a `MOCK` chip in the panel header. A reader can always
+   tell. Never let a mock look like a measurement.
+2. It is marked in the template, in a comment naming this file.
+3. It is **inert**. A mock never writes, never affects points, entitlements or
+   permissions, and never feeds another calculation.
+4. It has a named replacement below. "Some plugin eventually" is not a plan.
+
+**Not on this list, deliberately:** empty states, gradient poster fallbacks, and
+the honest label swaps (`Top posters` rather than `Top contributors`). Those are
+real behaviour for a site with no data yet, not fabrication.
+
+---
+
+## Register
+
+| # | Where | What is mocked | Replaced by |
+|---|---|---|---|
+| M1 | `/u/<name>` — Activity | Last seen timestamp | A `last_seen_at` column on users, written by the auth middleware |
+| M2 | `/u/<name>` — Achievements | The achievement list and progress | The `rewards` plugin (wired) once it exposes a per-user read; it currently only registers admin views |
+| M3 | `/u/<name>` — Community | Follower / following counts | A `follows` table; UNIT3D has `users.followers` / `users.following` |
+| M4 | `/u/<name>` — Collection | Bookmark count | A `bookmarks` table; UNIT3D has `users.bookmarks` |
+
+## Status of each
+
+### M1 — Last seen
+
+`core.User` carries `ID, Username, Email, Role, CreatedAt` and nothing else, so
+"last seen" has no source. The cheapest real fix is a `last_seen_at` column
+touched by the session middleware — it is one UPDATE on an already-hot path,
+and it also unlocks UNIT3D's online/offline chrome.
+
+### M2 — Achievements
+
+The `rewards` plugin IS wired and owns exactly this domain, but it registers
+admin views plus a `rewards-claim` member widget — no "achievements for user X"
+read. So the panel is a mock of a feature the site genuinely has, which makes it
+the most likely of the four to become real.
+
+### M3 — Followers / following
+
+No follow relation exists anywhere in the stack. UNIT3D models this on the user
+and shows it prominently; ours is a count of nothing. Needs a table and two
+routes before the panel means anything.
+
+### M4 — Bookmarks
+
+Same shape as M3. Note the indexer analogue is "saved releases", not "saved
+torrents" — if this becomes real it should probably live with the usenet plugin
+rather than on users.
+
+---
+
+## Related, but NOT mocks
+
+Recorded here so nobody adds them to the list by mistake:
+
+- **Cover art** — real, via TMDB. Renders a CSS gradient fallback when a
+  release has no matched artwork, which is a genuine state, not a stand-in.
+  See `docs/UNIT3D-PARITY.md` §5c.
+- **Grab counts** — genuinely absent, and deliberately NOT mocked. Faking a
+  download count would corrupt the trending and economy features that will read
+  it later. It stays missing until `/nzb/:id` records one.
+- **Ratio, buffer, seeding, peers** — n/a for a Usenet indexer. Not mocked, not
+  planned, not missing. See the parity doc's n/a rule.

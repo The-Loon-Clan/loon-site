@@ -559,12 +559,34 @@ func (w *web) profilePage(c *gin.Context) {
 	}
 
 	viewer, _ := w.currentUser(c)
-	w.render(c, "profile.html", map[string]any{
+	subj := subject.ToCore()
+	data := map[string]any{
 		"Title":   subject.Username,
-		"Subject": subject.ToCore(),
+		"Subject": subj,
 		"IsSelf":  viewer != nil && viewer.ID == subject.ID,
 		"Widgets": widgets,
-	})
+		"Role":    roleLabel(subj.Role),
+	}
+	// Real profile figures only. Each is guarded: a missing capability drops
+	// the tile rather than showing a zero, because "0 points" and "points are
+	// unavailable" are different claims and a profile should not conflate them.
+	//
+	// Subject* prefixes are NOT decoration. render() -> chromeData sets Points
+	// and Unread to the VIEWER's values on every page, so a subject figure
+	// stored under those names is silently overwritten on the way out — the
+	// profile would show your own balance on someone else's page.
+	ctx := c.Request.Context()
+	if w.points != nil {
+		if bal, err := w.points.Balance(ctx, subject.ID); err == nil {
+			data["SubjectPoints"], data["HasSubjectPoints"] = bal, true
+		}
+	}
+	if forumReads != nil {
+		if n, err := forumPostCount(ctx, subject.ID); err == nil {
+			data["SubjectPosts"], data["HasSubjectPosts"] = n, true
+		}
+	}
+	w.render(c, "profile.html", data)
 }
 
 // chromeData fills everything the SHARED site chrome (site_chrome.html) reads,

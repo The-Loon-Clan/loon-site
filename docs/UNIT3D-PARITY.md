@@ -18,6 +18,9 @@ Scale, for calibration:
 ## How to read the status column
 
 - **have** — built and rendering here
+- **mock** — the page exists, the data does not. Every one is registered in
+  `docs/MOCKS.md` with the seam that replaces it, marked `data-mock="1"` in the
+  markup and chipped `MOCK` in the UI
 - **partial** — exists but thinner than UNIT3D's
 - **todo** — applies to us, not built yet
 - **n/a** — no analogue in a Usenet indexer, do not build
@@ -113,7 +116,8 @@ only to work around hover on touch devices.
 
 | UNIT3D area | Status | Notes |
 |---|---|---|
-| Profile, general/privacy/notification settings | partial | Split across plugin pages |
+| Profile | partial | user-tag heading, subject points + post count, mocked panels (see `docs/MOCKS.md`) |
+| General/privacy/notification settings | partial | Split across plugin pages |
 | Email, password, 2FA, passkeys, API keys, RSS keys | partial | `/p/account`, `/p/api-key` |
 | Conversations (PM) | have | `/inbox` — threaded DMs + announcements (messages plugin). `/p/inbox` remains the separate NOTIFICATION inbox |
 | Notifications | have | |

@@ -48,7 +48,9 @@
                         <span class="avatar__fallback">{{initials .Subject.Username}}</span>
                     </span>
                     <h1 class="user-stat-card__username">
-                        {{.Subject.Username}}
+                        {{/* user-tag so a username is coloured by role here the
+                             same way it is in every listing and forum post. */}}
+                        {{template "user-tag" (dict "Name" .Subject.Username "Role" .Subject.Role "Icon" true)}}
                         {{/* Verified tick only for the viewer's own profile — the
                              verification flag we have is the viewer's. */}}
                         {{if and .IsSelf .Subject.Email (not .EmailUnverified)}}
@@ -65,26 +67,40 @@
                     <p class="user-stat-card__stat">{{.Subject.Email}}</p>
                     {{end}}
 
-                    {{if .IsSelf}}
-                    {{/* Both tiles are the viewer's own real counters. Guard on
-                         HasPoints/HasUnread rather than the value, so a real 0
-                         still renders; the grid sizes to whatever is left. */}}
-                    {{if or .HasPoints .HasUnread}}
+                    {{/* THE SUBJECT's figures — Subject*-prefixed on purpose.
+                         chromeData sets Points/Unread to the VIEWER's values on
+                         every page, so reading those here would show your own
+                         balance on someone else's profile. Guard on the Has*
+                         flag rather than the value, so a real 0 still renders:
+                         "0 points" and "points unavailable" are different
+                         claims. */}}
+                    {{if or .HasSubjectPoints .HasSubjectPosts}}
                     <div class="stat-grid stat-grid--2">
-                        {{if .HasPoints}}
+                        {{if .HasSubjectPoints}}
                         <div class="stat-tile">
                             <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#coin"></use></svg>
                             <span class="stat-tile__label">Points</span>
-                            <span class="stat-tile__value">{{.Points}}</span>
+                            <span class="stat-tile__value">{{.SubjectPoints}}</span>
                         </div>
                         {{end}}
-                        {{if .HasUnread}}
+                        {{if .HasSubjectPosts}}
+                        <div class="stat-tile">
+                            <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#comment"></use></svg>
+                            <span class="stat-tile__label">Posts</span>
+                            <span class="stat-tile__value">{{.SubjectPosts}}</span>
+                        </div>
+                        {{end}}
+                    </div>
+                    {{end}}
+
+                    {{if .IsSelf}}
+                    {{if .HasUnread}}
+                    <div class="stat-grid stat-grid--2">
                         <div class="stat-tile">
                             <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#bell"></use></svg>
                             <span class="stat-tile__label">Unread</span>
                             <span class="stat-tile__value">{{.Unread}}</span>
                         </div>
-                        {{end}}
                     </div>
                     {{end}}
                     <a class="button button--outlined button--block" href="/p/account">
@@ -104,19 +120,78 @@
         <div class="grid grid--2">
             {{range .Widgets}}<div class="card mb-0">{{.Fragment}}</div>{{end}}
         </div>
-        {{else}}
-        <section class="panelV2">
+        {{end}}
+
+        {{/* ── MOCKED PANELS ────────────────────────────────────────────
+             UNIT3D's profile carries these; this stack has no source for any
+             of them yet. They are built out so the layout is real and a plugin
+             can drop in behind them, and every one is registered in
+             docs/MOCKS.md with the seam that would replace it.
+
+             The contract for anything in here (see that file):
+               • data-mock="1" on the section + a MOCK chip in the header, so a
+                 reader can always tell a stub from a measurement
+               • inert — never writes, never feeds points, entitlements or
+                 permissions, never feeds another calculation
+             Do NOT quietly promote one of these to look real. Wire the seam,
+             delete the mock, and strike the row in the register. */}}
+
+        <section class="panelV2" data-mock="1">
             <header class="panel__header">
-                <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#user"></use></svg>Profile</h2>
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#star"></use></svg>
+                    Achievements
+                </h2>
+                <div class="panel__actions"><span class="tag tag--warning">MOCK</span></div>
             </header>
             <div class="panel__body">
-                <p class="notice">
-                    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
-                    <span>This profile has nothing to show yet.</span>
+                <p class="form__help">
+                    Placeholder — see <code>docs/MOCKS.md</code> M2. The
+                    <code>rewards</code> plugin owns this domain and is wired, but
+                    exposes no per-user read yet.
                 </p>
+                <div class="pill-row">
+                    <span class="pill">First post</span>
+                    <span class="pill">Week one</span>
+                    <span class="pill">Early member</span>
+                </div>
             </div>
         </section>
-        {{end}}
+
+        <section class="panelV2" data-mock="1">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>
+                    Community
+                </h2>
+                <div class="panel__actions"><span class="tag tag--warning">MOCK</span></div>
+            </header>
+            <div class="panel__body">
+                <p class="form__help">
+                    Placeholder — see <code>docs/MOCKS.md</code> M1, M3, M4. No
+                    follow relation, bookmark table or last-seen column exists in
+                    this stack.
+                </p>
+                <div class="stat-grid stat-grid--2">
+                    <div class="stat-tile">
+                        <span class="stat-tile__label">Followers</span>
+                        <span class="stat-tile__value">—</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-tile__label">Following</span>
+                        <span class="stat-tile__value">—</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-tile__label">Bookmarks</span>
+                        <span class="stat-tile__value">—</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-tile__label">Last seen</span>
+                        <span class="stat-tile__value">—</span>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
 </div>
 {{end}}
