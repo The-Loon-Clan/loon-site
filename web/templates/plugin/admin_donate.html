@@ -152,10 +152,22 @@
                 {{$names := .Usernames}}
                 {{range .Donations}}
                 <tr>
-                    <td>{{shortDate .CreatedAt}}</td>
+                    {{/* ReceivedAt, not CreatedAt — a donation is stamped when
+                         it settles, not when a row was made. */}}
+                    <td>{{shortDate .ReceivedAt}}</td>
                     <td>
-                        {{$n := index $names .UserID}}
-                        {{if $n}}{{template "user-tag" (dict "Name" $n)}}{{else}}<span class="text-muted">unattributed</span>{{end}}
+                        {{/* DonorUserID is a *int and is NULL for tip-jar
+                             donations and admin fiat entries with no account
+                             to attribute to — {{with}} both dereferences it
+                             and skips the nil case. DonorLabel is the
+                             free-text fallback the admin typed. */}}
+                        {{with .DonorUserID}}
+                            {{$n := index $names .}}
+                            {{if $n}}{{template "user-tag" (dict "Name" $n)}}{{else}}<span class="text-muted">user {{.}}</span>{{end}}
+                        {{else}}
+                            <span class="text-muted">unattributed</span>
+                        {{end}}
+                        {{if .DonorLabel}}<span class="tag">{{.DonorLabel}}</span>{{end}}
                     </td>
                     <td class="num">{{printf "%.2f" .AmountUSD}}</td>
                 </tr>
