@@ -1,0 +1,63 @@
+{{/* News edit form. UNIT3D's Staff/article/edit.blade.php equivalent.
+
+     Gated at RoleMod by the plugin's route group.
+
+     Keys (news plugin, Handlers.EditNewsPage + Deps.BaseData):
+       Post NewsPost — ID, Title, Slug, Body, Published, CreatedAt, UpdatedAt
+       User / IsAdmin / IsMod / CSRFToken / Path / Theme / …
+
+     Form contract, read off Handlers.UpdateNews:
+       POST /admin/news/:id/update   title, slug, body, published ("1")
+
+     .Body goes in a <textarea>, where html/template escapes it as text. It must
+     never be rendered as markup on an admin page — the whole point of
+     sanitizeNewsHTML is that the stored body is untrusted until filtered. */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/admin/news">News admin</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Edit</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">Edit: {{.Post.Title}}</h1>
+        <div class="panel__actions">
+            {{if .Post.Published}}<a class="panel__action" href="/news/{{.Post.Slug}}">View</a>{{end}}
+        </div>
+    </header>
+    <div class="panel__body">
+        <form method="post" action="/admin/news/{{.Post.ID}}/update" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__group">
+                <label class="form__label" for="title">Title</label>
+                <input class="form__input" id="title" name="title" type="text" value="{{.Post.Title}}" required>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="slug">Slug</label>
+                <input class="form__input" id="slug" name="slug" type="text" value="{{.Post.Slug}}">
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="body">Body</label>
+                <textarea class="form__textarea" id="body" name="body" rows="14">{{.Post.Body}}</textarea>
+                <p class="form__help">
+                    A small HTML subset is allowed — paragraphs, lists, links, images,
+                    headings, code and tables. Everything else is stripped when the
+                    post is rendered.
+                </p>
+            </div>
+            <div class="form__group form__group--inline">
+                <input class="form__checkbox" id="published" name="published" type="checkbox" value="1"
+                       {{if .Post.Published}}checked{{end}}>
+                <label class="form__label" for="published">Published</label>
+            </div>
+            <div class="form__actions">
+                <button class="button button--primary" type="submit">Save changes</button>
+                <a class="button button--text" href="/admin/news">Cancel</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+{{template "ffoot" .}}

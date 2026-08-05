@@ -160,6 +160,26 @@ func newWeb(store users.Store, secret []byte, log *slog.Logger) *web {
 	return w
 }
 
+// pluginTemplates parses the set gin renders for every plugin that draws its UI
+// through c.HTML rather than the demo's own per-page map: the shared site chrome
+// plus each plugin's full documents. One set, not one per plugin, because gin
+// holds exactly one HTMLRender.
+//
+// Reads through siteFS (the embedded copy by default) rather than the
+// filesystem. The runtime image is distroless and carries ONLY the binary, so a
+// disk-relative ParseGlob here matches no files and takes the whole process down
+// at boot via main.go's os.Exit(1) — which is exactly what it used to do.
+//
+// Template names are base filenames, so the dirs below share one flat namespace:
+// two plugins must not both ship an "index.html".
+func pluginTemplates() (*template.Template, error) {
+	return template.New("plugins").Funcs(tmplHelpers()).ParseFS(siteFS,
+		"web/templates/site_chrome.html",
+		"web/templates/forum/*.html",
+		"web/templates/plugin/*.html",
+	)
+}
+
 // pageFiles is the parse list for one page, in the order described above. Split
 // out of newWeb so render() can rebuild the same set when devReload is on.
 func pageFiles(page string) []string {

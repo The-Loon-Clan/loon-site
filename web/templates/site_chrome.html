@@ -280,6 +280,10 @@
                  since Go 1.18, so the slice never runs on a shorter path. */}}
             {{$forums := and (ge (len .Path) 17) (eq (slice .Path 0 17) "/community/forums")}}
             <li class="nav-tab"><a class="{{if $forums}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/community/forums"{{if $forums}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#forums"></use></svg>Forums</a></li>
+            {{/* /news and /news/<slug> both light this up; the length guard
+                 keeps the slice from panicking on a shorter path. */}}
+            {{$news := and (ge (len .Path) 5) (eq (slice .Path 0 5) "/news")}}
+            <li class="nav-tab"><a class="{{if $news}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/news"{{if $news}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#rss"></use></svg>News</a></li>
 
             {{/* Plugin site pages (loon's view registry), already role-filtered
                  by the host. A NavHint group becomes a <details> dropdown; an

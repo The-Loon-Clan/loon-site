@@ -1,0 +1,109 @@
+{{/* News admin — list + create. UNIT3D splits these across Staff/article/
+     index + create; the demo keeps them on one page because the form is four
+     fields.
+
+     Gated at RoleMod by the plugin's own route group, so this template does not
+     re-check IsMod.
+
+     Keys (news plugin, Handlers.NewsList + Deps.BaseData):
+       Posts []NewsPost — ID, Title, Slug, Body, Published, CreatedAt, UpdatedAt
+              NOTE: the RAW model here, not the safePost the public pages get.
+              .Body is an unescaped string and MUST NOT be rendered as HTML on
+              this page; the textarea escapes it, which is what we want.
+       User / IsAdmin / IsMod / CSRFToken / Path / Theme / …
+
+     Form contract, read off Handlers.CreateNews:
+       POST /admin/news   title, slug (optional — auto-slugged), body,
+                          published ("1" = published) */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">News admin</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">News posts</h1>
+        <div class="panel__actions">
+            <a class="panel__action" href="/news">View public feed</a>
+        </div>
+    </header>
+    {{if .Posts}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Slug</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Posts}}
+                <tr>
+                    <td><a class="data-table__title" href="/admin/news/{{.ID}}/edit">{{.Title}}</a></td>
+                    <td><code>{{.Slug}}</code></td>
+                    <td>
+                        {{if .Published}}<span class="tag tag--success">Published</span>
+                        {{else}}<span class="tag">Draft</span>{{end}}
+                    </td>
+                    <td>{{shortDate .CreatedAt}}</td>
+                    <td class="data-table__actions">
+                        <a class="button button--text button--sm" href="/admin/news/{{.ID}}/edit">Edit</a>
+                        {{/* $.CSRFToken, not .CSRFToken — inside this range the
+                             dot is a NewsPost, which has no such field. */}}
+                        <form method="post" action="/admin/news/{{.ID}}/delete" class="inline-form">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <button class="button button--text button--sm button--danger" type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="panel__body">No news posts yet.</div>
+    {{end}}
+</section>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">New post</h2>
+    </header>
+    <div class="panel__body">
+        <form method="post" action="/admin/news" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__group">
+                <label class="form__label" for="title">Title</label>
+                <input class="form__input" id="title" name="title" type="text" required>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="slug">Slug</label>
+                <input class="form__input" id="slug" name="slug" type="text"
+                       placeholder="leave blank to generate from the title">
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="body">Body</label>
+                <textarea class="form__textarea" id="body" name="body" rows="10"></textarea>
+                <p class="form__help">
+                    A small HTML subset is allowed — paragraphs, lists, links, images,
+                    headings, code and tables. Everything else is stripped when the
+                    post is rendered.
+                </p>
+            </div>
+            <div class="form__group form__group--inline">
+                <input class="form__checkbox" id="published" name="published" type="checkbox" value="1">
+                <label class="form__label" for="published">Publish immediately</label>
+            </div>
+            <div class="form__actions">
+                <button class="button button--primary" type="submit">Create post</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+{{template "ffoot" .}}

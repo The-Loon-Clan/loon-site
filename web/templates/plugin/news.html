@@ -1,0 +1,62 @@
+{{/* News index — UNIT3D's article/index.blade.php shape (a stack of
+     article-preview panels) on the demo's design-system vocabulary.
+
+     Rendered by the news PLUGIN through gin's HTML set, so this is a FULL
+     document: it opens with {{template "fhead"}} and closes with
+     {{template "ffoot"}}, the shared chrome defines in site_chrome.html.
+
+     Keys (news plugin, Handlers.NewsAll + Deps.BaseData):
+       News []safePost — ID, Title, Slug, Body (template.HTML), CreatedAt
+       User / IsAdmin / IsMod / CSRFToken / Path / Theme / …
+
+     CAUTION on .Body: NewsAll marks bodies template.HTML WITHOUT running them
+     through Deps.Sanitize — only NewsDetail sanitizes. That is a plugin-side
+     bug (reported upstream, see news_web.go). Until it is fixed this page
+     renders only the title and date, never the body, so unsanitized
+     admin-authored HTML has no path to the browser from here. Do NOT "improve"
+     this by rendering {{.Body}}. */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">News</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon" aria-hidden="true"><use href="#rss"></use></svg>
+            Site news
+        </h1>
+        {{if .IsMod}}
+        <div class="panel__actions">
+            <a class="panel__action" href="/admin/news">Manage</a>
+        </div>
+        {{end}}
+    </header>
+
+    {{if .News}}
+    <ul class="list-rows">
+        {{range .News}}
+        <li>
+            <a class="list-row" href="/news/{{.Slug}}">
+                <span class="list-row__icon" aria-hidden="true">
+                    <svg class="icon"><use href="#rss"></use></svg>
+                </span>
+                <span class="list-row__body">
+                    <span class="list-row__title">{{.Title}}</span>
+                    {{with timeAgo .CreatedAt}}<span class="list-row__meta">{{.}}</span>{{end}}
+                </span>
+                <span class="list-row__trail">
+                    <svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg>
+                </span>
+            </a>
+        </li>
+        {{end}}
+    </ul>
+    {{else}}
+    <div class="panel__body">No news yet.</div>
+    {{end}}
+</section>
+
+{{template "ffoot" .}}

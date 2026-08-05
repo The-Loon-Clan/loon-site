@@ -98,7 +98,7 @@ only to work around hover on touch devices.
 |---|---|---|
 | `forum/*` (11 views) | 5 forum templates | partial |
 | `poll/*` (4) | — | todo |
-| `article/*` (news) | — | todo |
+| `article/*` (news) | `/news`, `/news/:slug`, `/admin/news` | have |
 | `contact` | — | todo |
 | `page/*` (static pages: rules, FAQ, about, staff, internal, client blacklist) | `site_page.html` | partial |
 | `wiki/*` | — | todo |
@@ -217,7 +217,39 @@ screenshots plus the HTML) is worth more than either.
 
 ---
 
-## 5. Suggested order
+## 5. Nine plugins already exist and are not wired
+
+The biggest finding of this survey: **most of the "todo" rows above are a
+wiring exercise, not a build exercise.** `loon-plugins` already ships these,
+and none is referenced by the demo:
+
+| plugin | UNIT3D equivalent | needs |
+|---|---|---|
+| `news` | `article/*` | **wired** — see below |
+| `wiki` | `wiki/*` | BaseData + Markdown |
+| `tickets` | `ticket/*` (helpdesk) | BaseData + PageOffset + Pagination + Viewer |
+| `messages` | `users.conversations` (PM) | Store + BaseData |
+| `donations` | `donation/*` | BaseData |
+| `ranks` | groups / paid ranks | ships its own `groups.html` |
+| `store` | `bon_exchanges` | points capability (we have it) |
+| `rewards` | achievements | — |
+| `communities` | *(no UNIT3D equivalent)* | user-owned sub-forums |
+
+The cost per plugin is **not** the Go wiring — that is a `SetDeps` call and a
+migration. It is the **host templates**: these plugins render `c.HTML("name")`
+against gin's set and ship no templates of their own (except `ranks`). So each
+costs N templates in our design system. `news` was four.
+
+`pluginTemplates()` (views.go) parses `site_chrome.html` + `forum/*.html` +
+`plugin/*.html` into ONE flat namespace keyed by base filename, so a second
+plugin shipping an `index.html` would collide. Give plugin templates
+distinct names.
+
+Order of effort, cheapest first: `wiki` (5) · `donations` · `messages` ·
+`tickets`. `ranks`/`store`/`rewards` need the points economy thinking through
+first.
+
+## 6. Suggested order
 
 1. **`user-tag`** — small, touches every page, biggest consistency win
 2. **Static pages** (rules, FAQ, about, staff) — real content, trivial to build

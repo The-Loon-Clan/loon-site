@@ -357,6 +357,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// News plugin seams (news_web.go). Renders host templates through the same
+	// gin HTML set the forum uses — pluginTemplates() parses both dirs — so it
+	// needs no engine argument, only the chrome closure and the host's HTML
+	// sanitization policy.
+	if err := wireNewsPlugin(c, wsrv); err != nil {
+		logger.Error("news wiring", "err", err)
+		os.Exit(1)
+	}
+
 	// --- loon-plugins wiring (all worker plugins; they boot under Process
 	// "all"). The scraper needs the shared catalog.Registry on the extension
 	// registry — empty here until a source module lands — plus a write sink;

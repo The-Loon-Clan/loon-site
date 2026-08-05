@@ -288,25 +288,15 @@ func demoForumMarkdown(src string) template.HTML {
 	return template.HTML(b.String())
 }
 
-// forumTemplates parses the forum plugin's template set: the shared site chrome
-// plus the forum's own full documents. Reads through siteFS (the embedded copy
-// by default) rather than the filesystem — the runtime image is distroless and
-// carries ONLY the binary, so a disk-relative ParseGlob here finds no files and
-// takes the whole process down at boot via main.go's os.Exit(1).
-func forumTemplates() (*template.Template, error) {
-	return template.New("forum").Funcs(tmplHelpers()).ParseFS(siteFS,
-		"web/templates/site_chrome.html", "web/templates/forum/*.html")
-}
-
-// devForumRender re-parses the forum set on every render so a template edit
+// devPluginRender re-parses the gin set on every render so a template edit
 // shows on refresh (LOON_DEMO_DEV=1). Each request gets its own *Template, so
 // there is no shared mutable state to race on — which re-calling
 // engine.SetHTMLTemplate per request would have introduced. A parse error
 // renders as text instead of panicking the way template.Must would.
-type devForumRender struct{}
+type devPluginRender struct{}
 
-func (devForumRender) Instance(name string, data any) render.Render {
-	t, err := forumTemplates()
+func (devPluginRender) Instance(name string, data any) render.Render {
+	t, err := pluginTemplates()
 	if err != nil {
 		return render.String{Format: "forum template: %v", Data: []any{err}}
 	}
@@ -326,13 +316,13 @@ func wireForumPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 	// helpers base.html has, since the shared chrome calls them. {{captcha}} is
 	// host state and is deliberately NOT in this set; no forum page has a
 	// captcha-gated form.
-	t, err := forumTemplates()
+	t, err := pluginTemplates()
 	if err != nil {
 		return err
 	}
 	engine.SetHTMLTemplate(t)
 	if devReload {
-		engine.HTMLRender = devForumRender{}
+		engine.HTMLRender = devPluginRender{}
 	}
 
 	// Read-only handle for the home page's forum panels (see forumReads).

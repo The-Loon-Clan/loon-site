@@ -1,0 +1,36 @@
+{{/* One news post — UNIT3D's article/show.blade.php shape.
+
+     Keys (news plugin, Handlers.NewsDetail + Deps.BaseData):
+       Post — ID, Title, Slug, Body (template.HTML), CreatedAt
+       User / IsAdmin / IsMod / CSRFToken / Path / Theme / …
+
+     .Body IS sanitized on this path: NewsDetail runs it through
+     Deps.Sanitize (news_web.go sanitizeNewsHTML — an allowlist rebuild over a
+     real HTML parse) before marking it template.HTML. This is the ONLY page
+     that renders a news body, deliberately; see news.html for why. */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/news">News</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">{{.Post.Title}}</li>
+</ol>
+
+<article class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">{{.Post.Title}}</h1>
+        {{if .IsMod}}
+        <div class="panel__actions">
+            <a class="panel__action" href="/admin/news/{{.Post.ID}}/edit">Edit</a>
+        </div>
+        {{end}}
+    </header>
+    <div class="panel__body">
+        {{with timeAgo .Post.CreatedAt}}
+        <p class="meta__line"><span class="meta__item">{{.}}</span></p>
+        {{end}}
+        <div class="prose">{{.Post.Body}}</div>
+    </div>
+</article>
+
+{{template "ffoot" .}}
