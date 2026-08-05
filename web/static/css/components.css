@@ -92,6 +92,11 @@
 .panel__action,
 .panel__header-link {
     flex-shrink: 0;
+    /* Standalone controls, so WCAG 2.2 2.5.8's 24px target minimum applies —
+       the inline-links-in-text exception does not cover them. They measured
+       19px. min-height grows the hit area only: these are inline-flex and
+       centred, so nothing moves visually. */
+    min-height: 24px;
     color: var(--panel-action-fg);
     font-size: 0.78rem;
     font-weight: 600;
@@ -130,7 +135,13 @@
  *  The wrapper is required: it is what keeps a wide table from scrolling the
  *  whole page sideways on a phone.                                          */
 
-.data-table-wrapper { overflow-x: auto; }
+/* position:relative is load-bearing, not decoration. overflow-x alone does NOT
+   clip an absolutely positioned descendant whose containing block is further up
+   the tree — and .visually-hidden is exactly that. Inside a table wider than the
+   viewport its static position lands past the right edge, so it escaped the
+   scroller and gave the whole document an 86px horizontal scroll on mobile (all
+   three themes). Making the wrapper the containing block brings it back inside. */
+.data-table-wrapper { overflow-x: auto; position: relative; }
 
 .data-table {
     width: 100%;
@@ -245,6 +256,10 @@
 .tag--source { color: var(--info-tint); }
 .tag--codec { color: var(--text); }
 .tag--cat { color: var(--text); background: var(--surface-3); }
+
+/* A tag rendered as a link is a tap target and needs the 24px minimum; a plain
+   <span class="tag"> is only a label, so it keeps its compact 22px box. */
+a.tag { min-height: 24px; }
 .tag--success { color: var(--success); border-color: var(--success-soft); }
 .tag--warning { color: var(--warning); border-color: var(--warning-soft); }
 .tag-row {
