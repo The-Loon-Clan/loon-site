@@ -669,6 +669,13 @@ a.tag { min-height: 24px; }
 
 .carousel__track {
     display: flex;
+    /* Without this, flex items stretch to the tallest one; .poster__frame's
+       aspect-ratio then derives WIDTH FROM HEIGHT, and because a flex item
+       defaults to min-width:auto that computed width beats the item's flex
+       basis. The strip rendered as posters of six different sizes whose widths
+       did not even respond to the viewport. Sizing from the top keeps the
+       basis authoritative and the frames uniform. */
+    align-items: flex-start;
     gap: 14px;
     margin: 0;
     padding: 2px 0 6px;
@@ -683,6 +690,9 @@ a.tag { min-height: 24px; }
 
 .carousel__item {
     flex: 0 0 clamp(132px, 17vw, 172px);
+    /* Belt and braces with the track's align-items: a flex item's default
+       min-width:auto lets intrinsic content override the basis above. */
+    min-width: 0;
     scroll-snap-align: start;
 }
 
