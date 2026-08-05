@@ -226,6 +226,13 @@
         linear-gradient(115deg, var(--sheen) 0%, transparent 42%),
         radial-gradient(120% 80% at 22% 6%, hsl(var(--poster-hue) 26% 42% / 0.9) 0%, transparent 62%),
         linear-gradient(160deg, hsl(var(--poster-hue) 22% 32%) 0%, hsl(calc(var(--poster-hue) + 26) 20% 22%) 100%);
+    /* user-tag — role colours, straight from the Nord aurora/frost ramps. */
+    --user-tag-member-fg: #d8dee9;       /* snow storm 0 */
+    --user-tag-admin-fg: #bf616a;        /* aurora red */
+    --user-tag-mod-fg: #88c0d0;          /* frost, matches --link-fg */
+    --user-tag-contributor-fg: #a3be8c;  /* aurora green */
+    --user-tag-banned-fg: #6b7280;
+
     --avatar-fallback-bg: linear-gradient(150deg, hsl(var(--poster-hue) 24% 40%), hsl(calc(var(--poster-hue) + 30) 22% 28%));
 
     --chip-bg: #434c5e;

@@ -149,7 +149,7 @@
                             <span class="rank-chip{{if le $rank 3}} rank-chip--{{$rank}}{{end}}">{{$rank}}</span>
                             <span class="avatar avatar--sm poster--h{{$h}}"><span class="avatar__fallback">{{initials $c.Username}}</span></span>
                             <span class="list-row__body">
-                                <span class="list-row__title">{{$c.Username}}</span>
+                                <span class="list-row__title">{{template "user-tag" (dict "Name" $c.Username "Role" $c.Role)}}</span>
                                 {{if $c.Role}}<span class="list-row__meta">{{$c.Role}}</span>{{end}}
                             </span>
                             <span class="list-row__trail">{{$c.PostCount}} posts</span>

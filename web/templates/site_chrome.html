@@ -458,6 +458,52 @@
     </footer>
 {{end}}
 
+{{/* ------------------------------------------------------------ user-tag --
+     One username, rendered the same way everywhere: coloured by role, with a
+     role icon and the role name as its title. UNIT3D's equivalent
+     (components/user-tag.blade.php) appears on every listing, post and
+     profile, which is exactly why it lives HERE — site_chrome.html is the one
+     file BOTH parse sets name, so the forum plugin's templates can render an
+     identical tag without the block being defined twice.
+
+     Call with the dict helper:
+         {{template "user-tag" (dict "Name" .Author "Role" .AuthorRole)}}
+         {{template "user-tag" (dict "Name" $u.Username "Role" $u.Role "Icon" true)}}
+
+     Name  string  required — the username
+     Role  any     core.Role OR a plugin role string; roleSlug normalises both
+     URL   string  optional — defaults to /u/<Name>
+     Icon  bool    optional — prepend the role glyph (off in dense tables)
+     Plain bool    optional — render a <span>, not an <a>
+
+     Plain exists because several listings wrap the WHOLE row in an <a>, and a
+     nested anchor is invalid HTML that browsers silently restructure. Inside
+     such a row the tag still gets its role colour, it just does not link
+     separately.
+
+     Deliberately NOT ported from UNIT3D: donor sparkle backgrounds, custom
+     per-user icon uploads and group gradient "effects". None has a data source
+     here, and inventing one would be fabrication. */}}
+{{define "user-tag"}}
+    {{- $slug := roleSlug .Role -}}
+    {{- $url := .URL -}}{{if not $url}}{{$url = print "/u/" .Name}}{{end -}}
+    {{- $icon := "" -}}
+    {{- if .Icon}}{{$icon = "user"}}{{if or (eq $slug "admin") (eq $slug "mod")}}{{$icon = "shield"}}{{else if eq $slug "contributor"}}{{$icon = "star"}}{{end}}{{end -}}
+    <span class="user-tag user-tag--{{$slug}}">
+        {{- if .Plain -}}
+        <span class="user-tag__link" title="{{roleLabel .Role}}">
+            {{- if $icon}}<svg class="icon user-tag__icon" aria-hidden="true"><use href="#{{$icon}}"></use></svg>{{end -}}
+            {{.Name}}
+        </span>
+        {{- else -}}
+        <a class="user-tag__link" href="{{$url}}" title="{{roleLabel .Role}}">
+            {{- if $icon}}<svg class="icon user-tag__icon" aria-hidden="true"><use href="#{{$icon}}"></use></svg>{{end -}}
+            {{.Name}}
+        </a>
+        {{- end -}}
+    </span>
+{{end}}
+
 {{/* ------------------------------------------------------------- scripts --
      Hand-written vanilla JS only: no framework, no bundler, no external host.
      Three tiny behaviours — the CSRF double-submit shim, the "/" search

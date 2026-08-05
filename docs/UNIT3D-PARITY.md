@@ -155,7 +155,7 @@ most work.
 | `data-table` | listings | have |
 | `torrent-card` | listings, cards | have (as release-row) |
 | `meta` / `key-value` | detail pages | have |
-| `user-tag` (coloured, icon, group effect) | everywhere a username appears | **todo — high value, low cost** |
+| `user-tag` (coloured by role, icon) | everywhere a username appears | have |
 | `comment` / `comments` | torrent + article pages | todo |
 | `bbcode-input` + `bbcode-rendered` | every text input | todo |
 | `mediainfo` | torrent detail | partial |
@@ -169,10 +169,16 @@ most work.
 | `article-preview` | news | have (unused) |
 | `quick_search` / `compact-search` | nav | have |
 
-**`user-tag` is the highest value-per-line item on this list.** UNIT3D colours
-every username by group, with an icon and an optional CSS gradient "effect".
-It appears on every forum post, every listing, every profile. We render plain
-usernames. The CSS component already exists in our port.
+**`user-tag` was the highest value-per-line item and is now built.** UNIT3D
+colours every username by group, with an icon and an optional CSS gradient
+"effect". Ours colours by role, with a role icon and the role name as the
+title, defined once in `site_chrome.html` so both parse sets render it
+identically. Not ported: donor sparkle backgrounds, per-user icon uploads and
+group gradient effects — no data source here, and inventing one would be
+fabrication.
+
+Still to wire: the release detail page, the profile header, and
+`community_category.html`'s thread rows.
 
 ---
 

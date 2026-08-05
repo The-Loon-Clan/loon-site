@@ -223,6 +223,13 @@
         linear-gradient(115deg, var(--sheen) 0%, transparent 42%),
         radial-gradient(120% 80% at 22% 6%, hsl(var(--poster-hue) 62% 38% / 0.9) 0%, transparent 62%),
         linear-gradient(160deg, hsl(var(--poster-hue) 48% 24%) 0%, hsl(calc(var(--poster-hue) + 26) 44% 12%) 100%);
+    /* user-tag — role colours on the navy/indigo ramp. */
+    --user-tag-member-fg: #e6ecf7;
+    --user-tag-admin-fg: #f87171;
+    --user-tag-mod-fg: #a78bfa;          /* the indigo accent */
+    --user-tag-contributor-fg: #4ade80;
+    --user-tag-banned-fg: #6b7280;
+
     --avatar-fallback-bg: linear-gradient(150deg, hsl(var(--poster-hue) 50% 34%), hsl(calc(var(--poster-hue) + 30) 46% 20%));
 
     --chip-bg: var(--surface-2);

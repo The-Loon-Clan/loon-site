@@ -698,6 +698,46 @@ a.tag { min-height: 24px; }
 
 /* ------------------------------------------------------------ avatars ----- */
 
+/* ----------------------------------------------------------- user-tag ----
+   A username rendered identically everywhere, coloured by role. Ported from
+   UNIT3D components/_user-tag.scss, whose structure (inline-flex, nowrap,
+   baseline-aligned, icon separated by 0.5ch) is kept verbatim so its markup
+   lifts cleanly. Colours come from per-theme --user-tag-*-fg tokens rather
+   than the inline `style="color: {group->color}"` UNIT3D emits, because our
+   roles are a fixed enum, not admin-editable groups. */
+.user-tag,
+.user-tag__link {
+    font-family: inherit;
+    display: inline-flex;
+    white-space: nowrap;
+    align-items: baseline;
+    gap: 0.5ch;
+}
+
+.user-tag__link {
+    color: var(--user-tag-member-fg);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.user-tag__link:hover { text-decoration: underline; }
+
+.user-tag__icon {
+    /* Baseline alignment on an inline-flex row leaves an SVG sitting low;
+       nudging it keeps the glyph optically centred against the name. */
+    align-self: center;
+    flex-shrink: 0;
+}
+
+.user-tag--admin .user-tag__link       { color: var(--user-tag-admin-fg); }
+.user-tag--mod .user-tag__link         { color: var(--user-tag-mod-fg); }
+.user-tag--contributor .user-tag__link { color: var(--user-tag-contributor-fg); }
+.user-tag--banned .user-tag__link,
+.user-tag--disabled .user-tag__link {
+    color: var(--user-tag-banned-fg);
+    text-decoration: line-through;
+}
+
 .avatar {
     display: inline-grid;
     place-items: center;

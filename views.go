@@ -202,6 +202,8 @@ func tmplHelpers() template.FuncMap {
 		"hue":       hueBucket,
 		"initials":  initials,
 		"roleName":  roleName,
+		"roleSlug":  roleSlug,
+		"roleLabel": roleLabel,
 		"ordinal":   ordinal,
 		"add":       func(a, b int) int { return a + b },
 		"dict":      dict,
@@ -285,6 +287,68 @@ func initials(s string) string {
 		inWord = true
 	}
 	return string(out)
+}
+
+// roleSlug maps a role onto the kebab token the .user-tag--<slug> classes and
+// the --user-tag-<slug>-fg theme tokens key off.
+//
+// It takes `any` because usernames reach templates in two different shapes and
+// both must render identically: host pages carry a typed core.Role, while the
+// forum plugin hands back a free-text role string from its user_display view
+// ("admin", "mod", "user", …). Anything unrecognised — including the empty
+// string a plugin row with no role yields — falls back to "member", so an
+// unknown role renders as a plain member rather than an unstyled tag.
+func roleSlug(v any) string {
+	switch r := v.(type) {
+	case core.Role:
+		switch {
+		case r <= core.RoleBanned:
+			return "banned"
+		case r == core.RoleDisabled:
+			return "disabled"
+		case r == core.RoleContributor:
+			return "contributor"
+		case r == core.RoleMod:
+			return "mod"
+		case r >= core.RoleAdmin:
+			return "admin"
+		}
+	case string:
+		switch strings.ToLower(strings.TrimSpace(r)) {
+		case "admin", "administrator", "owner":
+			return "admin"
+		case "mod", "moderator", "staff":
+			return "mod"
+		case "contributor", "uploader":
+			return "contributor"
+		case "banned":
+			return "banned"
+		case "disabled":
+			return "disabled"
+		}
+	}
+	return "member"
+}
+
+// roleLabel is roleName for the mixed-shape case. roleName takes a typed
+// core.Role and is kept that way for the host's own call sites; the user-tag
+// block also renders forum rows whose role is a plain string, so it needs a
+// label helper that accepts both. Derived from roleSlug so the label a tag
+// shows can never disagree with the colour it is painted.
+func roleLabel(v any) string {
+	switch roleSlug(v) {
+	case "admin":
+		return "Admin"
+	case "mod":
+		return "Moderator"
+	case "contributor":
+		return "Contributor"
+	case "banned":
+		return "Banned"
+	case "disabled":
+		return "Disabled"
+	}
+	return "Member"
 }
 
 // roleName is the display label for a role level — the same names the
