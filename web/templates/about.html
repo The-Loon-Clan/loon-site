@@ -1,0 +1,51 @@
+{{/* About — UNIT3D's page/aboutus.blade.php equivalent. */}}
+{{define "content"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">About</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#logo"></use></svg>
+            About this site
+        </h1>
+    </header>
+    <div class="panel__body prose">
+        <p>
+            This is the loon demo indexer: the smallest useful HOST for the loon
+            framework. Every capability a real site would implement — sessions,
+            users, points, notifications, entitlements, storage — is wired here
+            against a real Postgres, and every feature you can click is a plugin
+            from <a href="https://github.com/The-Loon-Clan/loon-plugins">loon-plugins</a>
+            running the same code a production deployment would run.
+        </p>
+
+        <h2>What is running</h2>
+        <ul>
+            <li><strong>usenet</strong> — NNTP crawling and release assembly</li>
+            <li><strong>catalog</strong> + <strong>scraper</strong> — Newznab taxonomy and cover-art matching</li>
+            <li><strong>forum</strong>, <strong>news</strong>, <strong>wiki</strong>, <strong>messages</strong>, <strong>tickets</strong> — the community surfaces</li>
+            <li><strong>pointstore</strong>, <strong>store</strong>, <strong>ranks</strong>, <strong>rewards</strong>, <strong>dailyreward</strong> — the points economy</li>
+            <li><strong>stats</strong>, <strong>backups</strong> — operational plumbing</li>
+        </ul>
+
+        <h2>The design</h2>
+        <p>
+            The interface is a port of <a href="https://github.com/HDInnovations/UNIT3D-Community-Edition">UNIT3D</a>'s
+            design system — its class vocabulary, its panel and table components,
+            and its CSS-custom-property theming. It ships three themes; pick one
+            from the Theme menu in the header.
+        </p>
+
+        <h2>Honesty</h2>
+        <p>
+            A demo is tempting to dress up. This one does not: figures come from
+            real reads or the panel is dropped, and the handful of pages built
+            ahead of their data are marked <span class="tag tag--warning">MOCK</span>
+            in the interface and listed in the repository's mock register.
+        </p>
+    </div>
+</section>
+{{end}}

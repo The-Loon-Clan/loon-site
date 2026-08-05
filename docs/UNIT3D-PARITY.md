@@ -45,14 +45,20 @@ right (stat bar + icon bar + avatar menu).
 |---|---|---|---|
 | **Torrents** | Torrents, Pending, Upload, Requests, Reseed Requests, RSS, MediaHub | Browse, Search | partial |
 | **Community** | Forums, Playlists, Polls, Extra Stats, News, Chat | Forums, Guestbook | partial |
-| **Support** | Rules, FAQ, Wiki, Helpdesk, Staff | — | todo |
+| **Support** | Rules, FAQ, Wiki, Helpdesk, Staff | Rules, FAQ, Wiki, Helpdesk, Staff, Stats, About | have |
 | **Other** | Events, Subtitles, Trending, Missing, Internal | — | mixed |
 | **Donate** | Support site (with % progress bar), Support UNIT3D | — | todo |
 
-Our nav is currently flat (HOME, BROWSE, GROUPS, SEARCH, FORUMS, GUESTBOOK)
-plus plugin `SiteNav` entries. UNIT3D groups into five dropdowns because it has
-far more destinations. **Adopt grouping when we have the destinations to
-justify it — not before.** A dropdown holding one item is worse than a link.
+The Support dropdown now exists, because its seven destinations do. The rest of
+the bar stays flat: **group only once there is something to group** — a dropdown
+holding one item is worse than a link.
+
+A nav dropdown menu is absolutely positioned, and a closed `<details>` still
+lays its menu out, so an overflowing menu is real and measurable. `left: 0`
+overflows for right-side items and `right: 0` overflows for left-side ones, so
+there is no universally safe anchor: the side is chosen per item via
+`.dropdown__menu--end`. That modifier MUST stay after `.dropdown__menu` in the
+stylesheet — same specificity, so source order is what makes it win.
 
 ### Right-hand stat bar
 
@@ -103,7 +109,7 @@ only to work around hover on touch devices.
 | `poll/*` (4) | — | todo |
 | `article/*` (news) | `/news`, `/news/:slug`, `/admin/news` | have |
 | `contact` | — | todo |
-| `page/*` (static pages: rules, FAQ, about, staff, internal, client blacklist) | `site_page.html` | partial |
+| `page/*` (static pages) | `/rules`, `/faq`, `/about`, `/staff` | have (no CMS — see below) |
 | `wiki/*` | `/wiki`, `/wiki/:topic/:post`, `/admin/wiki` | have |
 | `ticket/*` (helpdesk) | `/support`, `/support/public`, `/admin/tickets` | have |
 | `event/*` | — | todo |
@@ -132,9 +138,10 @@ uploaders, bankers, seedtime, seedsize, upload_snatches, messages, seeded,
 leeched, completed, dying, dead, bountied, groups, groups_requirements,
 languages, themes).
 
-Most are **n/a** — they rank peers and ratios. The ones that carry over:
-`groups`, `languages`, `themes`, and a release-count equivalent of `uploaders`.
-We have `/p/stats`. **todo:** a real stats index page.
+Most are **n/a** — they rank peers and ratios. `/stats` is now a real hub of
+what the capabilities actually answer: indexed releases, active groups,
+categories, members, forum posts, and the most-indexed groups. Sub-pages are
+deliberately not stubbed — a page that ranks nothing is worse than no page.
 
 ### Staff / admin
 

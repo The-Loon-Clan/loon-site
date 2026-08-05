@@ -285,6 +285,36 @@
             {{$news := and (ge (len .Path) 5) (eq (slice .Path 0 5) "/news")}}
             <li class="nav-tab"><a class="{{if $news}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/news"{{if $news}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#rss"></use></svg>News</a></li>
 
+            {{/* Support — UNIT3D's fourth top-nav dropdown (Rules, FAQ, Wiki,
+                 Helpdesk, Staff), now that all five destinations exist. Grouped
+                 rather than five more flat tabs because the bar was already at
+                 seven; the parity doc's rule is to group only once there is
+                 something to group.
+
+                 Same `open` hazard as the SiteNav dropdown below: never emit it,
+                 the menu is absolutely positioned and would paint over the page
+                 on first load. $support drives the summary's active class only. */}}
+            {{$support := or (eq .Path "/rules") (eq .Path "/faq") (eq .Path "/about") (eq .Path "/staff") (eq .Path "/stats")}}
+            {{$support = or $support (and (ge (len .Path) 5) (eq (slice .Path 0 5) "/wiki"))}}
+            {{$support = or $support (and (ge (len .Path) 8) (eq (slice .Path 0 8) "/support"))}}
+            <li class="nav-tab">
+                <details class="dropdown">
+                    <summary class="{{if $support}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
+                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#info"></use></svg>Support
+                        <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
+                    </summary>
+                    <div class="dropdown__menu dropdown__menu--end">
+                        <a class="dropdown__item{{if eq .Path "/rules"}} active{{end}}" href="/rules"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Rules</a>
+                        <a class="dropdown__item{{if eq .Path "/faq"}} active{{end}}" href="/faq"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#info"></use></svg>FAQ</a>
+                        <a class="dropdown__item{{if eq .Path "/wiki"}} active{{end}}" href="/wiki"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#book"></use></svg>Wiki</a>
+                        <a class="dropdown__item{{if eq .Path "/support"}} active{{end}}" href="/support"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#comment"></use></svg>Helpdesk</a>
+                        <a class="dropdown__item{{if eq .Path "/staff"}} active{{end}}" href="/staff"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Staff</a>
+                        <a class="dropdown__item{{if eq .Path "/stats"}} active{{end}}" href="/stats"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#database"></use></svg>Stats</a>
+                        <a class="dropdown__item{{if eq .Path "/about"}} active{{end}}" href="/about"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#logo"></use></svg>About</a>
+                    </div>
+                </details>
+            </li>
+
             {{/* Plugin site pages (loon's view registry), already role-filtered
                  by the host. A NavHint group becomes a <details> dropdown; an
                  ungrouped page is a plain tab. */}}
@@ -301,7 +331,7 @@
                             <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#folder"></use></svg>{{.Label}}
                             <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                         </summary>
-                        <div class="dropdown__menu">
+                        <div class="dropdown__menu dropdown__menu--end">
                             {{range .Children}}<a class="dropdown__item{{if eq $.Path .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>{{end}}
                         </div>
                     </details>

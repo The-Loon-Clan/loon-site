@@ -1,0 +1,49 @@
+{{/* Staff — UNIT3D's page/staff.blade.php: members grouped, rendered as
+     user-cards. UNIT3D groups by its editable `groups` table; roles here are a
+     fixed enum, so the grouping is by role, highest authority first.
+
+     Keys: .Groups []staffGroup — Name, Members []staffMember
+                                  (Username Role RoleName Since)
+     Absent when the read failed or nobody holds a staff role. All real data —
+     no mock. */}}
+{{define "content"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Staff</li>
+</ol>
+
+{{if .Groups}}
+{{range .Groups}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#shield"></use></svg>
+            {{.Name}}
+        </h2>
+        <div class="panel__actions"><span class="panel__action">{{len .Members}}</span></div>
+    </header>
+    <div class="panel__body">
+        <div class="tile-grid">
+            {{range .Members}}
+            <a class="tile" href="/u/{{.Username}}">
+                <span class="avatar avatar--lg avatar--round poster--h{{hue .Username}}">
+                    <span class="avatar__fallback">{{initials .Username}}</span>
+                </span>
+                <span class="tile__body">
+                    <span class="tile__title">{{template "user-tag" (dict "Name" .Username "Role" .Role "Plain" true)}}</span>
+                    <span class="tile__meta">{{.RoleName}}</span>
+                    {{if .Since}}<span class="tile__meta">Member since {{.Since}}</span>{{end}}
+                </span>
+            </a>
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}
+{{else}}
+<section class="panelV2">
+    <header class="panel__header"><h1 class="panel__heading">Staff</h1></header>
+    <div class="panel__body">No staff accounts yet.</div>
+</section>
+{{end}}
+{{end}}

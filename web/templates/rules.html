@@ -1,0 +1,43 @@
+{{/* Rules — UNIT3D's page/page.blade.php equivalent. Prose lives in the
+     template rather than a database: it describes THIS demo, so it should
+     change in the same commit the demo does. UNIT3D backs its version with an
+     admin-editable `pages` table; a host that wants that here should adopt the
+     wiki plugin, which is wired and does exactly this. Real content, no mock. */}}
+{{define "content"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Rules</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#shield"></use></svg>
+            Rules
+        </h1>
+    </header>
+    <div class="panel__body prose">
+        <p>
+            This is a public demonstration of the loon indexer framework. It is
+            not a private tracker and there is nothing here to earn or lose.
+        </p>
+        <h2>Accounts</h2>
+        <ul>
+            <li>Two demo accounts exist: <code>alice</code> (admin) and <code>bob</code> (member). The password is the username.</li>
+            <li>Anyone may register, but the database is reset periodically — treat every account as temporary.</li>
+            <li>Do not reuse a password here that you use anywhere else.</li>
+        </ul>
+        <h2>Content</h2>
+        <ul>
+            <li>The index holds NZB metadata harvested from public Usenet headers. It hosts no files.</li>
+            <li>Nothing is uploaded by members; releases come from crawling, so there is no upload moderation queue.</li>
+            <li>Report anything that should not be indexed through the <a href="/support">helpdesk</a>.</li>
+        </ul>
+        <h2>Conduct</h2>
+        <ul>
+            <li>The <a href="/community/forums">forums</a> are moderated. Be civil.</li>
+            <li>Automated scraping of this demo is pointless and will be rate-limited.</li>
+        </ul>
+    </div>
+</section>
+{{end}}

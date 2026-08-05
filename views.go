@@ -107,6 +107,8 @@ var pageTemplates = []string{
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html",
+	// Fixed host pages — UNIT3D's page/* and stats/index (pages_web.go).
+	"staff.html", "stats.html", "rules.html", "faq.html", "about.html",
 }
 
 // sharedPartials maps a page to the partials it needs beyond the shell. Each
@@ -509,6 +511,8 @@ func (w *web) mount(e *gin.Engine) {
 	e.GET("/browse", w.browse)
 	e.GET("/release/:id", w.releasePage)
 	e.GET("/nzb/:id", w.nzbDownload)
+	// Fixed host pages: /staff /stats /rules /faq /about (pages_web.go).
+	w.mountSitePages(e)
 	e.GET("/login", w.loginPage)
 	e.POST("/login", w.loginPost)
 	e.GET("/register", w.registerPage)

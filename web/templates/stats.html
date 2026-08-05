@@ -1,0 +1,114 @@
+{{/* Stats — UNIT3D's stats/index.blade.php as a hub of what this site can
+     actually measure.
+
+     UNIT3D ships 24 stat pages; most rank peers, ratios, seedtime and buffer,
+     none of which exist in a Usenet indexer. Rather than build empty analogues,
+     this shows the figures the capabilities really answer and links to the
+     pages that already exist.
+
+     Keys: .Stats siteStatsVM (Releases Groups RetentionDays Categories)
+           .TopGroups · .Categories · .Members/.HasMembers
+           .ForumThreads/.ForumPosts/.HasForum
+     Every one optional — a missing capability drops its panel rather than
+     showing a zero. All real; nothing here is mocked. */}}
+{{define "content"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Stats</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
+            Site stats
+        </h1>
+    </header>
+    <div class="panel__body">
+        <div class="stat-grid stat-grid--2">
+            {{with .Stats}}
+            {{if .Releases}}
+            <div class="stat-tile">
+                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#database"></use></svg>
+                <span class="stat-tile__label">Releases</span>
+                <span class="stat-tile__value">{{.Releases}}</span>
+            </div>
+            {{end}}
+            {{if .Groups}}
+            <div class="stat-tile">
+                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#server"></use></svg>
+                <span class="stat-tile__label">Active groups</span>
+                <span class="stat-tile__value">{{.Groups}}</span>
+            </div>
+            {{end}}
+            {{if .Categories}}
+            <div class="stat-tile">
+                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#folder"></use></svg>
+                <span class="stat-tile__label">Categories</span>
+                <span class="stat-tile__value">{{.Categories}}</span>
+            </div>
+            {{end}}
+            {{/* RetentionDays is wired but not populated by the public Groups()
+                 read, so the tile stays hidden rather than showing 0 days. */}}
+            {{if .RetentionDays}}
+            <div class="stat-tile">
+                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#clock"></use></svg>
+                <span class="stat-tile__label">Retention</span>
+                <span class="stat-tile__value">{{.RetentionDays}}d</span>
+            </div>
+            {{end}}
+            {{end}}
+            {{if .HasMembers}}
+            <div class="stat-tile">
+                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#users"></use></svg>
+                <span class="stat-tile__label">Members</span>
+                <span class="stat-tile__value">{{.Members}}</span>
+            </div>
+            {{end}}
+            {{if .HasForum}}
+            <div class="stat-tile">
+                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#comment"></use></svg>
+                <span class="stat-tile__label">Forum posts</span>
+                <span class="stat-tile__value">{{.ForumPosts}}</span>
+            </div>
+            {{end}}
+        </div>
+    </div>
+</section>
+
+{{if .TopGroups}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">Most indexed groups</h2>
+        <div class="panel__actions"><a class="panel__action" href="/groups">All groups</a></div>
+    </header>
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead><tr><th>Group</th><th class="num">Releases</th></tr></thead>
+            <tbody>
+                {{range .TopGroups}}
+                <tr>
+                    <td><a class="data-table__title" href="/search?group={{.Name}}">{{.Name}}</a></td>
+                    <td class="num">{{.NZBs}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}
+
+{{if .Categories}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">Categories</h2>
+        <div class="panel__actions"><a class="panel__action" href="/browse">Browse</a></div>
+    </header>
+    <div class="panel__body">
+        <div class="pill-row">
+            {{range .Categories}}<a class="pill" href="/browse?cat={{.ID}}">{{.Name}}</a>{{end}}
+        </div>
+    </div>
+</section>
+{{end}}
+{{end}}

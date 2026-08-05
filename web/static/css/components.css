@@ -389,6 +389,22 @@ a.tag { min-height: 24px; }
     box-shadow: var(--top-nav-dropdown-menu-box-shadow);
 }
 
+/* MUST stay after .dropdown__menu: same specificity, so source order is
+   what makes left:auto win.
+
+   A closed <details> still LAYS OUT its menu in this engine — the box has real
+   dimensions even while hidden — so an overflowing menu is measurable, and
+   costs a horizontal scrollbar the moment it is opened. The default anchors to
+   the item's left edge; --end flips it to the right edge for nav items that sit
+   in the right half, where a 200px menu would otherwise run past the viewport.
+   Neither anchor is universally safe: left overflows for right-side items, right
+   overflows for left-side ones, so the side is chosen per item in the markup. */
+.dropdown__menu--end {
+    left: auto;
+    right: 0;
+}
+
+
 .dropdown--end > .dropdown__menu { left: auto; right: 0; }
 
 .dropdown__item {

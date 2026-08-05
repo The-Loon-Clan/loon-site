@@ -1,0 +1,55 @@
+{{/* FAQ. See rules.html for why this is a template rather than a CMS row. */}}
+{{define "content"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">FAQ</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#info"></use></svg>
+            Frequently asked
+        </h1>
+    </header>
+    <div class="panel__body prose">
+        <h2>What is this?</h2>
+        <p>
+            A reference host for <a href="https://github.com/The-Loon-Clan/loon">loon</a>,
+            an indexer framework. It exists to prove the framework's seams work
+            end to end, so it runs the same plugin code a production site would.
+        </p>
+
+        <h2>Why does it look like a tracker but talk about Usenet?</h2>
+        <p>
+            The design system is ported from UNIT3D, a BitTorrent tracker. The
+            data underneath is a Usenet index. Anything that only makes sense
+            for a tracker — ratio, seeding, peers, upload credit — is absent
+            rather than faked, so some familiar chrome is deliberately missing.
+        </p>
+
+        <h2>Where do releases come from?</h2>
+        <p>
+            An admin points the crawler at an NNTP provider and enables a few
+            newsgroups; the usenet plugin assembles headers into releases. See
+            the <a href="/groups">groups</a> page for what is being crawled.
+        </p>
+
+        <h2>Is there an API?</h2>
+        <p>
+            Yes — a Newznab-compatible endpoint. Generate a key on your
+            <a href="/p/api-key">API key</a> page.
+        </p>
+
+        <h2>What are points for?</h2>
+        <p>
+            They are the framework's ledger seam, earned from the daily reward
+            and spent in the <a href="/store">store</a>. They buy nothing of
+            consequence here; the point is that the plumbing is real.
+        </p>
+
+        <h2>Something is broken.</h2>
+        <p>Open a ticket on the <a href="/support">helpdesk</a>.</p>
+    </div>
+</section>
+{{end}}

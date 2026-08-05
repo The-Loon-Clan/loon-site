@@ -106,6 +106,8 @@ func main() {
 	// users.Store over its own table). Migrate the reference table + seed the two
 	// demo accounts (password == username).
 	userStore := users.NewPGStore(db.DB)
+	// Host-owned reads for /staff and /stats — see usersDB in pages_web.go.
+	usersDB = db
 	if err := userStore.Migrate(context.Background()); err != nil {
 		logger.Error("users migrate", "err", err)
 		os.Exit(1)
