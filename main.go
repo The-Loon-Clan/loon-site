@@ -60,6 +60,11 @@ import (
 	// forum is imported (and its init runs) via forum_web.go's SetDeps wiring.
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	_ "github.com/the-loon-clan/loon-plugins/pointstore"
+	// ranks + rewards draw their UI through loon's VIEW system
+	// (core.RegisterView), not gin templates, so they need no host templates and
+	// no SetDeps — a blank import is the whole wiring.
+	_ "github.com/the-loon-clan/loon-plugins/ranks"
+	_ "github.com/the-loon-clan/loon-plugins/rewards"
 	"github.com/the-loon-clan/loon-plugins/scraper"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/anidb"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/theporndb"

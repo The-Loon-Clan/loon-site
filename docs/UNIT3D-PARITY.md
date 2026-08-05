@@ -249,6 +249,72 @@ Order of effort, cheapest first: `wiki` (5) · `donations` · `messages` ·
 `tickets`. `ranks`/`store`/`rewards` need the points economy thinking through
 first.
 
+## 5b. Plugin wiring status, and what each still costs
+
+Wired so far: `news`, `wiki`, `ranks`, `rewards` (plus the pre-existing
+`backups`, `catalog`, `dailyreward`, `forum`, `pointstore`, `scraper`, `stats`,
+`usenet`).
+
+**The cost of a plugin is its host templates, not its Go wiring.** Plugins split
+cleanly into two kinds, and the difference is an order of magnitude:
+
+- **View-system plugins** draw through `core.RegisterView`, so loon renders them
+  inside the host's own admin/site page chrome. Host templates needed: **zero**.
+  `ranks` and `rewards` were a blank import each — no `SetDeps`, no migration,
+  no markup. They landed at `/admin/p/groups`, `/admin/p/rewards`,
+  `/admin/p/rewards-events` and a `rewards-claim` member widget.
+- **gin-template plugins** call `c.HTML("name")` and expect the HOST to own that
+  file. Host templates needed: one per view. `news` cost 4, `wiki` cost 6.
+
+Remaining, cheapest first:
+
+| plugin | host templates | other seams | notes |
+|---|---|---|---|
+| `messages` | 2 (`inbox`, `admin_messages`) | BaseData; Store + ListUsers optional | Upgrades PM from *partial* — closest parity win left |
+| `store` | 3 | BaseData, Paginate, PageOffset | Points spending; `pointstore` already wired |
+| `donations` | 3 | BaseData, Settings, IsDonateEnabled, LookupUsername/UserID | Needs BTCPay — see §5c |
+| `tickets` | 4 | + PageOffset, Pagination, Viewer, OwnerRole, RoleBadge, NotifyNewTicket, NotifyReply | UNIT3D's helpdesk |
+| `communities` | 7 | + Markdown, Files, Pagination | Biggest; no UNIT3D equivalent |
+| `anidbscraper` | 0 | Catalog, Nzbs, Matcher, Covers | We have Catalog + Covers already |
+| `backup` | 0 (ships `backup.html`) | DB, Config, FreeDisk, DBSize, Classes, Root, DBDumpDir | Distinct from the wired `backups` |
+| `dbmaint` | 0 | Diag, StatCache, Nzbs, Maintenance, ConfigStore, FreeDisk, Repack | Usenet ops surface |
+| `economy` | 0 | PointsPerGrab, UploaderGrabTotals, GrabsAlreadyCredited | **Blocked — see §5c** |
+
+## 5c. Missing features — what blocks a plugin we cannot simply wire
+
+These are gaps in the HOST, not in the plugins. Each is a real feature, not a
+template.
+
+1. **Grab / download counter.** Nothing counts NZB downloads. `/nzb/:id` serves
+   the file and records nothing. This blocks:
+   - `economy` outright — its whole job is the per-grab uploader bonus, and
+     `UploaderGrabTotals` / `GrabsAlreadyCredited` have no source.
+   - UNIT3D's `trending/*` and "popular this week", still unbuilt for the same
+     reason.
+   - The "N downloads" figure every UNIT3D listing shows.
+   Smallest honest version: a `release_grab` table written on the NZB route,
+   plus a count read back into the listing view-models.
+
+2. **Threaded private messages.** `/p/inbox` is a NOTIFICATION inbox, not
+   conversations. `messages` supplies the real thing; until it is wired, the
+   parity row stays *partial*.
+
+3. **A payment gateway.** `donations` wants BTCPay — an invoice API and a
+   webhook endpoint. That is an external service with credentials, so it is a
+   deployment decision rather than a wiring task. The plugin also wants
+   `LookupUsername`/`LookupUserID`, which the host can supply trivially.
+
+4. **A user directory.** `messages.ListUsers` is optional precisely because
+   core has no "list every user" method. The composer degrades to a username
+   field without it. Fine for a demo; a real host wants a paged directory.
+
+5. **Notification fan-out for tickets.** `tickets` wants `NotifyNewTicket` and
+   `NotifyReply`. The host already publishes a `notify.fanout` capability, so
+   this is a small adapter rather than a feature — but it is not nothing.
+
+6. **Cover art.** Still unexercised: no `TMDB_API_KEY` is set, so every poster
+   is a gradient fallback. Blocks `mediahub` parity entirely.
+
 ## 6. Suggested order
 
 1. **`user-tag`** — small, touches every page, biggest consistency win
