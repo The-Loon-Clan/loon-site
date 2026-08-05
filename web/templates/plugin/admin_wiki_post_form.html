@@ -1,34 +1,22 @@
 {{/* Wiki article create/edit form.
 
-     STANDALONE DOCUMENT ON PURPOSE — same reason as admin_wiki_topic_form.html:
-     handlers.go renders this with a plain gin.H, not deps.BaseData, so there is
-     no .Theme to feed {{template "fhead"}} and no server-rendered .CSRFToken.
-     See that file's header for the full explanation and the upstream bug.
+     Keys (Handlers.NewPost / EditPost + Deps.BaseData):
+       Action "Create"|"Edit" · TopicID int (create) · Post (edit only)
 
-     Keys: Action "Create"|"Edit" · TopicID int (create) · Post (edit only)
+     Was standalone for the same reason as admin_wiki_topic_form.html, and
+     fixed by the same upstream change — see that file.
 
      .Post.Content is raw markdown and goes in a <textarea>, where the template
      engine escapes it as text. It must never be rendered as markup on an admin
-     page — the markdown pipeline is what makes it safe, and that runs on the
+     page; the markdown pipeline is what makes it safe, and that runs on the
      public view. */}}
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{.Action}} wiki article</title>
-    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/static/css/tokens.css">
-    <link rel="stylesheet" href="/static/css/layout.css">
-    <link rel="stylesheet" href="/static/css/components.css">
-    <link rel="stylesheet" href="/static/css/theme.css">
-</head>
-<body>
-<main class="page-main">
+{{template "fhead" .}}
+
 <section class="panelV2">
     <header class="panel__header"><h1 class="panel__heading">{{.Action}} wiki article</h1></header>
     <div class="panel__body">
         <form method="post" action="{{if .Post}}/admin/wiki/posts/{{.Post.ID}}/update{{else}}/admin/wiki/posts{{end}}" class="form">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
             <input type="hidden" name="topic_id" value="{{if .Post}}{{.Post.TopicID}}{{else}}{{.TopicID}}{{end}}">
             <div class="form__group">
                 <label class="form__label" for="title">Title</label>
@@ -50,19 +38,4 @@
         </form>
     </div>
 </section>
-</main>
-<script>
-// See admin_wiki_topic_form.html — this document bypasses the shared chrome, so
-// it carries its own copy of the CSRF double-submit shim.
-document.addEventListener('submit', function (e) {
-    var f = e.target;
-    if (!f || (f.method || '').toLowerCase() !== 'post') return;
-    var m = document.cookie.match(/(?:^|;\s*)csrf_tok=([^;]+)/);
-    if (!m) return;
-    var inp = f.querySelector('input[name="_csrf"]');
-    if (!inp) { inp = document.createElement('input'); inp.type = 'hidden'; inp.name = '_csrf'; f.appendChild(inp); }
-    inp.value = decodeURIComponent(m[1]);
-}, true);
-</script>
-</body>
-</html>
+{{template "ffoot" .}}
