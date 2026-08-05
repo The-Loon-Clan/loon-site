@@ -334,11 +334,32 @@ func main() {
 		Notifications: core.NewNotifications(core.NotificationsAdapter{NotifyFn: notifications.Deliver}),
 		Points:        pointsSvc,
 		// In-memory grants (lost on restart) — a real host backs this
-		// with a user_entitlements table. No demo plugin grants or
-		// checks entitlements yet; this is the minimal required wiring.
-		Entitlements: core.NewEntitlements(core.EntitlementsConfig{Store: core.NewMemEntitlementStore()}),
-		HTTPClient:   core.NewHTTPClient(),
-		Errors:       core.NewErrorReporter(core.ErrorAdapter{}), // stderr fallback
+		// with a user_entitlements table.
+		//
+		// The BASELINE is what actually matters here. The messages plugin
+		// gates "may this user start a DM" purely on ents.Has("dm.initiate")
+		// — its error text mentions roles, but the code delegates the whole
+		// decision to the host. So without a baseline every send failed
+		// closed, including for an admin. Baseline grants are evaluated from
+		// RoleOf at resolution time and never written to the store, so a role
+		// change takes effect within one cache window with no backfill.
+		Entitlements: core.NewEntitlements(core.EntitlementsConfig{
+			Store: core.NewMemEntitlementStore(),
+			RoleOf: func(ctx context.Context, userID int64) (core.Role, bool, error) {
+				u, err := userStore.ByID(ctx, userID)
+				if err != nil || u == nil {
+					// (0, false, nil) = "no such user, cacheable". Reserve the
+					// error return for transient failures, which are NOT cached.
+					return 0, false, nil
+				}
+				return u.ToCore().Role, true, nil
+			},
+			Baseline: map[core.Role][]core.EntitlementGrant{
+				core.RoleMod: {{Key: "dm.initiate", Val: 1, Source: "role"}},
+			},
+		}),
+		HTTPClient: core.NewHTTPClient(),
+		Errors:     core.NewErrorReporter(core.ErrorAdapter{}), // stderr fallback
 		// Optional: only wired when REDIS_ADDR is set; otherwise Core.Redis stays
 		// nil and Redis-capable plugins fall back to their durable mode.
 		Redis: func() core.RedisService {
@@ -375,6 +396,14 @@ func main() {
 	// closure: it serves admin image uploads off a static route.
 	if err := wireWikiPlugin(c, engine, wsrv); err != nil {
 		logger.Error("wiki wiring", "err", err)
+		os.Exit(1)
+	}
+
+	// Messages plugin seams (messages_web.go) — threaded DMs + admin
+	// announcements at /inbox. Distinct from /p/inbox, which is the baseline's
+	// NOTIFICATION inbox.
+	if err := wireMessagesPlugin(c, wsrv); err != nil {
+		logger.Error("messages wiring", "err", err)
 		os.Exit(1)
 	}
 

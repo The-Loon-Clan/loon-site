@@ -1,0 +1,126 @@
+{{/* Admin announcement composer + log. UNIT3D splits this across
+     Staff/mass_private_message and Staff/mass_email; the plugin does both from
+     one page because the form is four fields.
+
+     Gated at RoleMod by the plugin's own route group, so this template does not
+     re-check IsMod.
+
+     Keys (messages plugin, Handlers.AdminMessages + Deps.BaseData):
+       Messages   []Announcement — ID FromName Title Body Target ExpiresAt CreatedAt
+       Users      []UserOption   — ID Username; EMPTY unless the host supplied
+                                   Deps.ListUsers, so the recipient control
+                                   falls back to a free-text username field
+       Total Page TotalPages int
+       Pagination Pagination     — Page TotalPages BaseURL Pages HasPrev HasNext
+                                   PrevPage NextPage MidPage ParamName
+
+     Form contract, read off Handlers.SendMessage:
+       POST /admin/messages   title, body, target, user_id (when target is a
+                              single user)
+
+     Announcement bodies are admin-authored and are rendered ESCAPED here. The
+     admin log has no reason to render markup, and doing so would make this page
+     a second unsanitized path — the mistake news.NewsAll made. */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Announcements</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">Send an announcement</h1>
+        <div class="panel__actions"><a class="panel__action" href="/inbox">View inbox</a></div>
+    </header>
+    <div class="panel__body">
+        <form method="post" action="/admin/messages" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__group">
+                <label class="form__label" for="title">Title</label>
+                <input class="form__input" id="title" name="title" type="text" required>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="body">Message</label>
+                <textarea class="form__textarea" id="body" name="body" rows="6" required></textarea>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="target">Audience</label>
+                <select class="form__select" id="target" name="target">
+                    <option value="all">Everyone</option>
+                    <option value="user">A single user</option>
+                </select>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="user_id">User</label>
+                {{if .Users}}
+                <select class="form__select" id="user_id" name="user_id">
+                    <option value="">—</option>
+                    {{range .Users}}<option value="{{.ID}}">{{.Username}}</option>{{end}}
+                </select>
+                {{else}}
+                {{/* No Deps.ListUsers wired: the plugin resolves by username on
+                     the send path either way, so a plain field loses nothing. */}}
+                <input class="form__input" id="user_id" name="user_id" type="text" placeholder="user id">
+                {{end}}
+                <p class="form__help">Only used when the audience is a single user.</p>
+            </div>
+            <div class="form__actions">
+                <button class="button button--primary" type="submit">Send announcement</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">Sent</h2>
+        {{if .Total}}<div class="panel__actions"><span class="panel__action">{{.Total}} total</span></div>{{end}}
+    </header>
+    {{if .Messages}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead><tr><th>Title</th><th>Audience</th><th>From</th><th>Sent</th><th></th></tr></thead>
+            <tbody>
+                {{range .Messages}}
+                <tr>
+                    <td>
+                        <div class="data-table__name-body">
+                            <span class="data-table__title">{{.Title}}</span>
+                            <div class="data-table__meta">{{.Body}}</div>
+                        </div>
+                    </td>
+                    <td>{{if eq .Target "all"}}Everyone{{else}}{{.Target}}{{end}}</td>
+                    <td>{{if .FromName}}{{.FromName}}{{else}}—{{end}}</td>
+                    <td>{{shortDate .CreatedAt}}</td>
+                    <td class="data-table__actions">
+                        {{/* $.CSRFToken — inside range the dot is an Announcement. */}}
+                        <form method="post" action="/admin/messages/{{.ID}}/delete" class="inline-form">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <button class="button button--text button--sm button--danger" type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{if and .Pagination (gt .Pagination.TotalPages 1)}}
+    <div class="panel__body">
+        <nav class="pagination" aria-label="Announcements">
+            {{if .Pagination.HasPrev}}
+            <a class="pagination__link" href="{{.Pagination.BaseURL}}page={{.Pagination.PrevPage}}">Previous</a>
+            {{end}}
+            <span class="pagination__status">Page {{.Pagination.Page}} of {{.Pagination.TotalPages}}</span>
+            {{if .Pagination.HasNext}}
+            <a class="pagination__link" href="{{.Pagination.BaseURL}}page={{.Pagination.NextPage}}">Next</a>
+            {{end}}
+        </nav>
+    </div>
+    {{end}}
+    {{else}}
+    <div class="panel__body">No announcements sent yet.</div>
+    {{end}}
+</section>
+
+{{template "ffoot" .}}

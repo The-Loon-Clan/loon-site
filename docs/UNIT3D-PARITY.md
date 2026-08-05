@@ -115,7 +115,7 @@ only to work around hover on touch devices.
 |---|---|---|
 | Profile, general/privacy/notification settings | partial | Split across plugin pages |
 | Email, password, 2FA, passkeys, API keys, RSS keys | partial | `/p/account`, `/p/api-key` |
-| Conversations (PM) | partial | `/p/inbox` is notifications, not threaded PM |
+| Conversations (PM) | have | `/inbox` — threaded DMs + announcements (messages plugin). `/p/inbox` remains the separate NOTIFICATION inbox |
 | Notifications | have | |
 | Achievements, wishlist, bookmarks, followers/following, gifts, invites + invite tree | todo | Each needs schema |
 | History, peers, seedboxes, resurrections, earnings, transactions | n/a | Peer/ratio economy |
@@ -270,7 +270,7 @@ Remaining, cheapest first:
 
 | plugin | host templates | other seams | notes |
 |---|---|---|---|
-| `messages` | 2 (`inbox`, `admin_messages`) | BaseData; Store + ListUsers optional | Upgrades PM from *partial* — closest parity win left |
+| `messages` | **wired** | — | `/inbox`, `/admin/messages` |
 | `store` | 3 | BaseData, Paginate, PageOffset | Points spending; `pointstore` already wired |
 | `donations` | 3 | BaseData, Settings, IsDonateEnabled, LookupUsername/UserID | Needs BTCPay — see §5c |
 | `tickets` | 4 | + PageOffset, Pagination, Viewer, OwnerRole, RoleBadge, NotifyNewTicket, NotifyReply | UNIT3D's helpdesk |
@@ -295,9 +295,18 @@ template.
    Smallest honest version: a `release_grab` table written on the NZB route,
    plus a count read back into the listing view-models.
 
-2. **Threaded private messages.** `/p/inbox` is a NOTIFICATION inbox, not
-   conversations. `messages` supplies the real thing; until it is wired, the
-   parity row stays *partial*.
+2. ~~Threaded private messages~~ — **done**, `messages` is wired. Two host
+   gaps surfaced while wiring it, both now fixed and worth knowing about:
+   - **Entitlements had no baseline.** `messages` gates "may this user start a
+     DM" purely on `ents.Has("dm.initiate")` — its error text mentions roles,
+     but the code delegates the entire decision to the host. With no baseline
+     every send failed closed, including for an admin. The host now maps
+     `RoleMod ⇒ dm.initiate` via `EntitlementsConfig.Baseline`.
+   - **`users.avatar_path` did not exist.** The plugin's thread-list query
+     selects `COALESCE(u.avatar_path, '')` from the HOST's users table, and
+     loon-baseline's table has no such column. The handler discards the error
+     (`threads, _ = ...`), so the inbox rendered empty while the rows sat in
+     the database. Added host-side.
 
 3. **A payment gateway.** `donations` wants BTCPay — an invoice API and a
    webhook endpoint. That is an external service with credentials, so it is a
