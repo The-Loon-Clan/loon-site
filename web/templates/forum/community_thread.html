@@ -1,76 +1,206 @@
-{{template "fhead" .}}
-<nav class="small mb-2"><a href="/community/forums">Forums</a> &rsaquo; <a href="/community/forums/category/{{.Thread.CategoryID}}">{{.Thread.CategoryName}}</a> &rsaquo; {{.Thread.Title}}</nav>
-<div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
-    <h1 class="h4 m-0">{{.Thread.Title}}</h1>
-    <div class="d-flex gap-1">
-        {{if .IsMod}}
-        <form method="post" action="/community/forums/thread/{{.Thread.ID}}/pin"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button class="btn btn-sm btn-outline-secondary">{{if .Thread.Pinned}}Unpin{{else}}Pin{{end}}</button></form>
-        <form method="post" action="/community/forums/thread/{{.Thread.ID}}/lock"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button class="btn btn-sm btn-outline-secondary">{{if .Thread.Locked}}Unlock{{else}}Lock{{end}}</button></form>
-        {{end}}
-        {{if or .IsMod (eq .Thread.UserID .CurrentUserID)}}
-        <form method="post" action="/community/forums/thread/{{.Thread.ID}}/delete" onsubmit="return confirm('Delete this thread?')"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button class="btn btn-sm btn-outline-danger">Delete</button></form>
-        {{end}}
-    </div>
-</div>
-{{if .Thread.Locked}}<div class="alert my-2">This thread is locked.</div>{{end}}
-{{if and .IsRecruitment (not .CanSeeAllReplies)}}<div class="alert my-2">Recruitment thread &mdash; replies are private. You see the opening post{{if .User}} and your own reply{{end}} only.</div>{{end}}
+{{/* Thread view — UNIT3D's forum/topic + the .post component, translated onto
+     the demo's vocabulary. UNIT3D's post grid ('aside header' / 'aside content'
+     / 'aside footer') is exactly .torrent-card's grid, so each post is a
+     torrent-card: author card in the aside, body in the content column, post
+     meta in the header and footer strips.
 
-{{range .Posts}}
-<div class="card mb-2" id="post-{{.ID}}"><div class="card-body py-2">
-    <div class="d-flex justify-content-between small text-muted mb-1 flex-wrap gap-1">
-        <span><strong>{{.Username}}</strong> <span class="badge bg-secondary">{{.UserRole}}</span>{{if .ReputationTier}} <span class="badge bg-info">tier {{.ReputationTier}}</span>{{end}}</span>
-        <span>{{.CreatedAt.Format "Jan 02, 2006 15:04"}}{{if .EditedAt}} &middot; edited{{end}}</span>
+     Full document rendered by the forum plugin: fhead/ffoot/fpagination all
+     come from forum_chrome.html (owned by the shell agent).
+
+     Keys (Handlers.ForumThread + Deps.BaseData):
+       Thread           *ForumThread
+       Posts            []forumPostView — *ForumPost + BodyHTML + QuotedHTML
+       Total / Page / TotalPages int
+       CurrentUserID    int   — 0 for anonymous
+       Pagination       forumPagination
+       IsRecruitment    bool
+       CanSeeAllReplies bool
+       User / IsAdmin / IsMod / CSRFToken / Path
+
+     DELIBERATELY ABSENT from the author card: join date and per-user post
+     count. ForumPost carries neither (GetForumPosts selects username, role,
+     reputation_tier and avatar_path only), and UNIT3D's .post__author-join /
+     .post__author-posts slots have no honest source here. avatar_path is a
+     literal '' across this whole stack, so the initials tile is the real
+     state. hue() buckets 0..7, matching the CSS's .poster--h0…h7. */}}{{template "fhead" .}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/community/forums">Forums</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/community/forums/category/{{.Thread.CategoryID}}">{{.Thread.CategoryName}}</a></li>
+    <li class="breadcrumb--active">{{.Thread.Title}}</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#forums"></use></svg>
+            <a href="/community/forums/category/{{.Thread.CategoryID}}">{{.Thread.CategoryName}}</a>
+        </h2>
+        <div class="panel__actions">
+            {{/* Mod tools. The pin/lock routes are gated at RoleMod (plugin.go),
+                 delete at owner-or-mod — the same conditions that guard the
+                 handlers, so no button here is a dead end. display:contents
+                 lets each form's button sit directly in the action flex row. */}}
+            {{if .IsMod}}
+            <form method="post" action="/community/forums/thread/{{.Thread.ID}}/pin" style="display:contents">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                <button class="button button--text button--sm" type="submit">{{if .Thread.Pinned}}Unpin{{else}}Pin{{end}}</button>
+            </form>
+            <form method="post" action="/community/forums/thread/{{.Thread.ID}}/lock" style="display:contents">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                <button class="button button--text button--sm" type="submit">{{if .Thread.Locked}}Unlock{{else}}Lock{{end}}</button>
+            </form>
+            {{end}}
+            {{if or .IsMod (eq .Thread.UserID .CurrentUserID)}}
+            <form method="post" action="/community/forums/thread/{{.Thread.ID}}/delete" style="display:contents" onsubmit="return confirm('Delete this thread?')">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                <button class="button button--text button--sm text-danger" type="submit">Delete</button>
+            </form>
+            {{end}}
+        </div>
+    </header>
+    <div class="panel__body">
+        <h1 class="h3 m-0">{{.Thread.Title}}</h1>
+        <div class="tag-row mt-2">
+            {{if .Thread.Pinned}}<span class="tag tag--source"><svg class="icon icon--sm" aria-hidden="true"><use href="#star"></use></svg>Pinned</span>{{end}}
+            {{if .Thread.Locked}}<span class="tag tag--codec"><svg class="icon icon--sm" aria-hidden="true"><use href="#lock"></use></svg>Locked</span>{{end}}
+            {{if .IsRecruitment}}<span class="tag tag--warning">Recruitment</span>{{end}}
+            <span class="chip"><svg class="icon icon--sm" aria-hidden="true"><use href="#user"></use></svg>{{.Thread.Username}}</span>
+            <span class="chip"><svg class="icon icon--sm" aria-hidden="true"><use href="#clock"></use></svg>{{timeAgo .Thread.CreatedAt}}</span>
+            <span class="chip"><svg class="icon icon--sm" aria-hidden="true"><use href="#comment"></use></svg>{{.Total}} posts</span>
+        </div>
     </div>
-    {{if .QuotedHTML}}<blockquote class="border-start ps-2 small text-muted">{{if .QuotedUsername}}<strong>{{.QuotedUsername}}</strong>: {{end}}{{.QuotedHTML}}</blockquote>{{end}}
-    <div>{{.BodyHTML}}</div>
-    <div class="d-flex gap-2 align-items-center mt-1 small flex-wrap">
-        {{range .Reactions}}<span title="reactions">{{.Emoji}} {{.Count}}</span>{{end}}
-        {{if $.User}}
-        {{/* The six picker emoji MUST match the plugin's server-side
-             allowlist (isAllowedReactionEmoji). */}}
-        <span>
-            <button type="button" class="btn btn-sm btn-outline-secondary py-0" onclick="react({{.ID}},'👍')">👍</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary py-0" onclick="react({{.ID}},'❤️')">❤️</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary py-0" onclick="react({{.ID}},'😂')">😂</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary py-0" onclick="react({{.ID}},'😮')">😮</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary py-0" onclick="react({{.ID}},'😢')">😢</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary py-0" onclick="react({{.ID}},'🎉')">🎉</button>
-        </span>
-        {{if not $.Thread.Locked}}<button type="button" class="btn btn-sm btn-outline-secondary py-0" onclick="quotePost({{.ID}}, {{.Username}})">Quote</button>{{end}}
-        {{if eq .UserID $.CurrentUserID}}
-        <details class="d-inline"><summary class="small" style="cursor:pointer">edit</summary>
-            <form method="post" action="/community/forums/post/{{.ID}}/edit">
+</section>
+
+{{if .Thread.Locked}}
+<p class="notice notice--warning">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#lock"></use></svg>
+    This thread is locked.
+</p>
+{{end}}
+{{if and .IsRecruitment (not .CanSeeAllReplies)}}
+<p class="notice notice--info">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    Recruitment thread &mdash; replies are private. You see the opening post{{if .User}} and your own reply{{end}} only.
+</p>
+{{end}}
+
+<div class="stack">
+{{range .Posts}}
+{{$post := .}}
+{{$h := hue .Username}}
+<article class="torrent-card" id="post-{{.ID}}">
+    <header class="torrent-card__header flex-wrap">
+        <span>{{timeAgo .CreatedAt}} &middot; {{.CreatedAt.Format "2 Jan 2006 15:04"}}{{if .EditedAt}} &middot; edited{{end}}</span>
+        <a href="#post-{{.ID}}">#{{.ID}}</a>
+    </header>
+
+    <aside class="torrent-card__aside">
+        <div class="torrent-card__figure p-2">
+            <div class="user-stat-card">
+                <span class="avatar avatar--lg user-stat-card__avatar poster--h{{$h}}"><span class="avatar__fallback">{{initials .Username}}</span></span>
+                <h3 class="user-stat-card__username"><a href="/u/{{.Username}}">{{.Username}}</a></h3>
+                {{if .UserRole}}<span class="user-stat-card__rank">{{.UserRole}}</span>{{end}}
+                {{/* reputation_tier is a constant 0 in this host's user_display
+                     view, so this badge stays hidden until a host fills it. */}}
+                {{if .ReputationTier}}<p class="user-stat-card__stat">Tier {{.ReputationTier}}</p>{{end}}
+            </div>
+        </div>
+    </aside>
+
+    <div class="torrent-card__body">
+        {{if .QuotedHTML}}
+        <blockquote class="border-start ps-2 small text-muted m-0">
+            {{if .QuotedUsername}}<strong>{{.QuotedUsername}}</strong>{{end}}
+            {{.QuotedHTML}}
+        </blockquote>
+        {{end}}
+        <div>{{.BodyHTML}}</div>
+        {{if $.User}}{{if eq .UserID $.CurrentUserID}}
+        {{/* Owner edit form. Lives in the body (it edits the body) rather than
+             the footer strip, which is a nowrap meta bar. Field names and the
+             action are the plugin's contract — EditPost reads _csrf, thread_id
+             and body. */}}
+        <details>
+            <summary class="small text-muted" style="cursor:pointer">Edit</summary>
+            <form class="form mt-2" method="post" action="/community/forums/post/{{.ID}}/edit">
                 <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
                 <input type="hidden" name="thread_id" value="{{.ThreadID}}">
-                <textarea name="body" class="form-control my-1" rows="3" required>{{.Body}}</textarea>
-                <button class="btn btn-sm btn-outline-secondary py-0">Save</button>
+                <div class="form__group">
+                    <label class="form__label" for="edit-body-{{.ID}}">Edit post</label>
+                    <textarea class="form__textarea" id="edit-body-{{.ID}}" name="body" rows="4" required>{{.Body}}</textarea>
+                </div>
+                <button class="form__button form__button--outlined" type="submit">Save</button>
             </form>
         </details>
-        {{end}}
-        {{if or $.IsMod (eq .UserID $.CurrentUserID)}}
-        <form method="post" action="/community/forums/post/{{.ID}}/delete" class="d-inline" onsubmit="return confirm('Delete this post?')">
-            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
-            <input type="hidden" name="thread_id" value="{{.ThreadID}}">
-            <button class="btn btn-sm btn-outline-danger py-0">delete</button>
-        </form>
-        {{end}}
-        {{end}}
+        {{end}}{{end}}
     </div>
-</div></div>
+
+    <footer class="torrent-card__footer flex-wrap">
+        <span class="tag-row">
+            {{/* Existing tallies. MyReactions is the viewer's own subset, so a
+                 chip the viewer contributed to is accent-tinted. */}}
+            {{$mine := .MyReactions}}
+            {{range $r := .Reactions}}
+                {{$on := false}}{{range $m := $mine}}{{if eq $m $r.Emoji}}{{$on = true}}{{end}}{{end}}
+                <span class="chip{{if $on}} chip--accent{{end}}">{{$r.Emoji}} {{$r.Count}}</span>
+            {{end}}
+            {{if $.User}}
+            {{/* The six picker emoji MUST match the plugin's server-side
+                 allowlist (isAllowedReactionEmoji). */}}
+            <button type="button" class="button button--text button--sm" onclick="react({{$post.ID}},'👍')">👍</button>
+            <button type="button" class="button button--text button--sm" onclick="react({{$post.ID}},'❤️')">❤️</button>
+            <button type="button" class="button button--text button--sm" onclick="react({{$post.ID}},'😂')">😂</button>
+            <button type="button" class="button button--text button--sm" onclick="react({{$post.ID}},'😮')">😮</button>
+            <button type="button" class="button button--text button--sm" onclick="react({{$post.ID}},'😢')">😢</button>
+            <button type="button" class="button button--text button--sm" onclick="react({{$post.ID}},'🎉')">🎉</button>
+            {{end}}
+        </span>
+        <span class="tag-row">
+            {{if $.User}}
+            {{if not $.Thread.Locked}}<button type="button" class="button button--text button--sm" onclick="quotePost({{$post.ID}}, {{$post.Username}})">Quote</button>{{end}}
+            {{if or $.IsMod (eq .UserID $.CurrentUserID)}}
+            <form method="post" action="/community/forums/post/{{.ID}}/delete" style="display:contents" onsubmit="return confirm('Delete this post?')">
+                <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                <input type="hidden" name="thread_id" value="{{.ThreadID}}">
+                <button class="button button--text button--sm text-danger" type="submit">Delete</button>
+            </form>
+            {{end}}
+            {{end}}
+        </span>
+    </footer>
+</article>
 {{end}}
+</div>
 
 {{template "fpagination" .Pagination}}
 
 {{if .User}}{{if not .Thread.Locked}}
-<form method="post" action="/community/forums/thread/{{.Thread.ID}}/reply" class="mt-3">
-    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
-    <input type="hidden" name="quoted_post_id" id="quoted_post_id" value="">
-    <div id="quote-note" class="small text-muted mb-1" style="display:none">Quoting <strong id="quote-who"></strong> <a href="#" onclick="clearQuote();return false">clear</a></div>
-    <textarea name="body" class="form-control mb-2" rows="4" required placeholder="Write a reply&hellip;"></textarea>
-    <button class="btn btn-primary btn-sm">Reply</button>
-</form>
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#comment"></use></svg>
+            Post a reply
+        </h2>
+    </header>
+    <div class="panel__body">
+        <form class="form" method="post" action="/community/forums/thread/{{.Thread.ID}}/reply">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <input type="hidden" name="quoted_post_id" id="quoted_post_id" value="">
+            <p class="form__help" id="quote-note" style="display:none">Quoting <strong id="quote-who"></strong> <a href="#" onclick="clearQuote();return false">clear</a></p>
+            <div class="form__group">
+                <label class="form__label" for="reply-body">Your reply</label>
+                <textarea class="form__textarea" id="reply-body" name="body" rows="5" required placeholder="Write a reply&hellip;"></textarea>
+            </div>
+            <button class="form__button form__button--filled" type="submit">Reply</button>
+        </form>
+    </div>
+</section>
 {{end}}{{else}}
-<p class="text-muted mt-3"><a href="/login">Log in</a> to reply.</p>
+<p class="notice notice--info">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <a href="/login">Log in</a> to reply.
+</p>
 {{end}}
 
 <script>
@@ -87,7 +217,10 @@ function quotePost(id, who) {
     f.value = id;
     document.getElementById('quote-who').textContent = who;
     document.getElementById('quote-note').style.display = '';
-    document.querySelector('textarea[name=body]').focus();
+    // Target the reply box by id: the owner edit forms also carry a
+    // textarea[name=body], and they come first in document order.
+    var box = document.getElementById('reply-body');
+    if (box) box.focus();
 }
 function clearQuote() {
     document.getElementById('quoted_post_id').value = '';

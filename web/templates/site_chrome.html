@@ -1,0 +1,411 @@
+{{/* ==========================================================================
+     SHARED SITE CHROME — the header, footer, sprite, stat strip and the two
+     small shell scripts, used by BOTH template sets.
+
+     The demo host parses base.html + one page per set (views.go newWeb), while
+     the forum plugin parses its own pages with a separate ParseGlob over
+     web/templates/forum/*.html (forum_web.go wireForumPlugin). Those two sets
+     share no page file, so a {{define}} in base.html is invisible to the forum
+     pages and vice versa. This file is the seam: it is named explicitly by
+     BOTH parse sites, so the blocks below are defined exactly once.
+
+         views.go     ParseFS(webFS, base.html, site_chrome.html, <page>)
+         forum_web.go ParseFiles(web/templates/site_chrome.html) + ParseGlob(...)
+
+     If you add a page-set or a new parse site, name this file there too.
+
+     Both sets feed these blocks a map, so a key only one side sets (Points,
+     Unread, SiteNav, AdminNav — the forum's Deps.BaseData supplies none of
+     them) renders as absent rather than erroring. The only funcs used below
+     come from views.go tmplHelpers(), which forum_web.go registers on the
+     forum set as well; nothing here may call a host-state helper such as
+     {{captcha}}, which exists only in the demo set.
+     ========================================================================== */}}
+
+{{/* ---------------------------------------------------------------- head --
+     Stylesheet order is load-bearing: bootstrap (reset) → tokens → layout →
+     components → theme. theme.css must load last so its Bootstrap-subset
+     utilities beat the component defaults the admin/plugin pages render on. */}}
+{{define "site-head"}}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A demonstration Usenet indexer built on the loon framework.">
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/tokens.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/theme.css">
+{{end}}
+
+{{/* -------------------------------------------------------------- sprite --
+     Self-hosted icon set: hand-drawn 24×24 geometry, no Font Awesome, no CDN,
+     no external request. Referenced everywhere as
+        <svg class="icon" aria-hidden="true"><use href="#id"></use></svg>
+     .icon sizes it in em and sets fill:currentColor; each symbol overrides
+     fill/stroke for its own drawing style, so an icon always matches its
+     label's size and colour. */}}
+{{define "site-sprite"}}
+<svg style="display:none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+<symbol id="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21.5 7 12 11.5 2.5 7z"/><path d="M2.5 12 12 16.5 21.5 12"/><path d="M2.5 17 12 21.5 21.5 17"/></symbol>
+<symbol id="search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m16.2 16.2 4.8 4.8"/></symbol>
+<symbol id="bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+<symbol id="envelope" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2.5 6.5 9.5 7 9.5-7"/></symbol>
+<symbol id="menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
+<symbol id="chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-8 9 8"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></symbol>
+<symbol id="browse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></symbol>
+<symbol id="groups" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/><path d="M9 6h11M9 12h11M9 18h11"/></symbol>
+<symbol id="forums" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+<symbol id="film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M7 3v18M17 3v18M2 9h5M2 15h5M17 9h5M17 15h5"/></symbol>
+<symbol id="tv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="m7 2 5 5 5-5"/></symbol>
+<symbol id="music" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+<symbol id="book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+<symbol id="xxx" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></symbol>
+<symbol id="anime" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 2.5 1.9 4.6 4.6 1.9-4.6 1.9L11 15.5 9.1 10.9 4.5 9l4.6-1.9z"/><path d="m18 15.5.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></symbol>
+<symbol id="database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="8.5" ry="3"/><path d="M3.5 5.5v13c0 1.7 3.8 3 8.5 3s8.5-1.3 8.5-3v-13"/><path d="M3.5 12c0 1.7 3.8 3 8.5 3s8.5-1.3 8.5-3"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.5l3.5 2"/></symbol>
+<symbol id="server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3" width="19" height="7" rx="2"/><rect x="2.5" y="14" width="19" height="7" rx="2"/><path d="M6.5 6.5h.01M6.5 17.5h.01"/></symbol>
+<symbol id="download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7.5 11 4.5 4.5 4.5-4.5"/><path d="M4.5 20h15"/></symbol>
+<symbol id="star" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2.6 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3-5.8 3 1.1-6.5L2.6 9.4l6.5-.9z"/></symbol>
+<symbol id="verified" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2.2 2.6 2 3.2-.2.9 3.1 2.7 1.8-1.3 3 1.3 3-2.7 1.8-.9 3.1-3.2-.2-2.6 2-2.6-2-3.2.2-.9-3.1-2.7-1.8 1.3-3-1.3-3 2.7-1.8.9-3.1 3.2.2z"/><path d="m8.8 12.2 2.2 2.2 4.2-4.4"/></symbol>
+<symbol id="coin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.5v11"/><path d="M14.8 9.4c0-1.3-1.3-2.4-2.8-2.4s-2.8 1.1-2.8 2.4 1.3 2.4 2.8 2.4 2.8 1.1 2.8 2.4-1.3 2.4-2.8 2.4-2.8-1.1-2.8-2.4"/></symbol>
+<symbol id="comment" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.6a8.4 8.4 0 0 1-12.8 7.4L3 20.9l1.9-5.2A8.4 8.4 0 1 1 21 11.6z"/></symbol>
+<symbol id="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+<symbol id="user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="10.5" width="17" height="10.5" rx="2"/><path d="M7.5 10.5V7a4.5 4.5 0 0 1 9 0v3.5"/></symbol>
+<symbol id="send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2.5 11 13"/><path d="m21.5 2.5-6.7 19-3.8-8.5-8.5-3.8z"/></symbol>
+<symbol id="store" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 1.5-5h15L21 9"/><path d="M4.5 9v11h15V9"/><path d="M3 9h18"/><path d="M9.5 20v-6h5v6"/></symbol>
+<symbol id="folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+<symbol id="tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8z"/><path d="M7.5 7.5h.01"/></symbol>
+<symbol id="settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="18" r="2"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 20 5.5v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11v-6z"/></symbol>
+<symbol id="log-out" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4.5"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
+<symbol id="log-in" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3H19a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4.5"/><path d="m8 17-5-5 5-5"/><path d="M3 12h12"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></symbol>
+<symbol id="info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.6h.01"/></symbol>
+<symbol id="rss" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.4"/></symbol>
+<symbol id="code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-5 6 5 6"/><path d="m16 6 5 6-5 6"/></symbol>
+<symbol id="globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z"/></symbol>
+<symbol id="calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></symbol>
+<symbol id="external-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5.5"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></symbol>
+</svg>
+{{end}}
+
+{{/* -------------------------------------------------------------- header --
+     UNIT3D's shell, translated: partials/top-nav (branding + quick search +
+     icon bar + avatar menu), then the main nav row, then the stat strip.
+     Alpine's x-data/x-bind menus become native <details>, so every menu works
+     on touch and with JavaScript disabled. */}}
+{{define "site-header"}}
+    <header class="top-nav">
+        <div class="top-nav__left">
+            <a class="top-nav__branding" href="/">
+                <span class="top-nav__site-logo"><svg class="icon" aria-hidden="true"><use href="#logo"></use></svg></span>
+                <span class="top-nav__branding-text">
+                    <span class="top-nav__wordmark">loon<span>indexer</span></span>
+                    <span class="top-nav__tagline">Usenet, indexed</span>
+                </span>
+            </a>
+        </div>
+        <div class="top-nav__center">
+            <form class="quick-search" role="search" action="/search" method="get">
+                <svg class="icon quick-search__leading" aria-hidden="true"><use href="#search"></use></svg>
+                <label class="visually-hidden" for="quick-search-input">Search releases</label>
+                <input class="quick-search__input" id="quick-search-input" type="search" name="q" placeholder="Search releases…" autocomplete="off">
+                <kbd class="quick-search__hotkey" aria-hidden="true">/</kbd>
+                <button class="quick-search__button" type="submit"><svg class="icon" aria-hidden="true"><use href="#search"></use></svg><span class="visually-hidden">Search</span></button>
+            </form>
+        </div>
+        <div class="top-nav__right">
+            {{if .User}}
+            <ul class="top-nav__icon-bar">
+                <li>
+                    <a href="/p/inbox">
+                        <svg class="icon" aria-hidden="true"><use href="#bell"></use></svg>
+                        {{if .Unread}}<span class="top-nav__badge">{{.Unread}}</span>{{end}}
+                        <span class="visually-hidden">Notifications{{if .Unread}} ({{.Unread}} unread){{end}}</span>
+                    </a>
+                </li>
+            </ul>
+            <details class="dropdown dropdown--end">
+                <summary class="top-nav__user-toggle">
+                    {{/* No avatar image exists in this stack (core.User has no
+                         image field), so the initials tile is the real state,
+                         not a placeholder. hue() buckets 0..7, matching the
+                         poster--h0..h7 stops the stylesheet defines. */}}
+                    <span class="avatar avatar--sm poster--h{{hue .User.Username}}"><span class="avatar__fallback">{{initials .User.Username}}</span></span>
+                    <span class="top-nav__user-names">
+                        <span class="top-nav__username">{{.User.Username}}</span>
+                        <span class="top-nav__rank">{{roleName .User.Role}}</span>
+                    </span>
+                    <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
+                    <span class="visually-hidden">Account menu</span>
+                </summary>
+                <div class="dropdown__menu">
+                    <a class="dropdown__item{{if eq .Path (print "/u/" .User.Username)}} active{{end}}" href="/u/{{.User.Username}}">
+                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#user"></use></svg>My profile
+                    </a>
+                    <a class="dropdown__item{{if eq .Path "/p/inbox"}} active{{end}}" href="/p/inbox">
+                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#bell"></use></svg>Notifications{{if .Unread}} ({{.Unread}}){{end}}
+                    </a>
+                    {{if .IsAdmin}}
+                    <a class="dropdown__item{{if eq .Path "/admin/settings"}} active{{end}}" href="/admin/settings">
+                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#settings"></use></svg>Site settings
+                    </a>
+                    {{end}}
+                    <span class="dropdown__divider"></span>
+                    <form method="post" action="/logout" style="display:contents">
+                        <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                        <button class="dropdown__item" type="submit">
+                            <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#log-out"></use></svg>Log out
+                        </button>
+                    </form>
+                </div>
+            </details>
+            {{else}}
+            <a class="button button--outlined button--sm" href="/login"><svg class="icon" aria-hidden="true"><use href="#log-in"></use></svg>Log in</a>
+            <a class="button button--filled button--sm" href="/register">Register</a>
+            {{end}}
+        </div>
+    </header>
+
+    <nav class="secondary-nav" aria-label="Main">
+        <ul class="nav-tabsV2">
+            <li class="nav-tab"><a class="{{if eq .Path "/"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/"{{if eq .Path "/"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#home"></use></svg>Home</a></li>
+            <li class="nav-tab"><a class="{{if eq .Path "/browse"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/browse"{{if eq .Path "/browse"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#browse"></use></svg>Browse</a></li>
+            <li class="nav-tab"><a class="{{if eq .Path "/groups"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/groups"{{if eq .Path "/groups"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#groups"></use></svg>Groups</a></li>
+            <li class="nav-tab"><a class="{{if eq .Path "/search"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/search"{{if eq .Path "/search"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#search"></use></svg>Search</a></li>
+            {{/* Prefix match without a helper func: builtin len + slice only, so
+                 /community/forums/thread/7 highlights FORUMS too. `and` is lazy
+                 since Go 1.18, so the slice never runs on a shorter path. */}}
+            {{$forums := and (ge (len .Path) 17) (eq (slice .Path 0 17) "/community/forums")}}
+            <li class="nav-tab"><a class="{{if $forums}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/community/forums"{{if $forums}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#forums"></use></svg>Forums</a></li>
+
+            {{/* Plugin site pages (loon's view registry), already role-filtered
+                 by the host. A NavHint group becomes a <details> dropdown; an
+                 ungrouped page is a plain tab. */}}
+            {{range .SiteNav}}
+                {{if .Children}}
+                {{$open := false}}{{range .Children}}{{if eq $.Path .Href}}{{$open = true}}{{end}}{{end}}
+                <li class="nav-tab">
+                    {{/* NEVER emit `open` here: .dropdown__menu is absolutely
+                         positioned with nothing hiding it, so a pre-opened
+                         <details> paints the menu over the page on first load.
+                         $open only drives the summary's active class. */}}
+                    <details class="dropdown">
+                        <summary class="{{if $open}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
+                            <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#folder"></use></svg>{{.Label}}
+                            <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
+                        </summary>
+                        <div class="dropdown__menu">
+                            {{range .Children}}<a class="dropdown__item{{if eq $.Path .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>{{end}}
+                        </div>
+                    </details>
+                </li>
+                {{else}}
+                <li class="nav-tab"><a class="{{if eq $.Path .Href}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="{{.Href}}"{{if eq $.Path .Href}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a></li>
+                {{end}}
+            {{end}}
+
+            {{if .IsAdmin}}
+            {{$admin := and (ge (len .Path) 7) (eq (slice .Path 0 7) "/admin/")}}
+            <li class="nav-tab">
+                {{/* No `open`: see the SiteNav dropdown above — $admin marks the
+                     tab active, it must not pre-open the overlay menu. */}}
+                <details class="dropdown dropdown--end">
+                    <summary class="{{if $admin}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
+                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#shield"></use></svg>Admin
+                        <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
+                    </summary>
+                    <div class="dropdown__menu">
+                        {{/* AdminNav is the host's real registry (Settings + every
+                             plugin admin page + Jobs + Plugins). It is absent on
+                             pages the forum plugin renders, so fall back to the
+                             three routes main.go always mounts. */}}
+                        {{if .AdminNav}}
+                            {{range .AdminNav}}<a class="dropdown__item{{if eq $.Path .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#settings"></use></svg>{{.Label}}</a>{{end}}
+                        {{else}}
+                            <a class="dropdown__item" href="/admin/settings"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#settings"></use></svg>Settings</a>
+                            <a class="dropdown__item" href="/admin/jobs"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#clock"></use></svg>Jobs</a>
+                            <a class="dropdown__item" href="/admin/plugins"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#server"></use></svg>Plugins</a>
+                        {{end}}
+                    </div>
+                </details>
+            </li>
+            {{end}}
+        </ul>
+    </nav>
+
+    {{/* Stat strip. Every tile below is backed by a value the host actually
+         computes for this request — role, points balance, unread count and the
+         real account creation date. A page that has site-wide figures in hand
+         (release count, group count, retention) can override the whole block
+         with its own {{define "stat-strip"}}. */}}
+    {{block "stat-strip" .}}{{if .User}}
+    <div class="stat-strip">
+        <ul class="stat-strip__items">
+            <li class="stat-strip__item">
+                <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#shield"></use></svg>
+                <span class="stat-strip__label">Rank</span>
+                <span class="stat-strip__value">{{roleName .User.Role}}</span>
+            </li>
+            {{if not .User.CreatedAt.IsZero}}
+            <li class="stat-strip__item">
+                <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#calendar"></use></svg>
+                <span class="stat-strip__label">Member since</span>
+                <span class="stat-strip__value">{{.User.CreatedAt.Format "Jan 2006"}}</span>
+            </li>
+            {{end}}
+            {{if .HasUnread}}
+            <li class="stat-strip__item">
+                <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#bell"></use></svg>
+                <span class="stat-strip__label">Unread</span>
+                <span class="stat-strip__value">{{.Unread}}</span>
+            </li>
+            {{end}}
+            {{if .HasPoints}}
+            <li class="stat-strip__item stat-strip__item--end">
+                <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#coin"></use></svg>
+                <span class="stat-strip__label">Points</span>
+                <span class="stat-strip__value">{{.Points}}</span>
+            </li>
+            {{end}}
+        </ul>
+    </div>
+    {{end}}{{end}}
+{{end}}
+
+{{/* -------------------------------------------------------------- footer --
+     UNIT3D's partials/footer shape: brand column (double width) + link
+     columns + sub-footer. Every link points at a route this demo actually
+     serves; there is no newsletter POST endpoint in this stack, so the
+     mockup's email capture is replaced by the real feed/API affordances. */}}
+{{define "site-footer"}}
+    <footer class="footer">
+        <div class="footer__wrapper">
+            <section class="footer__section">
+                <div class="footer__brand">
+                    <span class="top-nav__site-logo"><svg class="icon" aria-hidden="true"><use href="#logo"></use></svg></span>
+                    <span class="top-nav__wordmark">loon<span>indexer</span></span>
+                </div>
+                <p class="footer__tagline">A demonstration Usenet indexer built on the loon framework: NNTP crawling, a Newznab API and a plugin ecosystem, with the last few days of Usenet indexed.</p>
+            </section>
+
+            <section class="footer__section">
+                <h2 class="footer__section-title">Index</h2>
+                <ul class="footer__section-list">
+                    <li><a href="/browse">Browse</a></li>
+                    <li><a href="/search">Search</a></li>
+                    <li><a href="/groups">Groups</a></li>
+                    <li><a href="/sitemap.xml">Sitemap</a></li>
+                </ul>
+            </section>
+
+            <section class="footer__section">
+                <h2 class="footer__section-title">Community</h2>
+                <ul class="footer__section-list">
+                    <li><a href="/community/forums">Forums</a></li>
+                    <li><a href="/community/forums/new">Start a thread</a></li>
+                </ul>
+            </section>
+
+            <section class="footer__section">
+                <h2 class="footer__section-title">Account</h2>
+                <ul class="footer__section-list">
+                    {{if .User}}
+                    <li><a href="/u/{{.User.Username}}">My profile</a></li>
+                    <li><a href="/p/inbox">Notifications</a></li>
+                    <li>
+                        <form method="post" action="/logout" style="display:contents">
+                            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                            <button type="submit" style="background:none;border:0;padding:0;font:inherit;cursor:pointer">Log out</button>
+                        </form>
+                    </li>
+                    {{else}}
+                    <li><a href="/login">Log in</a></li>
+                    <li><a href="/register">Register</a></li>
+                    <li><a href="/forgot">Reset password</a></li>
+                    {{end}}
+                </ul>
+            </section>
+
+            <section class="footer__section">
+                <h2 class="footer__section-title">Stay connected</h2>
+                <ul class="footer__section-list">
+                    <li><a href="/api?t=caps">Newznab API</a></li>
+                    <li><a href="/rss?t=search">RSS feed</a></li>
+                </ul>
+                <ul class="footer__socials">
+                    <li><a class="footer__social" href="/rss?t=search"><svg class="icon" aria-hidden="true"><use href="#rss"></use></svg><span class="visually-hidden">RSS feed</span></a></li>
+                    <li><a class="footer__social" href="/api?t=caps"><svg class="icon" aria-hidden="true"><use href="#code"></use></svg><span class="visually-hidden">Newznab API capabilities</span></a></li>
+                    <li><a class="footer__social" href="/sitemap.xml"><svg class="icon" aria-hidden="true"><use href="#globe"></use></svg><span class="visually-hidden">Sitemap</span></a></li>
+                    <li><a class="footer__social" href="https://github.com/The-Loon-Clan/loon" target="_blank" rel="noopener"><svg class="icon" aria-hidden="true"><use href="#external-link"></use></svg><span class="visually-hidden">loon on GitHub</span></a></li>
+                </ul>
+            </section>
+        </div>
+
+        <div class="footer__sub-footer">
+            <p class="footer__copyright">
+                Site and design &copy; loon demo indexer &middot; built on
+                <a href="https://github.com/The-Loon-Clan/loon" target="_blank" rel="noopener">loon</a>
+                with the <a href="https://github.com/The-Loon-Clan/loon-plugins" target="_blank" rel="noopener">loon-plugins</a> ecosystem.
+            </p>
+        </div>
+    </footer>
+{{end}}
+
+{{/* ------------------------------------------------------------- scripts --
+     Hand-written vanilla JS only: no framework, no bundler, no external host.
+     Three tiny behaviours — the CSRF double-submit shim, the "/" search
+     hotkey the quick-search chip advertises, and the carousel arrows the
+     design system documents (the arrows are inert without it). */}}
+{{define "site-scripts"}}
+    <script>
+    // Double-submit CSRF: on submit, make every same-origin POST form carry the
+    // current token from the JS-readable csrf_tok cookie. Host forms also embed
+    // it server-side ({{"{{.CSRFToken}}"}}) as a no-JS fallback; this line is
+    // what covers plugin/framework forms rendered without the token (the same
+    // approach the prod indexer uses). Capture phase so it runs before submit.
+    document.addEventListener('submit', function (e) {
+        var f = e.target;
+        if (!f || (f.method || '').toLowerCase() !== 'post') return;
+        var m = document.cookie.match(/(?:^|;\s*)csrf_tok=([^;]+)/);
+        if (!m) return;
+        var inp = f.querySelector('input[name="_csrf"]');
+        if (!inp) {
+            inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = '_csrf';
+            f.appendChild(inp);
+        }
+        inp.value = decodeURIComponent(m[1]);
+    }, true);
+
+    // "/" focuses the quick search (what the .quick-search__hotkey chip claims).
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+        var t = e.target;
+        if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+        var box = document.getElementById('quick-search-input');
+        if (!box) return;
+        e.preventDefault();
+        box.focus();
+    });
+
+    // Carousel arrows. The track scrolls natively (and on touch) without this;
+    // these two handlers are only what makes the prev/next buttons work.
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('.carousel__nav') : null;
+        if (!btn) return;
+        var track = btn.parentNode.querySelector('.carousel__track');
+        if (!track) return;
+        var dir = btn.classList.contains('carousel__nav--prev') ? -1 : 1;
+        track.scrollBy({ left: dir * track.clientWidth * 0.8, behavior: 'smooth' });
+    });
+    </script>
+{{end}}

@@ -1,44 +1,105 @@
-{{define "content"}}
-<h1 class="h3 mb-3">Browse{{if .CatName}} <span class="text-muted">· {{.CatName}}</span>{{end}}</h1>
-{{if .Unconfigured}}
-<div class="empty">The catalog isn't set up yet.</div>
-{{else if .CatID}}
-  <p class="mb-3"><a href="/browse">&larr; All categories</a></p>
-  {{if .Results}}
-  <div class="table-responsive">
-    <table class="table table-dark table-striped table-sm align-middle">
-      <thead><tr><th>Title</th><th>Category</th><th class="text-end">Size</th><th>Posted</th><th></th></tr></thead>
-      <tbody>
-      {{range .Results}}
-        <tr>
-          <td><a href="/release/{{.ID}}">{{.Title}}</a>{{range .Tags}} <span class="badge bg-secondary">{{.}}</span>{{end}}</td>
-          <td class="small text-muted">{{if .Category}}{{.Category}}{{else}}—{{end}}</td>
-          <td class="text-end">{{.Size}}</td>
-          <td class="small">{{.Posted}}</td>
-          <td><a class="btn btn-sm btn-outline-primary py-0" href="/nzb/{{.ID}}">NZB</a></td>
-        </tr>
-      {{end}}
-      </tbody>
-    </table>
-  </div>
-  <p class="text-muted small">{{.Total}} release{{if ne .Total 1}}s{{end}} in {{.CatName}}.</p>
-  {{else}}
-  <div class="empty">No releases in {{.CatName}} yet.</div>
-  {{end}}
-{{else}}
-  {{if .Categories}}
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.75rem">
-    {{range .Categories}}
-    <a class="card widget" href="/browse?cat={{.ID}}" style="text-decoration:none">
-      <div class="card-body">
-        <h5 class="card-title mb-1">{{.Name}}</h5>
-        {{if .Subcats}}<div class="small text-muted text-truncate">{{range $i, $s := .Subcats}}{{if $i}} · {{end}}{{$s.Name}}{{end}}</div>{{end}}
-      </div>
-    </a>
+{{/* Browse: the category grid (/browse) and the release listing for one
+     category (/browse?cat=N). Both branches come from views.go browse():
+     Unconfigured (no catalog plugin), CatID/CatName/Results/Total, or
+     Categories. Results are capped at 50 with offset 0 and the handler takes no
+     page parameter, so there is deliberately NO pagination component here. */}}
+
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    {{if .CatID}}
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/browse">Browse</a></li>
+    <li class="breadcrumb--active">{{if .CatName}}{{.CatName}}{{else}}Category {{.CatID}}{{end}}</li>
+    {{else}}
+    <li class="breadcrumb--active">Browse</li>
     {{end}}
-  </div>
-  {{else}}
-  <div class="empty">No categories enabled.</div>
-  {{end}}
+</ol>
+{{end}}
+
+{{define "content"}}
+{{if .Unconfigured}}
+<p class="notice notice--info">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>The catalog isn't set up yet.</span>
+</p>
+
+{{else if .CatID}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true">{{template "cat-icon" .CatID}}</svg>
+            {{if .CatName}}{{.CatName}}{{else}}Category {{.CatID}}{{end}}
+            {{if .Results}}<span class="panel__grouping">{{.Total}} release{{if ne .Total 1}}s{{end}}</span>{{end}}
+        </h1>
+        <div class="panel__actions">
+            <a class="panel__action" href="/browse"><svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-left"></use></svg>All categories</a>
+        </div>
+    </header>
+    {{if .Results}}
+    <div class="panel__body panel__body--flush">
+        <div class="data-table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Release</th>
+                        <th class="data-table__nowrap">Category</th>
+                        <th class="data-table__num">Size</th>
+                        <th class="data-table__nowrap">Added</th>
+                        <th class="data-table__shrink"><span class="visually-hidden">Download</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Results}}{{template "release-row" .}}{{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="panel__body">
+        <p class="m-0 small text-muted">Showing {{len .Results}} of {{.Total}} release{{if ne .Total 1}}s{{end}} in {{.CatName}}.</p>
+    </div>
+    {{else}}
+    <div class="panel__body">
+        <p class="notice notice--info">
+            <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+            <span>No releases in {{.CatName}} yet.</span>
+        </p>
+    </div>
+    {{end}}
+</section>
+
+{{else}}
+<h1 class="h3 m-0">Browse</h1>
+{{if .Categories}}
+<div class="grid grid--3">
+    {{range .Categories}}
+    <section class="panelV2 panel--grid-item">
+        <header class="panel__header">
+            <h2 class="panel__heading">
+                <svg class="icon panel__heading-icon" aria-hidden="true">{{template "cat-icon" .ID}}</svg>
+                {{.Name}}
+                {{if .Subcats}}<span class="panel__grouping">({{len .Subcats}})</span>{{end}}
+            </h2>
+            <a class="panel__header-link" href="/browse?cat={{.ID}}">Browse <svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-right"></use></svg></a>
+        </header>
+        <div class="panel__body">
+            {{if .Subcats}}
+            <ul class="pill-row">
+                {{range .Subcats}}
+                <li><a class="pill" href="/browse?cat={{.ID}}">{{.Name}}</a></li>
+                {{end}}
+            </ul>
+            {{else}}
+            <p class="m-0 small text-muted">No subcategories.</p>
+            {{end}}
+        </div>
+    </section>
+    {{end}}
+</div>
+{{else}}
+<p class="notice notice--info">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>No categories enabled.</span>
+</p>
+{{end}}
 {{end}}
 {{end}}

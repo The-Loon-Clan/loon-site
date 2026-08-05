@@ -1,33 +1,101 @@
+{{/* Search: /search?q=…&group=… (views.go search()). The handler takes exactly
+     two parameters — q and group — and group WINS over q (it switches to
+     Browse(group, 100) and ignores the query), which is why the help text says
+     so out loud. Neither branch takes an offset/page parameter, so there is
+     deliberately NO pagination component here.
+
+     The defines below are byte-for-byte the same as browse.html's; the two
+     pages are parsed into SEPARATE template sets (views.go newWeb parses
+     base.html + one page each), so the duplication is required, not accidental.
+     Keep them in sync so the two listings read as one table. */}}
+
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    {{if .Group}}
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/groups">Groups</a></li>
+    <li class="breadcrumb--active">{{.Group}}</li>
+    {{else}}
+    <li class="breadcrumb--active">Search</li>
+    {{end}}
+</ol>
+{{end}}
+
 {{define "content"}}
-<h1 class="h3 mb-3">{{if .Group}}Browsing {{.Group}}{{else}}Search{{end}}</h1>
-<form class="search-box" method="get" action="/search">
-    <input type="search" name="q" placeholder="Search titles…" value="{{.Query}}" autofocus>
-    <button class="btn btn-primary" type="submit">Search</button>
-</form>
-{{if .Group}}<p class="text-muted small mb-3">Recent releases in <code>{{.Group}}</code>. <a href="/groups">All groups</a></p>{{end}}
-{{if .Results}}
-<div class="table-responsive">
-    <table class="table table-dark table-striped table-sm align-middle">
-        <thead><tr><th>Title</th><th>Category</th><th class="text-end">Size</th><th>Posted</th><th></th></tr></thead>
-        <tbody>
-        {{range .Results}}
-            <tr>
-                <td><a href="/release/{{.ID}}">{{.Title}}</a>{{range .Tags}} <span class="badge bg-secondary">{{.}}</span>{{end}}</td>
-                <td class="small text-muted">{{if .Category}}{{.Category}}{{else}}—{{end}}</td>
-                <td class="text-end">{{.Size}}</td>
-                <td class="small">{{.Posted}}</td>
-                <td><a class="btn btn-sm btn-outline-primary py-0" href="/nzb/{{.ID}}">NZB</a></td>
-            </tr>
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#search"></use></svg>
+            {{if .Group}}Browsing {{.Group}}{{else}}Search{{end}}
+        </h1>
+        {{if or .Query .Group}}
+        <div class="panel__actions">
+            <a class="panel__action" href="/search">Clear</a>
+        </div>
         {{end}}
-        </tbody>
-    </table>
-</div>
+    </header>
+    <div class="panel__body">
+        <form class="form" method="get" action="/search">
+            <div class="form__row">
+                <div class="form__group flex-grow-1">
+                    <label class="form__label" for="q">Title</label>
+                    <input class="form__input" type="search" id="q" name="q" value="{{.Query}}" placeholder="Search titles…" autofocus>
+                </div>
+                <div class="form__group">
+                    <label class="form__label" for="group">Newsgroup</label>
+                    <input class="form__input" type="text" id="group" name="group" value="{{.Group}}" placeholder="alt.binaries.…">
+                </div>
+                <button class="form__button form__button--filled" type="submit">
+                    <svg class="icon" aria-hidden="true"><use href="#search"></use></svg>Search
+                </button>
+            </div>
+            <p class="form__help">
+                {{if .Group}}Recent releases in <code>{{.Group}}</code>. A newsgroup takes precedence over
+                the title query &mdash; clear it to search titles again.
+                {{else}}Add a newsgroup to list that group's most recent posts instead of searching titles.
+                {{end}}<a href="/groups">All groups</a>.
+            </p>
+        </form>
+    </div>
+</section>
+
+{{if .Results}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
+            Results <span class="panel__grouping">{{len .Results}} release{{if ne (len .Results) 1}}s{{end}}</span>
+        </h2>
+    </header>
+    <div class="panel__body panel__body--flush">
+        <div class="data-table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Release</th>
+                        <th class="data-table__nowrap">Category</th>
+                        <th class="data-table__num">Size</th>
+                        <th class="data-table__nowrap">Added</th>
+                        <th class="data-table__shrink"><span class="visually-hidden">Download</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Results}}{{template "release-row" .}}{{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
 {{else if or .Query .Group}}
-<div class="empty">
-    No results{{if .Query}} for &ldquo;{{.Query}}&rdquo;{{end}}{{if .Group}} in {{.Group}}{{end}}.
-    {{if not .Configured}}The crawler isn't set up yet.{{end}}
-</div>
+<p class="notice notice--info">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>No results{{if .Query}} for &ldquo;{{.Query}}&rdquo;{{end}}{{if .Group}} in {{.Group}}{{end}}.
+        {{if not .Configured}}The crawler isn't set up yet.{{end}}</span>
+</p>
 {{else}}
-<div class="empty">Enter a title above, or browse a group from the <a href="/groups">Groups</a> page.</div>
+<p class="notice notice--info">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>Enter a title above, or browse a group from the <a href="/groups">Groups</a> page.</span>
+</p>
 {{end}}
 {{end}}

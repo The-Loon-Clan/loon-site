@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"html/template"
 	"log/slog"
+	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/render"
 	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon/core"
@@ -148,6 +153,110 @@ func forumSeed(db *sqlx.DB, log *slog.Logger) {
 	log.Info("forum seeded", "categories", 3, "threads", 3)
 }
 
+// ── home page: forum panels ─────────────────────────────────────────
+
+// forumReads is the plugin's own store, opened host-side for READ-ONLY home
+// page panels. The plugin publishes exactly one extension (forum.SpotlightName
+// → recent threads); the poster tally has no capability, so rather than adding
+// schema or an interface to the plugin we read it through the same exported
+// Store the plugin itself uses. Package-level because main.go hands
+// wireForumPlugin the Core (which owns the DB handle) but not the *web, and the
+// demo runs exactly one of each; nil until wireForumPlugin runs, which the
+// home page tolerates by dropping both panels.
+var forumReads forum.Store
+
+const (
+	homeForumThreads = 5               // rows in the recent-threads panel
+	homeForumPosters = 5               // rows in the top-posters panel
+	homeForumKey     = "home:forum:v1" // homeForumVM
+)
+
+// forumThreadVM is one row in the home page's recent-forum-activity panel.
+// NOTE there is no view count: the forum records replies, not views, so the
+// mockup's second metric column has no honest source and is not filled.
+type forumThreadVM struct {
+	ID         int       // forum thread id
+	Title      string    // thread title
+	URL        string    // /community/forums/thread/<id>
+	Author     string    // OP username
+	AuthorRole string    // OP role from user_display ("admin"/"mod"/"user"/…)
+	Category   string    // category name the thread sits in
+	CategoryID int       // /community/forums/category/<id>
+	Replies    int       // reply_count — the OP post is not counted
+	LastPostAt time.Time // last activity; feed {{timeAgo}}
+	Pinned     bool      // shows the PINNED badge
+}
+
+// forumPosterVM is one row in the top-posters panel — the truthful stand-in for
+// the mockup's "top contributors", which wanted per-user upload totals this
+// indexer does not track. Counts every visible post ever made, not a window.
+type forumPosterVM struct {
+	Rank     int    // 1-based position
+	UserID   int    // forum user id
+	Username string // display name
+	Role     string // role from user_display
+	URL      string // /u/<username>
+	Posts    int    // visible post count (hidden posts excluded)
+}
+
+// homeForumVM is the cached shape of both forum panels — one cache entry, two
+// queries behind it.
+type homeForumVM struct {
+	Threads []forumThreadVM
+	Posters []forumPosterVM
+}
+
+// homeForum reads the two forum panels. Each query is independent: one failing
+// (or the board simply being empty) drops that panel and keeps the other. ok is
+// false when there is nothing at all to show, so the caller can skip the row.
+func (w *web) homeForum(ctx context.Context) (homeForumVM, bool) {
+	if forumReads == nil {
+		return homeForumVM{}, false
+	}
+	var vm homeForumVM
+	if w.cacheGet(ctx, homeForumKey, &vm) {
+		return vm, len(vm.Threads) > 0 || len(vm.Posters) > 0
+	}
+	var okT, okP bool
+	if ts, err := forumReads.GetRecentForumThreads(ctx, homeForumThreads); err != nil {
+		w.logger().Error("home forum threads", "err", err)
+	} else {
+		okT = true
+		for _, t := range ts {
+			vm.Threads = append(vm.Threads, forumThreadVM{
+				ID: t.ID, Title: t.Title,
+				URL:        "/community/forums/thread/" + strconv.Itoa(t.ID),
+				Author:     t.Username,
+				AuthorRole: t.Role,
+				Category:   t.CategoryName,
+				CategoryID: t.CategoryID,
+				Replies:    t.ReplyCount,
+				LastPostAt: t.LastPostAt,
+				Pinned:     t.Pinned,
+			})
+		}
+	}
+	if cs, err := forumReads.GetTopForumContributors(ctx, homeForumPosters); err != nil {
+		w.logger().Error("home forum posters", "err", err)
+	} else {
+		okP = true
+		for i, ct := range cs {
+			vm.Posters = append(vm.Posters, forumPosterVM{
+				Rank: i + 1, UserID: ct.UserID, Username: ct.Username,
+				Role: ct.Role, URL: "/u/" + url.PathEscape(ct.Username), Posts: ct.PostCount,
+			})
+		}
+	}
+	// Only a read that actually answered is worth caching. Caching the empty
+	// result of a failed read would hide both panels for the whole TTL after
+	// the database recovered; a healthy-but-empty board still caches (okT/okP
+	// are set on success, not on "returned rows").
+	if okT || okP {
+		w.cacheSet(ctx, homeForumKey, vm, time.Minute)
+	}
+	return vm, len(vm.Threads) > 0 || len(vm.Posters) > 0
+}
+
 // forumPagination is the view-model the demo's pagination partial consumes
 // (handed to the plugin as `any` via Deps.Paginate).
 type forumPagination struct {
@@ -179,16 +288,57 @@ func demoForumMarkdown(src string) template.HTML {
 	return template.HTML(b.String())
 }
 
+// forumTemplates parses the forum plugin's template set: the shared site chrome
+// plus the forum's own full documents. Reads through siteFS (the embedded copy
+// by default) rather than the filesystem — the runtime image is distroless and
+// carries ONLY the binary, so a disk-relative ParseGlob here finds no files and
+// takes the whole process down at boot via main.go's os.Exit(1).
+func forumTemplates() (*template.Template, error) {
+	return template.New("forum").Funcs(tmplHelpers()).ParseFS(siteFS,
+		"web/templates/site_chrome.html", "web/templates/forum/*.html")
+}
+
+// devForumRender re-parses the forum set on every render so a template edit
+// shows on refresh (LOON_DEMO_DEV=1). Each request gets its own *Template, so
+// there is no shared mutable state to race on — which re-calling
+// engine.SetHTMLTemplate per request would have introduced. A parse error
+// renders as text instead of panicking the way template.Must would.
+type devForumRender struct{}
+
+func (devForumRender) Instance(name string, data any) render.Render {
+	t, err := forumTemplates()
+	if err != nil {
+		return render.String{Format: "forum template: %v", Data: []any{err}}
+	}
+	return render.HTML{Template: t, Name: name, Data: data}
+}
+
 // wireForumPlugin installs the SetDeps seams and loads the five forum
 // templates into gin's HTML set. Call after core.New (the BaseData closure
 // resolves the session user through c.Auth) and before core.Boot (SetDeps is
 // checked at Provision).
 func wireForumPlugin(c *core.Core, engine *gin.Engine) error {
-	t, err := template.ParseGlob("web/templates/forum/*.html")
+	// The forum templates are a SEPARATE set: full documents rendered by name
+	// through gin's HTML set, not the demo's per-page map. They still need the
+	// site header/footer/sprite, so this set names web/templates/site_chrome.html
+	// explicitly — the SAME file views.go parses next to every page, which is
+	// what keeps the two shells from drifting. They also get the same pure
+	// helpers base.html has, since the shared chrome calls them. {{captcha}} is
+	// host state and is deliberately NOT in this set; no forum page has a
+	// captcha-gated form.
+	t, err := forumTemplates()
 	if err != nil {
 		return err
 	}
 	engine.SetHTMLTemplate(t)
+	if devReload {
+		engine.HTMLRender = devForumRender{}
+	}
+
+	// Read-only handle for the home page's forum panels (see forumReads).
+	if db := c.Storage.DB(); db != nil {
+		forumReads = forum.NewPGStore(db)
+	}
 
 	forum.SetDeps(forum.Deps{
 		BaseData: func(gc *gin.Context, extra gin.H) gin.H {

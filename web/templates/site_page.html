@@ -1,4 +1,15 @@
 {{define "content"}}
-<h1 class="h3 mb-3">{{.Title}}</h1>
-{{.Fragment}}
+{{/* Chrome for a plugin site page (loon SlotSitePage → /p/<slug>): the panel
+     supplies the header and the gutter, the plugin supplies everything inside.
+     The fragment is injected exactly as the view returned it — no wrapper
+     element between .panel__body and {{"{{.Fragment}}"}}, so a fragment that expects
+     to be a block-level child still is. */}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Title}}
+        </h1>
+    </header>
+    <div class="panel__body">{{.Fragment}}</div>
+</section>
 {{end}}

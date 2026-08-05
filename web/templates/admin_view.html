@@ -1,5 +1,15 @@
 {{define "content"}}
 {{template "admin-subnav" .}}
-<h1 class="h3 mb-3">{{.Title}}</h1>
+
+<h1 class="h3 m-0">{{.Title}}</h1>
+
+{{/* A standalone plugin admin page (loon SlotAdminPage → /admin/p/<slug>).
+     The fragment is the plugin's whole page: its own cards, tables, tab rows,
+     coverage bars and scoped <style>, written against the Bootstrap-subset
+     classes theme.css implements. It is injected raw and NOT wrapped in a
+     panel or a container — several fragments already open their own
+     `.container page`, and boxing them again would double the padding and
+     clip anything that needs to overflow. */}}
 {{.Fragment}}
 {{end}}
+

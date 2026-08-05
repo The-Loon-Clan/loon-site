@@ -1,77 +1,46 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{/* site-head leads with <meta charset>, so it goes before <title> — the
+         title carries an em dash and must not be sniffed as anything else. */}}
+    {{template "site-head" .}}
     <title>{{if .Title}}{{.Title}} — {{end}}loon demo indexer</title>
-    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/static/css/tokens.css">
-    <link rel="stylesheet" href="/static/css/theme.css">
 </head>
 <body>
-    <header class="nav-bar">
-        <div class="inner">
-            <a class="brand" href="/">loon<span>indexer</span></a>
-            <nav>
-                <a href="/" {{if eq .Path "/"}}class="active"{{end}}>News</a>
-                <a href="/search" {{if eq .Path "/search"}}class="active"{{end}}>Search</a>
-                <a href="/browse" {{if eq .Path "/browse"}}class="active"{{end}}>Browse</a>
-                <a href="/groups" {{if eq .Path "/groups"}}class="active"{{end}}>Groups</a>
-                {{range .SiteNav}}
-                    {{if .Children}}
-                    <details class="nav-dd">
-                        <summary>{{.Label}}</summary>
-                        <div class="nav-dd-menu">
-                            {{range .Children}}<a href="{{.Href}}" {{if eq $.Path .Href}}class="active"{{end}}>{{.Label}}</a>{{end}}
-                        </div>
-                    </details>
-                    {{else}}<a href="{{.Href}}" {{if eq $.Path .Href}}class="active"{{end}}>{{.Label}}</a>{{end}}
-                {{end}}
-                {{if .IsAdmin}}<a href="/admin/settings">Settings</a> <a href="/admin/p/crawlers">Crawlers</a> <a href="/admin/jobs">Jobs</a>{{end}}
-            </nav>
-            <div class="user">
-                {{if .User}}<a href="/p/inbox" title="Notifications">&#128276;{{if .Unread}} <span class="badge bg-danger">{{.Unread}}</span>{{end}}</a> · <span title="points balance">{{.Points}} pts</span> · <a href="/u/{{.User.Username}}">{{.User.Username}}</a> · <form method="post" action="/logout" style="display:inline;margin:0"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button type="submit" style="background:none;border:none;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit">log out</button></form>
-                {{else}}<a href="/login">log in</a>{{end}}
+{{template "site-sprite" .}}
+{{template "site-header" .}}
+    <main class="main-margin py-4">
+        <article>
+            {{block "breadcrumbs" .}}{{end}}
+            {{/* A <div>, not a <p>: the resend <form> inside would auto-close a
+                 paragraph and orphan the trailing text. */}}
+            {{if .EmailUnverified}}
+            <div class="notice notice--warning">
+                <svg class="icon notice__icon" aria-hidden="true"><use href="#envelope"></use></svg>
+                <span>Please verify your email &mdash; <form method="post" action="/verify/resend" style="display:inline;margin:0"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button type="submit" class="button button--text button--sm">resend link</button></form>.</span>
             </div>
-        </div>
-    </header>
-    <main class="container page py-4">
-        {{if .EmailUnverified}}<div class="alert" style="border-color:#c90;color:#c90;margin-bottom:1rem">Please verify your email &mdash; <form method="post" action="/verify/resend" style="display:inline;margin:0"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button type="submit" style="background:none;border:none;padding:0;color:#c90;text-decoration:underline;cursor:pointer;font:inherit">resend link</button></form>.</div>{{end}}
-        {{template "content" .}}
+            {{end}}
+            {{template "content" .}}
+        </article>
     </main>
-    <footer class="site-footer">
-        Built on <a href="https://github.com/The-Loon-Clan/loon">loon</a> — a demo indexer keeping the last few days of Usenet.
-    </footer>
-    <script>
-    // Double-submit CSRF: on submit, make every same-origin POST form carry the
-    // current token from the JS-readable csrf_tok cookie. Host forms also embed
-    // it server-side ({{"{{.CSRFToken}}"}}) as a no-JS fallback; this line is
-    // what covers plugin/framework forms rendered without the token (the same
-    // approach the prod indexer uses). Capture phase so it runs before submit.
-    document.addEventListener('submit', function (e) {
-        var f = e.target;
-        if (!f || (f.method || '').toLowerCase() !== 'post') return;
-        var m = document.cookie.match(/(?:^|;\s*)csrf_tok=([^;]+)/);
-        if (!m) return;
-        var inp = f.querySelector('input[name="_csrf"]');
-        if (!inp) {
-            inp = document.createElement('input');
-            inp.type = 'hidden';
-            inp.name = '_csrf';
-            f.appendChild(inp);
-        }
-        inp.value = decodeURIComponent(m[1]);
-    }, true);
-    </script>
+{{template "site-footer" .}}
+{{template "site-scripts" .}}
 </body>
 </html>
 
 {{/* Shared admin subnav: plugin views (from loon's AdminView registry) + the
-     host's own pages. Rendered by every admin page for a consistent header. */}}
+     host's own pages. Rendered by every admin page for a consistent header.
+
+     This is the ONLY copy. It used to be redefined identically in all four
+     admin_*.html — each page parses after base.html, so those copies won a
+     silent override and this one was dead code. Editing here now reaches every
+     admin page; templates_test.go fails if a copy is reintroduced. */}}
 {{define "admin-subnav"}}
-<div style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap">
-    {{range .AdminNav}}
-    <a href="{{.Href}}" class="btn btn-sm {{if eq $.Path .Href}}btn-outline-primary{{else}}btn-outline-secondary{{end}}">{{.Label}}</a>
-    {{end}}
-</div>
+<nav class="border-bottom" aria-label="Admin sections">
+    <ul class="nav-tabsV2">
+        {{range .AdminNav}}
+        <li class="nav-tab"><a class="{{if eq $.Path .Href}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="{{.Href}}"{{if eq $.Path .Href}} aria-current="page"{{end}}>{{.Label}}</a></li>
+        {{end}}
+    </ul>
+</nav>
 {{end}}

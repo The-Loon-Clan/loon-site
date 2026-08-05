@@ -63,6 +63,7 @@ import (
 	"github.com/the-loon-clan/loon-plugins/scraper"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/anidb"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/theporndb"
+	"github.com/the-loon-clan/loon-plugins/scraper/sources/tmdb"
 	"github.com/the-loon-clan/loon-plugins/stats"
 	_ "github.com/the-loon-clan/loon-plugins/usenet"
 
@@ -362,10 +363,19 @@ func main() {
 	// in its catalog_entry table / archive store / Redis cache.
 	// The shared catalog.Registry + its metadata sources. Sources are idle until
 	// their key/client is set via env (hook up now, test later):
-	//   TPDB_API_KEY → ThePornDB (xxx) · ANIDB_CLIENT → AniDB (anime)
+	//   TPDB_API_KEY  → ThePornDB (xxx) · ANIDB_CLIENT → AniDB (anime)
+	//   TMDB_API_KEY  → TMDB (movie + tv)
+	// TMDB is registered TWICE off the one key: the registry keys a source by
+	// its single Domain().Key, and the scraper routes Newznab 2xxx → "movie"
+	// and 5xxx → "tv" as separate domains, so each needs its own instance.
 	reg := catalog.NewRegistry()
 	if src := theporndb.New(os.Getenv("TPDB_API_KEY"), ""); src != nil {
 		_ = reg.RegisterSource(src)
+	}
+	for _, kind := range []tmdb.Kind{tmdb.KindMovie, tmdb.KindTV} {
+		if src := tmdb.New(os.Getenv("TMDB_API_KEY"), kind, ""); src != nil {
+			_ = reg.RegisterSource(src)
+		}
 	}
 	_ = reg.RegisterSource(anidb.New(os.Getenv("ANIDB_CLIENT"), nil))
 	for _, s := range reg.Sources() {

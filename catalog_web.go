@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"github.com/the-loon-clan/loon/catalog"
 
+	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	"github.com/the-loon-clan/loon-plugins/scraper"
 )
 
@@ -47,4 +49,97 @@ func (w *web) linkCover(ctx context.Context, releaseID int64, coverURL string) e
 		return nil
 	}
 	return w.catalogCovers.SetReleaseCover(ctx, releaseID, coverURL)
+}
+
+// ── cover art for a whole page of releases ──────────────────────────
+
+// releaseCovers looks up cover art for many release ids at once.
+//
+// The capability is resolved LAZILY here rather than stored on the web struct:
+// main.go type-asserts pluginapi.CatalogCovers off the catalog plugin at boot
+// (views.go's catalogCovers field), and pluginapi.CatalogCoverBatch is an
+// OPTIONAL second interface on the same object — so we feature-detect it at the
+// call site, the same convention as pluginapi.Fillable / scraper.Searcher /
+// catalog.CrossIDResolver. A type assertion on a concrete value is nanoseconds;
+// the fallback is what matters.
+//
+// FALLBACK: when the catalog plugin in this build predates the batch interface,
+// this loops ReleaseCover per id — correct, just N round trips instead of 1. A
+// caller must therefore keep its id slice page-sized (a poster strip + a
+// listing + a sidebar, ~30), which is exactly what the home page passes.
+//
+// Ids with no cover are absent from the returned map (a blank stored cover
+// counts as absent, matching ReleaseCover's ok=false). A failed lookup returns
+// an empty map, never an error: a page missing its posters still renders.
+func (w *web) releaseCovers(ctx context.Context, ids []int64) map[int64]string {
+	if w.catalogCovers == nil || len(ids) == 0 {
+		return nil
+	}
+	if b, ok := w.catalogCovers.(pluginapi.CatalogCoverBatch); ok {
+		covers, err := b.ReleaseCovers(ctx, ids)
+		if err != nil {
+			w.logger().Error("batch cover lookup", "ids", len(ids), "err", err)
+			return nil
+		}
+		return covers
+	}
+	// Per-id fallback. Dedup first — the batch path dedups internally, so
+	// callers are allowed to concatenate their id slices without filtering.
+	out := make(map[int64]string, len(ids))
+	for _, id := range ids {
+		if _, done := out[id]; done {
+			continue
+		}
+		coverURL, has, err := w.catalogCovers.ReleaseCover(ctx, id)
+		if err != nil {
+			w.logger().Error("cover lookup", "release", id, "err", err)
+			continue
+		}
+		if has && coverURL != "" {
+			out[id] = coverURL
+		}
+	}
+	return out
+}
+
+// attachCovers fills searchRow.Cover for a whole listing in ONE lookup. Rows
+// with no cover keep an empty string — the template renders its gradient
+// fallback tile for those, never a broken <img>.
+func (w *web) attachCovers(ctx context.Context, rows []searchRow) {
+	if w.catalogCovers == nil || len(rows) == 0 {
+		return
+	}
+	ids := make([]int64, 0, len(rows))
+	for _, r := range rows {
+		ids = append(ids, r.ID)
+	}
+	covers := w.releaseCovers(ctx, ids)
+	for i := range rows {
+		rows[i].Cover = covers[rows[i].ID]
+	}
+}
+
+// ── home page: catalog-derived blocks ───────────────────────────────
+
+// homeCatsKey caches the enabled taxonomy for the home page's tab row + genre
+// pills. The set only changes when an admin toggles a category, so the TTL is
+// generous compared to the release blocks.
+const homeCatsKey = "home:cats:v1"
+
+// homeCategories returns the admin-enabled top-level categories (each with its
+// subcats). ok is false when the read failed or nothing is enabled — the
+// caller then omits the tab row and the pills rather than rendering an empty
+// strip.
+func (w *web) homeCategories(ctx context.Context) ([]pluginapi.Category, bool) {
+	var cats []pluginapi.Category
+	if w.cacheGet(ctx, homeCatsKey, &cats) {
+		return cats, len(cats) > 0
+	}
+	cats, err := w.catalog.Enabled(ctx)
+	if err != nil {
+		w.logger().Error("home categories", "err", err)
+		return nil, false
+	}
+	w.cacheSet(ctx, homeCatsKey, cats, 5*time.Minute)
+	return cats, len(cats) > 0
 }

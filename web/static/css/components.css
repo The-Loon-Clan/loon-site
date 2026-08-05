@@ -1,0 +1,1758 @@
+/* Components. UNIT3D's class names verbatim where UNIT3D has the component
+   (panelV2, data-table, key-value, meta, pagination, torrent-card,
+   user-stat-card, article-preview, form__*), our own BEM where it doesn't
+   (hero-banner, tile, carousel, poster, list-row, pill, rank-chip, stat-tile).
+
+   Loads after layout.css, before theme.css — theme.css carries the
+   Bootstrap-subset utilities and must win over component defaults.
+   No literal colours: everything resolves through tokens.css. */
+
+/* ------------------------------------------------------------- panelV2 ---- */
+
+/*  <section class="panelV2">
+ *    <header class="panel__header">
+ *      <h2 class="panel__heading">Heading</h2>
+ *      <div class="panel__actions"><a class="panel__action" href="">View All</a></div>
+ *    </header>
+ *    <div class="panel__body">…</div>
+ *  </section>                                                              */
+
+.panelV2 {
+    border: var(--panel-border);
+    background: var(--panel-bg);
+    box-shadow: var(--panel-box-shadow);
+    border-radius: var(--panel-border-radius);
+    height: fit-content;
+    break-inside: avoid;
+    /* Clips the header rule, table corners and hero art to the panel radius. */
+    overflow: hidden;
+}
+
+.panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0;
+    padding: 0 16px;
+    background: var(--panel-head-bg);
+    color: var(--panel-head-fg);
+    border-bottom: var(--panel-head-border);
+}
+
+.panel__heading {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0;
+    padding: 14px 0;
+    background: var(--panel-head-bg);
+    color: var(--panel-head-fg);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    min-width: 0;
+}
+
+/* Escape hatch: a panel containing a .dropdown needs its menu to escape the
+   clip. Use it only where needed — flush tables/tabs rely on the clipping. */
+.panelV2--overflow { overflow: visible; }
+
+/* UNIT3D also allows a bare heading as the panel's first child (no .panel__header
+   wrapper); it then has to carry the gutter and the rule itself. */
+.panelV2 > .panel__heading {
+    padding: 14px 16px;
+    border-bottom: var(--panel-head-border);
+}
+
+.panel__heading--centered { justify-content: center; text-align: center; }
+
+.panel__heading-icon { color: var(--primary-tint); }
+
+/* Small muted count/qualifier next to a heading. */
+.panel__grouping {
+    color: var(--panel-group-fg);
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.panel__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--panel-action-fg);
+}
+
+.panel__action,
+.panel__header-link {
+    flex-shrink: 0;
+    color: var(--panel-action-fg);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.panel__action:hover,
+.panel__header-link:hover {
+    color: var(--primary-tint);
+    text-decoration: none;
+}
+
+.panel__body {
+    padding: 16px;
+    font-size: 0.9rem;
+    display: flow-root;
+    color: var(--panel-fg);
+    background: var(--panel-bg);
+    overflow-wrap: break-word;
+}
+
+/* For a body whose child provides its own padding: tables, list rows, tab bars. */
+.panel__body--flush { padding: 0; }
+.panel__body--tight { padding: 10px; }
+
+.panel--grid-item { height: 100%; }
+
+/* Tab row inside a panel header area (ALL / Movies / TV …). Horizontal scroll
+   rather than wrap, so a long category list never doubles the panel header. */
+.panel__tabs {
+    display: flex;
+    overflow-x: auto;
+    margin: 0;
+    padding: 0 16px;
+    list-style: none;
+    background: var(--data-table-th-bg);
+    border-bottom: 1px solid var(--border);
+    scrollbar-width: none;
+}
+
+.panel__tabs::-webkit-scrollbar { display: none; }
+.panel__tabs--centered { justify-content: space-around; }
+
+.panel__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+    list-style: none;
+    cursor: pointer;
+}
+
+.panel__tab:hover { color: var(--text); text-decoration: none; }
+.panel__tab--full-width { flex: 1; justify-content: center; }
+
+.panel__tab--active {
+    color: var(--text-strong);
+    border-bottom-color: var(--primary);
+}
+
+/* ---------------------------------------------------------- data-table ---- */
+
+/*  <div class="data-table-wrapper"><table class="data-table">…</table></div>
+ *  The wrapper is required: it is what keeps a wide table from scrolling the
+ *  whole page sideways on a phone.                                          */
+
+.data-table-wrapper { overflow-x: auto; }
+
+.data-table {
+    width: 100%;
+    border: 0;
+    border-collapse: collapse;
+    color: var(--data-table-fg);
+}
+
+.data-table > tr > th,
+.data-table > thead > tr > th,
+.data-table > tbody > tr > th,
+.data-table > tfoot > tr > th {
+    padding: var(--data-table-padding);
+    background: var(--data-table-th-bg);
+    color: var(--data-table-th-fg);
+    border-bottom: var(--data-table-thead-border);
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.data-table > tr > td,
+.data-table > thead > tr > td,
+.data-table > tbody > tr > td,
+.data-table > tfoot > tr > td {
+    padding: var(--data-table-padding);
+    font-size: 0.85rem;
+    vertical-align: middle;
+}
+
+.data-table > tr:not(:last-child) > td,
+.data-table > thead > tr:not(:last-child) > td,
+.data-table > tbody > tr:not(:last-child) > td,
+.data-table > tfoot > tr:not(:last-child) > td {
+    border-bottom: var(--data-table-tr-border);
+}
+
+.data-table > tbody > tr:nth-child(even) > td { background: var(--data-table-tr-even-bg); }
+.data-table > tbody > tr:nth-child(odd) > td { background: var(--data-table-tr-odd-bg); }
+.data-table > tbody > tr:hover > td { background: var(--data-table-tr-hover-bg); }
+
+.data-table > tfoot > tr > td {
+    border-top: var(--data-table-tfoot-border);
+    font-weight: 700;
+    font-size: 0.75rem;
+}
+
+/* Column helpers: metrics right-aligned, the trailing action column shrink-wrapped. */
+.data-table__num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.data-table__nowrap { white-space: nowrap; }
+.data-table__shrink { width: 1%; white-space: nowrap; }
+
+.data-table__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.data-table__action { color: var(--muted); }
+.data-table__action:hover { color: var(--primary-tint); }
+
+/* Name cell: icon + title (+ inline badges) + optional muted second line. */
+.data-table__name {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+}
+
+.data-table__name-icon {
+    margin-top: 2px;
+    color: var(--primary-tint);
+    font-size: 1rem;
+}
+
+.data-table__name-body { min-width: 0; }
+
+.data-table__title {
+    display: block;
+    color: var(--text);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.data-table__title:hover { color: var(--text-strong); }
+
+.data-table__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 0.72rem;
+    color: var(--muted-2);
+}
+
+/* --------------------------------------------------------------- tags ----- */
+
+/* Inline release attributes (resolution / source / codec / audio / language /
+   category). Distinct from .badge, which belongs to the Bootstrap subset. */
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border: var(--chip-border);
+    border-radius: var(--radius-sm);
+    background: var(--chip-bg);
+    color: var(--chip-fg);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.tag--res { color: var(--primary-tint); border-color: var(--primary-soft-strong); background: var(--primary-soft); }
+.tag--source { color: var(--info-tint); }
+.tag--codec { color: var(--text); }
+.tag--audio { color: var(--muted); }
+.tag--lang { color: var(--muted); }
+.tag--cat { color: var(--text); background: var(--surface-3); }
+.tag--success { color: var(--success); border-color: var(--success-soft); }
+.tag--warning { color: var(--warning); border-color: var(--warning-soft); }
+.tag--danger { color: var(--danger); border-color: var(--danger-soft); }
+
+.tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Neutral rounded chip (rating, counts, "N of M"). */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border: var(--chip-border);
+    border-radius: var(--radius-pill);
+    background: var(--chip-bg);
+    color: var(--chip-fg);
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.chip--accent { color: var(--primary-tint); background: var(--primary-soft); border-color: var(--primary-soft-strong); }
+
+/* ------------------------------------------------------------ buttons ----- */
+
+/* .button is the site's own family. The Bootstrap-subset .btn in theme.css is
+   untouched — the admin and plugin pages render against that one. */
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border: 1px solid transparent;
+    border-radius: var(--button-border-radius);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: filter 150ms, background-color 150ms, border-color 150ms;
+}
+
+.button:hover { text-decoration: none; filter: brightness(1.12); }
+.button:active { filter: brightness(0.92); transition: none; }
+
+.button--filled {
+    background: var(--button-filled-bg);
+    border: var(--button-filled-border);
+    color: var(--button-filled-fg);
+    box-shadow: 0 8px 20px -12px var(--primary);
+}
+
+.button--outlined {
+    background: var(--button-outlined-bg);
+    border: var(--button-outlined-border);
+    color: var(--button-outlined-fg);
+}
+
+.button--outlined:hover { border-color: var(--primary); color: var(--text-strong); }
+
+.button--text {
+    background: none;
+    border: 0;
+    color: var(--button-text-fg);
+    padding-inline: 6px;
+}
+
+.button--sm { padding: 6px 11px; font-size: 0.78rem; }
+.button--lg { padding: 12px 22px; font-size: 0.95rem; }
+.button--block { width: 100%; }
+.button--pill { border-radius: var(--radius-pill); }
+
+/* Circular icon-only button (carousel arrows, row actions). */
+.icon-button {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: var(--button-outlined-border);
+    border-radius: 50%;
+    background: var(--surface-2);
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.icon-button:hover { color: var(--text-strong); border-color: var(--primary); text-decoration: none; }
+
+/* ---------------------------------------------------------- dropdowns ----- */
+
+/*  <details class="dropdown dropdown--end">
+ *    <summary class="dropdown__toggle">Label <svg class="icon dropdown__chevron">…</svg></summary>
+ *    <div class="dropdown__menu"><a class="dropdown__item" href="">…</a></div>
+ *  </details>
+ *  <details> instead of :hover so the menus work on touch with no JS.        */
+
+.dropdown { position: relative; }
+
+.dropdown > summary {
+    list-style: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dropdown > summary::-webkit-details-marker { display: none; }
+
+.dropdown__toggle {
+    padding: 6px 9px;
+    border-radius: var(--radius-sm);
+    color: var(--top-nav-dropdown-fg);
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.dropdown[open] > .dropdown__toggle,
+.dropdown > .dropdown__toggle:hover {
+    color: var(--top-nav-dropdown-hover-fg);
+    background: var(--top-nav-dropdown-hover-bg);
+}
+
+.dropdown__chevron { transition: transform 150ms; font-size: 0.7rem; opacity: 0.7; }
+.dropdown[open] .dropdown__chevron { transform: rotate(180deg); }
+
+.dropdown__menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 200px;
+    padding: 6px;
+    background: var(--top-nav-dropdown-menu-bg);
+    border: var(--top-nav-dropdown-menu-border);
+    border-radius: var(--top-nav-dropdown-menu-border-radius);
+    box-shadow: var(--top-nav-dropdown-menu-box-shadow);
+}
+
+.dropdown--end > .dropdown__menu { left: auto; right: 0; }
+
+.dropdown__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--top-nav-dropdown-menu-item-fg);
+    font: inherit;
+    font-size: 0.88rem;
+    text-align: left;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.dropdown__item:hover,
+.dropdown__item.active {
+    background: var(--top-nav-dropdown-menu-item-hover-bg);
+    text-decoration: none;
+}
+
+.dropdown__item-icon { color: var(--top-nav-dropdown-menu-item-icon-fg); }
+
+.dropdown__divider {
+    height: 1px;
+    margin: 4px 2px;
+    background: var(--border);
+}
+
+/* -------------------------------------------------------- quick search ---- */
+
+/*  <form class="quick-search" action="/search">
+ *    <svg class="icon quick-search__leading">…</svg>
+ *    <input class="quick-search__input" name="q">
+ *    <kbd class="quick-search__hotkey">/</kbd>
+ *    <button class="quick-search__button"><svg class="icon">…</svg></button>
+ *  </form>                                                                  */
+
+.quick-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: min(520px, 100%);
+    padding: 4px 4px 4px 14px;
+    background: var(--quick-search-bg);
+    border: var(--quick-search-border);
+    border-radius: var(--quick-search-border-radius);
+}
+
+.quick-search:focus-within {
+    border-color: var(--primary);
+    box-shadow: var(--quick-search-box-shadow);
+}
+
+.quick-search__leading { color: var(--muted-2); }
+
+/* Doubled class: theme.css styles bare `input[type=search]` (0,1,1) and loads
+   last, so a single class would lose. UNIT3D uses the same idiom. */
+.quick-search__input.quick-search__input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    padding: 6px 0;
+    border: 0;
+    background: transparent;
+    color: var(--quick-search-fg);
+    font: inherit;
+    font-size: 0.88rem;
+}
+
+.quick-search__input:focus { outline: none; box-shadow: none; }
+.quick-search__input::placeholder { color: var(--quick-search-placeholder-fg); }
+
+/* The "/" affordance. Purely decorative unless a few lines of vanilla JS focus
+   the input on the key — hide it rather than lie if that JS isn't shipped. */
+.quick-search__hotkey {
+    padding: 2px 7px;
+    border-radius: var(--radius-sm);
+    background: var(--quick-search-hotkey-bg);
+    color: var(--quick-search-hotkey-fg);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    line-height: 1.4;
+}
+
+.quick-search__button {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    border: var(--button-filled-border);
+    border-radius: 50%;
+    background: var(--button-filled-bg);
+    color: var(--button-filled-fg);
+    cursor: pointer;
+}
+
+@media only screen and (max-width: 480px) {
+    .quick-search__hotkey { display: none; }
+}
+
+/* --------------------------------------------------------------- hero ----- */
+
+/*  <section class="hero-banner">
+ *    <div class="hero-banner__body"> eyebrow / title / tagline / lede / actions </div>
+ *    <div class="hero-banner__art"><img class="hero-banner__art-img" …></div>
+ *    <div class="hero-banner__strip"> .hero-promo × n </div>
+ *  </section>                                                               */
+
+.hero-banner {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    grid-template-areas: "body art" "strip strip";
+    border: var(--panel-border);
+    border-radius: var(--panel-border-radius);
+    background: var(--hero-bg);
+    box-shadow: var(--panel-box-shadow);
+    overflow: hidden;
+}
+
+.hero-banner__body {
+    grid-area: body;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 40px 32px;
+    z-index: 1;
+}
+
+.hero-banner__eyebrow {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--hero-eyebrow-fg);
+}
+
+.hero-banner__title {
+    margin: 0;
+    max-width: 16ch;
+    font-size: clamp(1.9rem, 3.4vw, 3rem);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: var(--hero-title-fg);
+}
+
+.hero-banner__title span { color: var(--primary-tint); }
+
+/* Dotted-separator row: each child is separated by a "·" so the template can
+   emit as many or as few facts as it actually has. */
+.hero-banner__tagline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.hero-banner__tagline > *:not(:last-child)::after {
+    content: "·";
+    margin-left: 10px;
+    color: var(--muted-2);
+}
+
+.hero-banner__lede {
+    margin: 0;
+    max-width: 52ch;
+    color: var(--hero-lede-fg);
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+
+.hero-banner__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+/* Art bleeds to the panel edge and fades into the copy side. */
+.hero-banner__art {
+    grid-area: art;
+    position: relative;
+    min-height: 260px;
+    overflow: hidden;
+}
+
+.hero-banner__art-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    object-position: center;
+}
+
+.hero-banner__art::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--hero-fade) 0%, var(--hero-fade-soft) 38%, transparent 100%);
+}
+
+.hero-banner__strip {
+    grid-area: strip;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 32px;
+    margin: 0 20px 20px;
+    padding: 14px 18px;
+    background: var(--hero-strip-bg);
+    border: var(--hero-strip-border);
+    border-radius: var(--radius);
+    z-index: 1;
+}
+
+.hero-promo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 1 1 220px;
+}
+
+.hero-promo__icon {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex: none;
+    border-radius: var(--radius);
+    background: var(--primary-soft);
+    color: var(--primary-tint);
+}
+
+.hero-promo__label {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-strong);
+}
+
+.hero-promo__detail {
+    margin: 0;
+    font-size: 0.76rem;
+    color: var(--muted);
+}
+
+@media only screen and (max-width: 867px) {
+    .hero-banner {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "art" "body" "strip";
+    }
+
+    .hero-banner__art { min-height: 160px; }
+
+    /* Art moves above the copy on narrow screens, so fade downward instead. */
+    .hero-banner__art::after {
+        background: linear-gradient(180deg, transparent 30%, var(--hero-fade) 100%);
+    }
+
+    .hero-banner__body { padding: 24px 20px; }
+    .hero-banner__title { max-width: none; }
+}
+
+/* -------------------------------------------------------- quick tiles ----- */
+
+/*  <div class="tile-row"><a class="tile" href="">
+ *     <span class="tile__icon"><svg class="icon"/></span>
+ *     <span class="tile__title">Browse</span>
+ *     <span class="tile__subtitle">Every indexed release</span>
+ *  </a></div>                                                               */
+
+.tile-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.tile {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    padding: 18px;
+    border: var(--tile-border);
+    border-radius: var(--radius);
+    background: var(--tile-bg);
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 150ms, transform 150ms;
+}
+
+.tile:hover {
+    border: var(--tile-hover-border);
+    text-decoration: none;
+    transform: translateY(-2px);
+}
+
+.tile__icon {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    margin-bottom: 6px;
+    border-radius: var(--radius);
+    background: var(--tile-icon-bg);
+    color: var(--tile-icon-fg);
+}
+
+.tile__title { font-size: 0.92rem; font-weight: 700; }
+.tile__subtitle { font-size: 0.76rem; color: var(--muted); }
+
+@media only screen and (max-width: 1100px) {
+    .tile-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media only screen and (max-width: 620px) {
+    .tile-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ------------------------------------------------------------- poster ----- */
+
+/*  <a class="poster poster--h3" href="">
+ *    <span class="poster__frame">
+ *      <img class="poster__img" src="…" alt="" loading="lazy">
+ *      -- or, with no cover art: --
+ *      <span class="poster__fallback">
+ *        <span class="poster__fallback-initials">TS</span>
+ *        <span class="poster__fallback-label">Movies</span>
+ *      </span>
+ *      <span class="poster__rating">7.8</span>
+ *    </span>
+ *    <span class="poster__caption">
+ *      <span class="poster__title">Title</span>
+ *      <span class="poster__meta"><span class="tag tag--res">1080p</span> 4.2 GB</span>
+ *    </span>
+ *  </a>
+ *
+ *  Pick .poster--hN by hashing the release id/title in the template; the tile
+ *  is then stable across renders. Never emit an <img> without a real URL — the
+ *  fallback below is the no-cover state and is meant to look chosen, not broken. */
+
+.poster {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--text);
+    text-decoration: none;
+    min-width: 0;
+}
+
+.poster:hover { text-decoration: none; }
+
+.poster__frame {
+    position: relative;
+    display: block;
+    aspect-ratio: 2 / 3;
+    border-radius: var(--poster-radius);
+    background: var(--poster-bg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    transition: transform 150ms, box-shadow 150ms;
+}
+
+.poster:hover .poster__frame {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.poster__img {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    display: block;
+}
+
+/* No-cover tile: a two-stop gradient keyed off --poster-hue plus a diagonal
+   sheen, so it reads as a designed placeholder rather than a failed image. */
+.poster__fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 12px;
+    text-align: center;
+    background:
+        linear-gradient(115deg, var(--sheen) 0%, transparent 42%),
+        radial-gradient(120% 80% at 22% 6%, hsl(var(--poster-hue) 62% 38% / 0.9) 0%, transparent 62%),
+        linear-gradient(160deg, hsl(var(--poster-hue) 48% 24%) 0%, hsl(calc(var(--poster-hue) + 26) 44% 12%) 100%);
+}
+
+.poster__fallback-initials {
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--ink-on-image);
+    text-shadow: 0 2px 10px var(--scrim);
+    line-height: 1;
+}
+
+.poster__fallback-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-on-image-muted);
+}
+
+/* Eight stops around the wheel — enough variety that a shelf of fallbacks does
+   not look striped, few enough that they still read as one family. */
+.poster--h0, .poster__fallback--h0 { --poster-hue: 265; }
+.poster--h1, .poster__fallback--h1 { --poster-hue: 222; }
+.poster--h2, .poster__fallback--h2 { --poster-hue: 192; }
+.poster--h3, .poster__fallback--h3 { --poster-hue: 158; }
+.poster--h4, .poster__fallback--h4 { --poster-hue: 330; }
+.poster--h5, .poster__fallback--h5 { --poster-hue: 22; }
+.poster--h6, .poster__fallback--h6 { --poster-hue: 288; }
+.poster--h7, .poster__fallback--h7 { --poster-hue: 242; }
+
+.poster__rating {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: var(--radius-pill);
+    background: var(--poster-chip-bg);
+    color: var(--poster-chip-fg);
+    font-size: 0.68rem;
+    font-weight: 700;
+    backdrop-filter: blur(4px);
+}
+
+.poster__rating .icon { color: var(--warning); }
+
+.poster__caption {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.poster__title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.3;
+    /* Two lines max: keeps every card in a carousel the same height. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.poster__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+
+/* Standalone poster grid (browse/search results). */
+.poster-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+/* ----------------------------------------------------------- carousel ----- */
+
+/*  <div class="carousel">
+ *    <button class="carousel__nav carousel__nav--prev" …><svg class="icon"/></button>
+ *    <ul class="carousel__track"><li class="carousel__item">…poster…</li></ul>
+ *    <button class="carousel__nav carousel__nav--next" …><svg class="icon"/></button>
+ *    <div class="carousel__dots">…</div>
+ *  </div>
+ *
+ *  The track scrolls natively (touch, trackpad, keyboard), so the component is
+ *  usable with zero JS; the arrows need ~4 lines of vanilla JS calling
+ *  track.scrollBy({left: ±track.clientWidth * 0.8, behavior:'smooth'}).
+ *  Omit the arrows entirely rather than shipping dead buttons.               */
+
+.carousel { position: relative; }
+
+.carousel__track {
+    display: flex;
+    gap: 14px;
+    margin: 0;
+    padding: 2px 0 6px;
+    list-style: none;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+}
+
+.carousel__track::-webkit-scrollbar { display: none; }
+
+.carousel__item {
+    flex: 0 0 clamp(132px, 17vw, 172px);
+    scroll-snap-align: start;
+}
+
+/* Arrows overlap the panel edge, as in the mockup. */
+.carousel__nav {
+    position: absolute;
+    top: 38%;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+    background: var(--surface-2);
+    color: var(--text);
+    cursor: pointer;
+    box-shadow: var(--shadow);
+}
+
+.carousel__nav:hover { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+
+/* Pulled just past the track so the arrows overlap the first/last poster, but
+   still inside .panel__body's padding — .panelV2 clips its overflow. */
+.carousel__nav--prev { left: -6px; }
+.carousel__nav--next { right: -6px; }
+
+.carousel__dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.carousel__dot {
+    width: 7px;
+    height: 7px;
+    border: 0;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--surface-3);
+    cursor: pointer;
+}
+
+.carousel__dot--active { background: var(--primary); width: 18px; border-radius: var(--radius-pill); }
+
+@media only screen and (max-width: 620px) {
+    .carousel__nav { display: none; }
+}
+
+/* ------------------------------------------------------------ avatars ----- */
+
+.avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex: none;
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    object-fit: cover;
+    overflow: hidden;
+    font-weight: 700;
+    color: var(--text-strong);
+}
+
+.avatar--sm { width: 30px; height: 30px; font-size: 0.72rem; border-radius: 9px; }
+.avatar--lg { width: 64px; height: 64px; font-size: 1.2rem; border-radius: 14px; }
+.avatar--round { border-radius: 50%; }
+
+/* Initials tile for users with no uploaded avatar — same hue trick as posters. */
+.avatar__fallback {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(150deg, hsl(var(--poster-hue) 50% 34%), hsl(calc(var(--poster-hue) + 30) 46% 20%));
+    color: var(--ink-on-image);
+}
+
+/* -------------------------------------------------- user stats / meters ---- */
+
+.user-stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+}
+
+.user-stat-card__avatar { margin-bottom: 4px; }
+
+.user-stat-card__username {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-strong);
+}
+
+.user-stat-card__verified { color: var(--info); }
+
+.user-stat-card__rank {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 10px;
+    border-radius: var(--radius-pill);
+    background: var(--primary-soft);
+    color: var(--primary-tint);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.user-stat-card__stat { margin: 0; font-size: 0.8rem; color: var(--muted); }
+
+/* Progress meter (e.g. "62% to next rank"). Only render it when the next
+   threshold is real — a bar with an invented target is fabricated data. */
+.meter { width: 100%; }
+
+.meter__track {
+    height: 7px;
+    border-radius: var(--radius-pill);
+    background: var(--meter-bg);
+    overflow: hidden;
+}
+
+.meter__fill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--meter-fg);
+}
+
+.meter__caption {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+
+/* <meter> element flavour, UNIT3D's name. */
+.form__meter {
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--meter-bg);
+    overflow: hidden;
+}
+
+.form__meter::-webkit-meter-bar { background: var(--meter-bg); border: 0; border-radius: var(--radius-pill); }
+.form__meter::-webkit-meter-optimum-value { background: var(--primary); }
+.form__meter::-moz-meter-bar { background: var(--primary); }
+
+/* Small stat tiles: icon + caption + value. */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.stat-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.stat-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 10px 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    text-align: center;
+    min-width: 0;
+}
+
+.stat-tile__icon { color: var(--primary-tint); font-size: 0.95rem; }
+
+.stat-tile__label {
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.stat-tile__value {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------- list rows ----- */
+
+/*  <ul class="list-rows">
+ *    <li><a class="list-row" href="">
+ *      <span class="list-row__thumb list-row__thumb--poster">…img or .poster__fallback…</span>
+ *      <span class="list-row__body">
+ *        <span class="list-row__title">…</span>
+ *        <span class="list-row__meta">…</span>
+ *      </span>
+ *      <span class="list-row__trail">…</span>
+ *    </a></li>
+ *  </ul>                                                                     */
+
+.list-rows {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.list-rows > li + li { border-top: 1px solid var(--border); }
+
+.list-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.list-row:hover { background: var(--surface-2); text-decoration: none; }
+
+.list-row__thumb {
+    position: relative;
+    display: block;
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    overflow: hidden;
+}
+
+.list-row__thumb--poster { width: 38px; height: 54px; }
+.list-row__thumb--round { border-radius: 50%; }
+
+.list-row__thumb img {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    display: block;
+}
+
+.list-row__body { flex: 1; min-width: 0; }
+
+.list-row__title {
+    display: block;
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.list-row__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    margin-top: 3px;
+    font-size: 0.72rem;
+    color: var(--muted-2);
+}
+
+.list-row__trail {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: none;
+    font-size: 0.76rem;
+    color: var(--muted);
+    text-align: right;
+}
+
+.list-row__stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.list-row__chevron { color: var(--muted-2); }
+
+/* ---------------------------------------------------------- genre pills --- */
+
+.pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    border: var(--pill-border);
+    border-radius: var(--radius-pill);
+    background: var(--pill-bg);
+    color: var(--pill-fg);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.pill:hover {
+    background: var(--pill-hover-bg);
+    border-color: var(--primary);
+    text-decoration: none;
+}
+
+.pill__icon { color: var(--pill-icon-fg); }
+.pill--active { background: var(--primary-soft); border-color: var(--primary); color: var(--text-strong); }
+
+/* Trailing "see all" affordance at the end of the pill row. */
+.pill--more { color: var(--muted); border-style: dashed; }
+
+/* ---------------------------------------------------------- rank chips ---- */
+
+.rank-chip {
+    display: inline-grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    flex: none;
+    border-radius: var(--radius-sm);
+    background: var(--rank-chip-bg);
+    color: var(--rank-chip-fg);
+    font-size: 0.76rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.rank-chip--1 { background: var(--rank-1-bg); color: var(--rank-1-fg); }
+.rank-chip--2 { background: var(--rank-2-bg); color: var(--rank-2-fg); }
+.rank-chip--3 { background: var(--rank-3-bg); color: var(--rank-3-fg); }
+
+/* ---------------------------------------------------------- key-value ----- */
+
+/*  <dl class="key-value">
+ *    <div class="key-value__group"><dt>Posted</dt><dd>2h ago</dd></div>
+ *  </dl>                                                                     */
+
+.key-value {
+    width: 100%;
+    margin: 0;
+    color: var(--key-value-fg);
+    border-radius: var(--key-value-border-radius);
+}
+
+.key-value dt,
+.key-value dd {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    font-weight: 400;
+}
+
+.key-value dt { text-align: left; color: var(--muted); }
+.key-value dd { text-align: right; margin: 0; }
+
+.key-value__group {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: calc(var(--key-value-padding) / 2);
+    padding: calc(var(--key-value-padding) / 2) var(--key-value-padding);
+}
+
+.key-value__group:nth-child(odd) { background: var(--key-value-odd-bg); }
+.key-value__group:nth-child(even) { background: var(--key-value-even-bg); }
+.key-value__group > dd ~ dd { flex-basis: 100%; }
+.key-value__group:first-child { padding-top: var(--key-value-padding); }
+.key-value__group:last-child { padding-bottom: var(--key-value-padding); }
+
+/* --------------------------------------------------------------- meta ----- */
+
+/* Release-page header: poster left, title + ids + description right. */
+.meta {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "poster title" "poster ids" "poster description" "poster chips";
+    align-content: start;
+    gap: 10px 24px;
+    padding: 16px;
+}
+
+.meta__poster-link { grid-area: poster; }
+
+.meta__poster {
+    width: clamp(120px, 18vw, 200px);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+}
+
+.meta__title {
+    grid-area: title;
+    margin: 0;
+    font-size: clamp(1.2rem, 2.4vw, 1.75rem);
+    font-weight: 800;
+    color: var(--text-strong);
+    overflow-wrap: anywhere;
+}
+
+.meta__ids {
+    grid-area: ids;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.meta-id-tag {
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+
+.meta__description {
+    grid-area: description;
+    margin: 0;
+    max-height: 180px;
+    overflow-y: auto;
+    color: var(--meta-description-fg);
+    font-size: 0.88rem;
+    line-height: 1.6;
+}
+
+.meta__chips {
+    grid-area: chips;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.meta-chip {
+    display: inline-flex;
+    flex-direction: column;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+}
+
+.meta-chip__name { font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--meta-chip-name-fg); }
+.meta-chip__value { font-size: 0.84rem; color: var(--meta-chip-value-fg); }
+
+@media only screen and (max-width: 620px) {
+    .meta {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "poster" "title" "ids" "description" "chips";
+        justify-items: center;
+        text-align: center;
+    }
+
+    .meta__description { text-align: left; }
+}
+
+/* --------------------------------------------------------- torrent-card --- */
+
+/* UNIT3D's release card, minus the swarm columns this stack has no data for. */
+.torrent-card {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: "header header" "poster body" "footer footer";
+    grid-template-columns: auto minmax(0, 1fr);
+    border: var(--torrent-card-border);
+    border-radius: var(--radius);
+    background: var(--torrent-card-bg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.torrent-card__header { grid-area: header; }
+.torrent-card__footer { grid-area: footer; }
+
+.torrent-card__header,
+.torrent-card__footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0;
+    padding: 8px 12px;
+    background: var(--torrent-card-head-bg);
+    color: var(--torrent-card-head-fg);
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.torrent-card__aside { grid-area: poster; }
+.torrent-card__figure { margin: 0; width: 140px; height: 100%; }
+.torrent-card__image { width: 100%; height: 100%; max-width: none; object-fit: cover; }
+
+.torrent-card__body {
+    grid-area: body;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    color: var(--torrent-card-fg);
+    min-width: 0;
+}
+
+.torrent-card__title { margin: 0; font-size: 0.9rem; }
+.torrent-card__link { font-weight: 700; color: var(--torrent-card-link-fg); }
+
+.torrent-card__genres { display: inline; margin: 0; padding: 0; list-style: none; }
+.torrent-card__genre-item { display: inline; }
+.torrent-card__genre-item:not(:last-child)::after { content: "\2022"; padding: 0 4px; }
+
+.torrent-card__genre {
+    color: var(--torrent-card-genre-fg);
+    letter-spacing: 0.1em;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+}
+
+.torrent-card__plot { font-size: 0.78rem; line-height: 1.5; overflow-y: auto; }
+
+/* ------------------------------------------------------ article-preview --- */
+
+.article-preview {
+    padding: 18px;
+    border-radius: var(--radius);
+    background: var(--article-card-bg);
+    border: 1px solid var(--border);
+    box-shadow: var(--article-box-shadow);
+}
+
+.article-preview__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 18px;
+    margin: 0 0 12px;
+}
+
+.article-preview__title { margin: 0; font-size: 1.1rem; }
+.article-preview__link { color: var(--article-card-head-fg); }
+.article-preview__published-date { font-size: 0.78rem; color: var(--article-card-time-fg); }
+.article-preview__content { color: var(--article-card-fg); margin-bottom: 12px; }
+.article-preview__read-more { font-size: 0.82rem; font-weight: 600; }
+
+/* --------------------------------------------------------- pagination ----- */
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    margin: 0;
+    max-width: 100%;
+    background: var(--paginate-bg);
+    border-radius: var(--paginate-border-radius);
+    overflow: hidden;
+}
+
+.pagination__items {
+    display: flex;
+    margin: 0 auto;
+    padding: 0;
+    list-style: none;
+    min-width: 0;
+}
+
+.pagination__page-wrapper { overflow-x: auto; }
+
+.pagination__pages {
+    display: flex;
+    margin: 0 auto;
+    padding: 0;
+    list-style: none;
+}
+
+.pagination__previous,
+.pagination__next,
+.pagination__link,
+.pagination__current,
+.pagination__ellipsis {
+    display: block;
+    height: 38px;
+    line-height: 38px;
+    font-size: 0.85rem;
+    text-align: center;
+    color: var(--paginate-fg);
+    background: var(--paginate-bg);
+    text-decoration: none;
+}
+
+.pagination__previous,
+.pagination__next { width: 88px; white-space: nowrap; }
+
+.pagination__link,
+.pagination__current,
+.pagination__ellipsis { width: 40px; min-width: 40px; }
+
+.pagination__link:hover,
+.pagination__previous:not(.pagination__previous--disabled):hover,
+.pagination__next:not(.pagination__next--disabled):hover {
+    background: var(--paginate-bg-hover);
+    text-decoration: none;
+}
+
+.pagination__current { font-weight: 800; background: var(--paginate-bg-current); color: var(--text-strong); cursor: default; }
+.pagination__ellipsis { color: var(--paginate-fg-disabled); cursor: default; }
+
+.pagination__previous--disabled,
+.pagination__next--disabled { color: var(--paginate-fg-disabled); cursor: default; }
+
+/* --------------------------------------------------------------- forms ---- */
+
+/*  UNIT3D's form__* family. The Bootstrap-subset .form-control/.form-select
+ *  in theme.css stays as-is for the admin and plugin pages.                  */
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 100%;
+}
+
+.form__group { position: relative; min-width: 0; }
+
+.form__label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.8rem;
+    color: var(--label-fg);
+    user-select: none;
+}
+
+/* Doubled classes so these beat theme.css's bare `input[type=…]`/`select`
+   rules, which are (0,1,1) and load after this file. */
+.form__input.form__input,
+.form__select.form__select,
+.form__textarea.form__textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: var(--input-border);
+    border-radius: var(--input-border-radius);
+    background: var(--input-bg);
+    color: var(--input-fg);
+    font: inherit;
+    font-size: 0.9rem;
+}
+
+.form__input.form__input:hover,
+.form__select.form__select:hover,
+.form__textarea.form__textarea:hover { border: var(--input-border-hover); }
+
+.form__input.form__input:focus,
+.form__select.form__select:focus,
+.form__textarea.form__textarea:focus {
+    outline: none;
+    border: var(--input-border-active);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.form__input::placeholder,
+.form__textarea::placeholder { color: var(--input-placeholder-fg); }
+
+.form__input--error.form__input--error,
+.form__select--error.form__select--error { border: var(--input-border-error); }
+
+.form__textarea.form__textarea { min-height: 110px; resize: vertical; }
+
+.form__help { font-size: 0.75rem; color: var(--muted-2); }
+.form__error { font-size: 0.75rem; color: var(--danger); }
+
+.form__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.form__checkbox,
+.form__radio {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+    cursor: pointer;
+}
+
+.form__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border-radius: var(--button-border-radius);
+    border: 1px solid transparent;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 150ms;
+}
+
+.form__button:hover { filter: brightness(1.1); }
+.form__button--filled { background: var(--button-filled-bg); border: var(--button-filled-border); color: var(--button-filled-fg); }
+.form__button--outlined { background: var(--button-outlined-bg); border: var(--button-outlined-border); color: var(--button-outlined-fg); }
+.form__button--text { background: none; border: 0; color: var(--button-text-fg); }
+
+/* Give native controls the brand accent instead of the UA blue. */
+input[type="checkbox"],
+input[type="radio"],
+progress,
+meter,
+input[type="range"] { accent-color: var(--primary); }
+
+/* --------------------------------------------------- notices / empties ---- */
+
+.notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--muted-2);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 0.86rem;
+}
+
+.notice--info { border-left-color: var(--info); }
+.notice--success { border-left-color: var(--success); }
+.notice--warning { border-left-color: var(--warning); }
+.notice--danger { border-left-color: var(--danger); }
+.notice__icon { color: inherit; margin-top: 2px; }
+
+/* Section separator with a centred label. */
+.section-rule {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted-2);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.section-rule::before,
+.section-rule::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}

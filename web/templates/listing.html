@@ -1,0 +1,70 @@
+{{/* ==========================================================================
+     SHARED RELEASE LISTING — the category icon and the release table row, used
+     by /, /browse and /search so the three listings are literally the same
+     markup rather than copies that drift.
+
+     views.go builds ONE template set per page (base.html + site_chrome.html +
+     the page), so a {{define}} in browse.html is invisible to search.html.
+     This file is named in that same ParseFS list, which is what lets both
+     pages — and any future listing page — share these two blocks.
+
+     release-row takes a searchRow (usenet_web.go): a poster thumb (cover art
+     when the catalog resolved one, a stable hue-keyed gradient fallback when
+     it did not), title, the inline quality badges, category, size, added, NZB.
+
+     cat-icon maps a category id to a sprite symbol and emits ONLY the <use>, so
+     the caller owns the <svg>'s classes. Ids are the catalog plugin's tree
+     (catalog/categories.go): 1000 Console, 2000 Movies, 3000 Audio, 4000 PC,
+     5000 TV (5070 Anime), 6000 XXX, 7000 Books, 8000 Other.
+
+     SPRITE GAPS in cat-icon: there is no gamepad/console/software symbol, so
+     Newznab 1000 (Console) and 8000 (Other) fall back to #folder and 4000 (PC)
+     borrows #code. Covered: 2xxx film, 3xxx music, 4xxx code, 5xxx tv, 5070
+     anime, 6xxx xxx, 7xxx book, everything else folder.
+     ========================================================================== */}}
+
+{{define "cat-icon"}}{{if eq . 5070}}<use href="#anime"></use>{{else if and (ge . 2000) (lt . 3000)}}<use href="#film"></use>{{else if and (ge . 3000) (lt . 4000)}}<use href="#music"></use>{{else if and (ge . 4000) (lt . 5000)}}<use href="#code"></use>{{else if and (ge . 5000) (lt . 6000)}}<use href="#tv"></use>{{else if and (ge . 6000) (lt . 7000)}}<use href="#xxx"></use>{{else if and (ge . 7000) (lt . 8000)}}<use href="#book"></use>{{else}}<use href="#folder"></use>{{end}}{{end}}
+
+{{/* release-row is one searchRow as a data-table row: cover thumb (or the
+     hue-keyed gradient fallback), title, the inline quality badges, category,
+     size, added, NZB. The ONE definition every listing page renders, so the
+     tables cannot drift. hue() buckets 0..7, matching the CSS's h0..h7. */}}
+{{define "release-row"}}
+{{- $row := . -}}
+{{- $h := hue .Title -}}
+<tr>
+    <td>
+        <div class="data-table__name">
+            <span class="list-row__thumb list-row__thumb--poster">
+                {{if .Cover}}<img src="{{.Cover}}" alt="" loading="lazy">
+                {{else}}<span class="poster__fallback poster__fallback--h{{$h}}"><span class="poster__fallback-label">{{initials .Title}}</span></span>{{end}}
+            </span>
+            <div class="data-table__name-body">
+                <a class="data-table__title" href="/release/{{.ID}}">{{.Title}}</a>
+                {{if or .Tags .Group}}
+                <div class="data-table__meta">
+                    {{if .Resolution}}<span class="tag tag--res">{{.Resolution}}</span>{{end}}
+                    {{if .Source}}<span class="tag tag--source">{{.Source}}</span>{{end}}
+                    {{range .Tags}}{{if and (ne . $row.Resolution) (ne . $row.Source)}}<span class="tag tag--codec">{{.}}</span>{{end}}{{end}}
+                    {{if .Group}}<span>{{.Group}}</span>{{end}}
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </td>
+    <td class="data-table__nowrap">
+        {{if .Category}}<a class="tag tag--cat" href="/browse?cat={{.CategoryID}}"><svg class="icon icon--sm" aria-hidden="true">{{template "cat-icon" .CategoryID}}</svg>{{.Category}}</a>
+        {{else}}<span class="text-muted">&mdash;</span>{{end}}
+    </td>
+    <td class="data-table__num">{{.Size}}</td>
+    <td class="data-table__nowrap">
+        {{if .PostedAt.IsZero}}<span class="text-muted">{{.Posted}}</span>
+        {{else}}<span title="{{.Posted}}">{{timeAgo .PostedAt}}</span>{{end}}
+    </td>
+    <td class="data-table__shrink">
+        <a class="button button--outlined button--sm" href="/nzb/{{.ID}}">
+            <svg class="icon icon--sm" aria-hidden="true"><use href="#download"></use></svg>NZB
+        </a>
+    </td>
+</tr>
+{{end}}

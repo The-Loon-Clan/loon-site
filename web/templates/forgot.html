@@ -1,21 +1,47 @@
 {{define "content"}}
-<div class="container page-narrow" style="padding-inline:0">
-    <h1 class="h3 mb-3">Reset password</h1>
-    {{if .Sent}}
-      <div class="alert alert-success">If an account exists for that email, a reset link has been sent. Check your inbox.</div>
-      <a class="btn btn-outline-secondary" href="/login">Back to log in</a>
-    {{else}}
-      {{if .Error}}<div class="alert" style="border-color:var(--danger);color:var(--danger)">{{.Error}}</div>{{end}}
-      <div class="card">
-        <form method="post" action="/forgot">
-            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
-            <label for="email">Email</label>
-            <input id="email" type="email" name="email" placeholder="you@example.com" autofocus>
-            <div style="margin:.75rem 0">{{captcha}}</div>
-            <button class="btn btn-primary" type="submit">Send reset link</button>
-            <a class="btn btn-outline-secondary" href="/login" style="margin-left:.5rem">Back to log in</a>
-        </form>
-      </div>
-    {{end}}
+{{/* Same centred auth column as login.html. The .Sent branch is deliberately
+     identical whether or not the address exists — authtoken.RequestReset is
+     silent about it, and the copy must not leak the difference. */}}
+<div class="container page-narrow" style="max-width:460px">
+    <section class="panelV2">
+        <header class="panel__header">
+            <h1 class="panel__heading">
+                <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#lock"></use></svg>Reset password
+            </h1>
+        </header>
+        <div class="panel__body">
+            {{if .Sent}}
+            <p class="notice notice--success mb-3">
+                <svg class="icon notice__icon" aria-hidden="true"><use href="#envelope"></use></svg>
+                <span>If an account exists for that email, a reset link has been sent. Check your inbox.</span>
+            </p>
+            <a class="button button--outlined button--block" href="/login">Back to log in</a>
+            {{else}}
+            {{if .Error}}
+            <p class="notice notice--danger mb-3">
+                <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+                <span>{{.Error}}</span>
+            </p>
+            {{end}}
+
+            <form class="form" method="post" action="/forgot">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                <div class="form__group">
+                    <label class="form__label" for="email">Email</label>
+                    <input class="form__input" id="email" type="email" name="email" placeholder="you@example.com" autocomplete="email" autofocus>
+                    <p class="form__help mt-1 mb-0">The address on the account. Accounts registered without one can't be reset by email.</p>
+                </div>
+                {{/* Empty unless Turnstile is configured — no wrapper, see login.html. */}}
+                {{captcha}}
+                <button class="form__button form__button--filled justify-content-center" type="submit">
+                    <svg class="icon" aria-hidden="true"><use href="#send"></use></svg>Send reset link
+                </button>
+            </form>
+
+            <div class="section-rule mt-4 mb-3">Remembered it?</div>
+            <a class="button button--outlined button--block" href="/login">Back to log in</a>
+            {{end}}
+        </div>
+    </section>
 </div>
 {{end}}

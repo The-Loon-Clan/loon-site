@@ -1,14 +1,34 @@
 {{define "content"}}
 {{template "admin-subnav" .}}
-<h1 class="h3 mb-3">Settings</h1>
-<p class="text-muted small mb-4">Each installed plugin contributes its own section.</p>
+
+<header>
+    <h1 class="h3 m-0">Settings</h1>
+    <p class="text-muted small m-0 mt-1">Each installed plugin contributes its own section.</p>
+</header>
+
+{{/* Jump links, backed by the section anchors this page already emits. Only
+     worth a row when there is more than one section to jump between. */}}
+{{if gt (len .Sections) 1}}
+<nav aria-label="Settings sections">
+    <ul class="pill-row">
+        {{range .Sections}}<li><a class="pill" href="#s-{{.Slug}}">{{.Title}}</a></li>{{end}}
+    </ul>
+</nav>
+{{end}}
 
 {{range .Sections}}
 <section id="s-{{.Slug}}">
-    <h2 class="h5" style="margin:1.5rem 0 .75rem;padding-bottom:.4rem;border-bottom:1px solid var(--border)">{{.Title}}</h2>
+    <h2 class="panel__heading border-bottom mb-3">
+        <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#settings"></use></svg>{{.Title}}
+    </h2>
+    {{/* Plugin-authored fragment, injected exactly as the view returned it. It
+         brings its own cards/tables (and sometimes its own scoped <style>)
+         against the Bootstrap-subset classes theme.css implements, so it is
+         NOT wrapped in a panel — that would box an already-boxed page. */}}
     {{.Fragment}}
 </section>
 {{else}}
 <div class="empty">No plugin has registered settings.</div>
 {{end}}
 {{end}}
+

@@ -1,23 +1,68 @@
-{{template "fhead" .}}
-<nav class="small mb-2"><a href="/community/forums">Forums</a> &rsaquo; New thread</nav>
-<h1 class="h4 mb-3">New thread</h1>
-{{if .User}}
-<form method="post" action="/community/forums/threads" style="max-width:640px">
-    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
-    <label class="form-label small">Category</label>
-    <select name="category_id" class="form-select mb-2">
-        {{range .Categories}}<option value="{{.ID}}" {{if eq .ID $.SelectedCategory}}selected{{end}}>{{.Name}}</option>{{end}}
-    </select>
-    <label class="form-label small">Type</label>
-    <select name="thread_type" class="form-select mb-2">
-        <option value="discussion">Discussion — replies visible to everyone</option>
-        <option value="recruitment">Recruitment — replies visible only to you and each replier</option>
-    </select>
-    <input name="title" class="form-control mb-2" placeholder="Title" required>
-    <textarea name="body" class="form-control mb-2" rows="6" required placeholder="Opening post"></textarea>
-    <button class="btn btn-primary">Create thread</button>
-</form>
-{{else}}
-<p class="text-muted"><a href="/login">Log in</a> to start a thread.</p>
-{{end}}
+{{/* New-thread form. Full document rendered by the forum plugin; fhead/ffoot
+     come from forum_chrome.html (owned by the shell agent).
+
+     Keys (Handlers.NewThread + Deps.BaseData):
+       Categories       []*ForumCategory — ALREADY filtered to the categories the
+                        viewer may see AND write in, so an empty slice means
+                        "nowhere to post", not "no forums exist"
+       SelectedCategory int              — ?category=N preselection, 0 when absent
+       User / IsAdmin / IsMod / CSRFToken / Path
+
+     The form contract is CreateThread's: POST /community/forums/threads with
+     _csrf, category_id, thread_type (closed allowlist), title, body. */}}{{template "fhead" .}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/community/forums">Forums</a></li>
+    <li class="breadcrumb--active">New thread</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#plus"></use></svg>
+            New thread
+        </h1>
+    </header>
+    <div class="panel__body">
+        {{if not .User}}
+        <p class="notice notice--info">
+            <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+            <a href="/login">Log in</a> to start a thread.
+        </p>
+        {{else if not .Categories}}
+        <p class="notice notice--warning">
+            <svg class="icon notice__icon" aria-hidden="true"><use href="#lock"></use></svg>
+            There is no forum you can post in yet &mdash; every category is gated above your account's access.
+        </p>
+        {{else}}
+        <form class="form" method="post" action="/community/forums/threads">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__row">
+                <div class="form__group">
+                    <label class="form__label" for="nt-category">Category</label>
+                    <select class="form__select" id="nt-category" name="category_id">
+                        {{range .Categories}}<option value="{{.ID}}" {{if eq .ID $.SelectedCategory}}selected{{end}}>{{.Name}}</option>{{end}}
+                    </select>
+                </div>
+                <div class="form__group">
+                    <label class="form__label" for="nt-type">Type</label>
+                    <select class="form__select" id="nt-type" name="thread_type">
+                        <option value="discussion">Discussion &mdash; replies visible to everyone</option>
+                        <option value="recruitment">Recruitment &mdash; replies visible only to you and each replier</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="nt-title">Title</label>
+                <input class="form__input" id="nt-title" name="title" placeholder="Title" required>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="nt-body">Opening post</label>
+                <textarea class="form__textarea" id="nt-body" name="body" rows="8" required placeholder="Opening post"></textarea>
+            </div>
+            <button class="form__button form__button--filled" type="submit">Create thread</button>
+        </form>
+        {{end}}
+    </div>
+</section>
 {{template "ffoot" .}}

@@ -1,15 +1,37 @@
 {{define "content"}}
-<div class="container page-narrow" style="padding-inline:0">
-    <h1 class="h3 mb-3">Set a new password</h1>
-    {{if .Error}}<div class="alert" style="border-color:var(--danger);color:var(--danger)">{{.Error}}</div>{{end}}
-    <div class="card">
-        <form method="post" action="/reset">
-            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
-            <input type="hidden" name="token" value="{{.Token}}">
-            <label for="password">New password</label>
-            <input id="password" type="password" name="password" placeholder="at least 8 characters" autofocus>
-            <button class="btn btn-primary mt-3" type="submit">Update password</button>
-        </form>
-    </div>
+{{/* Same centred auth column as login.html. The hidden token is the one from
+     ?token= (GET) or from the failed POST, so a weak-password retry keeps the
+     link alive. No captcha here — resetPost doesn't verify one. */}}
+<div class="container page-narrow" style="max-width:460px">
+    <section class="panelV2">
+        <header class="panel__header">
+            <h1 class="panel__heading">
+                <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#lock"></use></svg>Set a new password
+            </h1>
+        </header>
+        <div class="panel__body">
+            {{if .Error}}
+            <p class="notice notice--danger mb-3">
+                <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+                <span>{{.Error}}</span>
+            </p>
+            {{end}}
+
+            <form class="form" method="post" action="/reset">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                <input type="hidden" name="token" value="{{.Token}}">
+                <div class="form__group">
+                    <label class="form__label" for="password">New password</label>
+                    <input class="form__input" id="password" type="password" name="password" placeholder="at least 8 characters" autocomplete="new-password" autofocus>
+                </div>
+                <button class="form__button form__button--filled justify-content-center" type="submit">
+                    <svg class="icon" aria-hidden="true"><use href="#check"></use></svg>Update password
+                </button>
+            </form>
+
+            <div class="section-rule mt-4 mb-3">Link expired?</div>
+            <a class="button button--outlined button--block" href="/forgot">Request a new reset email</a>
+        </div>
+    </section>
 </div>
 {{end}}

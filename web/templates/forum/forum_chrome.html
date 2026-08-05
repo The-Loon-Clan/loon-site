@@ -1,49 +1,59 @@
-{{/* Shared chrome for the forum pages. These templates live in gin's HTML
-     set (the forum plugin renders them by name via c.HTML), not the demo's
-     per-page template map — so they are full documents with a slim version
-     of base.html's header. Data keys come from the plugin + Deps.BaseData:
-     User, IsAdmin, CSRFToken, Path, plus per-page keys. */}}
+{{/* Full-document chrome for the forum plugin's pages.
+
+     The forum plugin renders its templates by name through gin's HTML set
+     (forum_web.go: ParseFiles("web/templates/site_chrome.html") followed by
+     ParseGlob("web/templates/forum/*.html")), NOT through the demo's per-page
+     map (views.go: ParseFS(base.html, site_chrome.html, page)). The two sets
+     share no PAGE file, so base.html's {{define}}s are invisible here — the
+     header, footer, sprite and stat strip come from the one file both sets
+     name explicitly, web/templates/site_chrome.html. This file holds only the
+     forum-specific wrappers around it.
+
+     Data keys come from the plugin + Deps.BaseData (forum_web.go): User,
+     IsAdmin, IsMod, CSRFToken, Path, plus per-page keys. Points, Unread,
+     SiteNav and AdminNav are NOT supplied there; the chrome degrades to
+     hiding those tiles/menus rather than erroring, because both sides feed it
+     a map and a missing key reads as absent. */}}
+
 {{define "fhead"}}<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{/* site-head leads with <meta charset>, so it goes before <title> — the
+         title carries an em dash and must not be sniffed as anything else. */}}
+    {{template "site-head" .}}
     <title>Forums — loon demo indexer</title>
-    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/static/css/tokens.css">
-    <link rel="stylesheet" href="/static/css/theme.css">
 </head>
 <body>
-    <header class="nav-bar">
-        <div class="inner">
-            <a class="brand" href="/">loon<span>indexer</span></a>
-            <nav>
-                <a href="/">News</a>
-                <a href="/search">Search</a>
-                <a href="/browse">Browse</a>
-                <a href="/community/forums" class="active">Forums</a>
-            </nav>
-            <div class="user">
-                {{if .User}}<a href="/u/{{.User.Username}}">{{.User.Username}}</a>{{else}}<a href="/login">log in</a>{{end}}
-            </div>
-        </div>
-    </header>
-    <main class="container page py-4">
+{{template "site-sprite" .}}
+{{template "site-header" .}}
+    <main class="main-margin py-4">
+        <article>
 {{end}}
 
 {{define "ffoot"}}
+        </article>
     </main>
-    <footer class="site-footer">
-        Forum served by the <a href="https://github.com/The-Loon-Clan/loon-plugins">loon-plugins</a> forum plugin — the same code the production indexer runs.
-    </footer>
+{{template "site-footer" .}}
+{{template "site-scripts" .}}
 </body>
 </html>
 {{end}}
 
+{{/* Pager for the forum's category/thread listings. The view-model
+     (forum_web.go forumPagination) exposes only the current page and the
+     total, so this renders "N of M" rather than inventing a numbered range. */}}
 {{define "fpagination"}}{{if .}}{{if gt .TotalPages 1}}
-<nav class="d-flex gap-2 my-3">
-    {{if .HasPrev}}<a class="btn btn-sm btn-outline-secondary" href="{{.BaseURL}}page={{.Prev}}">&laquo; prev</a>{{end}}
-    <span class="text-muted small align-self-center">page {{.Page}} / {{.TotalPages}}</span>
-    {{if .HasNext}}<a class="btn btn-sm btn-outline-secondary" href="{{.BaseURL}}page={{.Next}}">next &raquo;</a>{{end}}
+<nav class="pagination" aria-label="Pagination">
+    <ul class="pagination__items">
+        <li>{{if .HasPrev}}<a class="pagination__previous" href="{{.BaseURL}}page={{.Prev}}">Previous</a>{{else}}<span class="pagination__previous pagination__previous--disabled">Previous</span>{{end}}</li>
+        <li class="pagination__page-wrapper">
+            <ul class="pagination__pages">
+                <li><span class="pagination__current" aria-current="page">{{.Page}}</span></li>
+                <li><span class="pagination__ellipsis">of</span></li>
+                <li><a class="pagination__link" href="{{.BaseURL}}page={{.TotalPages}}">{{.TotalPages}}</a></li>
+            </ul>
+        </li>
+        <li>{{if .HasNext}}<a class="pagination__next" href="{{.BaseURL}}page={{.Next}}">Next</a>{{else}}<span class="pagination__next pagination__next--disabled">Next</span>{{end}}</li>
+    </ul>
 </nav>
 {{end}}{{end}}{{end}}

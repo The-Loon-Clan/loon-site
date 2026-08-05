@@ -1,17 +1,105 @@
+{{/* Watched newsgroups. Data: .Configured bool (a usenet capability exists at
+     all) and .Groups []pluginapi.GroupInfo.
+
+     The public read path (usenet PGStore.groups) selects name/active/nzbs for
+     rows WHERE active = TRUE and leaves RetentionDays/ThrottleMs/Tier at zero,
+     so those two columns are rendered only if some row actually carries a
+     value — an always-empty column is noise, and inventing one is worse. */}}
+
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumb--active">Groups</li>
+</ol>
+{{end}}
+
 {{define "content"}}
-<h1 class="h3 mb-3">Newsgroups</h1>
-<p class="text-muted mb-4">
-    All groups this indexer watches.
-    {{if .Groups}}{{len .Groups}} active.{{else}}The crawler isn't set up yet.{{end}}
-</p>
+<section class="hero">
+    <h1>Newsgroups</h1>
+    <p>
+        All groups this indexer watches.
+        {{if not .Groups}}The crawler isn't set up yet.{{end}}
+    </p>
+</section>
+
 {{if .Groups}}
-<div class="group-list">
-    {{range .Groups}}<a href="/search?group={{.Name}}">{{.Name}} <span class="text-muted small">({{.NZBs}})</span></a>{{end}}
-</div>
+{{$anyTier := false}}{{$anyRetention := false}}
+{{range .Groups}}{{if .Tier}}{{$anyTier = true}}{{end}}{{if .RetentionDays}}{{$anyRetention = true}}{{end}}{{end}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#groups"></use></svg>
+            Watched groups <span class="panel__grouping">({{len .Groups}} active)</span>
+        </h2>
+        <div class="panel__actions">
+            <a class="panel__action" href="/browse">Browse by category <svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-right"></use></svg></a>
+        </div>
+    </header>
+    <div class="panel__body panel__body--flush">
+        <div class="data-table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Group</th>
+                        <th class="data-table__nowrap">Status</th>
+                        {{if $anyTier}}<th class="data-table__nowrap">Tier</th>{{end}}
+                        {{if $anyRetention}}<th class="data-table__num">Retention</th>{{end}}
+                        <th class="data-table__num">NZBs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Groups}}
+                    <tr>
+                        <td>
+                            <div class="data-table__name">
+                                <svg class="icon data-table__name-icon" aria-hidden="true"><use href="#groups"></use></svg>
+                                <div class="data-table__name-body">
+                                    <a class="data-table__title" href="/search?group={{.Name}}">{{.Name}}</a>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="data-table__nowrap">
+                            {{if .Active}}<span class="tag tag--success">Active</span>{{else}}<span class="tag">Paused</span>{{end}}
+                        </td>
+                        {{if $anyTier}}<td class="data-table__nowrap">{{if .Tier}}<span class="tag tag--cat">{{.Tier}}</span>{{end}}</td>{{end}}
+                        {{if $anyRetention}}<td class="data-table__num">{{if .RetentionDays}}{{.RetentionDays}} days{{end}}</td>{{end}}
+                        <td class="data-table__num">{{.NZBs}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{{else if .Configured}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#groups"></use></svg>No groups yet</h2>
+    </header>
+    <div class="panel__body">
+        <p class="notice notice--warning">
+            <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+            <span>
+                No active groups yet. An admin adds a Usenet server and picks groups from
+                <a href="/admin/settings#s-usenet">Setup</a>, then the crawler fills this in.
+            </span>
+        </p>
+    </div>
+</section>
 {{else}}
-<div class="empty">
-    No active groups yet. An admin adds a Usenet server and picks groups from
-    <a href="/admin/settings#s-usenet">Setup</a>, then the crawler fills this in.
-</div>
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#server"></use></svg>Indexer not configured</h2>
+    </header>
+    <div class="panel__body">
+        <p class="notice notice--warning">
+            <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+            <span>
+                This build has no Usenet indexer, so there is nothing to crawl and no groups to
+                list. Once one is registered the watched groups appear here.
+            </span>
+        </p>
+    </div>
+</section>
 {{end}}
 {{end}}

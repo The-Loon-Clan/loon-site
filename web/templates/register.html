@@ -1,22 +1,47 @@
 {{define "content"}}
-<div class="container page-narrow" style="padding-inline:0">
-    <h1 class="h3 mb-3">Create account</h1>
-    {{if .Error}}<div class="alert" style="border-color:var(--danger);color:var(--danger)">{{.Error}}</div>{{end}}
-    <div class="card">
-        <form method="post" action="/register">
-            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
-            <label for="username">Username</label>
-            <input id="username" type="text" name="username" value="{{.Username}}" autofocus>
-            <label for="email" style="margin-top:.75rem">Email <span class="text-muted small">(optional)</span></label>
-            <input id="email" type="email" name="email" value="{{.Email}}">
-            <label for="password" style="margin-top:.75rem">Password</label>
-            <input id="password" type="password" name="password" placeholder="at least 8 characters">
-            <div style="margin-top:.9rem">{{captcha}}</div>
-            <div style="margin-top:.9rem">
-                <button class="btn btn-primary" type="submit">Create account</button>
-                <a class="btn btn-outline-secondary" href="/login" style="margin-left:.5rem">Back to log in</a>
-            </div>
-        </form>
-    </div>
+{{/* Same centred auth column as login.html — see the note there about the
+     max-width. Username/Email are echoed back on a failed POST so a captcha or
+     validation error doesn't wipe what was typed. */}}
+<div class="container page-narrow" style="max-width:460px">
+    <section class="panelV2">
+        <header class="panel__header">
+            <h1 class="panel__heading">
+                <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#user"></use></svg>Create account
+            </h1>
+        </header>
+        <div class="panel__body">
+            {{if .Error}}
+            <p class="notice notice--danger mb-3">
+                <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+                <span>{{.Error}}</span>
+            </p>
+            {{end}}
+
+            <form class="form" method="post" action="/register">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                <div class="form__group">
+                    <label class="form__label" for="username">Username</label>
+                    <input class="form__input" id="username" type="text" name="username" value="{{.Username}}" autocomplete="username" autofocus>
+                </div>
+                <div class="form__group">
+                    <label class="form__label" for="email">Email <span class="text-muted">(optional)</span></label>
+                    <input class="form__input" id="email" type="email" name="email" value="{{.Email}}" autocomplete="email">
+                    <p class="form__help mt-1 mb-0">Used only for the verification link and password resets.</p>
+                </div>
+                <div class="form__group">
+                    <label class="form__label" for="password">Password</label>
+                    <input class="form__input" id="password" type="password" name="password" placeholder="at least 8 characters" autocomplete="new-password">
+                </div>
+                {{/* Empty unless Turnstile is configured — no wrapper, see login.html. */}}
+                {{captcha}}
+                <button class="form__button form__button--filled justify-content-center" type="submit">
+                    <svg class="icon" aria-hidden="true"><use href="#plus"></use></svg>Create account
+                </button>
+            </form>
+
+            <div class="section-rule mt-4 mb-3">Already registered?</div>
+            <a class="button button--outlined button--block" href="/login">Back to log in</a>
+        </div>
+    </section>
 </div>
 {{end}}

@@ -1,23 +1,123 @@
-{{define "content"}}
-<div class="container page" style="padding-inline:0">
-  {{if .Missing}}
-    <h1 class="h3">User not found</h1>
-    <p class="text-muted">No such user. <a href="/">Back home</a>.</p>
-  {{else}}
-    <div class="d-flex align-items-center mb-3">
-      <div>
-        <h1 class="h3 mb-0">{{.Subject.Username}}</h1>
-        {{if .Subject.Email}}<div class="text-muted small">{{.Subject.Email}}</div>{{end}}
-      </div>
-      {{if .IsSelf}}<a class="btn btn-sm btn-outline-secondary ms-auto" href="/p/account">Edit account</a>{{end}}
-    </div>
-    {{if .Widgets}}
-    <div class="widget-row">
-      {{range .Widgets}}<div class="card widget">{{.Fragment}}</div>{{end}}
-    </div>
+{{/* Public profile. Data: .Missing bool, .Subject *core.User (.ID .Username
+     .Email .Role .CreatedAt), .IsSelf bool, .Widgets []widgetVM.
+
+     The host owns ZERO profile content — every card in the main column is a
+     plugin SlotUserWidget fragment (loon-baseline profile summary, dailyreward
+     streak, pointstore flair), so the range below must stay.
+
+     Points / Unread / EmailUnverified are the VIEWER's values (render() injects
+     them), not the subject's, so they are only shown when .IsSelf. There is no
+     ratio, upload, download or reputation tier in this stack. */}}
+
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    {{if .Missing}}
+    <li class="breadcrumb--active">Not found</li>
     {{else}}
-    <p class="text-muted">This profile has nothing to show yet.</p>
+    <li class="breadcrumb--active">{{.Subject.Username}}</li>
     {{end}}
-  {{end}}
+</ol>
+{{end}}
+
+{{define "content"}}
+{{if .Missing}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#user"></use></svg>User not found</h1>
+    </header>
+    <div class="panel__body">
+        <p class="notice notice--warning">
+            <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+            <span>No such user. <a href="/">Back home</a>.</span>
+        </p>
+    </div>
+</section>
+{{else}}
+{{$h := hue .Subject.Username}}
+{{/* <aside> first in the DOM: it is the subject of the page, so it should be
+     read first and it must come first when the split stacks at 867px. */}}
+<div class="sidebar2">
+    <aside>
+        <section class="panelV2">
+            <div class="panel__body">
+                <div class="user-stat-card">
+                    {{/* No avatar exists anywhere in this stack (core.User has no
+                         image field), so the initials tile is the real state. */}}
+                    <span class="avatar avatar--lg user-stat-card__avatar poster--h{{$h}}">
+                        <span class="avatar__fallback">{{initials .Subject.Username}}</span>
+                    </span>
+                    <h1 class="user-stat-card__username">
+                        {{.Subject.Username}}
+                        {{/* Verified tick only for the viewer's own profile — the
+                             verification flag we have is the viewer's. */}}
+                        {{if and .IsSelf .Subject.Email (not .EmailUnverified)}}
+                        <svg class="icon user-stat-card__verified" aria-hidden="true"><use href="#verified"></use></svg>
+                        <span class="visually-hidden">Email verified</span>
+                        {{end}}
+                    </h1>
+                    <span class="user-stat-card__rank">{{roleName .Subject.Role}}</span>
+                    {{if not .Subject.CreatedAt.IsZero}}
+                    <p class="user-stat-card__stat">Member since {{shortDate .Subject.CreatedAt}}</p>
+                    {{end}}
+                    {{/* An address is only shown to its owner and to staff. */}}
+                    {{if and .Subject.Email (or .IsSelf .IsAdmin)}}
+                    <p class="user-stat-card__stat">{{.Subject.Email}}</p>
+                    {{end}}
+
+                    {{if .IsSelf}}
+                    {{/* Both tiles are the viewer's own real counters. Guard on
+                         HasPoints/HasUnread rather than the value, so a real 0
+                         still renders; the grid sizes to whatever is left. */}}
+                    {{if or .HasPoints .HasUnread}}
+                    <div class="stat-grid stat-grid--2">
+                        {{if .HasPoints}}
+                        <div class="stat-tile">
+                            <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#coin"></use></svg>
+                            <span class="stat-tile__label">Points</span>
+                            <span class="stat-tile__value">{{.Points}}</span>
+                        </div>
+                        {{end}}
+                        {{if .HasUnread}}
+                        <div class="stat-tile">
+                            <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#bell"></use></svg>
+                            <span class="stat-tile__label">Unread</span>
+                            <span class="stat-tile__value">{{.Unread}}</span>
+                        </div>
+                        {{end}}
+                    </div>
+                    {{end}}
+                    <a class="button button--outlined button--block" href="/p/account">
+                        <svg class="icon" aria-hidden="true"><use href="#settings"></use></svg>Edit account
+                    </a>
+                    {{end}}
+                </div>
+            </div>
+        </section>
+    </aside>
+
+    <div>
+        {{if .Widgets}}
+        {{/* Each fragment ships its own <div class="card-body"> + heading, so the
+             wrapper stays a Bootstrap-subset .card (padding collapses to 0 when
+             the fragment brings a card-body, and holds when it does not). */}}
+        <div class="grid grid--2">
+            {{range .Widgets}}<div class="card mb-0">{{.Fragment}}</div>{{end}}
+        </div>
+        {{else}}
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#user"></use></svg>Profile</h2>
+            </header>
+            <div class="panel__body">
+                <p class="notice">
+                    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+                    <span>This profile has nothing to show yet.</span>
+                </p>
+            </div>
+        </section>
+        {{end}}
+    </div>
 </div>
+{{end}}
 {{end}}

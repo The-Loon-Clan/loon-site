@@ -1,35 +1,165 @@
-{{template "fhead" .}}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 m-0">Forums</h1>
-    {{if .User}}<a class="btn btn-sm btn-primary" href="/community/forums/new">New thread</a>{{end}}
-</div>
-<p class="text-muted small">{{.TotalThreads}} thread(s) &middot; {{.TotalPosts}} post(s)</p>
+{{/* Forums index — UNIT3D's forum/index.blade.php shape, translated onto the
+     demo's design-system vocabulary: the subforum listing (forum | threads |
+     posts | latest post) in the main column, recent activity and top posters
+     in the aside.
 
-{{range .Categories}}
-<div class="card mb-2"><div class="card-body py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+     Rendered by the forum PLUGIN through gin's HTML set, so this is a FULL
+     document: it opens with {{template "fhead"}} and closes with
+     {{template "ffoot"}} from forum_chrome.html (owned by the shell agent).
+
+     Keys (forum plugin, Handlers.Forums + Deps.BaseData):
+       Categories   []*ForumCategory   — ALREADY see-gate filtered by the handler
+       Activity     []ForumActivityItem — already restricted to seeable categories
+       Contributors []ForumContributor  — post counts, all time
+       TotalThreads / TotalPosts int    — summed over the visible categories only
+       User / IsAdmin / IsMod / CSRFToken / Path
+
+     Honest labelling: Contributors is GetTopForumContributors — a POST tally,
+     not an upload tally, so the panel says "Top posters" and "N posts".
+
+     ForumCategory.Icon is a Bootstrap Icons name and .Color a palette key; the
+     demo ships neither the icons font nor a colour-keyed class, so every row
+     uses the sprite's #forums glyph rather than faking the admin's choice.
+
+     user_display.avatar_path is a literal '' everywhere in this stack, so the
+     initials tile IS the real state, not a placeholder. hue() buckets 0..7,
+     matching the CSS's .poster--h0…h7. */}}{{template "fhead" .}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumb--active">Forums</li>
+</ol>
+
+<div class="sidebar2">
     <div>
-        <a class="fw-bold" href="/community/forums/category/{{.ID}}">{{.Name}}</a>
-        <div class="text-muted small">{{.Description}}</div>
+        <section class="panelV2">
+            <header class="panel__header">
+                <h1 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#forums"></use></svg>
+                    Forums
+                    <span class="panel__grouping">{{.TotalThreads}} threads &middot; {{.TotalPosts}} posts</span>
+                </h1>
+                <div class="panel__actions">
+                    {{/* /admin/forum-categories is gated at RoleMod (plugin.go),
+                         so the link shows to the role that can actually use it. */}}
+                    {{if .IsMod}}<a class="panel__action" href="/admin/forum-categories">Manage</a>{{end}}
+                    {{if .User}}<a class="panel__action" href="/community/forums/new">New thread <svg class="icon icon--sm" aria-hidden="true"><use href="#plus"></use></svg></a>{{end}}
+                </div>
+            </header>
+            {{if .Categories}}
+            <div class="panel__body panel__body--flush">
+                <div class="data-table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Forum</th>
+                                <th class="data-table__num">Threads</th>
+                                <th class="data-table__num">Posts</th>
+                                <th>Latest post</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {{range .Categories}}
+                            <tr>
+                                <td>
+                                    <div class="data-table__name">
+                                        <svg class="icon data-table__name-icon" aria-hidden="true"><use href="#forums"></use></svg>
+                                        <div class="data-table__name-body">
+                                            <a class="data-table__title" href="/community/forums/category/{{.ID}}">{{.Name}}</a>
+                                            {{if .Description}}<div class="data-table__meta">{{.Description}}</div>{{end}}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="data-table__num">{{.ThreadCount}}</td>
+                                <td class="data-table__num">{{.PostCount}}</td>
+                                <td>
+                                    {{/* LastThreadID/Title/User are *T from a LATERAL
+                                         join — nil for an empty category, so every
+                                         one is guarded before it is dereferenced. */}}
+                                    {{if .LastThreadTitle}}
+                                    <div class="data-table__name-body">
+                                        <a class="data-table__title" href="/community/forums/thread/{{.LastThreadID}}">{{.LastThreadTitle}}</a>
+                                        <div class="data-table__meta">
+                                            {{if .LastPostUser}}<span>by {{.LastPostUser}}</span>{{end}}
+                                            {{if .LastPostAt}}<span>{{timeAgo .LastPostAt}}</span>{{end}}
+                                        </div>
+                                    </div>
+                                    {{else}}<span class="text-muted small">No posts yet</span>{{end}}
+                                </td>
+                            </tr>
+                        {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {{else}}
+            <div class="panel__body">
+                <p class="notice notice--info">
+                    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+                    No categories yet.{{if .IsMod}} Create some in the <a href="/admin/forum-categories">forum admin</a>.{{end}}
+                </p>
+            </div>
+            {{end}}
+        </section>
     </div>
-    <div class="text-end small text-muted">
-        {{.ThreadCount}} threads &middot; {{.PostCount}} posts
-        {{if .LastThreadTitle}}<br>latest: <a href="/community/forums/thread/{{.LastThreadID}}">{{.LastThreadTitle}}</a>{{if .LastPostUser}} by {{.LastPostUser}}{{end}}{{end}}
-    </div>
-</div></div>
-{{else}}
-<div class="empty">No categories yet.{{if .IsAdmin}} Create some at <a href="/admin/forum-categories">Forum admin</a>.{{end}}</div>
-{{end}}
 
-{{if .Activity}}
-<h2 class="h5 mt-4">Recent activity</h2>
-<ul class="list-unstyled small">
-    {{range .Activity}}<li><a href="/community/forums/thread/{{.ThreadID}}#post-{{.PostID}}">{{.ThreadTitle}}</a> &mdash; {{.Username}} &middot; {{.CreatedAt.Format "Jan 02 15:04"}}</li>{{end}}
-</ul>
-{{end}}
-{{if .Contributors}}
-<h2 class="h5 mt-3">Top contributors</h2>
-<ul class="list-unstyled small">
-    {{range .Contributors}}<li>{{.Username}} <span class="text-muted">({{.PostCount}} posts)</span></li>{{end}}
-</ul>
-{{end}}
+    <aside>
+        {{if .Activity}}
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#comment"></use></svg>
+                    Recent activity
+                </h2>
+            </header>
+            <div class="panel__body panel__body--flush">
+                <ul class="list-rows">
+                    {{range .Activity}}
+                    {{$h := hue .Username}}
+                    <li>
+                        <a class="list-row" href="/community/forums/thread/{{.ThreadID}}#post-{{.PostID}}">
+                            <span class="avatar avatar--sm poster--h{{$h}}"><span class="avatar__fallback">{{initials .Username}}</span></span>
+                            <span class="list-row__body">
+                                <span class="list-row__title">{{.ThreadTitle}}</span>
+                                <span class="list-row__meta">{{.Username}} &middot; {{timeAgo .CreatedAt}}</span>
+                            </span>
+                            <span class="list-row__trail"><svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg></span>
+                        </a>
+                    </li>
+                    {{end}}
+                </ul>
+            </div>
+        </section>
+        {{end}}
+
+        {{if .Contributors}}
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>
+                    Top posters
+                </h2>
+            </header>
+            <div class="panel__body panel__body--flush">
+                <ul class="list-rows">
+                    {{range $i, $c := .Contributors}}
+                    {{$h := hue $c.Username}}
+                    {{$rank := add $i 1}}
+                    <li>
+                        <span class="list-row">
+                            <span class="rank-chip{{if le $rank 3}} rank-chip--{{$rank}}{{end}}">{{$rank}}</span>
+                            <span class="avatar avatar--sm poster--h{{$h}}"><span class="avatar__fallback">{{initials $c.Username}}</span></span>
+                            <span class="list-row__body">
+                                <span class="list-row__title">{{$c.Username}}</span>
+                                {{if $c.Role}}<span class="list-row__meta">{{$c.Role}}</span>{{end}}
+                            </span>
+                            <span class="list-row__trail">{{$c.PostCount}} posts</span>
+                        </span>
+                    </li>
+                    {{end}}
+                </ul>
+            </div>
+        </section>
+        {{end}}
+    </aside>
+</div>
 {{template "ffoot" .}}

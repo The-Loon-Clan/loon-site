@@ -1,0 +1,910 @@
+/* Page frame: base element styling, the content-gutter formula, the sidebar2
+   split, top-nav, secondary-nav, stat strip and footer.
+
+   Loads after tokens.css and before components.css. Nothing here hardcodes a
+   colour — every value comes from tokens.css. Class names are UNIT3D's so
+   markup can be lifted from UNIT3D's blade templates with the classes intact. */
+
+/* ---------------------------------------------------------------- base ---- */
+
+html,
+body {
+    min-height: 100vh; /* with .footer's sticky trick, keeps the footer down */
+}
+
+body {
+    background: var(--body-bg);
+    color: var(--body-fg);
+    font-family: var(--font-sans);
+    /* Scrollbars in the page's own palette; the OS default is a bright seam on
+       a near-black canvas. */
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    scrollbar-width: thin;
+}
+
+body::-webkit-scrollbar,
+.data-table-wrapper::-webkit-scrollbar,
+.table-responsive::-webkit-scrollbar,
+.nav-tabsV2::-webkit-scrollbar,
+.panel__tabs::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+body::-webkit-scrollbar-thumb,
+.data-table-wrapper::-webkit-scrollbar-thumb,
+.table-responsive::-webkit-scrollbar-thumb,
+.nav-tabsV2::-webkit-scrollbar-thumb,
+.panel__tabs::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: var(--radius-pill);
+}
+
+body::-webkit-scrollbar-track,
+.data-table-wrapper::-webkit-scrollbar-track,
+.table-responsive::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+}
+
+a {
+    color: var(--link-fg);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+code {
+    color: var(--accent-2-tint);
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 1rem 0;
+}
+
+/* One visible focus treatment for the whole site. :focus-visible only, so mouse
+   users never see it but keyboard users always do. */
+:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: var(--radius-sm);
+}
+
+::selection {
+    background: var(--primary-soft-strong);
+    color: var(--text-strong);
+}
+
+/* Inline SVG sprite icons. Sized in em so an icon tracks its label's font-size,
+   and filled with currentColor so it inherits state (hover/active) for free. */
+.icon {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+    flex: none;
+    vertical-align: -0.125em;
+}
+
+.icon--sm { font-size: 0.75rem; }
+.icon--lg { font-size: 1.25rem; }
+.icon--xl { font-size: 1.75rem; }
+
+/* Accessible-but-invisible label text (icon-only buttons still need a name). */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* --------------------------------------------------------- main margin ---- */
+
+/* UNIT3D's formula: margins widen gently from phone → 600px → 1600px → 2500px
+   instead of clamping at a fixed max-width, so ultrawide displays stay usable.
+   .container (theme.css) overrides margin-inline by specificity, so the legacy
+   `<main class="container page">` pages are unaffected. */
+main,
+.main-margin {
+    margin: 0 var(--gutter);
+}
+
+main > article,
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+main > article {
+    width: 100%;
+}
+
+.stack--tight { gap: 0.5rem; }
+.stack--loose { gap: 1.5rem; }
+
+/* Generic n-up panel rows. minmax(0,1fr) (not 1fr) so a wide table inside a
+   column can't blow the grid out and push the page sideways. */
+.grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid--5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+@media only screen and (max-width: 1100px) {
+    .grid--4,
+    .grid--5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media only screen and (max-width: 867px) {
+    .grid--3,
+    .grid--4,
+    .grid--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media only screen and (max-width: 620px) {
+    .grid--2,
+    .grid--3,
+    .grid--4,
+    .grid--5 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ------------------------------------------------------------ sidebar2 ---- */
+
+/* UNIT3D's main + fixed 300px aside split. Stacks at 867px, same breakpoint. */
+.sidebar2 {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+}
+
+.sidebar2 > div,
+.sidebar2 > aside {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0; /* let a wide table scroll inside the column, not overflow it */
+}
+
+.sidebar2 > div {
+    flex-grow: 1;
+    max-width: calc(100% - 300px - 1rem);
+}
+
+.sidebar2 > aside {
+    flex-grow: 0;
+    width: 300px;
+}
+
+.sidebar--inverse {
+    flex-direction: row-reverse;
+}
+
+@media only screen and (max-width: 867px) {
+    .sidebar2 {
+        flex-direction: column;
+    }
+
+    .sidebar2 > div {
+        max-width: 100%;
+    }
+
+    .sidebar2 > aside {
+        flex-grow: 1;
+        width: 100%;
+    }
+}
+
+/* ------------------------------------------------------------- top nav ---- */
+
+/* Three tracks: branding | centred quick-search | icon bar + avatar. Padded
+   with --gutter so its contents line up with <main>'s. */
+.top-nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+    align-items: center;
+    column-gap: 24px;
+    padding: 10px var(--gutter);
+    background: var(--top-nav-bg);
+    border-bottom: var(--top-nav-border);
+    box-shadow: var(--top-nav-box-shadow);
+}
+
+.top-nav__left {
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    column-gap: 12px;
+    min-width: 0;
+}
+
+.top-nav__center {
+    grid-column: 2;
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+}
+
+.top-nav__right {
+    grid-column: 3;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    column-gap: 14px;
+    min-width: 0;
+}
+
+/* Branding: mark + wordmark + tagline underneath. */
+.top-nav__branding {
+    display: flex;
+    align-items: center;
+    column-gap: 10px;
+    color: var(--text-strong);
+    text-decoration: none;
+    min-width: 0;
+}
+
+.top-nav__branding:hover {
+    text-decoration: none;
+}
+
+.top-nav__site-logo {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex: none;
+    border-radius: 11px;
+    color: var(--primary-fg);
+    background: var(--button-filled-bg);
+    box-shadow: 0 6px 16px -8px var(--primary);
+    font-size: 1.25rem;
+}
+
+/* overflow:hidden + ellipsis, not just min-width:0 — the nowrap children below
+   would otherwise spill out of the grid track and scroll the whole page. */
+.top-nav__branding-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.top-nav__wordmark {
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.top-nav__wordmark span {
+    color: var(--primary-tint);
+}
+
+.top-nav__tagline {
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--top-nav-tagline-fg);
+    white-space: nowrap;
+}
+
+/* Icon bar (bell / envelope / bell). */
+.top-nav__icon-bar {
+    display: flex;
+    align-items: center;
+    column-gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.top-nav__icon-bar > li > a,
+.top-nav__icon-button {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    cursor: pointer;
+    border-radius: var(--top-nav-icon-bar-icon-border-radius);
+    background: var(--top-nav-icon-bar-icon-bg);
+    color: var(--top-nav-icon-bar-icon-fg);
+    text-decoration: none;
+}
+
+.top-nav__icon-bar > li > a:hover,
+.top-nav__icon-button:hover {
+    background: var(--top-nav-icon-bar-icon-hover-bg);
+    color: var(--top-nav-icon-bar-icon-hover-fg);
+    text-decoration: none;
+}
+
+/* Count bubble. Render the element only when the count is non-zero — an empty
+   bubble reads as a bug. */
+.top-nav__badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: var(--radius-pill);
+    background: var(--top-nav-badge-bg);
+    color: var(--top-nav-badge-fg);
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 17px;
+    text-align: center;
+    box-shadow: 0 0 0 2px var(--top-nav-bg);
+}
+
+/* Avatar menu trigger. */
+.top-nav__user-toggle {
+    display: flex;
+    align-items: center;
+    column-gap: 9px;
+    padding: 3px 8px 3px 3px;
+    border-radius: var(--radius-pill);
+    color: var(--text);
+    cursor: pointer;
+    list-style: none;
+}
+
+.top-nav__user-toggle::-webkit-details-marker { display: none; }
+.top-nav__user-toggle:hover { background: var(--surface-2); }
+
+.top-nav__user-names {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+    min-width: 0;
+}
+
+.top-nav__username {
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.top-nav__rank {
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted-2);
+    white-space: nowrap;
+}
+
+/* UNIT3D-verbatim hover dropdowns (li > a + ul). Kept alongside the <details>
+   .dropdown in components.css so lifted UNIT3D nav markup works unchanged;
+   prefer .dropdown for anything new — hover menus are unreachable on touch. */
+.top-nav__main-menus {
+    display: flex;
+    align-items: stretch;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.top-nav__dropdown {
+    position: relative;
+}
+
+.top-nav__dropdown > a {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 9px;
+    margin: 0 3px;
+    border-radius: var(--radius-sm);
+    color: var(--top-nav-dropdown-fg);
+    font-size: 0.9rem;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.top-nav__dropdown:hover > a,
+.top-nav__dropdown:focus-within > a {
+    color: var(--top-nav-dropdown-hover-fg);
+    background: var(--top-nav-dropdown-hover-bg);
+    text-decoration: none;
+}
+
+.top-nav__dropdown > ul {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 1000;
+    flex-direction: column;
+    row-gap: 2px;
+    min-width: 190px;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    background: var(--top-nav-dropdown-menu-bg);
+    border: var(--top-nav-dropdown-menu-border);
+    border-radius: var(--top-nav-dropdown-menu-border-radius);
+    box-shadow: var(--top-nav-dropdown-menu-box-shadow);
+}
+
+.top-nav__dropdown:hover > ul,
+.top-nav__dropdown:focus-within > ul {
+    display: flex;
+}
+
+/* Invisible bridge so the pointer can cross the gap into the menu. */
+.top-nav__dropdown > ul::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: 0;
+    width: 100%;
+    height: 6px;
+}
+
+.top-nav__dropdown > ul > li > a,
+.top-nav__dropdown > ul > li > form > button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 10px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--top-nav-dropdown-menu-item-bg);
+    color: var(--top-nav-dropdown-menu-item-fg);
+    font: inherit;
+    font-size: 0.88rem;
+    text-align: left;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.top-nav__dropdown > ul > li > a:hover,
+.top-nav__dropdown > ul > li > form > button:hover {
+    background: var(--top-nav-dropdown-menu-item-hover-bg);
+    text-decoration: none;
+}
+
+.top-nav__dropdown form { display: contents; }
+
+/* Mobile drawer. A <details> so it works with zero JS. */
+.top-nav__drawer { position: relative; }
+
+.top-nav__toggle {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--top-nav-icon-bar-icon-border-radius);
+    background: var(--top-nav-icon-bar-icon-bg);
+    color: var(--top-nav-icon-bar-icon-fg);
+    cursor: pointer;
+    list-style: none;
+}
+
+.top-nav__toggle::-webkit-details-marker { display: none; }
+
+.top-nav__drawer-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: max(220px, 60vw);
+    padding: 8px;
+    background: var(--top-nav-dropdown-menu-bg);
+    border: var(--top-nav-dropdown-menu-border);
+    border-radius: var(--top-nav-dropdown-menu-border-radius);
+    box-shadow: var(--top-nav-dropdown-menu-box-shadow);
+}
+
+.top-nav__drawer-panel a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.92rem;
+    text-decoration: none;
+}
+
+.top-nav__drawer-panel a:hover {
+    background: var(--top-nav-dropdown-menu-item-hover-bg);
+    text-decoration: none;
+}
+
+/* The drawer only exists below the secondary-nav's comfortable width. */
+@media only screen and (min-width: 868px) {
+    .top-nav__drawer { display: none; }
+}
+
+/* Below 940px the centred search would squeeze the branding; drop it and let
+   the SEARCH nav item carry the job (UNIT3D hides .quick-search the same way). */
+@media only screen and (max-width: 940px) {
+    .top-nav {
+        grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+        column-gap: 12px;
+    }
+
+    .top-nav__center { display: none; }
+    .top-nav__right { grid-column: 2; }
+}
+
+@media only screen and (max-width: 620px) {
+    .top-nav__tagline { display: none; }
+    .top-nav__user-names { display: none; }
+    .top-nav__icon-bar { column-gap: 4px; }
+}
+
+/* ------------------------------------------------------- secondary nav ---- */
+
+/* The icon+label main nav row. Scrolls horizontally rather than wrapping, so a
+   long plugin nav never doubles the header height or forces a page-wide scroll. */
+.secondary-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 0 var(--gutter);
+    background: var(--secondary-nav-bg);
+    box-shadow: var(--secondary-nav-box-shadow);
+}
+
+/* Wraps rather than scrolls, unlike UNIT3D's. The site nav carries the plugin
+   SiteNav dropdowns, and an overflow-x scroller clips their absolutely
+   positioned menus — a second nav line on a phone is the cheaper trade.
+   Use .nav-tabsV2--scroll for a nav that is links only. */
+.nav-tabsV2 {
+    all: unset;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    list-style: none;
+    max-width: 100%;
+    min-width: 0; /* flex item must be allowed to shrink or it scrolls the page */
+}
+
+.nav-tabsV2--scroll {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.nav-tabsV2--scroll::-webkit-scrollbar { display: none; }
+
+/* UNIT3D's <li>s inside .nav-tabsV2 carry no class, so the child selector is
+   what makes lifted markup work; .nav-tab is this port's own li hook and is
+   kept as an alias so both spellings render the same. */
+.nav-tabsV2 > li,
+.nav-tab {
+    display: flex;
+    align-items: stretch;
+}
+
+.nav-tab__link,
+.nav-tab--active__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 12px 14px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: var(--secondary-nav-tab-bg);
+    color: var(--secondary-nav-tab-fg);
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.nav-tab__link:hover,
+.nav-tab--active__link:hover {
+    color: var(--secondary-nav-tab-hover-fg);
+    background: var(--secondary-nav-tab-hover-bg);
+    text-decoration: none;
+}
+
+/* Active state is the accent underline from the mockup. Sits on the element's
+   own border-bottom (not text-decoration) so the icon is underlined too. */
+.nav-tab--active__link {
+    color: var(--secondary-nav-tab-active-fg);
+    border-bottom-color: var(--secondary-nav-tab-active-underline);
+}
+
+.nav-tab__icon {
+    font-size: 0.95rem;
+    opacity: 0.85;
+}
+
+.secondary-nav__end {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: none;
+}
+
+@media only screen and (max-width: 867px) {
+    .secondary-nav__end { display: none; }
+}
+
+/* Breadcrumbs (UNIT3D names) — used by the deeper plugin pages. */
+.breadcrumbsV2 {
+    all: unset;
+    display: flex;
+    align-items: center;
+    list-style: none;
+    font-size: 0.85rem;
+    overflow-x: hidden;
+    max-width: 100%;
+}
+
+.breadcrumbV2,
+.breadcrumb--active {
+    margin: 5px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--muted);
+}
+
+.breadcrumbV2:not(:first-child)::before,
+.breadcrumb--active:not(:first-child)::before {
+    content: "/";
+    opacity: 0.5;
+    padding: 0 0.5ch;
+}
+
+.breadcrumb--active { color: var(--text); }
+.breadcrumb__link { color: var(--link-fg); }
+
+/* --------------------------------------------------------- stat strip ----- */
+
+/* Thin full-width band of icon + LABEL: VALUE pairs. Only render tiles you can
+   populate from real data — an unpopulated slot is worse than a missing one. */
+.stat-strip {
+    padding: 0 var(--gutter);
+    background: var(--stat-strip-bg);
+    border-bottom: var(--stat-strip-border);
+}
+
+.stat-strip__items {
+    display: flex;
+    align-items: center;
+    gap: 8px 28px;
+    margin: 0;
+    padding: 8px 0;
+    list-style: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.stat-strip__items::-webkit-scrollbar { display: none; }
+
+.stat-strip__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.stat-strip__icon {
+    color: var(--stat-strip-icon-fg);
+    font-size: 0.9rem;
+}
+
+.stat-strip__label {
+    color: var(--stat-strip-label-fg);
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+}
+
+.stat-strip__value {
+    color: var(--stat-strip-value-fg);
+    font-weight: 700;
+}
+
+.stat-strip__item--end { margin-left: auto; }
+
+/* ------------------------------------------------------------- footer ----- */
+
+/* position:sticky + top:100vh is the CSS-only sticky footer: it stays at the
+   bottom of short pages without a flex wrapper around the whole document. */
+.footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: sticky;
+    top: 100vh;
+    margin-top: 2.5rem;
+    padding: 2.5rem var(--gutter) 1rem;
+    background: var(--footer-bg);
+    border-top: 1px solid var(--footer-hr-fg);
+    color: var(--footer-fg);
+    font-size: 0.85rem;
+}
+
+.footer a,
+.footer button {
+    color: var(--footer-link-fg);
+}
+
+.footer a:hover {
+    color: var(--footer-link-hover-fg);
+}
+
+.footer__wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 2rem 3rem;
+    width: 100%;
+}
+
+.footer__section {
+    flex: 1 1 150px;
+    min-width: 0;
+}
+
+/* The brand column carries the logo + tagline and gets the extra width. */
+.footer__section:first-child {
+    flex: 2 1 260px;
+}
+
+.footer__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0.6rem;
+    color: var(--text-strong);
+}
+
+.footer__tagline {
+    margin: 0;
+    max-width: 42ch;
+    color: var(--muted-2);
+}
+
+.footer__section-title {
+    margin: 0 0 0.9rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--footer-heading-fg);
+}
+
+.footer__section-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.85rem;
+}
+
+.footer__newsletter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+    background: var(--input-bg);
+    border: var(--input-border);
+    border-radius: var(--radius-pill);
+}
+
+.footer__newsletter:focus-within {
+    border-color: var(--primary);
+}
+
+/* Doubled class: theme.css styles bare `input[type=email]` (0,1,1) and loads
+   after this file, so a single class would lose the transparent background. */
+.footer__newsletter-input.footer__newsletter-input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    padding: 6px 10px;
+    border: 0;
+    background: transparent;
+    color: var(--input-fg);
+    font: inherit;
+    font-size: 0.85rem;
+}
+
+.footer__newsletter-input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.footer__newsletter-button {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    border: var(--button-filled-border);
+    border-radius: 50%;
+    background: var(--button-filled-bg);
+    color: var(--button-filled-fg);
+    cursor: pointer;
+}
+
+.footer__socials {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.footer__social {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    background: var(--footer-social-bg);
+    color: var(--footer-social-fg);
+}
+
+.footer__social:hover {
+    background: var(--footer-social-hover-bg);
+    color: var(--footer-social-hover-fg);
+}
+
+.footer__sub-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem 1.5rem;
+    width: 100%;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--footer-hr-fg);
+    font-size: 0.75rem;
+    color: var(--muted-2);
+}
+
+.footer__copyright,
+.footer__stats {
+    margin: 0;
+    text-align: center;
+}
+
+.footer__icons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}

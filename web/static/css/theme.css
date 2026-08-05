@@ -1,114 +1,240 @@
-/* Dark theme for the loon demo indexer. Implements the small subset of
-   Bootstrap-style classes the loon admin pages use (container/table/badge/
-   btn/alert/text-*), plus the demo's own layout (navbar/footer/cards/search).
-   Loads after bootstrap.min.css + tokens.css. */
+/* Compatibility layer: the Bootstrap-shaped classes the loon admin pages and
+   the plugin templates render against, plus the demo's own older widgets
+   (nav-bar, card, cov-bar, job-group, group-list…).
 
-body { background: var(--bg); color: var(--text); }
-a { color: var(--info); text-decoration: none; }
-a:hover { text-decoration: underline; }
-code { color: #a5d6ff; background: rgba(110, 118, 129, .15); padding: .1em .35em; border-radius: 4px; font-size: .9em; }
+   Loads LAST so its utilities (.mb-3, .text-muted, .w-100 …) win over the
+   component defaults in components.css — that is what a utility layer is for.
 
-/* containers + width tiers */
+   Two rules govern edits here:
+     1. Nothing in this file may be deleted without grepping the loon admin and
+        plugin templates first. Removing a class here breaks /admin/* silently.
+     2. No literal colours — everything resolves through tokens.css, so the
+        admin pages re-theme with the rest of the site. */
+
+/* ------------------------------------------------- containers + widths ---- */
+
 .container { width: 100%; margin-inline: auto; padding-inline: 1rem; }
 .container.page, .page { max-width: 1200px; }
 .container.page-narrow, .page-narrow { max-width: 880px; }
 .container.page-wide, .page-wide { max-width: 1400px; }
 
-/* spacing / text utilities the admin pages rely on */
-.py-4 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
-.py-0 { padding-top: 0; padding-bottom: 0; }
-.mt-3 { margin-top: 1rem; } .mt-4 { margin-top: 1.5rem; }
-.mb-2 { margin-bottom: .5rem; } .mb-3 { margin-bottom: 1rem; } .mb-4 { margin-bottom: 1.5rem; }
-.me-2 { margin-right: .5rem; }
-.text-end { text-align: right; }
-.text-muted { color: var(--muted); }
-.text-danger { color: var(--danger); }
-.text-info { color: var(--info); }
-.text-light { color: var(--text); }
-.text-dark { color: #0d1117; }
-.small { font-size: .85em; }
-.bg-dark { background: var(--bg); }
-.d-inline { display: inline; }
-.h3 { font-size: 1.5rem; } .h5 { font-size: 1.15rem; }
+/* ------------------------------------------------------------- badges ----- */
 
-/* navbar */
-.nav-bar { background: var(--surface); border-bottom: 1px solid var(--border); }
-.nav-bar .inner { max-width: 1200px; margin-inline: auto; display: flex; align-items: center; gap: 1.25rem; padding: .75rem 1rem; }
-.nav-bar .brand { font-weight: 700; font-size: 1.15rem; color: var(--text); }
-.nav-bar .brand span { color: var(--primary); }
-.nav-bar nav { display: flex; gap: 1rem; flex: 1; }
-.nav-bar nav a { color: var(--muted); padding: .25rem 0; }
-.nav-bar nav a.active, .nav-bar nav a:hover { color: var(--text); text-decoration: none; }
-.nav-bar .user { color: var(--muted); font-size: .9rem; }
+.badge {
+    display: inline-block;
+    padding: .2em .5em;
+    font-size: .72rem;
+    font-weight: 600;
+    border-radius: 6px;
+    background: var(--surface-3);
+    color: var(--text);
+}
 
-/* nav dropdowns (plugin site pages grouped by NavHint) — native <details>, no JS */
-.nav-dd { position: relative; }
-.nav-dd > summary { list-style: none; cursor: pointer; color: var(--muted); padding: .25rem 0; }
-.nav-dd > summary::-webkit-details-marker { display: none; }
-.nav-dd > summary::after { content: "▾"; margin-left: .25rem; font-size: .8em; }
-.nav-dd > summary:hover, .nav-dd[open] > summary { color: var(--text); }
-.nav-dd-menu { position: absolute; top: 100%; left: 0; z-index: 30; margin-top: .35rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .35rem; min-width: 170px; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
-.nav-bar nav .nav-dd-menu a { display: block; color: var(--muted); padding: .35rem .55rem; border-radius: 4px; white-space: nowrap; }
-.nav-bar nav .nav-dd-menu a:hover, .nav-bar nav .nav-dd-menu a.active { color: var(--text); background: var(--surface-2); }
+/* ------------------------------------------------------------ buttons ----- */
 
-/* footer */
-.site-footer { border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem; padding: 1.5rem 1rem; text-align: center; margin-top: 2rem; }
+.btn {
+    display: inline-block;
+    padding: .4rem .8rem;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: var(--surface-3);
+    color: var(--text);
+    cursor: pointer;
+    font-size: .9rem;
+    text-decoration: none;
+}
+.btn:hover { filter: brightness(1.15); text-decoration: none; }
+.btn-sm { padding: .2rem .5rem; font-size: .8rem; }
+.btn-primary { background: var(--primary); border-color: var(--primary-strong); color: var(--primary-fg); }
+.btn-secondary { background: var(--surface-3); border-color: var(--border-strong); color: var(--text); }
+.btn-success { background: var(--success); border-color: var(--success); color: var(--bg); }
+.btn-outline-primary { border-color: var(--primary); color: var(--primary-tint); background: transparent; }
+.btn-outline-primary:hover { background: var(--primary); color: var(--primary-fg); }
+.btn-outline-secondary { border-color: var(--border-strong); color: var(--muted); background: transparent; }
+.btn-outline-secondary:hover { background: var(--surface-3); color: var(--text); }
+.btn-outline-info { border-color: var(--info); color: var(--info-tint); background: transparent; }
+.btn-outline-info:hover { background: var(--info); color: var(--bg); }
+.btn-outline-danger { border-color: var(--danger); color: var(--danger); background: transparent; }
+.btn-outline-danger:hover { background: var(--danger); color: var(--text-strong); }
+.btn-outline-warning { border-color: var(--warning); color: var(--warning); background: transparent; }
+.btn-outline-warning:hover { background: var(--warning); color: var(--bg); }
 
-/* cards */
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+/* ------------------------------------------------------------- alerts ----- */
+
+.alert {
+    padding: .75rem 1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    margin-bottom: 1rem;
+}
+.alert-secondary { background: var(--surface); color: var(--muted); }
+.alert-success { border-color: var(--success-soft); color: var(--success); }
+.alert-warning { border-color: var(--warning-soft); color: var(--warning); }
+.alert-danger { border-color: var(--danger-soft); color: var(--danger); }
+
+/* -------------------------------------------------------------- cards ----- */
+
+/* Legacy demo markup drops content straight into .card with no .card-body, so
+   the padding lives on the card; cards that DO bring their own sections give it
+   up, otherwise the content is padded twice. */
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+}
+.card:has(> .card-header), .card:has(> .card-body) { padding: 0; }
 .card h2 { font-size: 1.1rem; }
+.card-header {
+    padding: .7rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: var(--surface-2);
+    font-weight: 600;
+    font-size: .95rem;
+}
+.card-body { padding: 1rem 1.25rem; }
+.card-title { font-size: 1rem; font-weight: 600; }
 
-/* tables */
+/* -------------------------------------------------------------- tables ---- */
+
 .table-responsive { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; color: var(--text); }
 .table th, .table td { padding: .5rem .6rem; border-bottom: 1px solid var(--border); text-align: left; }
 .table thead th { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; }
 .table-sm th, .table-sm td { padding: .35rem .5rem; }
-.table-striped tbody tr:nth-child(odd) { background: rgba(255, 255, 255, .02); }
+.table-striped tbody tr:nth-child(odd) { background: var(--row-stripe); }
+.table-dark { background: var(--surface); }
 .align-middle td, .align-middle th { vertical-align: middle; }
 
-/* badges */
-.badge { display: inline-block; padding: .2em .5em; font-size: .72rem; font-weight: 600; border-radius: 6px; background: var(--surface-2); color: var(--text); }
-.bg-secondary { background: var(--surface-2); }
-.bg-warning { background: var(--warning); }
-.bg-success { background: var(--success); }
+/* --------------------------------------------------------------- forms ---- */
 
-/* buttons */
-.btn { display: inline-block; padding: .4rem .8rem; border-radius: 6px; border: 1px solid transparent; background: var(--surface-2); color: var(--text); cursor: pointer; font-size: .9rem; text-decoration: none; }
-.btn:hover { filter: brightness(1.15); text-decoration: none; }
-.btn-sm { padding: .2rem .5rem; font-size: .8rem; }
-.btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-.btn-outline-primary { border-color: var(--primary); color: var(--info); background: transparent; }
-.btn-outline-primary:hover { background: var(--primary); color: #fff; }
-.btn-outline-secondary { border-color: var(--border); color: var(--muted); background: transparent; }
-.btn-outline-secondary:hover { background: var(--surface-2); color: var(--text); }
-
-/* alerts */
-.alert { padding: .75rem 1rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); margin-bottom: 1rem; }
-.alert-secondary { background: var(--surface); color: var(--muted); }
-
-/* forms + search */
-input[type=text], input[type=search], input[type=password], .form-control { width: 100%; padding: .55rem .75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 1rem; }
-input:focus, .form-control:focus { outline: none; border-color: var(--primary); }
-label { display: block; margin-bottom: .35rem; color: var(--muted); font-size: .9rem; }
+input[type=text], input[type=search], input[type=password], input[type=email],
+input[type=number], input[type=url], textarea, select,
+.form-control, .form-select {
+    width: 100%;
+    padding: .55rem .75rem;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 1rem;
+}
+input:focus, textarea:focus, select:focus,
+.form-control:focus, .form-select:focus { outline: none; border-color: var(--primary); }
+input::placeholder, textarea::placeholder { color: var(--input-placeholder-fg); }
+.form-control-sm, .form-select-sm { padding: .3rem .5rem; font-size: .85rem; }
+label, .form-label { display: block; margin-bottom: .35rem; color: var(--muted); font-size: .9rem; }
+.form-text { font-size: .8rem; color: var(--muted-2); }
+.form-check { display: flex; align-items: center; gap: .4rem; margin-bottom: .25rem; }
+.form-check-input { width: auto; margin: 0; }
+.form-check-label { display: inline; margin: 0; color: var(--text); font-size: .9rem; }
+.form-switch .form-check-input { width: 2.2em; height: 1.2em; }
 .search-box { display: flex; gap: .5rem; margin: 1rem 0; }
 .search-box input { flex: 1; }
 
-/* groups list */
-.group-list { columns: 3; column-gap: 1.5rem; }
-.group-list a { display: block; padding: .15rem 0; color: var(--info); break-inside: avoid; }
+/* --------------------------------------------------------- nav + tabs ----- */
 
-/* home widgets (plugin site.widget cards) */
+/* Bootstrap pill/tab navs used by the usenet + jobs admin pages. NOTE: .tab-pane
+   is deliberately NOT hidden — this site ships no Bootstrap JS, so hiding the
+   inactive panes would make their content unreachable. */
+.nav { display: flex; flex-wrap: wrap; margin: 0; padding: 0; list-style: none; }
+.nav-item { display: flex; }
+.nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .4rem .8rem;
+    border-radius: 6px;
+    color: var(--muted);
+    text-decoration: none;
+    cursor: pointer;
+}
+.nav-link:hover { color: var(--text); text-decoration: none; }
+.nav-pills .nav-link.active { background: var(--primary); color: var(--primary-fg); }
+.nav.tabs { flex-wrap: nowrap; overflow-x: auto; border-bottom: 1px solid var(--border); }
+.tab-count {
+    display: inline-block;
+    padding: 0 .35em;
+    border-radius: var(--radius-pill);
+    background: var(--surface-3);
+    color: var(--muted);
+    font-size: .7rem;
+}
+.tab-content { margin-top: .5rem; }
+
+/* ----------------------------------------------------------- progress ----- */
+
+.progress {
+    display: flex;
+    height: 10px;
+    overflow: hidden;
+    border-radius: var(--radius-pill);
+    background: var(--surface-3);
+}
+.progress-bar {
+    display: block;
+    height: 100%;
+    background: var(--primary);
+    color: var(--primary-fg);
+    font-size: .7rem;
+    text-align: center;
+    white-space: nowrap;
+}
+.progress-bar-striped {
+    background-image: linear-gradient(45deg, var(--stripe-ink) 25%, transparent 25%, transparent 50%, var(--stripe-ink) 50%, var(--stripe-ink) 75%, transparent 75%, transparent);
+    background-size: 1rem 1rem;
+}
+.progress-bar-animated { animation: progress-bar-stripes 1s linear infinite; }
+@keyframes progress-bar-stripes { from { background-position: 1rem 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .progress-bar-animated { animation: none; } }
+
+/* -------------------------------------------------- legacy demo chrome ---- */
+
+/* base.html's old header/footer. Still rendered by the forum plugin's
+   forum_chrome.html, which hand-duplicates base.html's header — keep both
+   working until that file is migrated to .top-nav. */
+.nav-bar { background: var(--surface); border-bottom: 1px solid var(--border); }
+.nav-bar .inner { max-width: 1200px; margin-inline: auto; display: flex; align-items: center; gap: 1.25rem; padding: .75rem 1rem; }
+.nav-bar .brand { font-weight: 700; font-size: 1.15rem; color: var(--text); }
+.nav-bar .brand span { color: var(--primary-tint); }
+.nav-bar nav { display: flex; gap: 1rem; flex: 1; }
+.nav-bar nav a { color: var(--muted); padding: .25rem 0; }
+.nav-bar nav a.active, .nav-bar nav a:hover { color: var(--text); text-decoration: none; }
+.nav-bar .user { color: var(--muted); font-size: .9rem; }
+
+/* Plugin site pages grouped by NavHint — native <details>, no JS. */
+.nav-dd { position: relative; }
+.nav-dd > summary { list-style: none; cursor: pointer; color: var(--muted); padding: .25rem 0; }
+.nav-dd > summary::-webkit-details-marker { display: none; }
+.nav-dd > summary::after { content: "▾"; margin-left: .25rem; font-size: .8em; }
+.nav-dd > summary:hover, .nav-dd[open] > summary { color: var(--text); }
+.nav-dd-menu { position: absolute; top: 100%; left: 0; z-index: 30; margin-top: .35rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .35rem; min-width: 170px; box-shadow: var(--shadow-lg); }
+.nav-bar nav .nav-dd-menu a { display: block; color: var(--muted); padding: .35rem .55rem; border-radius: 4px; white-space: nowrap; }
+.nav-bar nav .nav-dd-menu a:hover, .nav-bar nav .nav-dd-menu a.active { color: var(--text); background: var(--surface-2); }
+
+.site-footer { border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem; padding: 1.5rem 1rem; text-align: center; margin-top: 2rem; }
+
+/* Groups index: three columns of links. */
+.group-list { columns: 3; column-gap: 1.5rem; }
+.group-list a { display: block; padding: .15rem 0; color: var(--link-fg); break-inside: avoid; }
+
+/* Plugin site.widget cards on the home page. */
 .widget-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 320px)); gap: 1rem; margin-bottom: 1.25rem; }
 .widget-row .widget h2 { font-size: .95rem; color: var(--muted); margin-bottom: .5rem; }
 
-/* hero + empty states */
+/* Simple page hero (browse/search headers) — distinct from .hero-banner. */
 .hero { padding: 2rem 0 1rem; }
 .hero h1 { font-size: 2rem; }
 .hero p { color: var(--muted); max-width: 60ch; }
+
 .empty { color: var(--muted); padding: 2rem; text-align: center; border: 1px dashed var(--border); border-radius: var(--radius); }
 
-/* collapsible job groups */
+/* Collapsible job groups (admin jobs page). */
 details.job-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: .6rem; }
 details.job-group > summary { padding: .7rem 1rem; cursor: pointer; display: flex; align-items: center; gap: .5rem; list-style: none; }
 details.job-group > summary::-webkit-details-marker { display: none; }
@@ -118,14 +244,14 @@ details.job-group[open] > summary::before { transform: rotate(90deg); }
 .job-group-body { padding: .5rem 1rem; }
 .job-group-body .table-responsive { margin-bottom: 0; }
 
-/* coverage bar (crawler page): pending backfill / indexed / new */
-.cov-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--surface-2); min-width: 120px; }
+/* Coverage bar (crawler page): pending backfill / indexed / new. */
+.cov-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--surface-3); min-width: 120px; }
 .cov-bar span { display: block; height: 100%; }
 .cov-back { background: var(--warning); }
 .cov-have { background: var(--success); }
 .cov-new { background: var(--info); }
 .cov-skip { background: transparent; } /* backfill done: span below is past retention, not "todo" */
-.cov-unknown { background: var(--surface-2); width: 100%; }
+.cov-unknown { background: var(--surface-3); width: 100%; }
 .cov-legend { display: flex; gap: 1.25rem; font-size: .8rem; color: var(--muted); margin: .3rem 0 .8rem; flex-wrap: wrap; }
 .cov-legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: .3rem; vertical-align: middle; }
 
@@ -134,12 +260,106 @@ details.job-group[open] > summary::before { transform: rotate(90deg); }
    has left holes; these cells are the ranges actually fetched. Fixed cell count,
    so a heavily fragmented group costs no more markup than a clean one. */
 .cov-cells { display: flex; gap: 1px; height: 6px; margin-top: 3px; min-width: 120px; }
-.cov-cells i { flex: 1 1 0; border-radius: 1px; background: var(--surface-2); }
-.cov-cells .cc1 { background: color-mix(in srgb, var(--success) 30%, var(--surface-2)); }
-.cov-cells .cc2 { background: color-mix(in srgb, var(--success) 60%, var(--surface-2)); }
+.cov-cells i { flex: 1 1 0; border-radius: 1px; background: var(--surface-3); }
+.cov-cells .cc1 { background: color-mix(in srgb, var(--success) 30%, var(--surface-3)); }
+.cov-cells .cc2 { background: color-mix(in srgb, var(--success) 60%, var(--surface-3)); }
 .cov-cells .cc3 { background: var(--success); }
+/* The crawler page pairs the cell strip with its percentage; both shipped
+   unstyled before, so the strip stacked above the caption. */
+.cov-line { display: flex; align-items: center; gap: .5rem; }
+.cov-line .cov-cells { flex: 1; margin-top: 0; }
+.cov-pct { font-size: .78rem; color: var(--muted); white-space: nowrap; }
 
 @media (max-width: 800px) {
     .group-list { columns: 1; }
     .nav-bar nav { gap: .6rem; }
 }
+
+/* ---------------------------------------------------------- utilities ---- */
+/* Deliberately the LAST thing in the last stylesheet. .badge.bg-danger,
+   .card.mb-0 and friends are same-specificity collisions, so the utility
+   only wins by being declared after the component it modifies. */
+
+/* Spacing. Kept to the exact set the templates use — grep before adding. */
+.m-0 { margin: 0; }
+.mt-1 { margin-top: .25rem; } .mt-2 { margin-top: .5rem; } .mt-3 { margin-top: 1rem; } .mt-4 { margin-top: 1.5rem; }
+.mb-0 { margin-bottom: 0; } .mb-1 { margin-bottom: .25rem; } .mb-2 { margin-bottom: .5rem; } .mb-3 { margin-bottom: 1rem; } .mb-4 { margin-bottom: 1.5rem; }
+.me-1 { margin-right: .25rem; } .me-2 { margin-right: .5rem; }
+.ms-1 { margin-left: .25rem; } .ms-2 { margin-left: .5rem; } .ms-3 { margin-left: 1rem; } .ms-auto { margin-left: auto; }
+.my-1 { margin-block: .25rem; } .my-2 { margin-block: .5rem; } .my-3 { margin-block: 1rem; }
+.p-2 { padding: .5rem; }
+.px-2 { padding-inline: .5rem; }
+.ps-2 { padding-left: .5rem; }
+.pt-0 { padding-top: 0; }
+.py-0 { padding-block: 0; } .py-1 { padding-block: .25rem; } .py-2 { padding-block: .5rem; } .py-4 { padding-block: 1.5rem; }
+
+/* Display + flexbox. */
+.d-flex { display: flex; }
+.d-block { display: block; }
+.d-inline { display: inline; }
+.d-none { display: none; }
+.flex-column { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-grow-1 { flex-grow: 1; }
+.align-items-center { align-items: center; }
+.align-items-baseline { align-items: baseline; }
+.align-items-end { align-items: flex-end; }
+.align-self-center { align-self: center; }
+.justify-content-between { justify-content: space-between; }
+.justify-content-center { justify-content: center; }
+.justify-content-end { justify-content: flex-end; }
+.gap-1 { gap: .25rem; } .gap-2 { gap: .5rem; } .gap-3 { gap: 1rem; }
+.w-100 { width: 100%; }
+
+/* Bootstrap's 12-column grid, flex flavour. The plugin admin pages were written
+   against it; without these the columns stack and the settings pages sprawl. */
+.row { display: flex; flex-wrap: wrap; margin-inline: -.5rem; }
+.row > * { flex-shrink: 0; width: 100%; max-width: 100%; padding-inline: .5rem; }
+.g-2 { row-gap: .5rem; } .g-3 { row-gap: 1rem; }
+.col { flex: 1 0 0; width: auto; }
+.col-12 { width: 100%; }
+@media (min-width: 576px) {
+    .col-sm-4 { width: 33.3333%; }
+    .col-sm-8 { width: 66.6667%; }
+}
+@media (min-width: 768px) {
+    .col-md-1 { width: 8.3333%; }
+    .col-md-2 { width: 16.6667%; }
+    .col-md-3 { width: 25%; }
+    .col-md-4 { width: 33.3333%; }
+    .col-md-6 { width: 50%; }
+}
+
+/* Text. */
+.text-start { text-align: left; }
+.text-center { text-align: center; }
+.text-end { text-align: right; }
+.text-nowrap { white-space: nowrap; }
+.text-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.text-decoration-none { text-decoration: none; }
+.text-muted { color: var(--muted); }
+.text-danger { color: var(--danger); }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-info { color: var(--info); }
+.text-primary { color: var(--primary-tint); }
+.text-light { color: var(--text); }
+.text-dark { color: var(--bg); }
+.fw-bold { font-weight: 700; }
+.small { font-size: .85em; }
+.h3 { font-size: 1.5rem; } .h4 { font-size: 1.3rem; } .h5 { font-size: 1.15rem; } .h6 { font-size: 1rem; }
+.list-unstyled { list-style: none; padding-left: 0; margin: 0; }
+
+/* Backgrounds + borders. */
+.bg-dark { background: var(--bg); }
+.bg-secondary { background: var(--surface-3); }
+.bg-primary { background: var(--primary); color: var(--primary-fg); }
+.bg-info { background: var(--info); color: var(--bg); }
+.bg-warning { background: var(--warning); color: var(--bg); }
+.bg-success { background: var(--success); color: var(--bg); }
+.bg-danger { background: var(--danger); color: var(--text-strong); }
+.border-top { border-top: 1px solid var(--border); }
+.border-bottom { border-bottom: 1px solid var(--border); }
+.border-start { border-left: 1px solid var(--border); }
+.border-secondary { border-color: var(--border-strong) !important; }
+

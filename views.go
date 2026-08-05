@@ -4,6 +4,8 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"fmt"
+	"hash/fnv"
 	"html/template"
 	"io/fs"
 	"log/slog"
@@ -12,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
 
@@ -32,7 +35,27 @@ import (
 )
 
 //go:embed web/templates web/static
-var webFS embed.FS
+var embeddedFS embed.FS
+
+// siteFS is where templates and static assets are read from. Normally that is
+// the embedded copy, so the runtime image needs nothing but the binary (the
+// Dockerfile ships distroless — there IS no web/ directory in the container).
+// LOON_DEMO_DEV=1 swaps in the working tree instead and makes render() re-parse
+// per request, so a template or stylesheet edit shows on refresh with no
+// rebuild. os.DirFS(".") means the process must run from the repo root, which
+// both `go run .` and the compose dev mount already satisfy.
+var siteFS fs.FS = embeddedFS
+
+// devReload reports whether templates are re-read from disk on every render.
+// Off by default: the cost is a full parse per request, and a parse error
+// becomes a page instead of a boot panic — right for a dev loop, wrong for prod.
+var devReload = os.Getenv("LOON_DEMO_DEV") == "1"
+
+func init() {
+	if devReload {
+		siteFS = os.DirFS(".")
+	}
+}
 
 // web is the demo's host-side HTTP surface: templates, static assets,
 // username+password login + registration, and the public pages. The whole auth
@@ -42,18 +65,18 @@ var webFS embed.FS
 // Users live in a real Postgres table (loon-baseline users.PGStore), seeded
 // with alice/bob (password == username).
 type web struct {
-	store     users.Store     // loon-baseline user store (Postgres reference impl)
-	flow      authflow.Flow   // register / authenticate / change-password
-	resetFlow authtoken.Flow  // password reset + email verification (token flows)
+	store     users.Store    // loon-baseline user store (Postgres reference impl)
+	flow      authflow.Flow  // register / authenticate / change-password
+	resetFlow authtoken.Flow // password reset + email verification (token flows)
 	auth      webauth.Auth
-	loginLog loginlog.Store     // login-attempt audit (recorded here, viewed via its views)
-	captcha  *captcha.Verifier  // Turnstile hook (disabled when no keys configured)
-	points   core.PointsService // for the navbar balance readout
-	inbox    notify.InboxStore  // for the navbar unread-count bell
-	cache    cache.Cache        // page cache (in-memory by default, redis if configured)
-	ipSalt   string             // salt for hashing client IPs before storing them
-	log      *slog.Logger
-	tmpls    map[string]*template.Template // page name -> parsed (base + page)
+	loginLog  loginlog.Store     // login-attempt audit (recorded here, viewed via its views)
+	captcha   *captcha.Verifier  // Turnstile hook (disabled when no keys configured)
+	points    core.PointsService // for the navbar balance readout
+	inbox     notify.InboxStore  // for the navbar unread-count bell
+	cache     cache.Cache        // page cache (in-memory by default, redis if configured)
+	ipSalt    string             // salt for hashing client IPs before storing them
+	log       *slog.Logger
+	tmpls     map[string]*template.Template // page name -> parsed (base + page)
 
 	// usenet plugin read capability, looked up on the extension registry after
 	// Boot (the plugin's ADMIN surface is no longer consumed here — the plugin
@@ -73,6 +96,28 @@ type web struct {
 	userWidgets    []core.View          // cards on the /u/<name> profile page (user.* slot)
 	jobsWidgets    map[string]core.View // job-group name -> override widget
 	siteNavEntries []siteNavEntry       // site pages, pre-sorted for the nav (built once at boot)
+}
+
+// pageTemplates is every page under web/templates that newWeb parses into its
+// own set. base.html and site_chrome.html are NOT here: they are the shell,
+// parsed alongside every page. Adding a page file without adding it here leaves
+// it unreachable — templates_test.go fails on that mismatch in either direction.
+var pageTemplates = []string{
+	"home.html", "groups.html", "search.html", "browse.html", "release.html",
+	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
+	"site_page.html", "admin_view.html", "admin_settings.html",
+	"admin_jobs.html", "admin_plugins.html",
+}
+
+// sharedPartials maps a page to the partials it needs beyond the shell. Each
+// page gets its OWN template set, so a {{define}} in browse.html is invisible
+// to search.html; a block two pages must render identically has to live in a
+// file both sets name. listing.html holds the release-row and cat-icon blocks
+// that /, /browse and /search render as one table.
+var sharedPartials = map[string][]string{
+	"home.html":   {"listing.html"},
+	"browse.html": {"listing.html"},
+	"search.html": {"listing.html"},
 }
 
 func newWeb(store users.Store, secret []byte, log *slog.Logger) *web {
@@ -103,18 +148,231 @@ func newWeb(store users.Store, secret []byte, log *slog.Logger) *web {
 			return u.ToCore(), webauth.Meta{}, true
 		},
 	}
-	for _, page := range []string{"home.html", "groups.html", "search.html", "browse.html", "release.html", "login.html", "register.html", "forgot.html", "reset.html", "profile.html", "site_page.html", "admin_view.html", "admin_settings.html", "admin_jobs.html", "admin_plugins.html"} {
-		w.tmpls[page] = template.Must(template.New(page).Funcs(w.tmplFuncs()).ParseFS(webFS,
-			"web/templates/base.html", "web/templates/"+page))
+	// One template set per page: base.html (the document), site_chrome.html
+	// (the header/footer/sprite blocks, shared with the forum plugin's own
+	// parse set — see wireForumPlugin), any partial the page shares with
+	// another page, then the page itself. The page is parsed LAST on purpose:
+	// a {{define}} there overrides the same name in base.html, which is how a
+	// page can replace a shell block ("stat-strip" on the home page).
+	for _, page := range pageTemplates {
+		w.tmpls[page] = template.Must(template.New(page).Funcs(w.tmplFuncs()).ParseFS(siteFS, pageFiles(page)...))
 	}
 	return w
 }
 
+// pageFiles is the parse list for one page, in the order described above. Split
+// out of newWeb so render() can rebuild the same set when devReload is on.
+func pageFiles(page string) []string {
+	files := []string{"web/templates/base.html", "web/templates/site_chrome.html"}
+	for _, p := range sharedPartials[page] {
+		files = append(files, "web/templates/"+p)
+	}
+	return append(files, "web/templates/"+page)
+}
+
 // tmplFuncs exposes host helpers to templates. {{captcha}} renders the
-// Turnstile widget (empty when captcha is disabled), so any form can drop it in.
+// Turnstile widget (empty when captcha is disabled), so any form can drop it
+// in; everything else comes from tmplHelpers (pure, host-independent).
 func (w *web) tmplFuncs() template.FuncMap {
+	fns := tmplHelpers()
+	fns["captcha"] = func() template.HTML { return w.captcha.Widget() }
+	return fns
+}
+
+// tmplHelpers are the pure template helpers — no host state, no I/O, so the
+// SAME map can be registered on the forum plugin's separate template set
+// (forum_web.go parses full documents through gin's HTML set, not the demo's
+// per-page map, and its chrome hand-duplicates base.html's header). Anything
+// needing the web struct belongs in tmplFuncs instead.
+//
+//	bytes t     4831838208            -> "4.5 GB"     (release sizes)
+//	timeAgo t   2026-08-04T09:00:00Z  -> "3 hours ago" ("" when zero)
+//	shortDate t 2026-08-04T09:00:00Z  -> "4 Aug 2026"  ("" when zero)
+//	hue s       "Some.Release.1080p"  -> 0..7         (poster fallback bucket)
+//	initials s  "[Grp] Some.Release"  -> "GS"         (poster fallback text)
+//	roleName r  core.RoleMod          -> "Moderator"
+//	ordinal n   3                     -> "3rd"
+//	add a b     1 1                   -> 2            (loop indexes)
+//	dict k v …  "Row" . "Size" "lg"   -> map          (multi-arg templates)
+func tmplHelpers() template.FuncMap {
 	return template.FuncMap{
-		"captcha": func() template.HTML { return w.captcha.Widget() },
+		"bytes":     humanBytes,
+		"timeAgo":   timeAgo,
+		"shortDate": shortDate,
+		"hue":       hueBucket,
+		"initials":  initials,
+		"roleName":  roleName,
+		"ordinal":   ordinal,
+		"add":       func(a, b int) int { return a + b },
+		"dict":      dict,
+	}
+}
+
+// timeAgo renders a coarse "3 hours ago" for a past instant. A zero time (the
+// crawler never learned a post date) renders empty rather than "56 years ago",
+// and a clock-skewed future stamp reads "just now".
+func timeAgo(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	d := time.Since(t)
+	plural := func(n int, unit string) string {
+		if n == 1 {
+			return "1 " + unit + " ago"
+		}
+		return strconv.Itoa(n) + " " + unit + "s ago"
+	}
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return plural(int(d/time.Minute), "minute")
+	case d < 24*time.Hour:
+		return plural(int(d/time.Hour), "hour")
+	case d < 7*24*time.Hour:
+		return plural(int(d/(24*time.Hour)), "day")
+	case d < 30*24*time.Hour:
+		return plural(int(d/(7*24*time.Hour)), "week")
+	case d < 365*24*time.Hour:
+		return plural(int(d/(30*24*time.Hour)), "month")
+	default:
+		return plural(int(d/(365*24*time.Hour)), "year")
+	}
+}
+
+// shortDate is the human date form used in captions ("4 Aug 2026"). Empty for
+// a zero time, so a template can {{if}} on it.
+func shortDate(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format("2 Jan 2006")
+}
+
+// hueBucket maps any string (a release title, a username) onto a stable 0-7
+// bucket, so a release with no cover art always gets the SAME gradient tile
+// across page loads and processes. FNV-1a: cheap and deterministic.
+//
+// The modulus is 8 because that is exactly how many hue stops the stylesheet
+// defines (.poster--h0 … .poster--h7, components.css). Emitting a bucket with
+// no matching class is silent: --poster-hue just keeps its default and every
+// such tile renders the same colour. If more stops are ever added to the CSS,
+// raise this to match — templates index the class directly off this number.
+func hueBucket(s string) int {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(s))
+	return int(h.Sum32() % 8)
+}
+
+// initials takes up to two leading alphanumerics from the first words of a
+// title, for the text on a cover-less poster tile. Scene punctuation is skipped,
+// so "[SubGrp] Some.Show.S01E02" reads "SS".
+func initials(s string) string {
+	var out []rune
+	inWord := false
+	for _, r := range s {
+		alnum := (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+		if !alnum {
+			inWord = false
+			continue
+		}
+		if !inWord {
+			out = append(out, unicode.ToUpper(r))
+			if len(out) == 2 {
+				break
+			}
+		}
+		inWord = true
+	}
+	return string(out)
+}
+
+// roleName is the display label for a role level — the same names the
+// user_display view exposes to plugin SQL, title-cased for the UI.
+func roleName(r core.Role) string {
+	switch {
+	case r <= core.RoleBanned:
+		return "Banned"
+	case r == core.RoleDisabled:
+		return "Disabled"
+	case r == core.RoleContributor:
+		return "Contributor"
+	case r == core.RoleMod:
+		return "Moderator"
+	case r >= core.RoleAdmin:
+		return "Admin"
+	default:
+		return "Member"
+	}
+}
+
+// ordinal renders a 1-based rank as "1st"/"2nd"/"3rd"/"4th" for rank chips.
+func ordinal(n int) string {
+	suffix := "th"
+	if n%100 < 11 || n%100 > 13 {
+		switch n % 10 {
+		case 1:
+			suffix = "st"
+		case 2:
+			suffix = "nd"
+		case 3:
+			suffix = "rd"
+		}
+	}
+	return strconv.Itoa(n) + suffix
+}
+
+// dict builds a map from alternating key/value pairs, so a shared {{define}}
+// can take more than one value: {{template "poster" dict "Row" . "Size" "lg"}}.
+// An odd argument count or a non-string key fails the render loudly rather
+// than silently dropping a value.
+func dict(kv ...any) (map[string]any, error) {
+	if len(kv)%2 != 0 {
+		return nil, fmt.Errorf("dict: got %d arguments, want an even number of key/value pairs", len(kv))
+	}
+	m := make(map[string]any, len(kv)/2)
+	for i := 0; i < len(kv); i += 2 {
+		k, ok := kv[i].(string)
+		if !ok {
+			return nil, fmt.Errorf("dict: argument %d is %T, want a string key", i, kv[i])
+		}
+		m[k] = kv[i+1]
+	}
+	return m, nil
+}
+
+// logger is the nil-safe host logger — tests build a bare &web{} with no
+// logger, and a degraded home-page panel must not panic on the way to being
+// logged.
+func (w *web) logger() *slog.Logger {
+	if w.log == nil {
+		return slog.New(slog.DiscardHandler)
+	}
+	return w.log
+}
+
+// cacheGet / cacheSet wrap the page cache so every shared home-page block
+// reads the same way. Errors are deliberately swallowed: a cache problem must
+// degrade to a live read, never to a failed page. A host built without a cache
+// (tests) simply always misses.
+func (w *web) cacheGet(ctx context.Context, key string, dst any) bool {
+	if w.cache == nil {
+		return false
+	}
+	hit, err := cache.GetJSON(ctx, w.cache, key, dst)
+	if err != nil {
+		w.logger().Warn("page cache read", "key", key, "err", err)
+		return false
+	}
+	return hit
+}
+
+func (w *web) cacheSet(ctx context.Context, key string, v any, ttl time.Duration) {
+	if w.cache == nil {
+		return
+	}
+	if err := cache.SetJSON(ctx, w.cache, key, v, ttl); err != nil {
+		w.logger().Warn("page cache write", "key", key, "err", err)
 	}
 }
 
@@ -126,7 +384,7 @@ func (w *web) currentUser(c *gin.Context) (*core.User, bool) {
 // ── routes + rendering ──────────────────────────────────────────────
 
 func (w *web) mount(e *gin.Engine) {
-	sub, _ := fs.Sub(webFS, "web/static")
+	sub, _ := fs.Sub(siteFS, "web/static")
 	e.StaticFS("/static", http.FS(sub))
 	e.GET("/", w.home)
 	e.GET("/groups", w.groups)
@@ -200,9 +458,21 @@ func (w *web) render(c *gin.Context, page string, data map[string]any) {
 	data["IsAdmin"] = u != nil && u.AtLeast(core.RoleAdmin)
 	data["CSRFToken"] = csrfToken(c) // hidden _csrf field for every POST form
 	if u != nil {
+		// Viewer identity bits the user panel + top bar show. Both come off the
+		// session-resolved user (no extra query): the rank label the role maps
+		// to, and the account's creation date for "member since".
+		data["RoleLabel"] = roleName(u.Role)
+		data["MemberSince"] = u.CreatedAt
+		// HasPoints/HasUnread exist because a template cannot tell an ABSENT
+		// map key from a zero one: {{if .Points}} hid the tile both when the
+		// points service was unwired AND for a user whose balance is genuinely
+		// 0. Guard the tiles on Has*, and read the value from Points/Unread.
+		// (The top-nav bell BADGE still guards on .Unread — a "0" badge is
+		// noise, unlike a "0" stat tile, which is real information.)
 		if w.points != nil {
 			if bal, err := w.points.Balance(c.Request.Context(), u.ID); err == nil {
 				data["Points"] = bal
+				data["HasPoints"] = true
 			}
 		}
 		// unverified-email banner: look up the full record (core.User omits the flag)
@@ -212,6 +482,7 @@ func (w *web) render(c *gin.Context, page string, data map[string]any) {
 		if w.inbox != nil {
 			if n, err := w.inbox.UnreadCount(c.Request.Context(), u.ID); err == nil {
 				data["Unread"] = n
+				data["HasUnread"] = true
 			}
 		}
 	}
@@ -223,29 +494,79 @@ func (w *web) render(c *gin.Context, page string, data map[string]any) {
 		c.String(http.StatusInternalServerError, "unknown page %q", page)
 		return
 	}
+	if devReload {
+		// Re-read from disk so a template edit shows on refresh. Unlike the boot
+		// path this must NOT template.Must — a half-saved file would kill the
+		// server mid-edit; show the parse error in the browser and stay up.
+		fresh, err := template.New(page).Funcs(w.tmplFuncs()).ParseFS(siteFS, pageFiles(page)...)
+		if err != nil {
+			c.String(http.StatusInternalServerError, "template %s: %v", page, err)
+			return
+		}
+		t = fresh
+	}
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	if err := t.ExecuteTemplate(c.Writer, "base.html", data); err != nil {
 		w.log.Error("render", "page", page, "err", err)
 	}
 }
 
+// home renders the front page. Every panel is OPTIONAL: each block below is
+// guarded so a missing capability (no usenet plugin, no catalog, no forum) or a
+// failed read just leaves its key out and the template drops that section —
+// nothing here can turn a slow or unconfigured dependency into a 500.
+//
+// Caching: everything shared between viewers (release rows + their covers, the
+// category list, the group figures, the forum panels) goes through the
+// short-TTL page cache under its own key. Per-viewer values — points, unread,
+// role, member-since — are injected by render() and are NEVER written to a
+// shared key. The X-Cache header reports the release block, the one read that
+// dominates the page.
 func (w *web) home(c *gin.Context) {
-	data := map[string]any{"Title": "Home", "Widgets": w.homeWidgets(c)}
-	if w.usenet != nil {
-		ctx := c.Request.Context()
-		// Cache the recent-releases list (shared across viewers) for a short TTL.
-		// Runs on the in-memory cache by default; the redis impl when configured.
-		var res []pluginapi.Release
-		hit, _ := cache.GetJSON(ctx, w.cache, "home:recent", &res)
-		if !hit {
-			if r, err := w.usenet.Browse(ctx, "", 25); err == nil {
-				res = r
-				_ = cache.SetJSON(ctx, w.cache, "home:recent", res, 30*time.Second)
-			}
-		}
-		c.Header("X-Cache", map[bool]string{true: "hit", false: "miss"}[hit])
-		data["Recent"] = toSearchRows(res)
+	ctx := c.Request.Context()
+	data := map[string]any{
+		"Title":   "Home",
+		"Widgets": w.homeWidgets(c),
+		// Configured separates "no indexer plugin in this build" from "the
+		// indexer is up but has nothing yet", which are different empty states.
+		"Configured": w.usenet != nil,
 	}
+
+	var stats siteStatsVM
+	var haveStats bool
+
+	if w.usenet != nil {
+		rows, hit := w.homeReleases(ctx)
+		c.Header("X-Cache", map[bool]string{true: "hit", false: "miss"}[hit])
+		if len(rows) > 0 {
+			data["Recent"] = capRows(rows, homeTableRows)       // the main listing table
+			data["Featured"] = featuredRows(rows, homeFeatured) // the poster strip
+		}
+		if gs, ok := w.homeGroups(ctx); ok {
+			stats, haveStats = gs.Stats, true
+			data["TopGroups"] = gs.Top
+		}
+	}
+
+	if w.catalog != nil {
+		if cats, ok := w.homeCategories(ctx); ok {
+			data["Categories"] = cats // tab row + genre pills
+			stats.Categories, haveStats = len(cats), true
+		}
+	}
+	if haveStats {
+		data["Stats"] = stats
+	}
+
+	if fv, ok := w.homeForum(ctx); ok {
+		if len(fv.Threads) > 0 {
+			data["ForumThreads"] = fv.Threads
+		}
+		if len(fv.Posters) > 0 {
+			data["ForumPosters"] = fv.Posters
+		}
+	}
+
 	w.render(c, "home.html", data)
 }
 
@@ -288,7 +609,9 @@ func (w *web) browse(c *gin.Context) {
 	data["CatName"] = w.catalog.Name(catID)
 	if w.usenet != nil {
 		if res, total, err := w.usenet.Feed(ctx, w.expandCats(ctx, catID), 50, 0); err == nil {
-			data["Results"] = toSearchRows(res)
+			rows := toSearchRows(res)
+			w.attachCovers(ctx, rows) // one lookup for the page, not one per row
+			data["Results"] = rows
 			data["Total"] = total
 		}
 	}
@@ -331,7 +654,9 @@ func (w *web) search(c *gin.Context) {
 			res, err = w.usenet.Search(c.Request.Context(), q, 50)
 		}
 		if err == nil {
-			data["Results"] = toSearchRows(res)
+			rows := toSearchRows(res)
+			w.attachCovers(c.Request.Context(), rows) // one lookup for the page
+			data["Results"] = rows
 		}
 	}
 	w.render(c, "search.html", data)

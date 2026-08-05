@@ -1,47 +1,144 @@
+{{/* Release detail page. Data: .Missing bool, .Release releaseVM
+     (.ID .Title .Size .Posted .Group .Poster .Category .Cover .Tags .Files).
+     Everything below is one of those fields — the VM carries no rating, no
+     grabs and no swarm, so no slot pretends otherwise. */}}
+
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    {{if .Missing}}
+    <li class="breadcrumb--active">Not found</li>
+    {{else}}{{with .Release}}
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/browse">Browse</a></li>
+    {{/* .Category is a display name only — releaseVM carries no CategoryID,
+         so this crumb cannot be a /browse?cat= link. */}}
+    {{if .Category}}<li class="breadcrumbV2">{{.Category}}</li>{{end}}
+    <li class="breadcrumb--active">{{.Title}}</li>
+    {{end}}{{end}}
+</ol>
+{{end}}
+
 {{define "content"}}
 {{if .Missing}}
-<div class="empty">Release not found. <a href="/search">Back to search</a>.</div>
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#info"></use></svg>Not found</h1>
+    </header>
+    <div class="panel__body">
+        <p class="notice notice--warning">
+            <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+            <span>Release not found. <a href="/search">Back to search</a>.</span>
+        </p>
+    </div>
+</section>
 {{else}}{{with .Release}}
-<div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:1rem">
-    {{if .Cover}}<img src="{{.Cover}}" alt="cover" style="width:120px;border-radius:var(--radius);flex-shrink:0" loading="lazy">{{end}}
-    <div style="flex:1;min-width:280px">
-        <h1 class="h3" style="margin-bottom:.4rem;word-break:break-word">{{.Title}}</h1>
-        <div>{{range .Tags}}<span class="badge bg-secondary" style="margin-right:.25rem">{{.}}</span>{{end}}</div>
-    </div>
-    <a class="btn btn-primary" href="/nzb/{{.ID}}">Download NZB</a>
-</div>
+{{$h := hue .Title}}
+<div class="sidebar2">
+    <div>
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#film"></use></svg>
+                    {{if .Category}}{{.Category}}{{else}}Release{{end}}
+                </h2>
+                {{/* Primary action lives in the first panel, not the aside: the
+                     aside stacks BELOW the file table on a phone. */}}
+                <div class="panel__actions">
+                    <a class="button button--filled" href="/nzb/{{.ID}}">
+                        <svg class="icon" aria-hidden="true"><use href="#download"></use></svg>Download NZB
+                    </a>
+                </div>
+            </header>
+            <div class="panel__body panel__body--flush">
+                <div class="meta">
+                    <div class="meta__poster-link">
+                        {{if .Cover}}
+                        <img class="meta__poster" src="{{.Cover}}" alt="Cover art for {{.Title}}" loading="lazy">
+                        {{else}}
+                        {{/* No cover row for this release: the hue-keyed tile is the
+                             real no-cover state, never an <img> with an empty src.
+                             .meta__poster supplies the width the frame needs. */}}
+                        <span class="poster__frame meta__poster">
+                            <span class="poster__fallback poster__fallback--h{{$h}}">
+                                <span class="poster__fallback-initials">{{initials .Title}}</span>
+                                {{if .Category}}<span class="poster__fallback-label">{{.Category}}</span>{{end}}
+                            </span>
+                        </span>
+                        {{end}}
+                    </div>
 
-<div class="card">
-    <table class="table table-dark table-sm align-middle" style="margin-bottom:0">
-        <tbody>
-            <tr><th style="width:140px">Size</th><td>{{.Size}}</td></tr>
-            {{if .Category}}<tr><th>Category</th><td>{{.Category}}</td></tr>{{end}}
-            <tr><th>Posted</th><td>{{.Posted}}</td></tr>
-            <tr><th>Group</th><td><a href="/search?group={{.Group}}"><code>{{.Group}}</code></a></td></tr>
-            {{if .Poster}}<tr><th>Poster</th><td class="text-muted small">{{.Poster}}</td></tr>{{end}}
-            <tr><th>Files</th><td>{{len .Files}}</td></tr>
-        </tbody>
-    </table>
-</div>
+                    <h1 class="meta__title">{{.Title}}</h1>
 
-{{if .Files}}
-<div class="card">
-    <h2>Files</h2>
-    <div class="table-responsive">
-        <table class="table table-dark table-striped table-sm align-middle">
-            <thead><tr><th>Filename</th><th class="text-end">Size</th><th class="text-end">Segments</th></tr></thead>
-            <tbody>
-            {{range .Files}}
-                <tr>
-                    <td style="word-break:break-all">{{.Name}}</td>
-                    <td class="text-end">{{.Size}}</td>
-                    <td class="text-end">{{.Segments}}</td>
-                </tr>
-            {{end}}
-            </tbody>
-        </table>
+                    {{/* Tags is a flat []string (resolution, source, codec, audio,
+                         language, empties dropped) — the template cannot tell which
+                         is which, so every badge gets the neutral .tag. */}}
+                    {{if .Tags}}
+                    <ul class="meta__ids">
+                        {{range .Tags}}<li><span class="tag">{{.}}</span></li>{{end}}
+                    </ul>
+                    {{end}}
+
+                    <ul class="meta__chips">
+                        <li class="meta-chip"><span class="meta-chip__name">Size</span><span class="meta-chip__value">{{.Size}}</span></li>
+                        <li class="meta-chip"><span class="meta-chip__name">Posted</span><span class="meta-chip__value">{{.Posted}}</span></li>
+                        {{if .Category}}<li class="meta-chip"><span class="meta-chip__name">Category</span><span class="meta-chip__value">{{.Category}}</span></li>{{end}}
+                        <li class="meta-chip"><span class="meta-chip__name">Files</span><span class="meta-chip__value">{{len .Files}}</span></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        {{if .Files}}
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#folder"></use></svg>
+                    Files <span class="panel__grouping">({{len .Files}})</span>
+                </h2>
+            </header>
+            <div class="panel__body panel__body--flush">
+                <div class="data-table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Filename</th>
+                                <th class="data-table__num">Size</th>
+                                <th class="data-table__num">Segments</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range .Files}}
+                            <tr>
+                                <td><span class="data-table__title">{{.Name}}</span></td>
+                                <td class="data-table__num">{{.Size}}</td>
+                                <td class="data-table__num">{{.Segments}}</td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        {{end}}
     </div>
+
+    <aside>
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#info"></use></svg>Details</h2>
+            </header>
+            <div class="panel__body panel__body--flush">
+                <dl class="key-value">
+                    <div class="key-value__group"><dt>Size</dt><dd>{{.Size}}</dd></div>
+                    {{if .Category}}<div class="key-value__group"><dt>Category</dt><dd>{{.Category}}</dd></div>{{end}}
+                    <div class="key-value__group"><dt>Posted</dt><dd>{{.Posted}}</dd></div>
+                    {{if .Group}}<div class="key-value__group"><dt>Group</dt><dd><a href="/search?group={{.Group}}"><code>{{.Group}}</code></a></dd></div>{{end}}
+                    {{if .Poster}}<div class="key-value__group"><dt>Poster</dt><dd>{{.Poster}}</dd></div>{{end}}
+                    <div class="key-value__group"><dt>Files</dt><dd>{{len .Files}}</dd></div>
+                </dl>
+            </div>
+        </section>
+    </aside>
 </div>
-{{end}}
 {{end}}{{end}}
 {{end}}

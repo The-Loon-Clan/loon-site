@@ -1,14 +1,311 @@
+/* Design tokens — the ONLY place a literal colour is allowed to appear.
+   layout.css, components.css and theme.css read exclusively from here, so a
+   second theme is a one-file swap: redefine :root, ship nothing else.
+
+   The variable taxonomy is UNIT3D's (--body-bg, --panel-*, --data-table-*,
+   --top-nav-*, --secondary-nav-*, --paginate-*, --footer-*). Markup lifted
+   verbatim from UNIT3D therefore lands on tokens that already exist here.
+   The palette is ours: near-black navy canvas, indigo/violet primary, blue
+   secondary. The old short names (--bg/--surface/--text/--primary/--radius…)
+   are kept as the raw layer because plugin templates reference some of them
+   inline (e.g. style="color:var(--success)") — renaming them would break
+   /admin/p/* silently. */
+
 :root {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --surface-2: #1c2330;
-    --border: #2a3038;
-    --text: #e6edf3;
-    --muted: #8b949e;
-    --primary: #3b82f6;
-    --info: #58a6ff;
-    --danger: #f85149;
-    --warning: #d29922;
-    --success: #3fb950;
-    --radius: 8px;
+    color-scheme: dark;
+
+    /* ---- raw palette ------------------------------------------------- */
+    /* Roles, not hues, so a light theme can reuse every name below. */
+    --bg: #0a0e17;              /* page canvas — the mockup's near-black navy */
+    --bg-sunken: #070a11;       /* recessed: footer, table gutters, wells */
+    --surface: #111826;         /* panel body */
+    --surface-2: #171f31;       /* raised inside a panel: thead, chips, inputs */
+    --surface-3: #1e2740;       /* hover / pressed */
+    --bg-elevated: var(--surface-2); /* legacy alias: backup plugin inlines it */
+
+    --border: #212b42;
+    --border-strong: #2e3a58;
+
+    --text: #e6ecf7;
+    --text-strong: #ffffff;
+    --muted: #8b97b1;           /* secondary copy */
+    --muted-2: #5f6b85;         /* tertiary: timestamps, captions, disabled */
+
+    --primary: #7c5cff;         /* indigo/violet — the one brand accent */
+    --primary-strong: #6a45ff;
+    --primary-fg: #ffffff;      /* text ON a filled primary surface */
+    --primary-tint: #b6a4ff;    /* primary readable AS text on dark */
+    --primary-soft: rgba(124, 92, 255, 0.14);
+    --primary-soft-strong: rgba(124, 92, 255, 0.28);
+
+    --info: #4d8dfd;            /* blue secondary */
+    --info-tint: #7fb0ff;
+    --success: #35c37d;
+    --danger: #f2545b;
+    --warning: #eaa640;
+
+    /* Translucent inks. Not palette colours — overlays that have to work on top
+       of arbitrary artwork or an arbitrary hue, so they stay alpha-on-white /
+       alpha-on-black rather than resolving to a surface colour. */
+    --sheen: rgba(255, 255, 255, 0.08);
+    --scrim: rgba(0, 0, 0, 0.35);
+    --ink-on-image: rgba(255, 255, 255, 0.92);
+    --ink-on-image-muted: rgba(255, 255, 255, 0.62);
+    --row-stripe: rgba(255, 255, 255, 0.02);
+    --stripe-ink: rgba(255, 255, 255, 0.15);
+    --code-bg: rgba(110, 118, 129, 0.15);
+
+    /* Status colours at low alpha, for borders and soft fills. */
+    --success-soft: color-mix(in srgb, var(--success) 32%, transparent);
+    --warning-soft: color-mix(in srgb, var(--warning) 32%, transparent);
+    --danger-soft: color-mix(in srgb, var(--danger) 32%, transparent);
+    --info-soft: color-mix(in srgb, var(--info) 32%, transparent);
+
+    --radius-sm: 6px;
+    --radius: 10px;             /* legacy name — default corner */
+    --radius-lg: 16px;
+    --radius-xl: 22px;
+    --radius-pill: 999px;
+
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 10px 26px -14px rgba(0, 0, 0, 0.85);
+    --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.4), 0 24px 48px -20px rgba(0, 0, 0, 0.9);
+
+    /* Focus ring drawn as two shadows so it reads on any surface colour. */
+    --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--primary);
+
+    /* Content gutter. Same magic numbers UNIT3D's main/footer use: margins grow
+       gently from phone to 600px to 1600px to 2500px, instead of a hard
+       max-width that strands ultrawide monitors. Top-nav and footer use it as
+       padding so their contents line up with <main>. */
+    --gutter: max(16px, 10vw - 60px, 25vw - 300px, 45vw - 800px);
+
+    /* ---- semantic aliases (UNIT3D taxonomy) --------------------------- */
+    --body-bg: var(--bg);
+    --body-fg: var(--text);
+    --text-color: var(--text);
+    --text-muted: var(--muted);
+    --text-subtle: var(--muted-2);
+
+    --accent: var(--primary);
+    --accent-strong: var(--primary-strong);
+    --accent-fg: var(--primary-fg);
+    --accent-tint: var(--primary-tint);
+    --accent-soft: var(--primary-soft);
+    --accent-2: var(--info);
+    --accent-2-tint: var(--info-tint);
+
+    --link-fg: var(--info-tint);
+    --link-hover-fg: var(--text-strong);
+
+    --scrollbar-thumb: #26314c;
+    --scrollbar-track: transparent;
+
+    /* ---- panelV2 ------------------------------------------------------ */
+    --panel-bg: var(--surface);
+    --panel-fg: var(--text);
+    --panel-border: 1px solid var(--border);
+    --panel-border-color: var(--border);
+    --panel-border-radius: var(--radius-lg);
+    --panel-head-border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    --panel-body-border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    --panel-box-shadow: var(--shadow);
+    --panel-head-bg: transparent;   /* header reads as part of the panel, with a rule under it */
+    --panel-head-fg: var(--text-strong);
+    --panel-head-border: 1px solid var(--border);
+    --panel-action-fg: var(--muted);
+    --panel-group-fg: var(--muted-2);
+
+    /* ---- data-table --------------------------------------------------- */
+    --data-table-fg: var(--text);
+    --data-table-padding: 10px 12px;
+    --data-table-border-radius: var(--radius-lg);
+    --data-table-th-bg: var(--surface-2);
+    --data-table-th-fg: var(--muted);
+    --data-table-thead-border: 1px solid var(--border);
+    --data-table-tr-border: 1px solid var(--border);
+    --data-table-tr-odd-bg: transparent;
+    --data-table-tr-even-bg: rgba(255, 255, 255, 0.014);
+    --data-table-tr-hover-bg: var(--surface-2);
+    --data-table-tfoot-border: 2px solid var(--border-strong);
+
+    /* ---- top nav ------------------------------------------------------ */
+    --top-nav-bg: #0c1220;
+    --top-nav-fg: var(--text);
+    --top-nav-border: 1px solid var(--border);
+    --top-nav-box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03), 0 10px 24px -18px #000;
+    --top-nav-tagline-fg: var(--muted-2);
+    --top-nav-dropdown-fg: var(--muted);
+    --top-nav-dropdown-hover-fg: var(--text-strong);
+    --top-nav-dropdown-hover-bg: var(--surface-2);
+    --top-nav-dropdown-menu-bg: #131b2c;
+    --top-nav-dropdown-menu-border: 1px solid var(--border-strong);
+    --top-nav-dropdown-menu-border-radius: var(--radius);
+    --top-nav-dropdown-menu-box-shadow: var(--shadow-lg);
+    --top-nav-dropdown-menu-item-fg: var(--text);
+    --top-nav-dropdown-menu-item-bg: transparent;
+    --top-nav-dropdown-menu-item-hover-bg: var(--surface-3);
+    --top-nav-dropdown-menu-item-icon-fg: var(--muted);
+    --top-nav-icon-bar-icon-bg: var(--surface-2);
+    --top-nav-icon-bar-icon-fg: var(--muted);
+    --top-nav-icon-bar-icon-hover-bg: var(--surface-3);
+    --top-nav-icon-bar-icon-hover-fg: var(--text-strong);
+    --top-nav-icon-bar-icon-border-radius: var(--radius);
+    --top-nav-badge-bg: var(--danger);
+    --top-nav-badge-fg: #fff;
+
+    /* ---- quick search ------------------------------------------------- */
+    --quick-search-bg: var(--surface-2);
+    --quick-search-fg: var(--text);
+    --quick-search-placeholder-fg: var(--muted-2);
+    --quick-search-border: 1px solid var(--border);
+    --quick-search-border-radius: var(--radius-pill);
+    --quick-search-box-shadow: 0 0 0 3px var(--primary-soft);
+    --quick-search-hotkey-bg: var(--surface-3);
+    --quick-search-hotkey-fg: var(--muted);
+
+    /* ---- secondary nav (the main icon+label row) ---------------------- */
+    --secondary-nav-bg: #0b1120;
+    --secondary-nav-box-shadow: inset 0 -1px 0 var(--border);
+    --secondary-nav-tab-fg: var(--muted);
+    --secondary-nav-tab-bg: transparent;
+    --secondary-nav-tab-hover-fg: var(--text);
+    --secondary-nav-tab-hover-bg: transparent;
+    --secondary-nav-tab-active-fg: var(--text-strong);
+    --secondary-nav-tab-active-underline: var(--primary);
+    --secondary-nav-tab-menu-bg: var(--top-nav-dropdown-menu-bg);
+    --secondary-nav-tab-menu-border: var(--top-nav-dropdown-menu-border);
+    --secondary-nav-tab-menu-border-radius: var(--radius);
+    --secondary-nav-tab-menu-box-shadow: var(--shadow-lg);
+
+    /* ---- stat strip --------------------------------------------------- */
+    --stat-strip-bg: rgba(255, 255, 255, 0.018);
+    --stat-strip-border: 1px solid var(--border);
+    --stat-strip-label-fg: var(--muted-2);
+    --stat-strip-value-fg: var(--text);
+    --stat-strip-icon-fg: var(--primary-tint);
+
+    /* ---- hero --------------------------------------------------------- */
+    --hero-bg: linear-gradient(135deg, #16123a 0%, #101a33 45%, #0c1322 100%);
+    --hero-eyebrow-fg: var(--primary-tint);
+    --hero-title-fg: var(--text-strong);
+    --hero-lede-fg: var(--muted);
+    --hero-strip-bg: rgba(6, 9, 17, 0.55);
+    --hero-strip-border: 1px solid rgba(255, 255, 255, 0.06);
+    /* Solid end of the gradient that fades the hero artwork into the copy. Must
+       match --hero-bg's last stop or the seam shows. */
+    --hero-fade: #0c1322;
+    --hero-fade-soft: rgba(12, 19, 34, 0.55);
+
+    /* ---- buttons ------------------------------------------------------ */
+    --button-filled-bg: linear-gradient(180deg, var(--primary) 0%, var(--primary-strong) 100%);
+    --button-filled-fg: var(--primary-fg);
+    --button-filled-border: 1px solid var(--primary-strong);
+    --button-outlined-bg: transparent;
+    --button-outlined-fg: var(--text);
+    --button-outlined-border: 1px solid var(--border-strong);
+    --button-text-fg: var(--muted);
+    --button-border-radius: var(--radius);
+
+    /* ---- forms -------------------------------------------------------- */
+    --input-bg: var(--surface-2);
+    --input-fg: var(--text);
+    --input-placeholder-fg: var(--muted-2);
+    --input-border: 1px solid var(--border);
+    --input-border-hover: 1px solid var(--border-strong);
+    --input-border-active: 1px solid var(--primary);
+    --input-border-error: 1px solid var(--danger);
+    --input-border-radius: var(--radius-sm);
+    --label-fg: var(--muted);
+    --meter-bg: var(--surface-3);
+    --meter-fg: linear-gradient(90deg, var(--primary) 0%, var(--info) 100%);
+
+    /* ---- tiles / posters / chips -------------------------------------- */
+    --tile-bg: var(--surface);
+    --tile-border: 1px solid var(--border);
+    --tile-hover-border: 1px solid var(--primary);
+    --tile-icon-bg: var(--primary-soft);
+    --tile-icon-fg: var(--primary-tint);
+
+    --poster-bg: var(--surface-2);
+    --poster-radius: var(--radius);
+    --poster-hue: 265;             /* overridden by .poster--hN */
+    --poster-chip-bg: rgba(6, 9, 17, 0.78);
+    --poster-chip-fg: var(--text-strong);
+
+    --chip-bg: var(--surface-2);
+    --chip-fg: var(--muted);
+    --chip-border: 1px solid var(--border);
+
+    --pill-bg: var(--surface-2);
+    --pill-fg: var(--text);
+    --pill-border: 1px solid var(--border);
+    --pill-hover-bg: var(--surface-3);
+    --pill-icon-fg: var(--primary-tint);
+
+    --rank-chip-bg: var(--surface-3);
+    --rank-chip-fg: var(--muted);
+    --rank-1-bg: rgba(234, 166, 64, 0.18);
+    --rank-1-fg: #f0be6d;
+    --rank-2-bg: rgba(176, 190, 214, 0.16);
+    --rank-2-fg: #c3cede;
+    --rank-3-bg: rgba(196, 122, 74, 0.18);
+    --rank-3-fg: #d79466;
+
+    /* ---- key-value / meta --------------------------------------------- */
+    --key-value-fg: var(--text);
+    --key-value-padding: 12px;
+    --key-value-border-radius: var(--radius-sm);
+    --key-value-odd-bg: transparent;
+    --key-value-even-bg: rgba(255, 255, 255, 0.02);
+    --meta-description-fg: var(--muted);
+    --meta-chip-name-fg: var(--muted-2);
+    --meta-chip-value-fg: var(--text);
+
+    /* ---- pagination --------------------------------------------------- */
+    --paginate-bg: var(--surface-2);
+    --paginate-bg-hover: var(--surface-3);
+    --paginate-bg-current: var(--primary-soft-strong);
+    --paginate-fg: var(--text);
+    --paginate-fg-disabled: var(--muted-2);
+    --paginate-divider: var(--border);
+    --paginate-border-radius: var(--radius);
+
+    /* ---- torrent-card / article-preview ------------------------------- */
+    --torrent-card-bg: var(--surface);
+    --torrent-card-border: 1px solid var(--border);
+    --torrent-card-fg: var(--text);
+    --torrent-card-head-bg: var(--surface-2);
+    --torrent-card-head-fg: var(--muted);
+    --torrent-card-link-fg: var(--text-strong);
+    --torrent-card-genre-fg: var(--muted-2);
+    --article-card-bg: var(--surface);
+    --article-card-fg: var(--muted);
+    --article-card-head-fg: var(--text-strong);
+    --article-card-time-fg: var(--muted-2);
+    --article-box-shadow: var(--shadow);
+
+    /* ---- footer ------------------------------------------------------- */
+    --footer-bg: var(--bg-sunken);
+    --footer-fg: var(--muted);
+    --footer-heading-fg: var(--muted-2);
+    --footer-link-fg: var(--muted);
+    --footer-link-hover-fg: var(--text-strong);
+    --footer-hr-fg: var(--border);
+    --footer-social-bg: var(--surface-2);
+    --footer-social-fg: var(--muted);
+    --footer-social-hover-bg: var(--primary);
+    --footer-social-hover-fg: var(--primary-fg);
+
+    /* ---- Bootstrap-compat aliases ------------------------------------- */
+    /* The usenet plugin's settings page styles .nav-pills against
+       --bs-secondary-color; without a value the rule computes to inherit and
+       the pills go unreadable blue-on-blue. */
+    --bs-secondary-color: var(--muted);
+    --bs-body-color: var(--text);
+    --bs-body-bg: var(--bg);
+    --bs-border-color: var(--border);
 }

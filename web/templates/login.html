@@ -1,24 +1,63 @@
 {{define "content"}}
-<div class="container page-narrow" style="padding-inline:0">
-    <h1 class="h3 mb-3">Log in</h1>
-    {{if .Notice}}<div class="alert alert-success">{{.Notice}}</div>{{end}}
-    {{if .Error}}<div class="alert" style="border-color:var(--danger);color:var(--danger)">{{.Error}}</div>{{end}}
-    <div class="card">
-        <form method="post" action="/login">
-            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
-            <label for="username">Username or email</label>
-            <input id="username" type="text" name="username" placeholder="alice, bob, or your email" autofocus>
-            <label for="password" style="margin-top:.75rem">Password</label>
-            <input id="password" type="password" name="password" placeholder="same as your username">
-            <p class="text-muted small mt-3">
-                Demo accounts: <code>alice</code> (admin) / <code>bob</code> (user).
-                Each password is the same as the username.
+{{/* Centred auth column. UNIT3D's pages/_auth.scss renders a standalone ~400px
+     card on a bare document; the demo keeps its own chrome, so the same shape is
+     built from the design system's panelV2 + form__* families. The max-width is
+     the one value with no class behind it (.page-narrow is 880px — too wide for
+     a single-column form). */}}
+<div class="container page-narrow" style="max-width:460px">
+    <section class="panelV2">
+        <header class="panel__header">
+            <h1 class="panel__heading">
+                <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#log-in"></use></svg>Log in
+            </h1>
+        </header>
+        <div class="panel__body">
+            {{/* Notice: set by /verify (email confirmed) and by a successful
+                 /reset ("Password updated. Please log in."). */}}
+            {{if .Notice}}
+            <p class="notice notice--success mb-3">
+                <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+                <span>{{.Notice}}</span>
             </p>
-            <p class="small mt-2 mb-0"><a href="/forgot">Forgot password?</a></p>
-            <div style="margin:.75rem 0">{{captcha}}</div>
-            <button class="btn btn-primary" type="submit">Log in</button>
-            <a class="btn btn-outline-secondary" href="/register" style="margin-left:.5rem">Create account</a>
-        </form>
-    </div>
+            {{end}}
+            {{if .Error}}
+            <p class="notice notice--danger mb-3">
+                <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+                <span>{{.Error}}</span>
+            </p>
+            {{end}}
+
+            <form class="form" method="post" action="/login">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                <div class="form__group">
+                    <label class="form__label" for="username">Username or email</label>
+                    <input class="form__input" id="username" type="text" name="username" placeholder="alice, bob, or your email" autocomplete="username" autofocus>
+                </div>
+                <div class="form__group">
+                    <label class="form__label" for="password">Password</label>
+                    <input class="form__input" id="password" type="password" name="password" placeholder="same as your username" autocomplete="current-password">
+                    <p class="form__help mt-1 mb-0"><a href="/forgot">Forgot password?</a></p>
+                </div>
+                {{/* Renders nothing when Turnstile has no keys (the demo default),
+                     so it must NOT sit in a wrapper — an empty wrapper would still
+                     take a .form gap. */}}
+                {{captcha}}
+                <button class="form__button form__button--filled justify-content-center" type="submit">
+                    <svg class="icon" aria-hidden="true"><use href="#log-in"></use></svg>Log in
+                </button>
+            </form>
+
+            <p class="notice notice--info mt-3 mb-0">
+                <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+                <span>
+                    Demo accounts: <code>alice</code> (admin) / <code>bob</code> (user).
+                    Each password is the same as the username.
+                </span>
+            </p>
+
+            <div class="section-rule mt-4 mb-3">New here?</div>
+            <a class="button button--outlined button--block" href="/register">Create an account</a>
+        </div>
+    </section>
 </div>
 {{end}}
