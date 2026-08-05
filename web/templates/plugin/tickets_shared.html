@@ -1,0 +1,21 @@
+{{/* Ticket partials shared by the four helpdesk templates. Parsed into the
+     same flat gin namespace as everything here, so names are prefixed.
+
+     Both blocks take the raw column value as dot. The columns carry CHECK
+     constraints (priority: low|normal|high, status: open|in_progress|closed),
+     so the else branch is only reachable if that constraint is ever relaxed —
+     it renders the raw value rather than nothing, which is what makes such a
+     change visible instead of silent. */}}
+{{define "ticket-priority"}}
+    {{- if eq . "high"}}<span class="tag tag--danger">High</span>
+    {{- else if eq . "low"}}<span class="tag">Low</span>
+    {{- else if eq . "normal"}}<span class="tag">Normal</span>
+    {{- else}}<span class="tag">{{.}}</span>{{end -}}
+{{end}}
+
+{{define "ticket-status"}}
+    {{- if eq . "open"}}<span class="tag tag--warning">Open</span>
+    {{- else if eq . "in_progress"}}<span class="tag tag--info">In progress</span>
+    {{- else if eq . "closed"}}<span class="tag tag--success">Closed</span>
+    {{- else}}<span class="tag">{{.}}</span>{{end -}}
+{{end}}

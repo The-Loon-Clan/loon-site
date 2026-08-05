@@ -102,7 +102,7 @@ only to work around hover on touch devices.
 | `contact` | — | todo |
 | `page/*` (static pages: rules, FAQ, about, staff, internal, client blacklist) | `site_page.html` | partial |
 | `wiki/*` | `/wiki`, `/wiki/:topic/:post`, `/admin/wiki` | have |
-| `ticket/*` (helpdesk) | — | todo |
+| `ticket/*` (helpdesk) | `/support`, `/support/public`, `/admin/tickets` | have |
 | `event/*` | — | todo |
 | `donation/*` | — | todo |
 
@@ -273,7 +273,7 @@ Remaining, cheapest first:
 | `messages` | **wired** | — | `/inbox`, `/admin/messages` |
 | `store` | **wired** | — | `/store`, `/store/history`, `/admin/store` |
 | `donations` | 3 | BaseData, Settings, IsDonateEnabled, LookupUsername/UserID | Needs BTCPay — see §5c |
-| `tickets` | 4 | + PageOffset, Pagination, Viewer, OwnerRole, RoleBadge, NotifyNewTicket, NotifyReply | UNIT3D's helpdesk |
+| `tickets` | **wired** | — | `/support`, `/admin/tickets` |
 | `communities` | 7 | + Markdown, Files, Pagination | Biggest; no UNIT3D equivalent |
 | `anidbscraper` | 0 | Catalog, Nzbs, Matcher, Covers | We have Catalog + Covers already |
 | `backup` | 0 (ships `backup.html`) | DB, Config, FreeDisk, DBSize, Classes, Root, DBDumpDir | Distinct from the wired `backups` |
@@ -317,9 +317,14 @@ template.
    core has no "list every user" method. The composer degrades to a username
    field without it. Fine for a demo; a real host wants a paged directory.
 
-5. **Notification fan-out for tickets.** `tickets` wants `NotifyNewTicket` and
-   `NotifyReply`. The host already publishes a `notify.fanout` capability, so
-   this is a small adapter rather than a feature — but it is not nothing.
+5. ~~Notification fan-out for tickets~~ — **done**, wired through
+   `core.Notifications`. One limit worth recording: `Notify` addresses ONE
+   user, and a new ticket has no single recipient — it is for whoever is on
+   duty. So the host notifies the ticket's AUTHOR that it was received rather
+   than fanning out to staff, because a staff-list query does not exist here
+   and inventing one would be the same unbounded query `ListUsers` exists to
+   avoid. **A staff broadcast needs either a staff-list seam or a
+   notify-group capability.**
 
 6. **Cover art.** Still unexercised: no `TMDB_API_KEY` is set, so every poster
    is a gradient fallback. Blocks `mediahub` parity entirely.

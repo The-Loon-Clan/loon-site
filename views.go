@@ -224,6 +224,7 @@ func tmplHelpers() template.FuncMap {
 		"roleName":  roleName,
 		"roleSlug":  roleSlug,
 		"roleLabel": roleLabel,
+		"eqID":      eqID,
 		"ordinal":   ordinal,
 		"add":       func(a, b int) int { return a + b },
 		"dict":      dict,
@@ -348,6 +349,38 @@ func roleSlug(v any) string {
 		}
 	}
 	return "member"
+}
+
+// eqID compares two user ids that arrive as different integer types.
+//
+// {{eq}} refuses this: core.User.ID is int64 while several plugins carry their
+// user ids as plain int, and html/template reports "incompatible types for
+// comparison" at EXECUTE time — which means the page half-renders in
+// production rather than failing a build. Normalising both sides here is the
+// only comparison an ownership check should use.
+func eqID(a, b any) bool {
+	toI64 := func(v any) (int64, bool) {
+		switch n := v.(type) {
+		case int:
+			return int64(n), true
+		case int32:
+			return int64(n), true
+		case int64:
+			return n, true
+		case uint:
+			return int64(n), true
+		case uint32:
+			return int64(n), true
+		case uint64:
+			return int64(n), true
+		}
+		return 0, false
+	}
+	x, okA := toI64(a)
+	y, okB := toI64(b)
+	// Two non-numbers are not "equal" — a false here fails an ownership check
+	// closed, which is the right direction for the thing this guards.
+	return okA && okB && x == y
 }
 
 // roleLabel is roleName for the mixed-shape case. roleName takes a typed

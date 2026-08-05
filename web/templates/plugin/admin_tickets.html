@@ -1,0 +1,94 @@
+{{/* Ticket triage — UNIT3D's Staff/ticket area. Gated at RoleMod by the
+     plugin's route group, so this template does not re-check IsMod.
+
+     Keys (tickets plugin, Handlers.Admin + Deps.BaseData):
+       Tickets      []SupportTicket
+       Total        int · Page int · TotalPages int
+       StatusFilter string — the active ?status= filter, "" for all
+
+     Each row's status/priority/note edit posts to the same update route, so
+     the row IS the form. That keeps triage to one click per change instead of
+     a detail-page round trip. */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Tickets</li>
+</ol>
+
+<section class="panelV2 panelV2--overflow">
+    <header class="panel__header">
+        <h1 class="panel__heading">Support tickets</h1>
+        <div class="panel__actions">
+            {{if .Total}}<span class="panel__action">{{.Total}} total</span>{{end}}
+            <a class="panel__action" href="/support">Your tickets</a>
+        </div>
+    </header>
+
+    <div class="panel__body">
+        <div class="pill-row">
+            {{$f := .StatusFilter}}
+            <a class="pill{{if eq $f ""}} pill--active{{end}}" href="/admin/tickets">All</a>
+            <a class="pill{{if eq $f "open"}} pill--active{{end}}" href="/admin/tickets?status=open">Open</a>
+            <a class="pill{{if eq $f "in_progress"}} pill--active{{end}}" href="/admin/tickets?status=in_progress">In progress</a>
+            <a class="pill{{if eq $f "closed"}} pill--active{{end}}" href="/admin/tickets?status=closed">Closed</a>
+        </div>
+    </div>
+
+    {{if .Tickets}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr><th>Subject</th><th>From</th><th>Priority</th><th>Opened</th><th>Triage</th><th></th></tr>
+            </thead>
+            <tbody>
+                {{range .Tickets}}
+                <tr>
+                    <td>
+                        <a class="data-table__title" href="/support/{{.ID}}">{{.Subject}}</a>
+                        {{if .Public}}<span class="tag">Public</span>{{end}}
+                    </td>
+                    <td>{{template "user-tag" (dict "Name" .Username)}}</td>
+                    <td>{{template "ticket-priority" .Priority}}</td>
+                    <td>{{shortDate .CreatedAt}}</td>
+                    <td>
+                        {{/* $.CSRFToken — inside range the dot is a ticket. */}}
+                        <form method="post" action="/admin/tickets/{{.ID}}/update" class="form form--inline">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <select class="form__select form__select--sm" name="status">
+                                <option value="open"{{if eq .Status "open"}} selected{{end}}>Open</option>
+                                <option value="in_progress"{{if eq .Status "in_progress"}} selected{{end}}>In progress</option>
+                                <option value="closed"{{if eq .Status "closed"}} selected{{end}}>Closed</option>
+                            </select>
+                            <input class="form__input form__input--sm" name="admin_note"
+                                   value="{{.AdminNote}}" placeholder="note">
+                            <button class="button button--text button--sm" type="submit">Save</button>
+                        </form>
+                    </td>
+                    <td class="data-table__actions">
+                        <form method="post" action="/admin/tickets/{{.ID}}/delete" class="inline-form">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <button class="button button--text button--sm button--danger" type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{if gt .TotalPages 1}}
+    <div class="panel__body">
+        <nav class="pagination" aria-label="Tickets">
+            {{$base := "/admin/tickets?"}}{{if .StatusFilter}}{{$base = printf "/admin/tickets?status=%s&" .StatusFilter}}{{end}}
+            {{if gt .Page 1}}<a class="pagination__link" href="{{$base}}page={{add .Page -1}}">Previous</a>{{end}}
+            <span class="pagination__status">Page {{.Page}} of {{.TotalPages}}</span>
+            {{if lt .Page .TotalPages}}<a class="pagination__link" href="{{$base}}page={{add .Page 1}}">Next</a>{{end}}
+        </nav>
+    </div>
+    {{end}}
+    {{else}}
+    <div class="panel__body">No tickets{{if .StatusFilter}} with that status{{end}}.</div>
+    {{end}}
+</section>
+
+{{template "ffoot" .}}

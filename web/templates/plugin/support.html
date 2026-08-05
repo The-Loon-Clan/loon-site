@@ -1,0 +1,88 @@
+{{/* Helpdesk — UNIT3D's ticket/index.blade.php: the viewer's own tickets plus
+     the submit form.
+
+     Keys (tickets plugin, Handlers.Index / Create + Deps.BaseData):
+       Tickets   []SupportTicket — ID Subject Body Priority Status Public
+                                   Username CreatedAt UpdatedAt
+       Submitted string — ?submitted= after a successful create
+       Error     string — set by the create handler when it re-renders THIS
+                          template with a 400/500, so both must be guarded
+
+     Form contract, read off Handlers.Create:
+       POST /support   subject, body, priority */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">Support</li>
+</ol>
+
+{{if .Submitted}}<div class="notice notice--success">Ticket submitted. We will reply here.</div>{{end}}
+{{if .Error}}<div class="notice notice--danger">{{.Error}}</div>{{end}}
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon" aria-hidden="true"><use href="#info"></use></svg>
+            Your tickets
+        </h1>
+        <div class="panel__actions">
+            <a class="panel__action" href="/support/public">Public tickets</a>
+            {{if .IsMod}}<a class="panel__action" href="/admin/tickets">Manage</a>{{end}}
+        </div>
+    </header>
+    {{if .Tickets}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead><tr><th>Subject</th><th>Priority</th><th>Status</th><th>Opened</th></tr></thead>
+            <tbody>
+                {{range .Tickets}}
+                <tr>
+                    <td>
+                        <a class="data-table__title" href="/support/{{.ID}}">{{.Subject}}</a>
+                        {{if .Public}}<span class="tag">Public</span>{{end}}
+                    </td>
+                    <td>{{template "ticket-priority" .Priority}}</td>
+                    <td>{{template "ticket-status" .Status}}</td>
+                    <td>{{shortDate .CreatedAt}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="panel__body">You have no tickets.</div>
+    {{end}}
+</section>
+
+<section class="panelV2">
+    <header class="panel__header"><h2 class="panel__heading">Open a ticket</h2></header>
+    <div class="panel__body">
+        <form method="post" action="/support" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__group">
+                <label class="form__label" for="subject">Subject</label>
+                <input class="form__input" id="subject" name="subject" type="text" required>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="body">Description</label>
+                <textarea class="form__textarea" id="body" name="body" rows="8" required></textarea>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="priority">Priority</label>
+                {{/* The column has a CHECK constraint on exactly these three,
+                     so a select is the honest control. */}}
+                <select class="form__select" id="priority" name="priority">
+                    <option value="low">Low</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+            <div class="form__actions">
+                <button class="button button--primary" type="submit">Submit ticket</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+{{template "ffoot" .}}

@@ -411,6 +411,12 @@ func main() {
 	// its only seams are the chrome closure plus two pagination helpers.
 	wireStorePlugin(wsrv)
 
+	// Tickets plugin seams (tickets_web.go) — the helpdesk at /support.
+	if err := wireTicketsPlugin(c, wsrv); err != nil {
+		logger.Error("tickets wiring", "err", err)
+		os.Exit(1)
+	}
+
 	// --- loon-plugins wiring (all worker plugins; they boot under Process
 	// "all"). The scraper needs the shared catalog.Registry on the extension
 	// registry — empty here until a source module lands — plus a write sink;

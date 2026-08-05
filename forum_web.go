@@ -265,6 +265,32 @@ type forumPagination struct {
 	BaseURL    string // ends in '?' or '&'; templates append page=N
 }
 
+// hostPagination is the shared builder behind every plugin's Deps.Pagination
+// seam (store, tickets, …). Handed back as `any` so a plugin never learns this
+// type — its template reads it by field name, which is also why every plugin
+// that pages must get the SAME shape from here rather than a lifted copy.
+//
+// baseURL arrives as a bare path or an already-parameterised one; templates
+// append "page=N", so the separator is decided here. Getting that wrong turns
+// the first link into "…/historypage=2".
+func hostPagination(page, pageSize, totalItems int, baseURL string) forumPagination {
+	total := (totalItems + pageSize - 1) / pageSize
+	if total < 1 {
+		total = 1
+	}
+	if page < 1 {
+		page = 1
+	}
+	if page > total {
+		page = total
+	}
+	sep := "?"
+	if strings.Contains(baseURL, "?") {
+		sep = "&"
+	}
+	return forumPagination{Page: page, TotalPages: total, BaseURL: baseURL + sep}
+}
+
 func (p forumPagination) HasPrev() bool { return p.Page > 1 }
 func (p forumPagination) HasNext() bool { return p.Page < p.TotalPages }
 func (p forumPagination) Prev() int     { return p.Page - 1 }

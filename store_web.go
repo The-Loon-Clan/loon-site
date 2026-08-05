@@ -28,26 +28,7 @@ func wireStorePlugin(w *web) {
 		// template reads it by field name. Reuses forumPagination rather than
 		// introducing a second shape, so one pagination partial serves both.
 		Paginate: func(page, pageSize, totalItems int, baseURL string) any {
-			total := (totalItems + pageSize - 1) / pageSize
-			if total < 1 {
-				total = 1
-			}
-			if page < 1 {
-				page = 1
-			}
-			if page > total {
-				page = total
-			}
-			// The plugin passes a bare path; templates append page=N, so the
-			// separator has to be here or the first link becomes "…historypage=2".
-			sep := "?"
-			for i := 0; i < len(baseURL); i++ {
-				if baseURL[i] == '?' {
-					sep = "&"
-					break
-				}
-			}
-			return forumPagination{Page: page, TotalPages: total, BaseURL: baseURL + sep}
+			return hostPagination(page, pageSize, totalItems, baseURL)
 		},
 		PageOffset: func(page, pageSize int) int {
 			if page < 1 {

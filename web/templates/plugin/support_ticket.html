@@ -1,0 +1,100 @@
+{{/* One ticket — the conversation, plus the reply box and the owner's
+     public/private toggle.
+
+     Keys (tickets plugin, Handlers.Show + Deps.BaseData):
+       Ticket     SupportTicket — ID UserID Username Subject Body Priority
+                                  Status AdminNote Public CreatedAt UpdatedAt
+       Replies    []TicketReply — ID UserID Username Body IsAdmin CreatedAt
+       OwnerRole  string — from Deps.OwnerRole; the host's role name, fed
+                           straight into user-tag's Role
+       ViewerRole string — same, for the viewer
+
+     Reachable by a visitor when the ticket is public, so nothing here may
+     assume .User. Bodies are user-authored plain text and render ESCAPED. */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/support">Support</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">{{.Ticket.Subject}}</li>
+</ol>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">{{.Ticket.Subject}}</h1>
+        <div class="panel__actions">
+            <span class="panel__action">{{template "ticket-priority" .Ticket.Priority}}</span>
+            <span class="panel__action">{{template "ticket-status" .Ticket.Status}}</span>
+        </div>
+    </header>
+    <div class="panel__body">
+        <p class="meta__line">
+            <span class="meta__item">{{template "user-tag" (dict "Name" .Ticket.Username "Role" .OwnerRole)}}</span>
+            {{with timeAgo .Ticket.CreatedAt}}<span class="meta__item">{{.}}</span>{{end}}
+            {{if .Ticket.Public}}<span class="meta__item"><span class="tag">Public</span></span>{{end}}
+        </p>
+        <div class="prose">{{.Ticket.Body}}</div>
+    </div>
+</section>
+
+{{if .Replies}}
+<section class="panelV2">
+    <header class="panel__header"><h2 class="panel__heading">Replies</h2></header>
+    <ul class="list-rows">
+        {{range .Replies}}
+        <li>
+            <div class="list-row">
+                <span class="avatar avatar--sm avatar--round poster--h{{hue .Username}}">
+                    <span class="avatar__fallback">{{initials .Username}}</span>
+                </span>
+                <span class="list-row__body">
+                    <span class="list-row__title">
+                        {{/* No Role passed: the row carries IsAdmin, a staff
+                             FLAG, not a role name — feeding a bool to roleSlug
+                             would just resolve to "member" and paint every
+                             reply the same. The Staff tag below carries that
+                             signal honestly instead. */}}
+                        {{template "user-tag" (dict "Name" .Username "Plain" true)}}
+                        {{if .IsAdmin}}<span class="tag tag--info">Staff</span>{{end}}
+                    </span>
+                    <span class="list-row__meta">{{with timeAgo .CreatedAt}}{{.}}{{end}}</span>
+                    <span class="list-row__text">{{.Body}}</span>
+                </span>
+            </div>
+        </li>
+        {{end}}
+    </ul>
+</section>
+{{end}}
+
+{{if .User}}
+<section class="panelV2">
+    <header class="panel__header"><h2 class="panel__heading">Reply</h2></header>
+    <div class="panel__body">
+        <form method="post" action="/support/{{.Ticket.ID}}/reply" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__group">
+                <label class="form__label" for="body">Message</label>
+                <textarea class="form__textarea" id="body" name="body" rows="6" required></textarea>
+            </div>
+            <div class="form__actions">
+                <button class="button button--primary" type="submit">Post reply</button>
+            </div>
+        </form>
+
+        {{/* Visibility is the OWNER's control, not staff's — the plugin gates
+             the route on ownership, so only show it to the owner. */}}
+        {{if eqID .User.ID .Ticket.UserID}}
+        <form method="post" action="/support/{{.Ticket.ID}}/visibility" class="form form--inline">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <input type="hidden" name="public" value="{{if .Ticket.Public}}0{{else}}1{{end}}">
+            <button class="button button--text button--sm" type="submit">
+                {{if .Ticket.Public}}Make private{{else}}Make public{{end}}
+            </button>
+        </form>
+        {{end}}
+    </div>
+</section>
+{{end}}
+
+{{template "ffoot" .}}
