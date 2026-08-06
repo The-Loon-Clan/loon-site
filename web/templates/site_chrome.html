@@ -298,7 +298,7 @@
             <li class="nav-tab"><a class="{{if eq $p "/"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/"{{if eq $p "/"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#home"></use></svg>Home</a></li>
 
             {{/* Releases — UNIT3D's "Torrents": finding indexed content. */}}
-            {{$rel := or (eq $p "/browse") (eq $p "/search") (eq $p "/groups") (hasPrefix $p "/release/")}}
+            {{$rel := or (eq $p "/browse") (eq $p "/search") (eq $p "/groups") (hasPrefix $p "/release/") (inGroup $.SiteNavGroup "Releases" $p)}}
             <li class="nav-tab">
                 <details class="dropdown">
                     <summary class="{{if $rel}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
@@ -310,12 +310,13 @@
                         <a class="dropdown__item{{if eq $p "/search"}} active{{end}}" href="/search"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#search"></use></svg>Search</a>
                         <a class="dropdown__item{{if eq $p "/groups"}} active{{end}}" href="/groups"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#groups"></use></svg>Newsgroups</a>
                         <a class="dropdown__item" href="/api"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#code"></use></svg>Newznab API</a>
+                        {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Releases") "Path" $p)}}
                     </div>
                 </details>
             </li>
 
             {{/* Community — the social half. */}}
-            {{$com := or (hasPrefix $p "/community/forums") (hasPrefix $p "/c/") (eq $p "/c") (hasPrefix $p "/news") (hasPrefix $p "/store") (hasPrefix $p "/playlists")}}
+            {{$com := or (hasPrefix $p "/community/forums") (hasPrefix $p "/c/") (eq $p "/c") (hasPrefix $p "/news") (hasPrefix $p "/store") (hasPrefix $p "/playlists") (inGroup $.SiteNavGroup "Community" $p)}}
             <li class="nav-tab">
                 <details class="dropdown">
                     <summary class="{{if $com}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
@@ -328,12 +329,13 @@
                         <a class="dropdown__item{{if hasPrefix $p "/news"}} active{{end}}" href="/news"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#rss"></use></svg>News</a>
                         <a class="dropdown__item{{if hasPrefix $p "/playlists"}} active{{end}}" href="/playlists"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#music"></use></svg>Playlists</a>
                         <a class="dropdown__item{{if hasPrefix $p "/store"}} active{{end}}" href="/store"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#store"></use></svg>Points store</a>
+                        {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Community") "Path" $p)}}
                     </div>
                 </details>
             </li>
 
             {{/* Support — UNIT3D's own grouping, unchanged. */}}
-            {{$sup := or (eq $p "/rules") (eq $p "/faq") (eq $p "/staff") (hasPrefix $p "/wiki") (hasPrefix $p "/support")}}
+            {{$sup := or (eq $p "/rules") (eq $p "/faq") (eq $p "/staff") (hasPrefix $p "/wiki") (hasPrefix $p "/support") (inGroup $.SiteNavGroup "Support" $p)}}
             <li class="nav-tab">
                 <details class="dropdown">
                     <summary class="{{if $sup}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
@@ -346,6 +348,7 @@
                         <a class="dropdown__item{{if hasPrefix $p "/wiki"}} active{{end}}" href="/wiki"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#book"></use></svg>Wiki</a>
                         <a class="dropdown__item{{if hasPrefix $p "/support"}} active{{end}}" href="/support"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#comment"></use></svg>Helpdesk</a>
                         <a class="dropdown__item{{if eq $p "/staff"}} active{{end}}" href="/staff"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Staff</a>
+                        {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Support") "Path" $p)}}
                     </div>
                 </details>
             </li>
@@ -355,7 +358,7 @@
                  tabs, which is the single biggest reason the bar grew: every
                  plugin registering a site page widened it. A plugin that
                  declares a NavHint group still gets its own dropdown below. */}}
-            {{$oth := or (eq $p "/stats") (eq $p "/about") (eq $p "/sitemap")}}
+            {{$oth := or (eq $p "/stats") (eq $p "/about") (eq $p "/sitemap") (inGroup $.SiteNavGroup "Other" $p)}}
             {{range .SiteNav}}{{if not .Children}}{{if eq $p .Href}}{{$oth = true}}{{end}}{{end}}{{end}}
             <li class="nav-tab">
                 <details class="dropdown">
@@ -370,6 +373,7 @@
                         {{range .SiteNav}}{{if not .Children}}
                         <a class="dropdown__item{{if eq $p .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>
                         {{end}}{{end}}
+                        {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Other") "Path" $p)}}
                     </div>
                 </details>
             </li>
@@ -586,11 +590,26 @@
     </span>
 {{end}}
 
+{{/* Plugin site pages that named one of the host's own dropdowns in their
+     NavHint, rendered as items INSIDE that dropdown. Dot: Items (may be nil —
+     ranging nil is fine) and Path, because a template invocation rebinds $ and
+     the current path cannot be reached from in here otherwise.
+
+     The generic #tag icon is deliberate: the host has no idea what a plugin
+     page is about, and guessing an icon per slug is how a menu ends up lying
+     about half its entries. */}}
+{{define "nav-plugin-items"}}
+{{$p := .Path}}
+{{range .Items}}<a class="dropdown__item{{if eq $p .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>
+{{end}}
+{{end}}
+
 {{/* ------------------------------------------------------------- scripts --
      Hand-written vanilla JS only: no framework, no bundler, no external host.
-     Three tiny behaviours — the CSRF double-submit shim, the "/" search
-     hotkey the quick-search chip advertises, and the carousel arrows the
-     design system documents (the arrows are inert without it). */}}
+     Four tiny behaviours — the CSRF double-submit shim, the "/" search
+     hotkey the quick-search chip advertises, the carousel arrows the design
+     system documents (the arrows are inert without it), and the tab shim that
+     makes plugin-rendered Bootstrap tab strips actually switch panes. */}}
 {{define "site-scripts"}}
     <script>
     // Double-submit CSRF: on submit, make every same-origin POST form carry the
@@ -638,5 +657,145 @@
         var dir = btn.getAttribute('data-carousel') === 'prev' ? -1 : 1;
         track.scrollBy({ left: dir * track.clientWidth * 0.8, behavior: 'smooth' });
     });
+
+    // Tab shim. Plugin admin fragments are Bootstrap markup — a strip of
+    // [data-bs-toggle="tab"|"pill"] controls over .tab-pane children of a
+    // .tab-content — and this site ships no Bootstrap bundle, so without these
+    // lines every pane stacked down the page and the strip was decoration.
+    //
+    // Deliberately NOT anchor navigation: a tab click swaps panes in place and
+    // rewrites the hash with replaceState, so the URL still deep-links and
+    // reloads onto the same tab (the usenet Crawlers pane auto-refreshes and
+    // relies on that) without the page ever jumping.
+    (function () {
+        var SEL = '[data-bs-toggle="tab"],[data-bs-toggle="pill"]';
+
+        // Settings is one page per section now, but plugin redirects still come
+        // back to /admin/settings carrying "#s-<slug>" (catalog's does). Hop to
+        // that section's own page instead of silently landing on the first one.
+        // First thing in the file so the hop happens before any of it renders.
+        var hop = location.pathname === '/admin/settings' && /^#s-([a-z0-9_-]+)$/.exec(location.hash);
+        if (hop) {
+            location.replace('/admin/settings/' + hop[1] + location.search);
+            return;
+        }
+
+        // A control names its pane with data-bs-target, or with href for the
+        // <a> form. Anchored to id lookup rather than querySelector so a href
+        // like "/admin" can never be read as a selector.
+        function paneOf(ctl) {
+            var t = ctl.getAttribute('data-bs-target') || ctl.getAttribute('href') || '';
+            return t.charAt(0) === '#' ? document.getElementById(t.slice(1)) : null;
+        }
+
+        // quiet leaves the URL alone. Only the deep-link path below uses it,
+        // and only because the hash has to stay off the URL until after load.
+        function show(ctl, quiet) {
+            var pane = paneOf(ctl);
+            if (!pane) return;
+            var content = pane.parentElement;
+            var strip = ctl.closest('.nav');
+            if (strip) {
+                strip.querySelectorAll(SEL).forEach(function (o) {
+                    o.classList.toggle('active', o === ctl);
+                    o.setAttribute('aria-selected', o === ctl ? 'true' : 'false');
+                });
+            }
+            if (content) {
+                // Only siblings: a page can hold several independent strips
+                // (usenet's settings tabs, each with its own nested content).
+                Array.prototype.forEach.call(content.children, function (p) {
+                    if (p.classList.contains('tab-pane')) p.classList.toggle('active', p === pane);
+                });
+            }
+            // replaceState, not location.hash — assigning the hash is what
+            // scrolls the page to the pane.
+            if (!quiet) {
+                try { history.replaceState(null, '', '#' + pane.id); } catch (err) { /* file:// */ }
+            }
+            ctl.dispatchEvent(new CustomEvent('shown.bs.tab', { bubbles: true }));
+        }
+
+        // Mark every container that has a live strip, which is what lets
+        // theme.css hide the inactive panes (see the .tab-content rule: no
+        // mark, no hiding, so a page this script never reached still shows
+        // everything). Runs at parse time — this script is at end of body, so
+        // the fragments above are already in the DOM, and the panes are hidden
+        // before first paint rather than after a visible stacked flash.
+        function arm() {
+            document.querySelectorAll(SEL).forEach(function (ctl) {
+                var pane = paneOf(ctl);
+                if (!pane || !pane.parentElement) return;
+                var content = pane.parentElement;
+                if (content.getAttribute('data-tabs') === 'on') return;
+                content.setAttribute('data-tabs', 'on');
+                // Plugin markup marks its default pane .active; if a fragment
+                // ever ships without one, fall back to the first so the
+                // container is never entirely blank.
+                if (!content.querySelector(':scope > .tab-pane.active')) {
+                    var first = content.querySelector(':scope > .tab-pane');
+                    if (first) first.classList.add('active');
+                }
+            });
+        }
+        arm();
+
+        document.addEventListener('click', function (e) {
+            var ctl = e.target.closest ? e.target.closest(SEL) : null;
+            if (!ctl) return;
+            if (!paneOf(ctl)) return; // a real link that merely looks like a tab
+            e.preventDefault();
+            show(ctl);
+        });
+
+        // Minimal window.bootstrap.Tab so a fragment's own deep-link restore
+        // keeps working as written (usenet's settings.html calls exactly this).
+        // Its DOMContentLoaded handler was registered while parsing the
+        // fragment, so it runs after this assignment.
+        window.bootstrap = window.bootstrap || {};
+        window.bootstrap.Tab = window.bootstrap.Tab || {
+            getOrCreateInstance: function (el) { return { show: function () { show(el); } }; }
+        };
+
+        // Deep link (/admin/p/usenet#newsgroups): open that tab, do NOT scroll
+        // to it.
+        //
+        // The browser keeps retrying its scroll-to-fragment for as long as the
+        // document is loading, and un-hiding the pane is precisely what lets it
+        // finally land — dropping the reader partway down the tab they just
+        // opened. So the fragment comes off the URL here and goes back on at
+        // load, once that retry loop is over. Scrolling to 0 afterwards instead
+        // loses the race; putting the hash straight back does too (that was the
+        // first two attempts at this).
+        //
+        // Runs at parse time, and only for ids that name a .tab-pane — a
+        // thread's #post-123 still scrolls exactly as it should. The pattern
+        // test also keeps hash text, which is attacker-supplied, out of a
+        // selector.
+        var deep = /^#([\w-]+)$/.exec(location.hash);
+        var deepPane = deep && document.getElementById(deep[1]);
+        if (deepPane && deepPane.classList.contains('tab-pane')) {
+            var deepCtl = document.querySelector(
+                '[data-bs-target="#' + deep[1] + '"],a[href="#' + deep[1] + '"]');
+            if (deepCtl && deepCtl.matches(SEL)) {
+                var deepID = deep[1];
+                try {
+                    history.replaceState(null, '', location.pathname + location.search);
+                    show(deepCtl, true);
+                    // Back on the URL once nothing can act on it, so a reload
+                    // still lands here (usenet's Crawlers pane auto-refreshes
+                    // and depends on exactly that).
+                    window.addEventListener('load', function () {
+                        try { history.replaceState(null, '', '#' + deepID); } catch (err) { /* file:// */ }
+                    });
+                } catch (err) {
+                    show(deepCtl); // no History API — a scroll beats a wrong tab
+                }
+            }
+        }
+
+        // Insurance for anything appended after this script ran.
+        document.addEventListener('DOMContentLoaded', arm);
+    })();
     </script>
 {{end}}

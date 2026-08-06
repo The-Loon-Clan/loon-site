@@ -5,11 +5,26 @@ services:
       POSTGRES_USER: demo
       POSTGRES_PASSWORD: demo
       POSTGRES_DB: loon_demo
+    # Docker gives a container 64 MB of /dev/shm, which is where Postgres puts
+    # the DSM segments its PARALLEL workers share. The usenet staging table runs
+    # to millions of rows, and at that size a plain `VACUUM (ANALYZE)` picks a
+    # parallel plan and dies on "could not resize shared memory segment ... No
+    # space left on device" — so the table never gets analyzed, pg_class
+    # reltuples drifts far above the real row count, and the crawler's staging
+    # pressure gauge (staged rows / staging_max_rows, off reltuples) reads full
+    # and pauses the crawl on a table that is 68% full. Nothing in the logs
+    # points at /dev/shm.
+    shm_size: 1gb
     ports:
       - "5544:5432"
 
   redis:
     image: redis:7-alpine
+    # NOT the usenet staging backend by default — USENET_STAGING below is "pg",
+    # so this holds the page cache and core.Redis only, which is why it sits at
+    # ~1 MB used with maxmemory unset (i.e. unlimited). A staging stall is a
+    # Postgres story, not a Redis one; check `select reltuples from pg_class`
+    # against the real count before reaching for memory here.
     ports:
       - "6399:6379"
 

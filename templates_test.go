@@ -330,13 +330,15 @@ func TestSpriteSymbolsCoverUses(t *testing.T) {
 // bug against a nil .Categories). Listing them here makes the contract
 // explicit: if a handler ever stops setting one, this test says so.
 //
-//	admin_settings.html  Sections — admin_views.go renderSettingsPage always
-//	                     builds a (possibly empty) non-nil slice
+//	admin_settings.html  Tabs — admin_views.go renderSettingsPage always builds
+//	                     a (possibly empty) non-nil slice. Section is NOT
+//	                     structural: it is absent when no plugin registered one,
+//	                     and the page guards it with {{with}}.
 //	profile.html         exactly ONE of Missing / Subject — views.go profile
 //	home.html            Blocks — views.go home always sets the (possibly
 //	                     empty) ordered block list the page ranges over
 var structuralKeys = map[string]map[string]any{
-	"admin_settings.html": {"Sections": []settingsSection{}},
+	"admin_settings.html": {"Tabs": []settingsTab{}},
 	"profile.html":        {"Missing": true},
 	"home.html":           {"Blocks": []homeBlock{}},
 }
@@ -356,6 +358,11 @@ func chromeKeys() map[string]any {
 		"PathQuery": "/",
 		"AdminNav":  []navItem(nil),
 		"SiteNav":   []navNode(nil),
+		// The nav does `index $.SiteNavGroup "Community"` unguarded, and index
+		// on an ABSENT key is an execute error ("index of untyped nil") that
+		// kills the whole render — a nil map of the right type is fine, a
+		// missing key is not. chromeData always sets it; so must the fixture.
+		"SiteNavGroup": map[string][]navItem(nil),
 		// chromeData sets this on every render, so the fixture must too — the
 		// nav reads it to decide whether Donate appears.
 		"DonateEnabled": false,
@@ -510,8 +517,12 @@ func TestPagesExecuteWithRealData(t *testing.T) {
 		}},
 		"profile.html": {"Title": "alice", "Subject": u, "IsSelf": true,
 			"Widgets": []widgetVM{{Title: "Streak", Fragment: template.HTML("<div class=\"card-body\">7 days</div>")}}},
-		"admin_settings.html": {"Title": "Settings", "Sections": []settingsSection{
-			{Slug: "usenet", Title: "Usenet", Fragment: template.HTML("<div class=\"card\">cfg</div>")}}},
+		"admin_settings.html": {"Title": "Settings",
+			"Tabs": []settingsTab{
+				{Href: "/admin/settings/usenet", Label: "Usenet", Active: true},
+				{Href: "/admin/settings/catalog", Label: "Catalog"}},
+			"Section": &settingsSection{Slug: "usenet", Title: "Usenet",
+				Fragment: template.HTML("<div class=\"card\">cfg</div>")}},
 		"site_page.html": {"Title": "Inbox", "Page": template.HTML("<div class=\"card\">body</div>")},
 	}
 

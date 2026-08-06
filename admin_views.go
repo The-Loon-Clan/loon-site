@@ -48,10 +48,13 @@ func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup
 		navItem{Href: "/admin/jobs", Label: "Jobs"},
 		navItem{Href: "/admin/plugins", Label: "Plugins"})
 
-	// The aggregated settings page + each section's actions.
+	// Settings: one PAGE per section, plus each section's actions. The bare
+	// /admin/settings keeps working (it lands on the first section) because it
+	// is what the admin subnav, bookmarks, and plugin redirects all point at.
 	admin.GET("/settings", w.adminSettings)
 	for _, v := range w.settingsViews {
 		v := v
+		admin.GET("/settings/"+v.Slug, w.adminSettingsSection(v.Slug))
 		for name, fn := range v.Actions {
 			admin.POST("/settings/"+v.Slug+"/"+name, w.settingsAction(v, fn))
 		}
@@ -119,14 +122,28 @@ func (w *web) canView(v core.View, c *gin.Context) bool {
 	return v.AllowsUser(u)
 }
 
+// hostNavGroups are the dropdowns site_chrome.html writes out itself. A plugin
+// that names one of these in its NavHint is asking to live INSIDE it — the
+// stats plugin says Group:"Community", and before this the bar carried two
+// separate Community dropdowns, the host's and the plugin's, which reads as a
+// broken menu rather than as a section.
+var hostNavGroups = map[string]bool{
+	"Releases": true, "Community": true, "Support": true, "Other": true,
+}
+
 // siteNav builds the top nav for the current viewer from the pre-sorted
 // entries: ungrouped pages become plain links; a named group with 2+ visible
 // pages collapses into a dropdown; a group with a single visible page flattens
 // to a plain link (no one-item dropdowns). The user is resolved ONCE and the
 // entries are already sorted, so this is a linear role-filter — nothing hot.
-func (w *web) siteNav(c *gin.Context) []navNode {
+//
+// The second return is the by-name merge into the host's own dropdowns: entries
+// whose group is one of hostNavGroups never become a top-level node, they get
+// appended to that host menu instead.
+func (w *web) siteNav(c *gin.Context) ([]navNode, map[string][]navItem) {
 	u, _ := w.auth.Current(c)
 	var nodes []navNode
+	merged := map[string][]navItem{}
 	for i := 0; i < len(w.siteNavEntries); {
 		e := w.siteNavEntries[i]
 		if e.group == "" {
@@ -145,16 +162,20 @@ func (w *web) siteNav(c *gin.Context) []navNode {
 			}
 			i++
 		}
-		switch len(kids) {
-		case 0:
+		switch {
+		case len(kids) == 0:
 			// nothing visible in this group
-		case 1:
+		case hostNavGroups[e.group]:
+			// Even a single entry merges: the whole point is that it appears
+			// under the host menu it named, not beside it.
+			merged[e.group] = append(merged[e.group], kids...)
+		case len(kids) == 1:
 			nodes = append(nodes, navNode{Label: kids[0].Label, Href: kids[0].Href})
 		default:
 			nodes = append(nodes, navNode{Label: e.group, Children: kids})
 		}
 	}
-	return nodes
+	return nodes, merged
 }
 
 // homeWidgets renders the site widgets the current viewer may see.
@@ -187,28 +208,71 @@ type settingsSection struct {
 	Fragment template.HTML
 }
 
-func (w *web) adminSettings(c *gin.Context) {
-	w.renderSettingsPage(c, "", "")
+// settingsTab is one entry in the settings strip. Each is a real page rather
+// than an in-page anchor: a section is a whole plugin fragment (its own tables,
+// forms, and sometimes its own <script>), so stacking every one of them behind
+// jump links turned Settings into a thing you scrolled instead of a thing you
+// navigated — and a section's action re-rendered all the others with it.
+type settingsTab struct {
+	Href   string
+	Label  string
+	Active bool
 }
 
-// renderSettingsPage renders every settings section; when an action returned a
-// fragment (form-preserving re-render), that section shows the override while
-// the others render fresh.
-func (w *web) renderSettingsPage(c *gin.Context, overrideSlug string, override template.HTML) {
-	sections := make([]settingsSection, 0, len(w.settingsViews))
+func (w *web) adminSettings(c *gin.Context) {
+	w.renderSettingsPage(c, "", nil)
+}
+
+func (w *web) adminSettingsSection(slug string) gin.HandlerFunc {
+	return func(c *gin.Context) { w.renderSettingsPage(c, slug, nil) }
+}
+
+// settingsView resolves the section a request is for: the named slug, else the
+// first registered section. Falling back rather than 404ing is what keeps the
+// bare /admin/settings meaningful, and it survives a plugin being removed while
+// a bookmark still points at its tab.
+func (w *web) settingsView(slug string) (core.View, bool) {
 	for _, v := range w.settingsViews {
-		frag := override
-		if v.Slug != overrideSlug {
-			f, err := v.Render(c)
+		if v.Slug == slug {
+			return v, true
+		}
+	}
+	if len(w.settingsViews) > 0 {
+		return w.settingsViews[0], true
+	}
+	return core.View{}, false
+}
+
+// renderSettingsPage renders ONE settings section plus the strip that switches
+// between them. override is non-nil only when an action just produced a
+// form-preserving fragment for this same section.
+func (w *web) renderSettingsPage(c *gin.Context, slug string, override *template.HTML) {
+	cur, ok := w.settingsView(slug)
+	tabs := make([]settingsTab, 0, len(w.settingsViews))
+	for _, v := range w.settingsViews {
+		tabs = append(tabs, settingsTab{
+			Href:   "/admin/settings/" + v.Slug,
+			Label:  v.Title,
+			Active: ok && v.Slug == cur.Slug,
+		})
+	}
+	data := map[string]any{"Title": "Settings", "Tabs": tabs}
+	if ok {
+		var frag template.HTML
+		switch {
+		case override != nil:
+			frag = *override
+		default:
+			f, err := cur.Render(c)
 			if err != nil {
-				w.log.Error("settings section", "slug", v.Slug, "err", err)
+				w.log.Error("settings section", "slug", cur.Slug, "err", err)
 				f = template.HTML(`<div class="alert">section failed to render — see logs</div>`)
 			}
 			frag = f
 		}
-		sections = append(sections, settingsSection{Slug: v.Slug, Title: v.Title, Fragment: frag})
+		data["Section"] = &settingsSection{Slug: cur.Slug, Title: cur.Title, Fragment: frag}
 	}
-	w.render(c, "admin_settings.html", map[string]any{"Title": "Settings", "Sections": sections})
+	w.render(c, "admin_settings.html", data)
 }
 
 func (w *web) settingsAction(v core.View, fn func(*gin.Context) (template.HTML, error)) gin.HandlerFunc {
@@ -222,7 +286,7 @@ func (w *web) settingsAction(v core.View, fn func(*gin.Context) (template.HTML, 
 		if frag == "" {
 			return // action already responded (redirect)
 		}
-		w.renderSettingsPage(c, v.Slug, frag)
+		w.renderSettingsPage(c, v.Slug, &frag)
 	}
 }
 

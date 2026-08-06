@@ -44,8 +44,11 @@
 {{define "admin-subnav"}}
 <nav class="border-bottom" aria-label="Admin sections">
     <ul class="nav-tabsV2">
-        {{range .AdminNav}}
-        <li class="nav-tab"><a class="{{if eq $.Path .Href}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="{{.Href}}"{{if eq $.Path .Href}} aria-current="page"{{end}}>{{.Label}}</a></li>
+        {{/* navActive, not eq: Settings is now one page per section
+             (/admin/settings/<slug>), and an equality test would leave the whole
+             subnav unlit on every one of them. */}}
+        {{range .AdminNav}}{{$on := navActive $.Path .Href}}
+        <li class="nav-tab"><a class="{{if $on}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="{{.Href}}"{{if $on}} aria-current="page"{{end}}>{{.Label}}</a></li>
         {{end}}
     </ul>
 </nav>

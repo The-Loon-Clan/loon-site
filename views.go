@@ -230,10 +230,38 @@ func tmplHelpers() template.FuncMap {
 		"roleLabel": roleLabel,
 		"eqID":      eqID,
 		"hasPrefix": strings.HasPrefix,
+		"navActive": navActive,
+		"inGroup":   inGroup,
 		"ordinal":   ordinal,
 		"add":       func(a, b int) int { return a + b },
 		"dict":      dict,
 	}
+}
+
+// navActive reports whether a nav entry covers the current path — an exact
+// match, or a parent of it.
+//
+// An equality test loses the highlight the moment a nav target grows child
+// pages: /admin/settings/usenet is the Settings page, and the subnav has to
+// keep saying so. The child test is segment-aware for the same reason
+// matchesSection's is — a bare strings.HasPrefix would make /admin/plugins a
+// child of /admin/plug.
+func navActive(path, href string) bool {
+	href = strings.TrimSuffix(href, "/")
+	return path == href || strings.HasPrefix(path, href+"/")
+}
+
+// inGroup reports whether the current path is one of the plugin pages merged
+// into a host dropdown (see hostNavGroups). Without it a page that opted into
+// Community would appear in that menu and still leave it unlit, which reads as
+// the nav having lost track of where you are.
+func inGroup(m map[string][]navItem, group, path string) bool {
+	for _, it := range m[group] {
+		if navActive(path, it.Href) {
+			return true
+		}
+	}
+	return false
 }
 
 // timeAgo renders a coarse "3 hours ago" for a past instant. A zero time (the
@@ -705,7 +733,11 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// rooted same-origin form backLink() accepts.
 	data["PathQuery"] = c.Request.URL.RequestURI()
 	data["AdminNav"] = w.adminNav
-	data["SiteNav"] = w.siteNav(c) // plugin site pages the viewer may open
+	// Plugin site pages the viewer may open: SiteNav is the top-level nodes,
+	// SiteNavGroup the ones that asked to sit inside a dropdown the host writes
+	// itself (see hostNavGroups). Both ALWAYS set — the nav indexes
+	// SiteNavGroup by name on every render.
+	data["SiteNav"], data["SiteNavGroup"] = w.siteNav(c)
 	// Theme is resolved from an allowlist (theme.go): the cookie value never
 	// reaches the page, only the matching entry does — the head prints
 	// .Theme.Href, which is a constant. Both keys are ALWAYS set: the

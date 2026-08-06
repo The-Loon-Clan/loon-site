@@ -245,7 +245,7 @@ func TestChromeDataKeys(t *testing.T) {
 
 	for _, k := range []string{
 		"User", "IsAdmin", "IsMod", "CSRFToken", "Path", "PathQuery",
-		"AdminNav", "SiteNav", "Theme", "Themes",
+		"AdminNav", "SiteNav", "SiteNavGroup", "Theme", "Themes",
 	} {
 		if _, ok := got[k]; !ok {
 			t.Errorf("chromeData did not set %q — the shared chrome reads it unguarded", k)

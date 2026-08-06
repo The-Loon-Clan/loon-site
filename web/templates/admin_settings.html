@@ -6,17 +6,30 @@
     <p class="text-muted small m-0 mt-1">Each installed plugin contributes its own section.</p>
 </header>
 
-{{/* Jump links, backed by the section anchors this page already emits. Only
-     worth a row when there is more than one section to jump between. */}}
-{{if gt (len .Sections) 1}}
+{{/* Section switcher. These are real page links (/admin/settings/<slug>), not
+     the "#s-<slug>" jump links this page used to carry: every section rendered
+     at once, so choosing one meant scrolling past the others, and a section's
+     action re-rendered all of them to show one form again.
+
+     Pills rather than another .nav-tabsV2 strip — the admin subnav directly
+     above is already tabs, and two identical strips stacked read as one broken
+     one. Only worth showing when there is more than one section to switch
+     between. */}}
+{{if gt (len .Tabs) 1}}
 <nav aria-label="Settings sections">
     <ul class="pill-row">
-        {{range .Sections}}<li><a class="pill" href="#s-{{.Slug}}">{{.Title}}</a></li>{{end}}
+        {{range .Tabs}}
+        <li><a class="pill{{if .Active}} pill--active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}</a></li>
+        {{end}}
     </ul>
 </nav>
 {{end}}
 
-{{range .Sections}}
+{{/* id kept from the anchor era: plugin redirects still come back with
+     "#s-<slug>" on the URL (catalog does), and site-scripts turns that into a
+     hop to the section's own page. Leaving the id here means the hash also
+     resolves harmlessly when it already names the section on screen. */}}
+{{with .Section}}
 <section id="s-{{.Slug}}">
     <h2 class="panel__heading border-bottom mb-3">
         <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#settings"></use></svg>{{.Title}}
@@ -31,4 +44,3 @@
 <div class="empty">No plugin has registered settings.</div>
 {{end}}
 {{end}}
-

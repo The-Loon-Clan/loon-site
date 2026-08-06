@@ -141,9 +141,17 @@ label, .form-label { display: block; margin-bottom: .35rem; color: var(--muted);
 
 /* --------------------------------------------------------- nav + tabs ----- */
 
-/* Bootstrap pill/tab navs used by the usenet + jobs admin pages. NOTE: .tab-pane
-   is deliberately NOT hidden — this site ships no Bootstrap JS, so hiding the
-   inactive panes would make their content unreachable. */
+/* Bootstrap pill/tab navs used by the usenet + jobs admin pages.
+
+   Inactive .tab-pane is hidden ONLY inside a container site-scripts has marked
+   [data-tabs="on"]. That attribute is the proof that the tab shim is live and
+   can un-hide a pane again; this site ships no Bootstrap bundle, so hiding
+   panes unconditionally would make every one but the first permanently
+   unreachable on a page where the script did not run. Un-marked containers keep
+   the old stacked layout — worse looking, still complete. */
+.tab-content[data-tabs="on"] > .tab-pane { display: none; }
+.tab-content[data-tabs="on"] > .tab-pane.active { display: block; }
+
 .nav { display: flex; flex-wrap: wrap; margin: 0; padding: 0; list-style: none; }
 .nav-item { display: flex; }
 .nav-link {
@@ -159,6 +167,16 @@ label, .form-label { display: block; margin-bottom: .35rem; color: var(--muted);
 .nav-link:hover { color: var(--text); text-decoration: none; }
 .nav-pills .nav-link.active { background: var(--primary); color: var(--primary-fg); }
 .nav.tabs { flex-wrap: nowrap; overflow-x: auto; border-bottom: 1px solid var(--border); }
+/* Now that a tab click actually swaps panes, the strip has to say which one is
+   showing — before the shim it never did, because nothing ever changed. Same
+   accent underline the site's own .nav-tab--active__link uses, so a plugin's
+   Bootstrap strip reads as the same control as the host's. The transparent
+   border on the inactive state is what stops the row shifting 2px on select. */
+.nav.tabs .nav-link { border-bottom: 2px solid transparent; border-radius: 0; }
+.nav.tabs .nav-link.active {
+    color: var(--secondary-nav-tab-active-fg);
+    border-bottom-color: var(--secondary-nav-tab-active-underline);
+}
 .tab-count {
     display: inline-block;
     padding: 0 .35em;
