@@ -59,12 +59,16 @@ the payoff for that work, not a separate feature.
 `catalog_entry` already stores `Genres`, `Year` and `CoverURL`, so a good part
 of the schema is in place.
 
-### 3.3 `playlists` — 4 views
+### 3.3 `playlists` / `lists` — DUPLICATES, and `lists` is unwired
 
-Curated collections of releases, owned by a user, optionally public. Small and
-self-contained: `playlists`, `playlist_items`. Seams: BaseData, Pagination,
-Files (cover). The nearest thing to a pure win on this list — no gating, no
-economy, no external service.
+Resolved into one question rather than two entries. `lists` exists in
+loon-plugins, is the richer surface (public lists, follows, copy, bulk-ZIP,
+discovery grid) and is designed for this host — it owns no tables and takes
+everything through `Deps`. It is **not wired**: zero routes at boot.
+`playlists` is wired and is the narrower duplicate.
+
+Options and their costs are in `docs/PAGES.md`. Needs a decision, not more
+code: `lists` is maintained in the other repo.
 
 ### 3.4 `polls` — 4 views
 
