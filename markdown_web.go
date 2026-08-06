@@ -61,31 +61,67 @@ func siteMarkdown(src string) template.HTML {
 // the way out: an excerpt is a summary, not a rendering.
 //
 // The input is post-sanitizer, so the only tags present are the allowlist's.
-// Block boundaries become spaces, otherwise "</p><p>" welds the last word of
-// one paragraph to the first of the next.
+// BLOCK boundaries become spaces — otherwise "</p><p>" welds the last word of
+// one paragraph to the first of the next — while inline ones do not, because a
+// space there splits a word from its own punctuation.
 func excerpt(n int, body template.HTML) string {
 	var b strings.Builder
-	depth, skip := 0, false
 	for i := 0; i < len(body); i++ {
-		switch body[i] {
-		case '<':
-			depth++
-			// <script>/<style> cannot reach here (the sanitizer drops them
-			// wholesale), but their CONTENT would be text if they ever did.
-			rest := strings.ToLower(string(body[i:min(i+7, len(body))]))
-			skip = strings.HasPrefix(rest, "<script") || strings.HasPrefix(rest, "<style")
-		case '>':
-			if depth > 0 {
-				depth--
+		if body[i] != '<' {
+			b.WriteByte(body[i])
+			continue
+		}
+		end := strings.IndexByte(string(body[i:]), '>')
+		if end < 0 {
+			break // unterminated tag: nothing after it is trustworthy text
+		}
+		name := excerptTagName(string(body[i+1 : i+end]))
+		i += end
+		// <script>/<style> cannot reach here — the sanitizer drops them with
+		// their contents — but if one ever did, its SOURCE is not prose, and an
+		// excerpt reading "alert(1)" is wrong even when rendered as text. Skip
+		// to the matching close rather than treating the body as words.
+		if name == "script" || name == "style" {
+			rest := strings.ToLower(string(body[i:]))
+			closeAt := strings.Index(rest, "</"+name)
+			if closeAt < 0 {
+				break
 			}
-			b.WriteByte(' ') // a tag boundary is a word boundary
-		default:
-			if depth == 0 && !skip {
-				b.WriteByte(body[i])
-			}
+			i += closeAt
+			continue
+		}
+		// A BLOCK boundary is a word boundary; an inline one is not. Emitting a
+		// space for every tag turned "<strong>body</strong>." into "body .",
+		// because the closing tag sat between the word and its full stop.
+		if excerptBlockTag(name) {
+			b.WriteByte(' ')
 		}
 	}
 	// Entities survive tag-stripping as "&amp;" and would be shown literally.
 	text := html.UnescapeString(b.String())
 	return ellipsis(n, strings.Join(strings.Fields(text), " "))
+}
+
+// excerptBlockTag reports whether a tag name (with any attributes, opening or
+// closing) is block-level. The list is the block half of the sanitizer's
+// allowlist (news_web.go); anything else — strong, em, a, code, s, del, u —
+// is inline and contributes no space.
+func excerptBlockTag(name string) bool {
+	switch name {
+	case "p", "br", "hr", "div", "li", "ul", "ol", "blockquote", "pre",
+		"h1", "h2", "h3", "h4", "h5", "h6",
+		"table", "thead", "tbody", "tr", "th", "td":
+		return true
+	}
+	return false
+}
+
+// excerptTagName reduces "/p", `a href="..."` or "br /" to the bare lowercase
+// element name.
+func excerptTagName(tag string) string {
+	tag = strings.TrimPrefix(strings.TrimSpace(tag), "/")
+	if i := strings.IndexAny(tag, " \t\r\n/"); i >= 0 {
+		tag = tag[:i]
+	}
+	return strings.ToLower(tag)
 }

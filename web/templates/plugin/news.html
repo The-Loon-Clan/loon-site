@@ -9,12 +9,17 @@
        News []safePost — ID, Title, Slug, Body (template.HTML), CreatedAt
        User / IsAdmin / IsMod / CSRFToken / Path / Theme / …
 
-     CAUTION on .Body: NewsAll marks bodies template.HTML WITHOUT running them
-     through Deps.Sanitize — only NewsDetail sanitizes. That is a plugin-side
-     bug (reported upstream, see news_web.go). Until it is fixed this page
-     renders only the title and date, never the body, so unsanitized
-     admin-authored HTML has no path to the browser from here. Do NOT "improve"
-     this by rendering {{.Body}}. */}}
+     .Body was NOT rendered here for a long time, because NewsAll marked it
+     template.HTML WITHOUT running Deps.Sanitize while only NewsDetail
+     filtered — so the list was the one path a host's sanitize policy could
+     not defend. That plugin bug is FIXED (news/plugin.go NewsAll now calls
+     deps.Sanitize, with a comment saying so), which is what lets this page
+     show an excerpt at all.
+
+     Even so the body is not rendered as HTML here: {{excerpt}} strips it to
+     TEXT. Truncating markup would cut a tag in half, and a summary is a
+     summary — the detail page is where the post is rendered. */}}
+
 {{template "fhead" .}}
 
 <ol class="breadcrumbsV2">
@@ -36,24 +41,27 @@
     </header>
 
     {{if .News}}
-    <ul class="list-rows">
+    {{/* UNIT3D's article-preview: title, date, excerpt, Read more. A stack of
+         these rather than the .list-row idiom, because a news index is a page
+         of ARTICLES — the one-line row gave every post the same weight as a
+         menu entry and showed nothing of what it said. */}}
+    <div class="panel__body stack">
         {{range .News}}
-        <li>
-            <a class="list-row" href="/news/{{.Slug}}">
-                <span class="list-row__icon" aria-hidden="true">
-                    <svg class="icon"><use href="#rss"></use></svg>
-                </span>
-                <span class="list-row__body">
-                    <span class="list-row__title">{{.Title}}</span>
-                    {{with timeAgo .CreatedAt}}<span class="list-row__meta">{{.}}</span>{{end}}
-                </span>
-                <span class="list-row__trail">
-                    <svg class="icon list-row__chevron" aria-hidden="true"><use href="#chevron-right"></use></svg>
-                </span>
+        <article class="article-preview">
+            <header class="article-preview__header">
+                <h2 class="article-preview__title">
+                    <a class="article-preview__link" href="/news/{{.Slug}}">{{.Title}}</a>
+                </h2>
+                {{with timeAgo .CreatedAt}}<span class="article-preview__date">{{.}}</span>{{end}}
+            </header>
+            {{with excerpt 260 .Body}}<p class="article-preview__content">{{.}}</p>{{end}}
+            <a class="article-preview__read-more" href="/news/{{.Slug}}">
+                Read more
+                <svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-right"></use></svg>
             </a>
-        </li>
+        </article>
         {{end}}
-    </ul>
+    </div>
     {{else}}
     <div class="panel__body">No news yet.</div>
     {{end}}

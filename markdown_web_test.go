@@ -204,3 +204,41 @@ func TestProseHelperIsTheSameRenderer(t *testing.T) {
 		}
 	}
 }
+
+// excerpt feeds the news index. It runs on POST-sanitizer HTML, so its job is
+// not safety — it is that a summary must be TEXT: truncating markup would cut a
+// tag in half, and re-marking that template.HTML would hand the browser broken
+// markup the sanitizer had already approved.
+func TestExcerptStripsToPlainText(t *testing.T) {
+	for _, tc := range []struct{ name, in, want string }{
+		{"plain", "<p>hello there</p>", "hello there"},
+		{"drops tags", "<p>a <strong>bold</strong> word</p>", "a bold word"},
+		{"block boundary is a word boundary", "<p>one</p><p>two</p>", "one two"},
+		{"list", "<ul><li>alpha</li><li>beta</li></ul>", "alpha beta"},
+		{"entities are decoded", "<p>Tom &amp; Jerry &lt;3</p>", "Tom & Jerry <3"},
+		{"collapses whitespace", "<p>a\n\n   b</p>", "a b"},
+		{"empty", "", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := excerpt(200, template.HTML(tc.in)); got != tc.want {
+				t.Errorf("excerpt(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+
+	// Bounded, and never mid-tag — the whole reason it strips first.
+	long := "<p>" + strings.Repeat("word ", 200) + "</p>"
+	got := excerpt(60, template.HTML(long))
+	if n := len([]rune(got)); n > 61 {
+		t.Errorf("excerpt(60) returned %d runes", n)
+	}
+	if strings.ContainsAny(got, "<>") {
+		t.Errorf("markup leaked into an excerpt: %q", got)
+	}
+
+	// The output is rendered as TEXT by the template, so this is belt and
+	// braces — but an excerpt must never carry a tag even if one reached it.
+	if got := excerpt(200, template.HTML(`<p>safe</p><script>alert(1)</script>`)); strings.Contains(got, "alert") {
+		t.Errorf("script content survived into an excerpt: %q", got)
+	}
+}
