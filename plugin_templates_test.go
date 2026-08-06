@@ -8,14 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/the-loon-clan/loon/core"
-
 	"github.com/the-loon-clan/loon-plugins/communities"
 	"github.com/the-loon-clan/loon-plugins/donations"
 	"github.com/the-loon-clan/loon-plugins/messages"
 	"github.com/the-loon-clan/loon-plugins/news"
 	"github.com/the-loon-clan/loon-plugins/playlists"
-	"github.com/the-loon-clan/loon-plugins/store"
 	"github.com/the-loon-clan/loon-plugins/tickets"
 	"github.com/the-loon-clan/loon-plugins/wiki"
 )
@@ -137,22 +134,12 @@ func pluginFixtures() []pluginFixture {
 				"Total":    1,
 			}},
 
-		// ── store
-		{"store.html",
-			map[string]any{"Items": nil, "Balance": 0},
-			map[string]any{
-				"Items":   []store.Item{{ID: 1, Name: "N", PointsCost: 10, Stock: -1, Active: true}},
-				"Balance": 100,
-			}},
-		{"store_history.html",
-			map[string]any{"Entries": nil, "Total": 0, "Balance": 0, "Pagination": page},
-			map[string]any{
-				"Entries": []core.LedgerEntry{{Amount: -10, Balance: 90, Type: "spend", Description: "d", CreatedAt: now}},
-				"Total":   1,
-			}},
-		{"admin_store.html",
-			map[string]any{"Items": nil},
-			map[string]any{"Items": []store.Item{{ID: 1, Name: "N", PointsCost: 10, RewardType: "rank", Stock: 0, Active: false}}}},
+		// ── store: NOT here. The store plugin now embeds and parses its own
+		// templates (store/views.go pageTmpl) and asks the host only to wrap
+		// the finished fragment (Deps.RenderPage), so the host's copies were
+		// dead markup and are gone. Its pages are covered by exercising them
+		// against the running site, not by this sweep, which only sees
+		// templates the HOST renders.
 
 		// ── tickets
 		{"support.html",

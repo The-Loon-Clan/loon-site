@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"html"
 	"html/template"
+	"strings"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
@@ -48,4 +50,42 @@ func siteMarkdown(src string) template.HTML {
 		return ""
 	}
 	return template.HTML(sanitizeNewsHTML(buf.String()))
+}
+
+// excerpt turns already-rendered prose into a plain-text summary of n runes.
+//
+// Truncating the HTML itself would cut a tag in half, and marking the result
+// template.HTML again would then hand the browser broken markup that the
+// sanitizer had already approved — a page can be XSS-safe and still be wrong.
+// So this strips to TEXT and returns a string, which the template escapes on
+// the way out: an excerpt is a summary, not a rendering.
+//
+// The input is post-sanitizer, so the only tags present are the allowlist's.
+// Block boundaries become spaces, otherwise "</p><p>" welds the last word of
+// one paragraph to the first of the next.
+func excerpt(n int, body template.HTML) string {
+	var b strings.Builder
+	depth, skip := 0, false
+	for i := 0; i < len(body); i++ {
+		switch body[i] {
+		case '<':
+			depth++
+			// <script>/<style> cannot reach here (the sanitizer drops them
+			// wholesale), but their CONTENT would be text if they ever did.
+			rest := strings.ToLower(string(body[i:min(i+7, len(body))]))
+			skip = strings.HasPrefix(rest, "<script") || strings.HasPrefix(rest, "<style")
+		case '>':
+			if depth > 0 {
+				depth--
+			}
+			b.WriteByte(' ') // a tag boundary is a word boundary
+		default:
+			if depth == 0 && !skip {
+				b.WriteByte(body[i])
+			}
+		}
+	}
+	// Entities survive tag-stripping as "&amp;" and would be shown literally.
+	text := html.UnescapeString(b.String())
+	return ellipsis(n, strings.Join(strings.Fields(text), " "))
 }

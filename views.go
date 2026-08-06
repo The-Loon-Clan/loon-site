@@ -243,6 +243,7 @@ func tmplHelpers() template.FuncMap {
 		"prose":    siteMarkdown,
 		"ordinal":  ordinal,
 		"ellipsis": ellipsis,
+		"excerpt":  excerpt,
 		"str":      str_,
 		"add":      func(a, b int) int { return a + b },
 		"dict":     dict,
