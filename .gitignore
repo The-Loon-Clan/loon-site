@@ -4,3 +4,9 @@
 go.work
 go.work.sum
 .env
+
+# CDP/QA scratch. The visual-QA probes drive a headless Chrome with its own
+# --user-data-dir; when one is launched with a RELATIVE output path it lands
+# here instead of in the scratchpad, and `git add -A` will happily commit a
+# 15 MB browser profile (231 files, once).
+shots*/

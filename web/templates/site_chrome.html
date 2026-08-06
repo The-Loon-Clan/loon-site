@@ -701,6 +701,55 @@
         track.scrollBy({ left: dir * track.clientWidth * 0.8, behavior: 'smooth' });
     });
 
+    // Dropdown menus. Each is a <details class="dropdown">, which gives the
+    // open/close and the keyboard for free — but <details> is a DISCLOSURE
+    // widget, not a menu. It has no notion of its siblings, of the page outside
+    // it, or of Escape, so opening a second nav menu left the first hanging
+    // open over the page and neither one closed until you clicked its own
+    // summary again. Three lines of behaviour is all a menu needs on top.
+    //
+    // Scoped to .dropdown on purpose: /admin/jobs uses <details class=
+    // "job-group"> as an accordion and a thread's Edit form is a bare
+    // <details>. Those SHOULD stay independent — closing one because another
+    // opened is exactly the wrong behaviour for a disclosure list.
+    (function () {
+        var SEL = 'details.dropdown';
+
+        function closeAll(except) {
+            document.querySelectorAll(SEL + '[open]').forEach(function (d) {
+                if (d !== except) d.open = false;
+            });
+        }
+
+        // One open at a time. 'toggle' does NOT bubble, hence the capture
+        // phase. Closing the others fires their own toggle events, but those
+        // arrive with open === false and fall straight through — no loop.
+        document.addEventListener('toggle', function (e) {
+            var d = e.target;
+            if (d && d.open && d.matches && d.matches(SEL)) closeAll(d);
+        }, true);
+
+        // Click anywhere else closes them. Passing the clicked menu as the
+        // exception is what keeps a click INSIDE one from dismissing it — the
+        // theme switcher lives in the account menu and has a <select> and a
+        // submit button, both of which would otherwise close the menu out from
+        // under the pointer.
+        document.addEventListener('click', function (e) {
+            closeAll(e.target.closest ? e.target.closest(SEL) : null);
+        });
+
+        // Escape closes and hands focus back to the control that opened it,
+        // which is where a keyboard user's place in the page is.
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') return;
+            var open = document.querySelector(SEL + '[open]');
+            if (!open) return;
+            closeAll(null);
+            var summary = open.querySelector('summary');
+            if (summary) summary.focus();
+        });
+    })();
+
     // Tab shim. Plugin admin fragments are Bootstrap markup — a strip of
     // [data-bs-toggle="tab"|"pill"] controls over .tab-pane children of a
     // .tab-content — and this site ships no Bootstrap bundle, so without these
