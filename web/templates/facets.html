@@ -1,0 +1,57 @@
+{{/* Filter bar for /browse and /search — UNIT3D's torrent-search facets, cut
+     to what this stack can answer.
+
+     Dot is a facetsVM (filters_web.go): Resolutions, Sources, Groups, Sorts,
+     Active, ClearHref.
+
+     Every href is built in Go, not here. A facet link has to carry the other
+     facets AND the page's own params (?q=, ?cat=), and clicking an active value
+     has to clear it — assembling that in a template is how you end up with a
+     link that quietly drops the search you were filtering.
+
+     A group with no values renders nothing: the facets come from the rows on
+     the page, so an empty group means nothing on this page carries that
+     metadata, and an empty row of pills would just be noise. */}}
+{{define "facet-bar"}}
+{{if or .Resolutions .Sources .Groups}}
+<section class="panelV2 panelV2--overflow">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#search"></use></svg>
+            Filter
+        </h2>
+        {{if .Active}}
+        <div class="panel__actions">
+            <a class="panel__action" href="{{.ClearHref}}">Clear all</a>
+        </div>
+        {{end}}
+    </header>
+    <div class="panel__body">
+        {{template "facet-row" (dict "Label" "Quality" "Facets" .Resolutions)}}
+        {{template "facet-row" (dict "Label" "Source" "Facets" .Sources)}}
+        {{template "facet-row" (dict "Label" "Newsgroup" "Facets" .Groups)}}
+        {{template "facet-row" (dict "Label" "Sort" "Facets" .Sorts "NoCount" true)}}
+    </div>
+</section>
+{{end}}
+{{end}}
+
+{{/* One labelled row of pills. Dot: Label, Facets, NoCount.
+     Sort has no counts — "Largest first (12)" would read as a filter that
+     matches twelve things rather than an ordering. */}}
+{{define "facet-row"}}
+{{if .Facets}}
+<div class="facet-row">
+    <span class="facet-row__label">{{.Label}}</span>
+    <div class="pill-row">
+        {{$noCount := .NoCount}}
+        {{range .Facets}}
+        <a class="pill{{if .Active}} pill--active{{end}}" href="{{.Href}}"
+           {{if .Active}}aria-current="true"{{end}}>
+            {{.Value}}{{if and (not $noCount) .Count}} <span class="pill__count">{{.Count}}</span>{{end}}
+        </a>
+        {{end}}
+    </div>
+</div>
+{{end}}
+{{end}}

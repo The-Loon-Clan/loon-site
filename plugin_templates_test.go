@@ -14,6 +14,7 @@ import (
 	"github.com/the-loon-clan/loon-plugins/donations"
 	"github.com/the-loon-clan/loon-plugins/messages"
 	"github.com/the-loon-clan/loon-plugins/news"
+	"github.com/the-loon-clan/loon-plugins/playlists"
 	"github.com/the-loon-clan/loon-plugins/store"
 	"github.com/the-loon-clan/loon-plugins/tickets"
 	"github.com/the-loon-clan/loon-plugins/wiki"
@@ -277,6 +278,39 @@ func pluginFixtures() []pluginFixture {
 			}},
 		{"community_settings.html",
 			map[string]any{"Community": comm}, nil},
+
+		// ── playlists
+		{"playlists_index.html",
+			map[string]any{"Playlists": nil, "Total": 0, "Pagination": page},
+			map[string]any{
+				"Playlists": []*playlists.Playlist{{
+					ID: 1, Slug: "best", Name: "Best of", Description: "d",
+					Public: true, Username: "alice", ItemCount: 2, UpdatedAt: now,
+				}},
+				"Total": 1,
+			}},
+		{"playlist_view.html",
+			map[string]any{
+				"Playlist": &playlists.Playlist{ID: 1, Slug: "best", Name: "Best of", Public: true, UpdatedAt: now},
+				"Items":    nil, "IsOwner": false,
+			},
+			map[string]any{
+				// Two items on purpose: one resolved and one whose Release is
+				// nil, which is the aged-out case the template must still draw.
+				"Items": []*playlists.Item{
+					{ID: 1, PlaylistID: 1, ReleaseID: 10, AddedAt: now,
+						Release: &playlists.Release{ID: 10, Title: "T", Size: "1 GB", Category: "TV"}},
+					{ID: 2, PlaylistID: 1, ReleaseID: 11, AddedAt: now, Release: nil},
+				},
+				"IsOwner": true,
+			}},
+		{"playlist_form.html",
+			map[string]any{"Action": "Create"},
+			map[string]any{
+				"Action":   "Save",
+				"Playlist": &playlists.Playlist{ID: 1, Slug: "best", Name: "Best of"},
+				"Name":     "Best of", "Description": "d", "CoverURL": "", "Public": true,
+			}},
 
 		// ── shared error page
 		{"error.html",

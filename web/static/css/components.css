@@ -1432,3 +1432,40 @@ input[type="range"] { accent-color: var(--primary); }
     color: var(--text-strong);
     border-bottom-color: var(--primary);
 }
+
+/* ------------------------------------------------------- facet-row ---- */
+
+/* One labelled row of filter pills (facets.html). The label is a fixed column
+   so the pill rows line up down the bar rather than starting at a different x
+   per row — a filter bar you can scan vertically is the whole point. */
+.facet-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-4);
+    padding: var(--space-2) 0;
+}
+
+.facet-row + .facet-row { border-top: var(--panel-head-border); }
+
+.facet-row__label {
+    flex: 0 0 5.5rem;
+    color: var(--text-muted);
+    font-size: var(--fs-2xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* The count rides inside the pill rather than beside it, so a wrapped row keeps
+   each value glued to its own number. */
+.pill__count {
+    margin-left: 0.4em;
+    opacity: 0.65;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 620px) {
+    /* The fixed label column costs more than it buys once the pills wrap. */
+    .facet-row { flex-direction: column; gap: var(--space-2); }
+    .facet-row__label { flex: none; }
+}

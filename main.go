@@ -448,6 +448,11 @@ func main() {
 	// its only seams are the chrome closure plus two pagination helpers.
 	wireStorePlugin(wsrv)
 
+	// Playlists plugin seams (playlists_web.go). Self-migrating, so no DDL
+	// here; its two lookup seams resolve release and user ids the plugin
+	// deliberately does not join to itself.
+	wirePlaylistsPlugin(wsrv)
+
 	// Tickets plugin seams (tickets_web.go) — the helpdesk at /support.
 	if err := wireTicketsPlugin(c, wsrv); err != nil {
 		logger.Error("tickets wiring", "err", err)

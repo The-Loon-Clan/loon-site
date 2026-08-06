@@ -61,11 +61,12 @@ var sections = []section{
 	},
 	{
 		Title:    "Community",
-		Prefixes: []string{"/community/forums", "/c", "/news", "/store"},
+		Prefixes: []string{"/community/forums", "/c", "/news", "/store", "/playlists"},
 		Tabs: []sectionTab{
 			{Label: "Forums", Href: "/community/forums"},
 			{Label: "Communities", Href: "/c"},
 			{Label: "News", Href: "/news"},
+			{Label: "Playlists", Href: "/playlists"},
 			{Label: "Store", Href: "/store"},
 		},
 	},

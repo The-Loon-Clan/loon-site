@@ -94,9 +94,17 @@ bare prefix — otherwise the `/c` section would swallow `/community/forums`.
 
 ### Core browse / content
 
+**Listing facets are filtered in Go, not SQL.** The `UsenetIndex` read path
+takes a limit and no predicates, so "1080p only" means "1080p within the most
+recent 200", not across the index. Facet counts are computed from that same
+window so they always agree with what filtering produces — a facet promising 40
+results that yields 3 is worse than a smaller honest number. Pushing this down
+needs a capability that accepts predicates; until then the bound is real and is
+stated in `filters_web.go`.
+
 | UNIT3D | Ours | Status | Notes |
 |---|---|---|---|
-| `torrents/index` | `browse.html`, `search.html` | have | Facet filtering is far richer upstream |
+| `torrents/index` | `browse.html`, `search.html` | have | Facets: quality, source, newsgroup, 6 sorts. See the bound below |
 | `torrent/show` | `release.html` | partial | See §3 for what a detail page carries |
 | `torrent/create` (upload) | — | n/a | Releases come from crawling, not uploads |
 | `torrents/pending` | — | n/a | No upload moderation queue |

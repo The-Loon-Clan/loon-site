@@ -120,8 +120,8 @@ var pageTemplates = []string{
 // that /, /browse and /search render as one table.
 var sharedPartials = map[string][]string{
 	"home.html":   {"listing.html"},
-	"browse.html": {"listing.html"},
-	"search.html": {"listing.html"},
+	"browse.html": {"listing.html", "facets.html"},
+	"search.html": {"listing.html", "facets.html"},
 }
 
 func newWeb(store users.Store, secret []byte, log *slog.Logger) *web {
@@ -937,10 +937,19 @@ func (w *web) browse(c *gin.Context) {
 	data["CatID"] = catID
 	data["CatName"] = w.catalog.Name(catID)
 	if w.usenet != nil {
-		if res, total, err := w.usenet.Feed(ctx, w.expandCats(ctx, catID), 50, 0); err == nil {
+		if res, total, err := w.usenet.Feed(ctx, w.expandCats(ctx, catID), listingLimit, 0); err == nil {
+			f := parseFilter(c)
 			rows := toSearchRows(res)
 			w.attachCovers(ctx, rows) // one lookup for the page, not one per row
-			data["Results"] = rows
+			rows = attachGrabs(ctx, rows)
+			// Facets from the UNFILTERED set; ?cat= rides along on every facet
+			// link so filtering never drops the category you are browsing.
+			data["Facets"] = buildFacets(rows, f, "/browse", keepParams(c, "cat"))
+			data["Results"] = f.apply(rows)
+			data["Filter"] = f
+			// Total is the category's real size from the index. The filtered
+			// count is len(Results) and the template shows both — conflating
+			// them would claim a filter shrank the category itself.
 			data["Total"] = total
 		}
 	}
@@ -971,21 +980,32 @@ func (w *web) expandCats(ctx context.Context, catID int) []int {
 
 func (w *web) search(c *gin.Context) {
 	q := strings.TrimSpace(c.Query("q"))
-	group := strings.TrimSpace(c.Query("group"))
-	data := map[string]any{"Title": "Search", "Query": q, "Group": group, "Configured": w.usenet != nil}
+	f := parseFilter(c)
+	// ?group= is BOTH a search mode (browse that group) and a facet. Treating
+	// it only as a facet would break the existing group links; treating it only
+	// as a mode would stop it composing with the others. So the read below uses
+	// it to choose the source, and the filter applies it again — a no-op on
+	// that path, and a real filter on a ?q= search.
+	data := map[string]any{"Title": "Search", "Query": q, "Group": f.Group, "Configured": w.usenet != nil}
 	if w.usenet != nil {
 		var res []pluginapi.Release
 		var err error
 		switch {
-		case group != "":
-			res, err = w.usenet.Browse(c.Request.Context(), group, 100)
+		case f.Group != "":
+			res, err = w.usenet.Browse(c.Request.Context(), f.Group, listingLimit)
 		case q != "":
-			res, err = w.usenet.Search(c.Request.Context(), q, 50)
+			res, err = w.usenet.Search(c.Request.Context(), q, listingLimit)
 		}
 		if err == nil {
+			ctx := c.Request.Context()
 			rows := toSearchRows(res)
-			w.attachCovers(c.Request.Context(), rows) // one lookup for the page
-			data["Results"] = rows
+			w.attachCovers(ctx, rows) // one lookup for the page
+			rows = attachGrabs(ctx, rows)
+			// Facets come from the UNFILTERED set so every value offered
+			// matches something; the results are what is left after applying.
+			data["Facets"] = buildFacets(rows, f, "/search", keepParams(c, "q"))
+			data["Results"] = f.apply(rows)
+			data["Filter"] = f
 		}
 	}
 	w.render(c, "search.html", data)

@@ -1,0 +1,109 @@
+{{/* One playlist. Keys: Playlist, Items []*Item, IsOwner bool, Saved bool.
+
+     Item.Release is NIL when that release no longer exists — retention removes
+     releases and a collection outliving its contents is normal. The row is
+     still rendered, marked unavailable, so a curator can SEE what they lost and
+     remove it; hiding it would make a playlist quietly shrink. */}}
+{{template "fhead" .}}
+
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/playlists">Playlists</a></li>
+    <li class="breadcrumbV2 breadcrumb--active">{{.Playlist.Name}}</li>
+</ol>
+
+{{if .Saved}}<div class="notice notice--success">Saved.</div>{{end}}
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#music"></use></svg>
+            {{.Playlist.Name}}
+            {{if not .Playlist.Public}}<span class="tag">Private</span>{{end}}
+        </h1>
+        <div class="panel__actions">
+            <span class="panel__action">{{.Playlist.ItemCount}} release{{if ne .Playlist.ItemCount 1}}s{{end}}</span>
+            {{if .IsOwner}}<a class="panel__action" href="/playlists/{{.Playlist.Slug}}/edit">Edit</a>{{end}}
+        </div>
+    </header>
+    <div class="panel__body">
+        <p class="meta__line">
+            {{if .Playlist.Username}}
+            <span class="meta__item">{{template "user-tag" (dict "Name" .Playlist.Username)}}</span>
+            {{end}}
+            {{with timeAgo .Playlist.UpdatedAt}}<span class="meta__item">updated {{.}}</span>{{end}}
+        </p>
+        {{if .Playlist.Description}}<p>{{.Playlist.Description}}</p>{{end}}
+    </div>
+
+    {{if .Items}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr><th>Release</th><th class="data-table__num">Size</th><th>Added</th>{{if .IsOwner}}<th></th>{{end}}</tr>
+            </thead>
+            <tbody>
+                {{$slug := .Playlist.Slug}}{{$owner := .IsOwner}}{{$csrf := .CSRFToken}}
+                {{range .Items}}
+                <tr>
+                    <td>
+                        {{if .Release}}
+                        <div class="data-table__name-body">
+                            <a class="data-table__title" href="/release/{{.Release.ID}}">{{.Release.Title}}</a>
+                            <div class="data-table__meta">
+                                {{if .Release.Category}}<span class="tag tag--cat">{{.Release.Category}}</span>{{end}}
+                                {{if .Note}}<span>{{.Note}}</span>{{end}}
+                            </div>
+                        </div>
+                        {{else}}
+                        {{/* Resolved to nothing: the release aged out of the
+                             index. Shown rather than skipped — see the header. */}}
+                        <div class="data-table__name-body">
+                            <span class="data-table__title text-muted">Release no longer indexed</span>
+                            <div class="data-table__meta"><span class="tag">id {{.ReleaseID}}</span></div>
+                        </div>
+                        {{end}}
+                    </td>
+                    <td class="data-table__num">{{if .Release}}{{.Release.Size}}{{else}}—{{end}}</td>
+                    <td class="data-table__nowrap">{{with timeAgo .AddedAt}}{{.}}{{end}}</td>
+                    {{if $owner}}
+                    <td class="data-table__shrink">
+                        <form method="post" action="/playlists/{{$slug}}/items/{{.ID}}/delete" class="inline-form">
+                            <input type="hidden" name="_csrf" value="{{$csrf}}">
+                            <button class="button button--text button--sm button--danger" type="submit">Remove</button>
+                        </form>
+                    </td>
+                    {{end}}
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="panel__body">Nothing in this playlist yet.</div>
+    {{end}}
+
+    {{if .IsOwner}}
+    <div class="panel__body">
+        <form method="post" action="/playlists/{{.Playlist.Slug}}/items" class="form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__group">
+                <label class="form__label" for="release_id">Add a release</label>
+                <input class="form__input" id="release_id" name="release_id" type="number" min="1" required
+                       placeholder="release id">
+                <p class="form__help">
+                    The number in a release page URL — <code>/release/1234</code> is
+                    <code>1234</code>. Adding one twice does nothing.
+                </p>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="note">Note</label>
+                <input class="form__input" id="note" name="note" type="text" placeholder="optional">
+            </div>
+            <div class="form__actions"><button class="button button--primary" type="submit">Add</button></div>
+        </form>
+    </div>
+    {{end}}
+</section>
+
+{{template "ffoot" .}}

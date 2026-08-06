@@ -15,7 +15,7 @@ func TestSectionNavTabsAreReachable(t *testing.T) {
 	// list — deriving one from the other would make them agree by construction.
 	served := map[string]bool{
 		"/browse": true, "/search": true, "/groups": true,
-		"/community/forums": true, "/c": true, "/news": true, "/store": true,
+		"/community/forums": true, "/playlists": true, "/c": true, "/news": true, "/store": true,
 		"/store/history": true, "/rules": true, "/faq": true, "/wiki": true,
 		"/support": true, "/staff": true, "/stats": true, "/about": true,
 		"/sitemap": true, "/inbox": true, "/p/inbox": true, "/p/account": true,
