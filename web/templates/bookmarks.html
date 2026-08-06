@@ -1,0 +1,58 @@
+{{/* Bookmarks — the viewer's own saved releases. Data: .Results ([]searchRow).
+
+     Renders through the SHARED release-row partial, like /browse, /search and
+     /trending, so a release looks the same wherever it appears.
+
+     NOT a mock: docs/MOCKS.md M4 stood in for this with an em dash on the
+     profile, and this page is what retires it. A saved release that has since
+     left the index simply does not resolve — the table stores ids, not titles,
+     so a bookmark cannot outlive its target as a stale row with a name. */}}
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumb--active">Bookmarks</li>
+</ol>
+{{end}}
+
+{{define "content"}}
+<header>
+    <h1 class="h3 m-0">Bookmarks</h1>
+    <p class="text-muted small m-0 mt-1">Releases you saved.</p>
+</header>
+
+<section class="panelV2 panelV2--overflow">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#star"></use></svg>
+            Saved releases
+        </h2>
+        {{if .Results}}<div class="panel__actions"><span class="panel__grouping">{{len .Results}}</span></div>{{end}}
+    </header>
+
+    {{if .Results}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Release</th>
+                    <th class="data-table__nowrap">Category</th>
+                    <th class="data-table__num">Size</th>
+                    <th class="data-table__num" title="NZB downloads">Grabs</th>
+                    <th class="data-table__nowrap">Added</th>
+                    <th class="data-table__shrink"><span class="visually-hidden">Download</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Results}}{{template "release-row" .}}{{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="panel__body">
+        <div class="empty">
+            Nothing saved yet — use <strong>Save</strong> on a release to keep it here.
+        </div>
+    </div>
+    {{end}}
+</section>
+{{end}}

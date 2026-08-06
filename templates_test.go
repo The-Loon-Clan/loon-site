@@ -15,7 +15,6 @@ import (
 	"github.com/the-loon-clan/loon/core"
 
 	"github.com/the-loon-clan/loon-plugins/forum"
-	"github.com/the-loon-clan/loon-plugins/news"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 )
 
@@ -1344,87 +1343,14 @@ func TestHomeBlockOrderMatchesTemplateArms(t *testing.T) {
 	}
 }
 
-// TestNewsTemplatesParse covers the news plugin's four host templates, which
-// share the gin set with the forum's — pluginTemplates() parses both dirs into
-// ONE namespace keyed by base filename, so this also guards against a future
-// plugin shipping a colliding name.
-//
-// The execute sweep matters more here than the parse: news.Handlers pass their
-// OWN key ("News", "Post", "Posts") on top of Deps.BaseData, and a template
-// that reaches for a field the handler never sets fails at execute time, which
-// no build or vet catches.
-func TestNewsTemplatesParse(t *testing.T) {
-	tmpl, err := pluginTemplates()
-	if err != nil {
-		t.Fatalf("pluginTemplates: %v", err)
-	}
-	for _, want := range []string{
-		"news.html", "news_detail.html", "admin_news.html", "admin_news_form.html",
-	} {
-		if tmpl.Lookup(want) == nil {
-			t.Errorf("plugin set is missing %q", want)
-		}
-	}
+// TestNewsTemplatesParse is GONE. The news plugin embeds and parses its own
+// four templates now and asks the host only to wrap the finished fragment
+// (Deps.RenderPage), so there is nothing here for this sweep to look at — it
+// can only see templates the HOST renders. Same for store, tickets, wiki and
+// messages; see plugin_templates_test.go.
 
-	// Mirrors news.Handlers' safePost: the public pages get a projection, the
-	// admin pages get the raw model. Rendering the wrong one is a real bug —
-	// the raw model's Body is an unescaped string.
-	type safePost struct {
-		ID        int64
-		Title     string
-		Slug      string
-		Body      template.HTML
-		CreatedAt any
-	}
-	pub := safePost{ID: 1, Title: "Hello", Slug: "hello",
-		Body: template.HTML("<p>body</p>"), CreatedAt: time.Now()}
-	raw := news.NewsPost{ID: 1, Title: "Hello", Slug: "hello", Body: "<p>body</p>",
-		Published: true, CreatedAt: time.Now(), UpdatedAt: time.Now()}
-
-	cases := []struct {
-		page string
-		data map[string]any
-	}{
-		// Empty states first — the "no news yet" path is the one a fresh
-		// install actually hits.
-		{"news.html", map[string]any{"News": []safePost(nil)}},
-		{"news.html", map[string]any{"News": []safePost{pub}}},
-		{"news_detail.html", map[string]any{"Post": pub}},
-		{"admin_news.html", map[string]any{"Posts": []news.NewsPost(nil)}},
-		{"admin_news.html", map[string]any{"Posts": []news.NewsPost{raw}}},
-		{"admin_news_form.html", map[string]any{"Post": raw}},
-	}
-	for _, tc := range cases {
-		data := chromeKeys()
-		for k, v := range tc.data {
-			data[k] = v
-		}
-		var buf bytes.Buffer
-		if err := tmpl.ExecuteTemplate(&buf, tc.page, data); err != nil {
-			t.Errorf("%s: execute: %v", tc.page, err)
-		}
-	}
-}
-
-// The admin list renders a delete form per row. Inside {{range .Posts}} the dot
-// is a NewsPost, so the CSRF input has to reach for $.CSRFToken — .CSRFToken
-// silently renders empty there and every delete would 403. Assert the token
-// actually lands in the output.
-func TestAdminNewsCSRFEscapesRangeScope(t *testing.T) {
-	tmpl, err := pluginTemplates()
-	if err != nil {
-		t.Fatal(err)
-	}
-	data := chromeKeys()
-	data["CSRFToken"] = "TOKEN-SENTINEL"
-	data["Posts"] = []news.NewsPost{{ID: 7, Title: "x", Slug: "x", Published: true,
-		CreatedAt: time.Now(), UpdatedAt: time.Now()}}
-	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "admin_news.html", data); err != nil {
-		t.Fatalf("execute: %v", err)
-	}
-	if !strings.Contains(buf.String(), "TOKEN-SENTINEL") {
-		t.Error("admin_news.html rendered no CSRF token — the delete form is inside " +
-			"{{range .Posts}} and must use $.CSRFToken, not .CSRFToken")
-	}
-}
+// TestAdminNewsCSRFEscapesRangeScope is GONE with the template it guarded.
+// It pinned a real bug — inside {{range .Posts}} the dot is a NewsPost, so the
+// delete form must reach for $.CSRFToken or every delete 403s — but that markup
+// belongs to the news plugin now. The equivalent guard has to live there,
+// against its own template set; this sweep cannot see it.

@@ -104,7 +104,7 @@ type web struct {
 // it unreachable — templates_test.go fails on that mismatch in either direction.
 var pageTemplates = []string{
 	"home.html", "groups.html", "search.html", "browse.html", "release.html",
-	"trending.html",
+	"trending.html", "bookmarks.html",
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
@@ -120,10 +120,11 @@ var pageTemplates = []string{
 // file both sets name. listing.html holds the release-row and cat-icon blocks
 // that /, /browse and /search render as one table.
 var sharedPartials = map[string][]string{
-	"home.html":     {"listing.html"},
-	"browse.html":   {"listing.html", "facets.html"},
-	"search.html":   {"listing.html", "facets.html"},
-	"trending.html": {"listing.html"},
+	"home.html":      {"listing.html"},
+	"browse.html":    {"listing.html", "facets.html"},
+	"search.html":    {"listing.html", "facets.html"},
+	"trending.html":  {"listing.html"},
+	"bookmarks.html": {"listing.html"},
 }
 
 func newWeb(store users.Store, secret []byte, log *slog.Logger) *web {
@@ -341,6 +342,26 @@ func inGroup(m map[string][]navItem, group, path string) bool {
 // timeAgo renders a coarse "3 hours ago" for a past instant. A zero time (the
 // crawler never learned a post date) renders empty rather than "56 years ago",
 // and a clock-skewed future stamp reads "just now".
+// relativeTime adapts timeAgo to the any-taking seam plugins ask for. They
+// take `any` because a plugin's row type may carry a timestamp as time.Time, a
+// pointer, or an interface field — and a seam that demanded one concrete shape
+// would push that conversion into every caller.
+//
+// Anything unrecognised renders empty rather than a Go dump: a malformed
+// timestamp should cost a line its "2 hours ago", not print a struct at a user.
+func relativeTime(v any) string {
+	switch t := v.(type) {
+	case time.Time:
+		return timeAgo(t)
+	case *time.Time:
+		if t == nil {
+			return ""
+		}
+		return timeAgo(*t)
+	}
+	return ""
+}
+
 func timeAgo(t time.Time) string {
 	if t.IsZero() {
 		return ""
@@ -626,6 +647,11 @@ func (w *web) mount(e *gin.Engine) {
 	// Trending — most-grabbed releases (trending_web.go). Public: it exposes no
 	// more than /browse already does, ordered differently.
 	e.GET("/trending", w.trending)
+	// Bookmarks (bookmarks_web.go). The list is per-viewer and the toggle
+	// WRITES, so it is POST — a GET that mutates is one prefetching browser
+	// away from bookmarking somebody's whole history for them.
+	e.GET("/bookmarks", w.bookmarksPage)
+	e.POST("/release/:id/bookmark", w.bookmarkToggle)
 	e.GET("/search", w.search)
 	e.GET("/browse", w.browse)
 	e.GET("/release/:id", w.releasePage)
@@ -725,6 +751,12 @@ func (w *web) profilePage(c *gin.Context) {
 		if n, err := forumPostCount(ctx, subject.ID); err == nil {
 			data["SubjectPosts"], data["HasSubjectPosts"] = n, true
 		}
+	}
+	// Bookmarks are PUBLIC on a profile the way UNIT3D shows them — a count,
+	// not the list. Has* rather than a bare zero, so an unreachable table
+	// leaves the tile an em dash instead of claiming nobody saved anything.
+	if n, ok := bookmarkCount(ctx, subject.ID); ok {
+		data["SubjectBookmarks"], data["HasSubjectBookmarks"] = n, true
 	}
 	// Invites are the viewer's own spendable balance, so they only show on
 	// your own profile — someone else's invite count is not your business.

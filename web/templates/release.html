@@ -48,6 +48,20 @@
                 {{/* Primary action lives in the first panel, not the aside: the
                      aside stacks BELOW the file table on a phone. */}}
                 <div class="panel__actions">
+                    {{/* POST, not a link: this writes. A GET that mutates is one
+                         prefetching browser away from saving a reader's whole
+                         history for them. $ because .Release is the dot here and
+                         CSRFToken lives on the page data. */}}
+                    {{if $.CanBookmark}}
+                    <form method="post" action="/release/{{.ID}}/bookmark" style="display:contents">
+                        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                        <input type="hidden" name="next" value="{{$.PathQuery}}">
+                        <button class="button button--outlined" type="submit"
+                                aria-pressed="{{if $.Bookmarked}}true{{else}}false{{end}}">
+                            <svg class="icon" aria-hidden="true"><use href="#star"></use></svg>{{if $.Bookmarked}}Saved{{else}}Save{{end}}
+                        </button>
+                    </form>
+                    {{end}}
                     <a class="button button--filled" href="/nzb/{{.ID}}">
                         <svg class="icon" aria-hidden="true"><use href="#download"></use></svg>Download NZB
                     </a>

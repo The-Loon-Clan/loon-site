@@ -147,7 +147,14 @@ func (w *web) releasePage(c *gin.Context) {
 			vm.Cover = url
 		}
 	}
-	w.render(c, "release.html", map[string]any{"Title": d.Title, "Release": vm})
+	data := map[string]any{"Title": d.Title, "Release": vm}
+	// Bookmarked is set ONLY for a signed-in viewer, so the button is absent
+	// rather than rendered in a false "not saved" state for anonymous readers.
+	if u, okUser := w.currentUser(c); okUser && u != nil {
+		data["CanBookmark"] = true
+		data["Bookmarked"] = isBookmarked(c.Request.Context(), u.ID, id)
+	}
+	w.render(c, "release.html", data)
 }
 
 type releaseFileVM struct {

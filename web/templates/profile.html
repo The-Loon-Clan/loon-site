@@ -191,9 +191,10 @@
             </header>
             <div class="panel__body">
                 <p class="form__help">
-                    Placeholder — see <code>docs/MOCKS.md</code> M1, M3, M4. No
-                    follow relation, bookmark table or last-seen column exists in
-                    this stack.
+                    Followers, Following and Last seen are placeholders — see
+                    <code>docs/MOCKS.md</code> M1 and M3. No follow relation or
+                    last-seen column exists in this stack. <strong>Bookmarks is
+                    real</strong> (release_bookmark), which is why M4 is gone.
                 </p>
                 <div class="stat-grid stat-grid--2">
                     <div class="stat-tile">
@@ -206,7 +207,10 @@
                     </div>
                     <div class="stat-tile">
                         <span class="stat-tile__label">Bookmarks</span>
-                        <span class="stat-tile__value">—</span>
+                        {{/* REAL — release_bookmark, not a mock. The other three
+                             tiles in this panel still are; see docs/MOCKS.md
+                             M1 and M3. */}}
+                        <span class="stat-tile__value">{{if $.HasSubjectBookmarks}}{{$.SubjectBookmarks}}{{else}}—{{end}}</span>
                     </div>
                     <div class="stat-tile">
                         <span class="stat-tile__label">Last seen</span>

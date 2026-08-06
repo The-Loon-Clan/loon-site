@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -188,7 +189,12 @@ func wireNewsPlugin(c *core.Core, w *web) error {
 		}
 	}
 	news.SetDeps(news.Deps{
-		BaseData: func(gc *gin.Context, extra gin.H) gin.H { return w.chromeData(gc, extra) },
+		// Fourth plugin today to take its markup back and ask for chrome
+		// instead of a data map. No status parameter on this one — none of its
+		// four pages re-render on a validation failure.
+		RenderPage: func(gc *gin.Context, title string, body template.HTML) {
+			w.render(gc, "site_page.html", map[string]any{"Title": title, "Fragment": body})
+		},
 		Sanitize: sanitizeNewsHTML,
 	})
 	return nil

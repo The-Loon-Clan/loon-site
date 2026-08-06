@@ -10,8 +10,6 @@ import (
 
 	"github.com/the-loon-clan/loon-plugins/communities"
 	"github.com/the-loon-clan/loon-plugins/donations"
-	"github.com/the-loon-clan/loon-plugins/messages"
-	"github.com/the-loon-clan/loon-plugins/news"
 	"github.com/the-loon-clan/loon-plugins/playlists"
 )
 
@@ -54,51 +52,15 @@ func pluginFixtures() []pluginFixture {
 		SubscriberCount: 3, CreatedAt: now, UpdatedAt: now,
 	}
 
-	// news.Handlers builds an anonymous projection rather than passing its
-	// model, so the fixture mirrors that shape instead of using NewsPost.
-	newsPost := struct {
-		ID        int64
-		Title     string
-		Slug      string
-		Body      template.HTML
-		CreatedAt any
-	}{1, "Hello", "hello", template.HTML("<p>b</p>"), now}
-
 	return []pluginFixture{
-		// ── news
-		{"news.html",
-			map[string]any{"News": nil},
-			map[string]any{"News": []any{newsPost}}},
-		{"news_detail.html",
-			map[string]any{"Post": newsPost}, nil},
-		{"admin_news.html",
-			map[string]any{"Posts": []news.NewsPost(nil)},
-			map[string]any{"Posts": []news.NewsPost{{ID: 1, Title: "t", Slug: "s", Published: true, CreatedAt: now, UpdatedAt: now}}}},
-		{"admin_news_form.html",
-			map[string]any{"Post": news.NewsPost{ID: 1, Title: "t", Slug: "s", CreatedAt: now, UpdatedAt: now}}, nil},
+		// ── news: NOT here. Fourth plugin to own its markup; the host sets
+		// RenderPage and its four copies are gone.
 
 		// ── wiki: NOT here. Third plugin to take ownership of its own markup
 		// (after store and tickets); the host now sets RenderPage and its
 		// copies are gone.
 
-		// ── messages
-		{"inbox.html",
-			map[string]any{"Items": nil, "ActiveThreadID": int64(0), "CanSendDM": false},
-			map[string]any{
-				"Items":          []messages.InboxItem{{Kind: "dm", ID: 1, DisplayName: "bob", Subtitle: "hi", UpdatedAt: now, UnreadCount: 1}},
-				"ActiveThreadID": int64(1),
-				"ActiveCpName":   "bob",
-				"ActiveCpID":     2,
-				"ActiveMessages": []messages.DMMessageView{{ID: 1, ThreadID: 1, SenderID: 1, SenderUsername: "alice", Body: "hi", CreatedAt: now}},
-				"CanSendDM":      true,
-			}},
-		{"admin_messages.html",
-			map[string]any{"Messages": nil, "Users": nil, "Total": 0, "Pagination": page},
-			map[string]any{
-				"Messages": []messages.Announcement{{ID: 1, Title: "T", Body: "B", Target: "all", CreatedAt: now}},
-				"Users":    []messages.UserOption{{ID: 1, Username: "alice"}},
-				"Total":    1,
-			}},
+		// ── messages: NOT here. Fifth plugin to own its markup.
 
 		// ── store: NOT here. The store plugin now embeds and parses its own
 		// templates (store/views.go pageTmpl) and asks the host only to wrap

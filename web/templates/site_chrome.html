@@ -227,6 +227,9 @@
                     <a class="dropdown__item{{if eq .Path (print "/u/" .User.Username)}} active{{end}}" href="/u/{{.User.Username}}">
                         <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#user"></use></svg>My profile
                     </a>
+                    <a class="dropdown__item{{if eq .Path "/bookmarks"}} active{{end}}" href="/bookmarks">
+                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#star"></use></svg>Bookmarks
+                    </a>
                     <a class="dropdown__item{{if eq .Path "/p/inbox"}} active{{end}}" href="/p/inbox">
                         <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#bell"></use></svg>Notifications{{if .Unread}} ({{.Unread}}){{end}}
                     </a>

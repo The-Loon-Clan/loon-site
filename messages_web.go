@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"html/template"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
@@ -108,7 +109,21 @@ func wireMessagesPlugin(c *core.Core, w *web) error {
 		}
 	}
 	messages.SetDeps(messages.Deps{
-		BaseData: func(gc *gin.Context, extra gin.H) gin.H { return w.chromeData(gc, extra) },
+		// Fifth plugin today to own its markup. Same seams as tickets, which
+		// is the point of having built renderPartial: the pager and the prose
+		// editor are the site's, rendered from the HOST's set, so a plugin
+		// fragment carries the same ones the forum does.
+		RenderPage: func(gc *gin.Context, title string, body template.HTML) {
+			w.render(gc, "site_page.html", map[string]any{"Title": title, "Fragment": body})
+		},
+		CSRFToken:    csrfToken,
+		RelativeTime: relativeTime,
+		RenderEditor: w.renderEditor,
+		RenderPagination: func(page, pageSize, totalItems int, baseURL string) template.HTML {
+			return w.renderPagination(hostPagination(page, pageSize, totalItems, baseURL))
+		},
+		// Crosses the seam because it sanitises — one allowlist for the site.
+		Markdown: siteMarkdown,
 		// ListUsers backs the admin composer's recipient dropdown. It is
 		// optional precisely because core has no "list every user" method — on
 		// a real site that query breaks the page. The demo has two seeded

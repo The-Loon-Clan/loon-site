@@ -30,7 +30,7 @@ real behaviour for a site with no data yet, not fabrication.
 | M1 | `/u/<name>` — Activity | Last seen timestamp | A `last_seen_at` column on users, written by the auth middleware |
 | M2 | `/u/<name>` — Achievements | The achievement list and progress | The `rewards` plugin (wired) once it exposes a per-user read; it currently only registers admin views |
 | M3 | `/u/<name>` — Community | Follower / following counts | A `follows` table; UNIT3D has `users.followers` / `users.following` |
-| M4 | `/u/<name>` — Collection | Bookmark count | A `bookmarks` table; UNIT3D has `users.bookmarks` |
+| ~~M4~~ | ~~`/u/<name>` — Collection~~ | ~~Bookmark count~~ | **RETIRED** — `release_bookmark` is real; see below |
 
 ## Status of each
 
@@ -83,11 +83,18 @@ No follow relation exists anywhere in the stack. UNIT3D models this on the user
 and shows it prominently; ours is a count of nothing. Needs a table and two
 routes before the panel means anything.
 
-### M4 — Bookmarks
+### M4 — Bookmarks — RETIRED
 
-Same shape as M3. Note the indexer analogue is "saved releases", not "saved
-torrents" — if this becomes real it should probably live with the usenet plugin
-rather than on users.
+Real as of Aug 2026: `release_bookmark` (bookmarks_web.go), a Save button on
+the release page, `/bookmarks`, and a profile count that reads the table.
+
+Kept on the HOST rather than in the usenet plugin, which this entry previously
+suggested. It is a relation between a USER and a release id — the users are the
+host's and the plugin owns neither side of it — which is exactly where
+`release_grab` already lives.
+
+The tile still degrades to an em dash when the table is unreachable, because
+"nobody saved anything" and "cannot measure" are different claims.
 
 ---
 

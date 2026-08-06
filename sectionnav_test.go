@@ -20,7 +20,7 @@ func TestSectionNavTabsAreReachable(t *testing.T) {
 		"/support": true, "/staff": true, "/stats": true, "/about": true,
 		"/sitemap": true, "/inbox": true, "/p/inbox": true, "/p/account": true,
 		"/p/api-key": true, "/p/sign-ins": true,
-		"/settings/privacy": true, "/settings/notifications": true,
+		"/settings/privacy": true, "/settings/notifications": true, "/bookmarks": true,
 	}
 	for _, s := range sections {
 		for _, tab := range s.Tabs {

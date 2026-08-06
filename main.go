@@ -282,6 +282,13 @@ func main() {
 	}
 	grabsDB = db
 
+	// Bookmarks (bookmarks_web.go) — saved releases, retiring MOCKS M4.
+	if err := bookmarksMigrate(db); err != nil {
+		logger.Error("bookmarks migrate", "err", err)
+		os.Exit(1)
+	}
+	bookmarksDB = db
+
 	points := pgPoints{db: db}
 	pointsSvc := core.NewPoints(points.adapter())
 	wsrv.points = pointsSvc // navbar balance readout
