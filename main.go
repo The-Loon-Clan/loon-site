@@ -325,9 +325,13 @@ func main() {
 	// schedule.Default (a host admin page would render its
 	// GetAllSnapshots), and LogSink mirrors job log lines to stdout
 	// so the demo's once-a-minute stats job stays visible.
-	schedule.LogSink = func(jobName, line string) {
-		logger.Info("job", "name", jobName, "line", line)
-	}
+	// Through jobLogDedup (joblog_web.go): a job that repeats one line in a
+	// loop — the usenet builder's "already running — skipping overlap", once
+	// per backfill round while a catch-up pass holds the lock — would
+	// otherwise be the only thing in the log. Repeats are counted and
+	// reported, never dropped.
+	jobLog := newJobLogDedup(logger)
+	schedule.LogSink = jobLog.Log
 
 	usenetStaging := os.Getenv("USENET_STAGING")
 	if usenetStaging == "" {
