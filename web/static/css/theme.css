@@ -355,6 +355,15 @@ details.job-group[open] > summary::before { transform: rotate(90deg); }
 
 /* Bootstrap's 12-column grid, flex flavour. The plugin admin pages were written
    against it; without these the columns stack and the settings pages sprawl. */
+
+/* Reboot zeroes dd's 40px UA indent and this subset never did, which is not
+   cosmetic on a <dl class="row">: col-sm-4 + col-sm-8 already total exactly
+   100% of the row, so the leftover margin overflows it and every VALUE wraps
+   onto its own line, indented under its label. That is what the usenet
+   "Index stats" panel was doing — measured at 381px + 761px = 1142px in a
+   1142px row, plus 40px. The grid was fine all along; this was. */
+dd { margin-inline-start: 0; }
+
 .row { display: flex; flex-wrap: wrap; margin-inline: -.5rem; }
 .row > * { flex-shrink: 0; width: 100%; max-width: 100%; padding-inline: .5rem; }
 .g-2 { row-gap: .5rem; } .g-3 { row-gap: 1rem; }
