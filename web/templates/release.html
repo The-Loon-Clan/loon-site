@@ -13,7 +13,11 @@
     {{/* .Category is a display name only — releaseVM carries no CategoryID,
          so this crumb cannot be a /browse?cat= link. */}}
     {{if .Category}}<li class="breadcrumbV2">{{.Category}}</li>{{end}}
-    <li class="breadcrumb--active">{{.Title}}</li>
+    {{/* Bounded, with the full name on hover. A release title is arbitrary
+         bytes off a Usenet header — an obfuscated post is ninety characters of
+         punctuation — and unbounded it becomes the tallest thing on the page,
+         above the release it is a crumb for. */}}
+    <li class="breadcrumb--active" title="{{.Title}}">{{ellipsis 64 .Title}}</li>
     {{end}}{{end}}
 </ol>
 {{end}}
@@ -133,7 +137,11 @@
                     {{if .Category}}<div class="key-value__group"><dt>Category</dt><dd>{{.Category}}</dd></div>{{end}}
                     <div class="key-value__group"><dt>Posted</dt><dd>{{.Posted}}</dd></div>
                     {{if .Group}}<div class="key-value__group"><dt>Group</dt><dd><a href="/search?group={{.Group}}"><code>{{.Group}}</code></a></dd></div>{{end}}
-                    {{if .Poster}}<div class="key-value__group"><dt>Poster</dt><dd>{{.Poster}}</dd></div>{{end}}
+                    {{/* The raw NNTP From header, NOT a site user — deliberately not a
+                         user-tag, which would link to a /u/ profile that does not exist.
+                         Obfuscated posters run past seventy characters, so it is bounded
+                         here with the whole value on hover. */}}
+                    {{if .Poster}}<div class="key-value__group"><dt>Poster</dt><dd title="{{.Poster}}">{{ellipsis 28 .Poster}}</dd></div>{{end}}
                     <div class="key-value__group"><dt>Files</dt><dd>{{len .Files}}</dd></div>
                 </dl>
             </div>

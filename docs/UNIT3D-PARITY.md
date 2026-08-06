@@ -227,8 +227,32 @@ identically. Not ported: donor sparkle backgrounds, per-user icon uploads and
 group gradient effects — no data source here, and inventing one would be
 fabrication.
 
-Still to wire: the release detail page, the profile header, and
-`community_category.html`'s thread rows.
+All wired. The last gap was `community_category.html`'s thread rows, whose
+model already carried `.Role` and `.LastPostRole` for exactly this — the comment
+in the plugin's model says so — and simply never read them.
+
+Two of the three items previously listed here were wrong. The profile header had
+already been using `user-tag` for some time. And the release detail page must
+NOT: its `.Poster` is the raw NNTP `From` header, not a site account, so a
+`user-tag` there would link every release to a `/u/` profile that does not
+exist. It is plain text, bounded, with the full header on hover — obfuscated
+posters run past seventy characters of punctuation. The breadcrumb takes the
+same treatment for the same reason.
+
+Wiring those rows surfaced two silent bugs worth recording, because both produce
+output that looks right:
+
+  - `{{print "/u/" .Name}}` on a `*string` emits the POINTER —
+    `/u/0x1129d1d30910` — while `{{.Name}}` on its own still prints `bob`,
+    because html/template auto-indirects a lone value but not one inside a
+    multi-argument print. Nullable plugin columns are `*string`, so the row read
+    perfectly and every link on it was garbage.
+  - `roleSlug` matched `core.Role` and `string` but not `*string`, so a nullable
+    role fell through every case and painted the whole column "member".
+
+Both are fixed in the helper rather than at the call sites, and pinned by
+`usertag_test.go` — a component this widely rendered cannot rely on each caller
+passing the right shape.
 
 Not ported from `bbcode-input`: a live preview. Rendering markdown in the
 browser needs a client-side parser, and shipping one whose output could drift

@@ -238,10 +238,12 @@ func tmplHelpers() template.FuncMap {
 		// Deps.Markdown seam to route them through — and printing those with
 		// {{.Body}} means HTML collapses every newline, so a multi-paragraph
 		// support ticket arrives as one run-on block.
-		"prose":   siteMarkdown,
-		"ordinal": ordinal,
-		"add":     func(a, b int) int { return a + b },
-		"dict":    dict,
+		"prose":    siteMarkdown,
+		"ordinal":  ordinal,
+		"ellipsis": ellipsis,
+		"str":      str_,
+		"add":      func(a, b int) int { return a + b },
+		"dict":     dict,
 		// cond is the ternary the template language does not have. It earns its
 		// place in ARGUMENT position: {{if}} is a statement and cannot appear
 		// inside a dict literal, so passing a component an optional label meant
@@ -253,6 +255,57 @@ func tmplHelpers() template.FuncMap {
 			return no
 		},
 	}
+}
+
+// str_ renders a value as a plain string, dereferencing a *string first.
+//
+// It exists because {{print "/u/" .Name}} on a *string emits the POINTER —
+// "/u/0x1129d1d30910" — while {{.Name}} beside it prints "bob", because
+// html/template auto-indirects when printing a value on its own but not inside
+// a fmt.Sprint of several. Plugin row structs use *string for nullable columns
+// (the forum's LastPostUsername), so the result is a correct-looking name whose
+// link is garbage: nothing errors, nothing logs, and the page looks right.
+func str_(v any) string {
+	switch x := v.(type) {
+	case nil:
+		return ""
+	case string:
+		return x
+	case *string:
+		if x == nil {
+			return ""
+		}
+		return *x
+	}
+	return fmt.Sprint(v)
+}
+
+// ellipsis shortens a string to n runes, ending in a single-character ellipsis
+// when it had to cut. Runes, not bytes: a release title is arbitrary bytes off
+// a Usenet header, and slicing one mid-rune produces the replacement character.
+//
+// Titles here are not names — obfuscated posts run to ninety characters of
+// punctuation — so any slot that shows one inline (a breadcrumb, a poster
+// field) needs a bound or the layout is at the mercy of whatever was posted.
+// The full value stays available in a title attribute at the call site.
+func ellipsis(n int, s string) string {
+	if n <= 0 {
+		return ""
+	}
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	// Prefer to cut at a space so the result ends on a word where one is near
+	// the limit, rather than mid-token.
+	cut := n
+	for i := n; i > n*3/4 && i > 0; i-- {
+		if r[i] == ' ' {
+			cut = i
+			break
+		}
+	}
+	return strings.TrimRight(string(r[:cut]), " ") + "…"
 }
 
 // navActive reports whether a nav entry covers the current path — an exact
@@ -370,6 +423,17 @@ func initials(s string) string {
 // string a plugin row with no role yields — falls back to "member", so an
 // unknown role renders as a plain member rather than an unstyled tag.
 func roleSlug(v any) string {
+	// Plugin row structs carry a nullable role as *string (the forum's
+	// LastPostRole). Without this, such a value matches no case below and every
+	// last poster silently renders as "member" — the exact half-right output
+	// eqID exists to prevent, and the reason normalising belongs in the helper
+	// rather than at each call site.
+	if p, ok := v.(*string); ok {
+		if p == nil {
+			return "member"
+		}
+		v = *p
+	}
 	switch r := v.(type) {
 	case core.Role:
 		switch {

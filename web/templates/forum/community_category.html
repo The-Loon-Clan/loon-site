@@ -77,7 +77,12 @@
                                         {{if .Pinned}}<span class="tag tag--source"><svg class="icon icon--sm" aria-hidden="true"><use href="#star"></use></svg>Pinned</span>{{end}}
                                         {{if .Locked}}<span class="tag tag--codec"><svg class="icon icon--sm" aria-hidden="true"><use href="#lock"></use></svg>Locked</span>{{end}}
                                         {{if eq .ThreadType "recruitment"}}<span class="tag tag--warning">Recruitment</span>{{end}}
-                                        <span>by {{.Username}}</span>
+                                        {{/* user-tag, so a username is coloured by role
+                                             here exactly as it is inside the thread. The row
+                                             already carries .Role for the OP — the model
+                                             comment says it is there to drive this — it was
+                                             simply never read. */}}
+                                        <span>by {{template "user-tag" (dict "Name" .Username "Role" .Role)}}</span>
                                         <span>{{timeAgo .CreatedAt}}</span>
                                     </div>
                                 </div>
@@ -90,7 +95,7 @@
                                 {{/* LastPostUsername is nil until the thread has a
                                      reply — the OP is then still the last post, so
                                      the slot is left empty rather than repeated. */}}
-                                {{if .LastPostUsername}}<div class="data-table__meta"><span>by {{.LastPostUsername}}</span></div>{{end}}
+                                {{if .LastPostUsername}}<div class="data-table__meta"><span>by {{template "user-tag" (dict "Name" .LastPostUsername "Role" .LastPostRole)}}</span></div>{{end}}
                             </div>
                         </td>
                     </tr>

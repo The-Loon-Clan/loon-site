@@ -580,19 +580,24 @@
      here, and inventing one would be fabrication. */}}
 {{define "user-tag"}}
     {{- $slug := roleSlug .Role -}}
-    {{- $url := .URL -}}{{if not $url}}{{$url = print "/u/" .Name}}{{end -}}
+    {{/* str, because a nullable plugin column arrives as *string and
+         {{print "/u/" .Name}} on one emits the POINTER ADDRESS into the href
+         while the visible name still reads correctly — a link that is wrong in
+         a way nothing reports. */}}
+    {{- $name := str .Name -}}
+    {{- $url := .URL -}}{{if not $url}}{{$url = print "/u/" $name}}{{end -}}
     {{- $icon := "" -}}
     {{- if .Icon}}{{$icon = "user"}}{{if or (eq $slug "admin") (eq $slug "mod")}}{{$icon = "shield"}}{{else if eq $slug "contributor"}}{{$icon = "star"}}{{end}}{{end -}}
     <span class="user-tag user-tag--{{$slug}}">
         {{- if .Plain -}}
         <span class="user-tag__link" title="{{roleLabel .Role}}">
             {{- if $icon}}<svg class="icon user-tag__icon" aria-hidden="true"><use href="#{{$icon}}"></use></svg>{{end -}}
-            {{.Name}}
+            {{$name}}
         </span>
         {{- else -}}
         <a class="user-tag__link" href="{{$url}}" title="{{roleLabel .Role}}">
             {{- if $icon}}<svg class="icon user-tag__icon" aria-hidden="true"><use href="#{{$icon}}"></use></svg>{{end -}}
-            {{.Name}}
+            {{$name}}
         </a>
         {{- end -}}
     </span>
