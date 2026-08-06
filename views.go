@@ -229,6 +229,7 @@ func tmplHelpers() template.FuncMap {
 		"roleSlug":  roleSlug,
 		"roleLabel": roleLabel,
 		"eqID":      eqID,
+		"hasPrefix": strings.HasPrefix,
 		"ordinal":   ordinal,
 		"add":       func(a, b int) int { return a + b },
 		"dict":      dict,
@@ -680,6 +681,11 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 			}
 		}
 	}
+	// The nav shows Donate only where donations are actually accepted, so the
+	// gate has to be readable by the SHARED chrome, not just the donate pages.
+	// donationsEnabled is the env flag; donateToggle is the admin switch. Both,
+	// same as IsDonateEnabled — see donations_web.go.
+	data["DonateEnabled"] = donationsEnabled && donateToggle.Load()
 	data["Path"] = c.Request.URL.Path
 	// PathQuery is Path PLUS the query string: the "send me back exactly here"
 	// target for the theme switcher's hidden next field. It has to be a SECOND

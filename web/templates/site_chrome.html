@@ -270,106 +270,133 @@
     </header>
 
     <nav class="secondary-nav" aria-label="Main">
+        {{/* FIVE groups, not a flat row.
+
+             Live UNIT3D sites keep the top bar to a handful of broad dropdowns
+             (Torrents / Community / Support / Other / Donate) and put the detail
+             one level down. Ours had drifted to eight flat tabs while /store,
+             /c, /stats, /sitemap and /api were not reachable from the nav at
+             all — a bar that grows with every feature and still misses things is
+             the worst of both.
+
+             The grouping rule: a destination belongs to the group a visitor
+             would GUESS, not the plugin that happens to own it. The points store
+             is under Community because a member thinks of it as part of the
+             site, not as "the store plugin".
+
+             Every group is a native <details>, and NONE may emit `open` —
+             .dropdown__menu is absolutely positioned with nothing hiding it, so
+             a pre-opened menu paints over the page on first load. The variables
+             below drive the summary active class ONLY.
+
+             Menus in the right half carry .dropdown__menu--end so they anchor to
+             their own right edge; see that class in components.css. */}}
         <ul class="nav-tabsV2">
-            <li class="nav-tab"><a class="{{if eq .Path "/"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/"{{if eq .Path "/"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#home"></use></svg>Home</a></li>
-            <li class="nav-tab"><a class="{{if eq .Path "/browse"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/browse"{{if eq .Path "/browse"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#browse"></use></svg>Browse</a></li>
-            <li class="nav-tab"><a class="{{if eq .Path "/groups"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/groups"{{if eq .Path "/groups"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#groups"></use></svg>Groups</a></li>
-            <li class="nav-tab"><a class="{{if eq .Path "/search"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/search"{{if eq .Path "/search"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#search"></use></svg>Search</a></li>
-            {{/* Prefix match without a helper func: builtin len + slice only, so
-                 /community/forums/thread/7 highlights FORUMS too. `and` is lazy
-                 since Go 1.18, so the slice never runs on a shorter path. */}}
-            {{$forums := and (ge (len .Path) 17) (eq (slice .Path 0 17) "/community/forums")}}
-            <li class="nav-tab"><a class="{{if $forums}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/community/forums"{{if $forums}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#forums"></use></svg>Forums</a></li>
-            {{/* /news and /news/<slug> both light this up; the length guard
-                 keeps the slice from panicking on a shorter path. */}}
-            {{$news := and (ge (len .Path) 5) (eq (slice .Path 0 5) "/news")}}
-            <li class="nav-tab"><a class="{{if $news}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/news"{{if $news}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#rss"></use></svg>News</a></li>
+            {{$p := .Path}}
 
-            {{/* Support — UNIT3D's fourth top-nav dropdown (Rules, FAQ, Wiki,
-                 Helpdesk, Staff), now that all five destinations exist. Grouped
-                 rather than five more flat tabs because the bar was already at
-                 seven; the parity doc's rule is to group only once there is
-                 something to group.
+            {{/* Home stays a plain tab: one destination, nothing to group. */}}
+            <li class="nav-tab"><a class="{{if eq $p "/"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/"{{if eq $p "/"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#home"></use></svg>Home</a></li>
 
-                 Same `open` hazard as the SiteNav dropdown below: never emit it,
-                 the menu is absolutely positioned and would paint over the page
-                 on first load. $support drives the summary's active class only. */}}
-            {{$support := or (eq .Path "/rules") (eq .Path "/faq") (eq .Path "/about") (eq .Path "/staff") (eq .Path "/stats")}}
-            {{$support = or $support (and (ge (len .Path) 5) (eq (slice .Path 0 5) "/wiki"))}}
-            {{$support = or $support (and (ge (len .Path) 8) (eq (slice .Path 0 8) "/support"))}}
+            {{/* Releases — UNIT3D's "Torrents": finding indexed content. */}}
+            {{$rel := or (eq $p "/browse") (eq $p "/search") (eq $p "/groups") (hasPrefix $p "/release/")}}
             <li class="nav-tab">
                 <details class="dropdown">
-                    <summary class="{{if $support}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
-                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#info"></use></svg>Support
+                    <summary class="{{if $rel}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
+                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#browse"></use></svg>Releases
                         <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                     </summary>
-                    <div class="dropdown__menu dropdown__menu--end">
-                        <a class="dropdown__item{{if eq .Path "/rules"}} active{{end}}" href="/rules"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Rules</a>
-                        <a class="dropdown__item{{if eq .Path "/faq"}} active{{end}}" href="/faq"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#info"></use></svg>FAQ</a>
-                        <a class="dropdown__item{{if eq .Path "/wiki"}} active{{end}}" href="/wiki"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#book"></use></svg>Wiki</a>
-                        <a class="dropdown__item{{if eq .Path "/support"}} active{{end}}" href="/support"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#comment"></use></svg>Helpdesk</a>
-                        <a class="dropdown__item{{if eq .Path "/staff"}} active{{end}}" href="/staff"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Staff</a>
-                        <a class="dropdown__item{{if eq .Path "/stats"}} active{{end}}" href="/stats"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#database"></use></svg>Stats</a>
-                        <a class="dropdown__item{{if eq .Path "/about"}} active{{end}}" href="/about"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#logo"></use></svg>About</a>
+                    <div class="dropdown__menu">
+                        <a class="dropdown__item{{if eq $p "/browse"}} active{{end}}" href="/browse"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#browse"></use></svg>Browse</a>
+                        <a class="dropdown__item{{if eq $p "/search"}} active{{end}}" href="/search"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#search"></use></svg>Search</a>
+                        <a class="dropdown__item{{if eq $p "/groups"}} active{{end}}" href="/groups"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#groups"></use></svg>Newsgroups</a>
+                        <a class="dropdown__item" href="/api"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#code"></use></svg>Newznab API</a>
                     </div>
                 </details>
             </li>
 
-            {{/* Plugin site pages (loon's view registry), already role-filtered
-                 by the host. A NavHint group becomes a <details> dropdown; an
-                 ungrouped page is a plain tab. */}}
+            {{/* Community — the social half. */}}
+            {{$com := or (hasPrefix $p "/community/forums") (hasPrefix $p "/c/") (eq $p "/c") (hasPrefix $p "/news") (hasPrefix $p "/store")}}
+            <li class="nav-tab">
+                <details class="dropdown">
+                    <summary class="{{if $com}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
+                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#forums"></use></svg>Community
+                        <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
+                    </summary>
+                    <div class="dropdown__menu">
+                        <a class="dropdown__item{{if hasPrefix $p "/community/forums"}} active{{end}}" href="/community/forums"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#forums"></use></svg>Forums</a>
+                        <a class="dropdown__item{{if or (eq $p "/c") (hasPrefix $p "/c/")}} active{{end}}" href="/c"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#users"></use></svg>Communities</a>
+                        <a class="dropdown__item{{if hasPrefix $p "/news"}} active{{end}}" href="/news"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#rss"></use></svg>News</a>
+                        <a class="dropdown__item{{if hasPrefix $p "/store"}} active{{end}}" href="/store"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#store"></use></svg>Points store</a>
+                    </div>
+                </details>
+            </li>
+
+            {{/* Support — UNIT3D's own grouping, unchanged. */}}
+            {{$sup := or (eq $p "/rules") (eq $p "/faq") (eq $p "/staff") (hasPrefix $p "/wiki") (hasPrefix $p "/support")}}
+            <li class="nav-tab">
+                <details class="dropdown">
+                    <summary class="{{if $sup}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
+                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#info"></use></svg>Support
+                        <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
+                    </summary>
+                    <div class="dropdown__menu dropdown__menu--end">
+                        <a class="dropdown__item{{if eq $p "/rules"}} active{{end}}" href="/rules"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Rules</a>
+                        <a class="dropdown__item{{if eq $p "/faq"}} active{{end}}" href="/faq"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#info"></use></svg>FAQ</a>
+                        <a class="dropdown__item{{if hasPrefix $p "/wiki"}} active{{end}}" href="/wiki"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#book"></use></svg>Wiki</a>
+                        <a class="dropdown__item{{if hasPrefix $p "/support"}} active{{end}}" href="/support"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#comment"></use></svg>Helpdesk</a>
+                        <a class="dropdown__item{{if eq $p "/staff"}} active{{end}}" href="/staff"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Staff</a>
+                    </div>
+                </details>
+            </li>
+
+            {{/* Other — the catch-all UNIT3D also keeps, and the home for
+                 UNGROUPED plugin pages. Those used to be promoted to top-level
+                 tabs, which is the single biggest reason the bar grew: every
+                 plugin registering a site page widened it. A plugin that
+                 declares a NavHint group still gets its own dropdown below. */}}
+            {{$oth := or (eq $p "/stats") (eq $p "/about") (eq $p "/sitemap")}}
+            {{range .SiteNav}}{{if not .Children}}{{if eq $p .Href}}{{$oth = true}}{{end}}{{end}}{{end}}
+            <li class="nav-tab">
+                <details class="dropdown">
+                    <summary class="{{if $oth}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
+                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#folder"></use></svg>Other
+                        <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
+                    </summary>
+                    <div class="dropdown__menu dropdown__menu--end">
+                        <a class="dropdown__item{{if eq $p "/stats"}} active{{end}}" href="/stats"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#database"></use></svg>Stats</a>
+                        <a class="dropdown__item{{if eq $p "/about"}} active{{end}}" href="/about"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#logo"></use></svg>About</a>
+                        <a class="dropdown__item{{if eq $p "/sitemap"}} active{{end}}" href="/sitemap"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#globe"></use></svg>Sitemap</a>
+                        {{range .SiteNav}}{{if not .Children}}
+                        <a class="dropdown__item{{if eq $p .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>
+                        {{end}}{{end}}
+                    </div>
+                </details>
+            </li>
+
+            {{/* Plugin pages that DID declare a NavHint group keep their own
+                 dropdown — the plugin asked to be a section, so honour it. */}}
             {{range .SiteNav}}
                 {{if .Children}}
-                {{$open := false}}{{range .Children}}{{if eq $.Path .Href}}{{$open = true}}{{end}}{{end}}
+                {{$open := false}}{{range .Children}}{{if eq $p .Href}}{{$open = true}}{{end}}{{end}}
                 <li class="nav-tab">
-                    {{/* NEVER emit `open` here: .dropdown__menu is absolutely
-                         positioned with nothing hiding it, so a pre-opened
-                         <details> paints the menu over the page on first load.
-                         $open only drives the summary's active class. */}}
                     <details class="dropdown">
                         <summary class="{{if $open}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
                             <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#folder"></use></svg>{{.Label}}
                             <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                         </summary>
                         <div class="dropdown__menu dropdown__menu--end">
-                            {{range .Children}}<a class="dropdown__item{{if eq $.Path .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>{{end}}
+                            {{range .Children}}<a class="dropdown__item{{if eq $p .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>{{end}}
                         </div>
                     </details>
                 </li>
-                {{else}}
-                <li class="nav-tab"><a class="{{if eq $.Path .Href}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="{{.Href}}"{{if eq $.Path .Href}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a></li>
                 {{end}}
             {{end}}
 
-            {{if .IsAdmin}}
-            {{$admin := and (ge (len .Path) 7) (eq (slice .Path 0 7) "/admin/")}}
-            <li class="nav-tab">
-                {{/* No `open`: see the SiteNav dropdown above — $admin marks the
-                     tab active, it must not pre-open the overlay menu. */}}
-                <details class="dropdown dropdown--end">
-                    <summary class="{{if $admin}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
-                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#shield"></use></svg>Admin
-                        <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
-                    </summary>
-                    <div class="dropdown__menu">
-                        {{/* AdminNav is the host's real registry (Settings + every
-                             plugin admin page + Jobs + Plugins). chromeData()
-                             sets it on BOTH parse sets — the forum plugin's
-                             Deps.BaseData runs through that same function — so
-                             every page rendering this chrome gets the whole
-                             registry. The fallback below is the EMPTY-registry
-                             default (the three routes main.go always mounts),
-                             not a forum-page path. */}}
-                        {{if .AdminNav}}
-                            {{range .AdminNav}}<a class="dropdown__item{{if eq $.Path .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#settings"></use></svg>{{.Label}}</a>{{end}}
-                        {{else}}
-                            <a class="dropdown__item" href="/admin/settings"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#settings"></use></svg>Settings</a>
-                            <a class="dropdown__item" href="/admin/jobs"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#clock"></use></svg>Jobs</a>
-                            <a class="dropdown__item" href="/admin/plugins"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#server"></use></svg>Plugins</a>
-                        {{end}}
-                    </div>
-                </details>
-            </li>
+            {{/* Donate is its own top-level item on live sites rather than an
+                 Other entry — it is the one link a site wants visible. Shown
+                 only when the deployment actually accepts donations. */}}
+            {{if .DonateEnabled}}
+            <li class="nav-tab"><a class="{{if hasPrefix $p "/help/donate"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/help/donate"><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#coin"></use></svg>Donate</a></li>
             {{end}}
         </ul>
     </nav>

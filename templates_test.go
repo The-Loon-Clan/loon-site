@@ -355,8 +355,11 @@ func chromeKeys() map[string]any {
 		"PathQuery": "/",
 		"AdminNav":  []navItem(nil),
 		"SiteNav":   []navNode(nil),
-		"Theme":     defaultTheme(),
-		"Themes":    siteThemes,
+		// chromeData sets this on every render, so the fixture must too — the
+		// nav reads it to decide whether Donate appears.
+		"DonateEnabled": false,
+		"Theme":         defaultTheme(),
+		"Themes":        siteThemes,
 	}
 }
 

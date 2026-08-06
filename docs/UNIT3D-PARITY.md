@@ -49,36 +49,34 @@ right (stat bar + icon bar + avatar menu).
 | **Other** | Events, Subtitles, Trending, Missing, Internal | — | mixed |
 | **Donate** | Support site (with % progress bar), Support UNIT3D | — | todo |
 
-The Support dropdown now exists, because its seven destinations do. The rest of
-the bar stays flat: **group only once there is something to group** — a dropdown
-holding one item is worse than a link.
+The bar is now FIVE items — Home plus Releases / Community / Support / Other,
+with Donate appearing only where donations are enabled. That matches what live
+UNIT3D sites actually do: a handful of broad dropdowns up top, detail one level
+down.
+
+It had drifted to eight flat tabs while `/store`, `/c`, `/stats`, `/sitemap` and
+`/api` were not in the nav at all — a bar that grows with every feature and
+still misses things.
+
+**The structural cause was plugin pages.** An ungrouped `SiteNav` entry was
+promoted to a top-level tab, so every plugin that registered a site page widened
+the bar. Ungrouped entries now fold into **Other**; a plugin that declares a
+NavHint group still gets its own dropdown, because it asked to be a section.
+
+**Grouping rule:** a destination belongs to the group a visitor would GUESS, not
+the plugin that owns it. The points store is under Community because a member
+thinks of it as part of the site, not as "the store plugin".
 
 A nav dropdown menu is absolutely positioned, and a closed `<details>` still
 lays its menu out, so an overflowing menu is real and measurable. `left: 0`
-overflows for right-side items and `right: 0` overflows for left-side ones, so
-there is no universally safe anchor: the side is chosen per item via
-`.dropdown__menu--end`. That modifier MUST stay after `.dropdown__menu` in the
-stylesheet — same specificity, so source order is what makes it win.
+overflows for right-side items and `right: 0` for left-side ones, so there is no
+universally safe anchor: the side is chosen per item via `.dropdown__menu--end`.
+That modifier MUST stay after `.dropdown__menu` in the stylesheet — same
+specificity, so source order is what makes it win.
 
-### Right-hand stat bar
-
-UNIT3D shows uploaded, downloaded, seeding, leeching, buffer, bonus points,
-ratio, freeleech tokens. Seven of those eight are **n/a** here. We show
-Releases / Active groups / Categories plus Rank / Unread / Points, which is the
-honest equivalent and is already built.
-
-### Icon bar and avatar menu
-
-| UNIT3D | Ours | Status |
-|---|---|---|
-| Staff dashboard (mod only), Torrent moderation (torrent-mod only) | Admin link | partial |
-| Conversations / PM, Notifications | `/p/inbox` bell | partial |
-| Avatar → Profile, Settings, Privacy, Achievements, Uploads, Downloads, Requested, Bookmarks, Playlists, Wishlist, Logout | Profile, Inbox, Admin, Logout, plugin pages | partial |
-
-**Dropdown mechanics differ deliberately.** UNIT3D uses Alpine plus a
-hover/`tabindex` pattern. We use native `<details>`, which works on touch with
-no JS. Do not port `top-nav__dropdown--nontouch` / `--touch`; that pair exists
-only to work around hover on touch devices.
+**Still to do:** the contextual SECOND bar. Live sites put section tabs under
+the main nav (Profile · Settings · Torrents · Activity … for the user area).
+We have breadcrumbs in that slot but no section tabs.
 
 ---
 
