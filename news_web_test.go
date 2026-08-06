@@ -2,12 +2,19 @@ package main
 
 import "testing"
 
-// sanitizeNewsHTML is the one place in this host where stored input is rendered
-// UNESCAPED (news.Handlers.NewsDetail marks its result template.HTML). Bodies
-// are admin-authored, so this is defence in depth rather than the only gate —
-// but a moderator account is exactly the level an XSS payload wants to reach,
-// so the policy is tested against the standard evasions rather than the happy
-// path alone.
+// sanitizeNewsHTML is the last stage of every path in this host that renders
+// stored input UNESCAPED.
+//
+// It was written for news bodies, which are admin-authored, and this comment
+// used to say so — "defence in depth rather than the only gate". That stopped
+// being true when markdown_web.go routed forum posts, tickets, DMs and
+// announcements through the same function: it is now the gate for arbitrary
+// USER input, and the standard evasions below are load-bearing rather than
+// belt-and-braces.
+//
+// markdown_web_test.go covers the layer in front of it. The two are tested
+// separately because they fail independently — verified by mutation: breaking
+// the script-body drop here turns THIS suite red and leaves that one green.
 func TestSanitizeNewsHTML(t *testing.T) {
 	for _, tc := range []struct {
 		name string

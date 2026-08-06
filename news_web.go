@@ -54,7 +54,11 @@ func newsMigrate(db *sqlx.DB) error {
 var newsAllowedTags = map[atom.Atom]bool{
 	atom.P: true, atom.Br: true, atom.Strong: true, atom.B: true,
 	atom.Em: true, atom.I: true, atom.U: true, atom.S: true,
-	atom.Ul: true, atom.Ol: true, atom.Li: true,
+	// <del> as well as <s>: GFM strikethrough (~~x~~) renders as <del>, and
+	// with only <s> here the tag was stripped and ~~x~~ silently did nothing
+	// — an enabled markdown feature quietly discarded on its way out.
+	atom.Del: true,
+	atom.Ul:  true, atom.Ol: true, atom.Li: true,
 	atom.Blockquote: true, atom.Code: true, atom.Pre: true,
 	atom.H2: true, atom.H3: true, atom.H4: true,
 	atom.A: true, atom.Img: true, atom.Hr: true,
