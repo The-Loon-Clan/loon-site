@@ -215,6 +215,13 @@
 
 .data-table__title {
     display: block;
+    /* Vertical padding, NOT a min-height with flex centring: this stays
+       display:block so the wrapping and overflow-wrap below keep working on a
+       200-character release title. 3px each side clears the 24px SC 2.5.8 asks
+       for — 2px lands the box at 23.99 after sub-pixel line-height rounding,
+       which is still a failure — and the row already has enough padding that
+       this does not change the visual rhythm. */
+    padding-block: 3px;
     color: var(--text);
     font-weight: 600;
     overflow-wrap: anywhere;
@@ -608,7 +615,7 @@ a.tag { min-height: 24px; }
 }
 
 .poster__fallback-label {
-    font-size: 0.62rem;
+    font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -852,7 +859,7 @@ a.tag { min-height: 24px; }
 .stat-tile__icon { color: var(--primary-tint); font-size: 0.95rem; }
 
 .stat-tile__label {
-    font-size: 0.62rem;
+    font-size: 0.7rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--muted-2);
@@ -1126,7 +1133,7 @@ a.tag { min-height: 24px; }
     background: var(--surface-2);
 }
 
-.meta-chip__name { font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--meta-chip-name-fg); }
+.meta-chip__name { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--meta-chip-name-fg); }
 .meta-chip__value { font-size: 0.84rem; color: var(--meta-chip-value-fg); }
 
 @media only screen and (max-width: 620px) {
@@ -1589,4 +1596,79 @@ input[type="range"] { accent-color: var(--primary); }
     font-size: var(--fs-2xs);
     letter-spacing: 0.06em;
     text-transform: uppercase;
+}
+
+/* A panel heading that IS a link ("Latest releases" -> /browse) inherits the
+   heading's own line box, which lands at 15px — the smallest target on the home
+   page, on the block a visitor is most likely to reach for. Same treatment as
+   the listing titles: grow the target, leave the type alone. */
+.panel__heading > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    color: inherit;
+}
+
+/* ------------------------------------------------------------------- tile --
+   Card grid for index pages — the wiki's topic list and the communities list
+   both render it. Like .prose, the markup shipped and the stylesheet never did:
+   every tile was a bare inline <a>, so the two pages were stacked links with no
+   card, no grid, and an 18px pointer target.
+
+   auto-fill + minmax rather than a fixed column count, so the same grid serves
+   a two-topic wiki and a forty-community index without a media query per
+   breakpoint. */
+.tile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: var(--space-3);
+}
+
+.tile {
+    display: flex;
+    gap: var(--space-3);
+    /* Well past the 24px SC 2.5.8 minimum — the whole card is the target. */
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-2);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.tile:hover {
+    border-color: var(--primary);
+    background: var(--surface-3);
+    color: var(--text);
+    text-decoration: none;
+}
+
+/* The icon is optional — the communities index has none — so the body must not
+   depend on a sibling being there. */
+.tile__icon {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    font-size: 1.1rem;
+}
+
+.tile__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0; /* let a long name wrap rather than widen the column */
+}
+
+.tile__title { font-weight: 600; overflow-wrap: anywhere; }
+
+.tile__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    overflow-wrap: anywhere;
 }

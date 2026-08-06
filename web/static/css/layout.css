@@ -311,7 +311,7 @@ main > article {
 }
 
 .top-nav__tagline {
-    font-size: 0.62rem;
+    font-size: 0.7rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--top-nav-tagline-fg);
@@ -696,3 +696,28 @@ main > article {
     text-align: center;
 }
 
+
+/* ------------------------------------------------- target size (2.5.8) ----
+   WCAG 2.2 SC 2.5.8 asks for a 24x24 CSS-px pointer target. Text links inherit
+   the line box, so a 0.85rem footer link is 18px tall and a breadcrumb is 18px
+   — under it on every page of the site.
+
+   Fixed by growing the TARGET, never the text: inline-flex with a min-height
+   and symmetric vertical padding leaves the type size, colour and rhythm
+   exactly as designed and only enlarges what a finger has to hit.
+
+   Deliberately NOT applied to links that sit inside a run of text — the
+   footer's copyright line, a post's "#12" permalink, a username inside a
+   sentence. SC 2.5.8 exempts those precisely because padding them would break
+   the line they belong to, and the spec would rather they stayed inline. */
+.footer__section-list a,
+.footer__section-list button,
+.breadcrumbV2 > a,
+.breadcrumb__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+}
+
+/* The list already spaces its rows; the padding above would double the gap. */
+.footer__section-list { gap: 0.35rem; }
