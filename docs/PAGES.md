@@ -79,37 +79,18 @@ downloads, which is why it needed no new collection path and no plugin.
 
 ---
 
-## Open: `lists` vs `playlists` — they overlap, and neither situation is right
+## Open: one collection surface — see `docs/LISTS-PROPOSAL.md`
 
-`lists` (in loon-plugins) is **not wired** — zero routes at boot. `playlists`
-**is** wired, with 9.
+`lists` (loon-plugins) is the richer surface and is **not wired** — zero routes
+at boot. `playlists` is wired and duplicates it. `/bookmarks` is a third,
+smaller version again.
 
-They are the same idea at different sizes. `lists` is the richer one:
+The blocker is not the duplication, it is the direction of the dependency:
+`lists` owns no tables, so wiring it costs the host three tables, their
+migrations and 26 `Deps` functions. `playlists` costs 70 lines because it owns
+its schema. Reusing the better plugin currently means MORE host code.
 
-> Watchlists and collections. Members build named lists of releases, optionally
-> make them public, follow and copy each other's, download a whole list as a
-> ZIP, and browse everything public on a discovery grid.
-
-and it is designed the way this host prefers — it owns no tables and runs no
-migrations, taking everything through `Deps`, because "the list TABLES stay
-host-owned — the account Following tab and the release-page widgets read them
-too."
-
-`playlists` is a narrower version written earlier in this repo's history and
-duplicates it. **Bookmarks is a third, smaller thing again**: one flat set, one
-toggle, no names or sharing. It does not conflict with either, but if `lists`
-is wired then a release page would carry both a *Save* button and an *Add to
-list* control, and that pairing needs a deliberate answer rather than an
-accident.
-
-The decision is not the host's to make unilaterally, because `lists` is
-maintained in the other repo. Three options, in the order I would rank them:
-
-1. **Wire `lists`, retire `playlists`.** Keeps the richer surface and the
-   host-owned-tables design. Costs the host the list tables and a `Deps`
-   implementation, and needs the `/playlists` URLs redirected.
-2. **Keep `playlists`, leave `lists` unwired.** Cheapest, but the better
-   implementation stays on the shelf.
-3. **Wire `lists` and fold bookmarks into it** as an implicit "Saved" list.
-   Removes the two-controls problem, at the cost of the one-click Save and the
-   profile count that just replaced MOCKS M4.
+`LISTS-PROPOSAL.md` is the request that fixes it — self-persistence, a `kind`
+column, and a system owner — plus which of the list-shaped ideas actually fit
+(collections, bookmarks, grabs, trending) and which do not (friends/blocked,
+news).
