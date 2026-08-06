@@ -401,6 +401,25 @@ dd { margin-inline-start: 0; }
 .h3 { font-size: 1.5rem; } .h4 { font-size: 1.3rem; } .h5 { font-size: 1.15rem; } .h6 { font-size: 1rem; }
 .list-unstyled { list-style: none; padding-left: 0; margin: 0; }
 
+/* --bs-* aliases. Plugin markup writes colours BOTH ways — `bg-danger` as a
+   class and `var(--bs-danger)` as a value (tickets' support_ticket.html does
+   both on one line) — and this Bootstrap subset shipped only the classes, so
+   the custom-property half resolved to nothing and the text lost its colour.
+   Same gap as dd's indent: markup written against Bootstrap, compat layer
+   missing a piece. */
+:root {
+    --bs-primary: var(--primary);
+    --bs-secondary: var(--muted);
+    --bs-success: var(--success);
+    --bs-info: var(--info);
+    --bs-warning: var(--warning);
+    --bs-danger: var(--danger);
+    --bs-light: var(--text);
+    --bs-dark: var(--bg);
+    --bs-body-color: var(--text);
+    --bs-secondary-color: var(--muted);
+}
+
 /* Backgrounds + borders. */
 .bg-dark { background: var(--bg); }
 .bg-secondary { background: var(--surface-3); }

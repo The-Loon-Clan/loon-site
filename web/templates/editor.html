@@ -1,0 +1,23 @@
+{{/* The site's shared prose editor, as a fragment a plugin can embed.
+
+     Dot: Name (field name), Rows, Required, Placeholder, Value. Every key is
+     optional except Name — a plugin asking for "an editor" should not have to
+     know which attributes this site happens to set.
+
+     The formatting toolbar is NOT here. site-scripts builds it for any
+     textarea[data-prose] (see the tab-shim block), so the whole integration is
+     that one attribute: nothing to keep in sync, and a plugin embedding this
+     gets the same bold/italic/link/quote/list controls the forum has without
+     shipping a copy of them.
+
+     Rendered through the HOST's set, so plugins get the site's editor rather
+     than each growing their own — the same reason Deps.Markdown crosses the
+     seam instead of being reimplemented per plugin. */}}
+{{define "prose-editor"}}
+<textarea class="form__textarea"
+          name="{{.Name}}"
+          {{with .Rows}}rows="{{.}}"{{else}}rows="6"{{end}}
+          {{with .Placeholder}}placeholder="{{.}}"{{end}}
+          {{if .Required}}required{{end}}
+          data-prose>{{with .Value}}{{.}}{{end}}</textarea>
+{{end}}

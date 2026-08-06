@@ -54,20 +54,40 @@ func wireStorePlugin(w *web) {
 	})
 }
 
-// renderPagination executes the site's one pagination partial to HTML. The
-// partial lives in the forum chrome (fpagination) because the forum was the
-// first page to need it; it is the site's only pager, and rendering it here is
-// what lets a plugin fragment carry the same one.
-func (w *web) renderPagination(p forumPagination) template.HTML {
+// renderPartial executes one shared partial from the HOST's template set and
+// returns it as HTML.
+//
+// This is what "the site's pager" and "the site's editor" mean once plugins
+// render their own markup: a plugin fragment runs in the plugin's template set
+// and cannot reach the host's partials, so the host renders them and hands back
+// the result. The alternative is every plugin carrying its own copy, which
+// works right up until the partial changes.
+//
+// An error yields empty rather than a panic: a missing pager should cost a
+// page its pagination, not the whole request.
+func (w *web) renderPartial(name string, data any) template.HTML {
 	t, err := pluginTemplates()
 	if err != nil {
-		w.log.Error("pagination template", "err", err)
+		w.log.Error("partial template set", "partial", name, "err", err)
 		return ""
 	}
 	var sb strings.Builder
-	if err := t.ExecuteTemplate(&sb, "fpagination", p); err != nil {
-		w.log.Error("render pagination", "err", err)
+	if err := t.ExecuteTemplate(&sb, name, data); err != nil {
+		w.log.Error("render partial", "partial", name, "err", err)
 		return ""
 	}
 	return template.HTML(sb.String())
+}
+
+// renderPagination is the site's one pager (fpagination, defined in the forum
+// chrome because the forum needed it first).
+func (w *web) renderPagination(p forumPagination) template.HTML {
+	return w.renderPartial("fpagination", p)
+}
+
+// renderEditor is the site's one prose editor (editor.html). The formatting
+// toolbar is not in the markup — site-scripts builds it for any
+// textarea[data-prose] — so a plugin embedding this gets the toolbar too.
+func (w *web) renderEditor(opts map[string]any) template.HTML {
+	return w.renderPartial("prose-editor", opts)
 }

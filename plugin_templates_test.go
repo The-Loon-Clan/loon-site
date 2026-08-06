@@ -13,7 +13,6 @@ import (
 	"github.com/the-loon-clan/loon-plugins/messages"
 	"github.com/the-loon-clan/loon-plugins/news"
 	"github.com/the-loon-clan/loon-plugins/playlists"
-	"github.com/the-loon-clan/loon-plugins/tickets"
 	"github.com/the-loon-clan/loon-plugins/wiki"
 )
 
@@ -141,28 +140,10 @@ func pluginFixtures() []pluginFixture {
 		// against the running site, not by this sweep, which only sees
 		// templates the HOST renders.
 
-		// ── tickets
-		{"support.html",
-			map[string]any{"Tickets": nil},
-			map[string]any{"Tickets": []*tickets.SupportTicket{{ID: 1, Subject: "S", Priority: "high", Status: "open", Public: true, CreatedAt: now}}}},
-		{"support_public.html",
-			map[string]any{"Tickets": nil, "Total": 0, "Pagination": page},
-			map[string]any{"Tickets": []*tickets.SupportTicket{{ID: 1, Subject: "S", Username: "bob", Status: "closed", CreatedAt: now}}, "Total": 1}},
-		{"support_ticket.html",
-			map[string]any{
-				"Ticket":    &tickets.SupportTicket{ID: 1, UserID: 2, Username: "bob", Subject: "S", Body: "B", Priority: "normal", Status: "open", CreatedAt: now},
-				"Replies":   nil,
-				"OwnerRole": "Member",
-			},
-			map[string]any{"Replies": []*tickets.TicketReply{{ID: 1, TicketID: 1, UserID: 1, Username: "alice", Body: "R", IsAdmin: true, CreatedAt: now}}}},
-		{"admin_tickets.html",
-			map[string]any{"Tickets": nil, "Total": 0, "Page": 1, "TotalPages": 1, "StatusFilter": ""},
-			map[string]any{
-				"Tickets":      []*tickets.SupportTicket{{ID: 1, Subject: "S", Username: "bob", Priority: "low", Status: "in_progress", CreatedAt: now}},
-				"Total":        1,
-				"TotalPages":   3,
-				"StatusFilter": "open",
-			}},
+		// ── tickets: NOT here, for the same reason as store. The plugin
+		// embeds and parses its own four templates and asks the host only for
+		// chrome (RenderPage), the shared editor (RenderEditor), the pager and
+		// Markdown. The host's copies were dead markup and are gone.
 
 		// ── donations
 		{"help_donate.html",

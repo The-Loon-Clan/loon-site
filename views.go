@@ -182,6 +182,7 @@ func pluginTemplates() (*template.Template, error) {
 	return template.New("plugins").Funcs(tmplHelpers()).ParseFS(siteFS,
 		"web/templates/site_chrome.html",
 		"web/templates/forum/*.html",
+		"web/templates/editor.html",
 		"web/templates/plugin/*.html",
 	)
 }
@@ -840,6 +841,17 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 }
 
 func (w *web) render(c *gin.Context, page string, data map[string]any) {
+	w.renderStatus(c, http.StatusOK, page, data)
+}
+
+// renderStatus is render with an explicit HTTP status.
+//
+// It exists for the plugins that re-render a form on a validation failure: a
+// page whose body says the submission was rejected must not tell every client
+// 200, or a cache, a crawler or a scripted client records the failure as a
+// success. The status is written BEFORE the body, because once html/template
+// starts streaming the header is already gone.
+func (w *web) renderStatus(c *gin.Context, status int, page string, data map[string]any) {
 	data = w.chromeData(c, data)
 	t := w.tmpls[page]
 	if t == nil {
@@ -858,6 +870,7 @@ func (w *web) render(c *gin.Context, page string, data map[string]any) {
 		t = fresh
 	}
 	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Status(status)
 	if err := t.ExecuteTemplate(c.Writer, "base.html", data); err != nil {
 		w.log.Error("render", "page", page, "err", err)
 	}

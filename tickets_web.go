@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"html/template"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
@@ -80,17 +81,29 @@ func wireTicketsPlugin(c *core.Core, w *web) error {
 		}
 	}
 	tickets.SetDeps(tickets.Deps{
-		BaseData: func(gc *gin.Context, extra gin.H) gin.H { return w.chromeData(gc, extra) },
-		// Same two helpers the store plugin gets, so one pagination partial
-		// serves every plugin that pages.
+		// The plugin owns its four pages now and wants chrome, not a data map.
+		// status is passed through rather than fixed at 200: three of these
+		// pages re-render on a validation failure, and a page saying "your
+		// ticket was rejected" must not tell every client it succeeded.
+		RenderPage: func(gc *gin.Context, status int, title string, body template.HTML) {
+			w.renderStatus(gc, status, "site_page.html",
+				map[string]any{"Title": title, "Fragment": body})
+		},
+		// The site's editor and pager, rendered from the HOST's set — a plugin
+		// fragment cannot reach the host's partials, and a copy per plugin
+		// works only until the partial changes.
+		RenderEditor: w.renderEditor,
+		RenderPagination: func(page, pageSize, totalItems int, baseURL string) template.HTML {
+			return w.renderPagination(hostPagination(page, pageSize, totalItems, baseURL))
+		},
+		// Crosses the seam because it SANITISES: a second renderer here would
+		// be a second allowlist, and the laxer of two is a stored-XSS bug.
+		Markdown: siteMarkdown,
 		PageOffset: func(page, pageSize int) int {
 			if page < 1 {
 				page = 1
 			}
 			return (page - 1) * pageSize
-		},
-		Pagination: func(page, pageSize, totalItems int, baseURL string) any {
-			return hostPagination(page, pageSize, totalItems, baseURL)
 		},
 		// nil means "not signed in" — the plugin gates on that, so resolving a
 		// missing user to a zero Viewer would grant an anonymous request the
@@ -118,10 +131,17 @@ func wireTicketsPlugin(c *core.Core, w *web) error {
 			}
 			return roleLabel(u.ToCore().Role), nil
 		},
-		// RoleBadge is rendered by the HOST's template, so the plugin never
-		// inspects the value. Returning the slug lets support_ticket.html feed
-		// it straight into the user-tag block's Role field.
-		RoleBadge: func(_ context.Context, roleName string) any { return roleName },
+		// RoleBadge WAS a bare slug, because support_ticket.html used to be the
+		// host's markup and fed it into the user-tag block's Role field. The
+		// plugin owns that template now and reads .DisplayName and .Color off
+		// it, so a string rendered as "can't evaluate field DisplayName" and
+		// took the whole ticket page down with it — a 500 whose only visible
+		// symptom was the plugin's own "this page failed to render".
+		//
+		// The field names match the plugin's roleFallback exactly; that is the
+		// contract, and it is what makes the page look the same whether or not
+		// this seam is wired.
+		RoleBadge: func(_ context.Context, roleName string) any { return ticketRoleBadge(roleName) },
 		// Notifications are optional as a pair. Wired through the same fan-out
 		// main.go publishes as the "notify.fanout" capability, so a ticket
 		// lands in the same inbox as everything else.
@@ -161,4 +181,33 @@ func wireTicketsPlugin(c *core.Core, w *web) error {
 		},
 	})
 	return nil
+}
+
+// roleBadgeVM is the display data the tickets plugin renders for a role. Field
+// names are fixed by that plugin's roleFallback — see RoleBadge above.
+type roleBadgeVM struct {
+	Name        string
+	DisplayName string
+	Color       string
+}
+
+// ticketRoleBadge maps a host role name onto the badge the plugin's template
+// wants. Color is a BOOTSTRAP colour word, because the template writes it into
+// both `bg-{{.Color}}` and `var(--bs-{{.Color}})` — theme.css defines the .bg-*
+// classes and now the matching --bs-* aliases too.
+func ticketRoleBadge(roleName string) roleBadgeVM {
+	color := "secondary"
+	switch roleSlug(roleName) {
+	case "admin":
+		color = "danger"
+	case "mod":
+		color = "info"
+	case "contributor":
+		color = "warning"
+	}
+	return roleBadgeVM{
+		Name:        roleName,
+		DisplayName: roleLabel(roleName),
+		Color:       color,
+	}
 }
