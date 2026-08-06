@@ -74,7 +74,7 @@
             </header>
             <div class="panel__body">
                 {{if .ActiveMessage.FromName}}<p class="meta__line"><span class="meta__item">From {{.ActiveMessage.FromName}}</span></p>{{end}}
-                <div class="prose">{{.ActiveMessage.Body}}</div>
+                <div class="prose">{{prose .ActiveMessage.Body}}</div>
             </div>
         </section>
 
@@ -92,22 +92,15 @@
                 </div>
             </header>
             {{if .ActiveMessages}}
-            <ul class="list-rows">
+            {{/* Comments, not .list-row: a DM is a message, and the row idiom
+                 is a one-line preview slot that collapsed every newline in it.
+                 Plain because the DM list carries no role for the sender. */}}
+            <div class="panel__body stack">
                 {{range .ActiveMessages}}
-                <li>
-                    <div class="list-row">
-                        <span class="avatar avatar--sm avatar--round poster--h{{hue .SenderUsername}}">
-                            <span class="avatar__fallback">{{initials .SenderUsername}}</span>
-                        </span>
-                        <span class="list-row__body">
-                            <span class="list-row__title">{{template "user-tag" (dict "Name" .SenderUsername "Plain" true)}}</span>
-                            <span class="list-row__meta">{{with timeAgo .CreatedAt}}{{.}}{{end}}</span>
-                            <span class="list-row__text">{{.Body}}</span>
-                        </span>
-                    </div>
-                </li>
+                {{template "comment" (dict "Name" .SenderUsername "Plain" true
+                                           "Body" .Body "At" .CreatedAt)}}
                 {{end}}
-            </ul>
+            </div>
             {{else}}
             <div class="panel__body">No messages in this conversation yet.</div>
             {{end}}
@@ -118,7 +111,7 @@
                     <input type="hidden" name="thread_id" value="{{.ActiveThreadID}}">
                     <div class="form__group">
                         <label class="form__label" for="body">Reply</label>
-                        <textarea class="form__textarea" id="body" name="body" rows="4" required></textarea>
+                        <textarea class="form__textarea" id="body" name="body" rows="4" required data-prose></textarea>
                     </div>
                     <div class="form__actions"><button class="button button--primary" type="submit">Send</button></div>
                 </form>
@@ -140,7 +133,7 @@
                     </div>
                     <div class="form__group">
                         <label class="form__label" for="body">Message</label>
-                        <textarea class="form__textarea" id="body" name="body" rows="6" required></textarea>
+                        <textarea class="form__textarea" id="body" name="body" rows="6" required data-prose></textarea>
                     </div>
                     <div class="form__actions"><button class="button button--primary" type="submit">Send</button></div>
                 </form>

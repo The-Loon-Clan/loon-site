@@ -1469,3 +1469,124 @@ input[type="range"] { accent-color: var(--primary); }
     .facet-row { flex-direction: column; gap: var(--space-2); }
     .facet-row__label { flex: none; }
 }
+
+/* ------------------------------------------------------------------ prose --
+   Rendered user prose: the output of markdown_web.go's one renderer, which is
+   what every forum post, wiki page, ticket, DM and announcement body goes
+   through. Six templates carried class="prose" and NOTHING defined it, so all
+   of them fell back to whatever Bootstrap Reboot happened to leave behind —
+   flush-left <pre>, unindented lists, code the same weight as the sentence
+   around it.
+
+   Scoped by descendant selector rather than by element defaults so it styles
+   ONLY generated prose. The sanitizer's tag allowlist (news_web.go) is the
+   list of elements that can appear here; anything outside it never survives to
+   be styled. */
+.prose { overflow-wrap: anywhere; }
+.prose > :first-child { margin-top: 0; }
+.prose > :last-child { margin-bottom: 0; }
+.prose p { margin: 0 0 var(--space-3); }
+.prose h2, .prose h3, .prose h4 {
+    margin: var(--space-5) 0 var(--space-2);
+    line-height: 1.25;
+}
+.prose h2 { font-size: var(--fs-lg); }
+.prose h3 { font-size: var(--fs-md); }
+.prose h4 { font-size: var(--fs-sm); }
+.prose ul, .prose ol { margin: 0 0 var(--space-3); padding-left: 1.4em; }
+.prose li { margin-bottom: var(--space-1); }
+.prose a { color: var(--link-fg); }
+.prose a:hover { color: var(--link-hover-fg); }
+.prose blockquote {
+    margin: 0 0 var(--space-3);
+    padding: var(--space-1) 0 var(--space-1) var(--space-3);
+    border-left: 3px solid var(--border);
+    color: var(--text-muted);
+}
+.prose code {
+    padding: 0.1em 0.35em;
+    border-radius: var(--radius-sm);
+    background: var(--surface-3);
+    font-size: 0.9em;
+}
+/* A <pre> already reads as a block; a second inset inside it is just noise. */
+.prose pre {
+    margin: 0 0 var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--surface-3);
+    overflow-x: auto;
+}
+.prose pre code { padding: 0; background: none; }
+.prose img { max-width: 100%; height: auto; border-radius: var(--radius-sm); }
+.prose hr { margin: var(--space-4) 0; border: 0; border-top: 1px solid var(--border); }
+/* Tables come from GFM, so they are prose rather than data — no .data-table
+   chrome, just enough rule to read a grid. */
+.prose table { width: 100%; margin: 0 0 var(--space-3); border-collapse: collapse; }
+.prose th, .prose td { padding: var(--space-2); border: 1px solid var(--border); text-align: left; }
+.prose th { background: var(--surface-3); font-weight: 700; }
+
+/* ---------------------------------------------------------------- comment --
+   One person's message — UNIT3D's `comment`. Ticket replies and DMs used
+   .list-row, the compact preview idiom, which gave a whole message a one-line
+   summary slot. The avatar is a fixed column so every body in a thread starts
+   on the same left edge no matter how long the name is. */
+.comment {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3) 0;
+}
+.comment + .comment { border-top: 1px solid var(--border); }
+.comment__main { flex: 1; min-width: 0; }
+.comment__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+}
+.comment__time { color: var(--text-muted); font-size: var(--fs-2xs); }
+
+/* --------------------------------------------------------- prose toolbar --
+   The formatting strip site-scripts builds above a textarea[data-prose] —
+   UNIT3D's bbcode-input, in markdown. It sits ON the textarea's top edge:
+   flat bottom corners and a shared border, so the two read as one control
+   rather than as a stray row of buttons floating above a box. */
+.prose-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: var(--input-border);
+    border-bottom: 0;
+    border-radius: var(--input-border-radius) var(--input-border-radius) 0 0;
+    background: var(--surface-3);
+}
+.prose-toolbar + .form__textarea.form__textarea {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+.prose-toolbar__btn {
+    min-width: 2rem;
+    padding: 0.2rem 0.45rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+    cursor: pointer;
+}
+.prose-toolbar__btn:hover { background: var(--surface-2); color: var(--text); }
+.prose-toolbar__btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+/* Pushed to the far end so it reads as a caption on the strip, not an eighth
+   button someone forgot to style. */
+.prose-toolbar__hint {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: var(--fs-2xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}

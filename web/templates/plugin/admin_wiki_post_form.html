@@ -24,7 +24,7 @@
             </div>
             <div class="form__group">
                 <label class="form__label" for="content">Content</label>
-                <textarea class="form__textarea" id="content" name="content" rows="20">{{if .Post}}{{.Post.Content}}{{end}}</textarea>
+                <textarea class="form__textarea" id="content" name="content" rows="20" data-prose>{{if .Post}}{{.Post.Content}}{{end}}</textarea>
                 <p class="form__help">
                     Markdown, with GitHub tables and strikethrough. Inline HTML is
                     not rendered — the output is filtered through the site's

@@ -115,7 +115,11 @@
             {{.QuotedHTML}}
         </blockquote>
         {{end}}
-        <div>{{.BodyHTML}}</div>
+        {{/* .prose, like every other rendered body on the site: posts now go
+             through the same markdown renderer the wiki and communities use
+             (markdown_web.go), so a post can contain lists, quotes and code and
+             they have to be styled the same way there as here. */}}
+        <div class="prose">{{.BodyHTML}}</div>
         {{if $.User}}{{if eq .UserID $.CurrentUserID}}
         {{/* Owner edit form. Lives in the body (it edits the body) rather than
              the footer strip, which is a nowrap meta bar. Field names and the
@@ -128,7 +132,7 @@
                 <input type="hidden" name="thread_id" value="{{.ThreadID}}">
                 <div class="form__group">
                     <label class="form__label" for="edit-body-{{.ID}}">Edit post</label>
-                    <textarea class="form__textarea" id="edit-body-{{.ID}}" name="body" rows="4" required>{{.Body}}</textarea>
+                    <textarea class="form__textarea" id="edit-body-{{.ID}}" name="body" rows="4" required data-prose>{{.Body}}</textarea>
                 </div>
                 <button class="form__button form__button--outlined" type="submit">Save</button>
             </form>
@@ -190,7 +194,7 @@
             <p class="form__help" id="quote-note" style="display:none">Quoting <strong id="quote-who"></strong> <a href="#" onclick="clearQuote();return false">clear</a></p>
             <div class="form__group">
                 <label class="form__label" for="reply-body">Your reply</label>
-                <textarea class="form__textarea" id="reply-body" name="body" rows="5" required placeholder="Write a reply&hellip;"></textarea>
+                <textarea class="form__textarea" id="reply-body" name="body" rows="5" required placeholder="Write a reply&hellip;" data-prose></textarea>
             </div>
             <button class="form__button form__button--filled" type="submit">Reply</button>
         </form>

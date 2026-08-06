@@ -17,7 +17,7 @@ import (
 // plugin here (8 tables, 20 routes, 7 host templates).
 //
 // Every seam it wants already exists from earlier wirings: chromeData,
-// wikiMarkdown (goldmark with raw HTML off, then the allowlist sanitizer),
+// siteMarkdown (goldmark with raw HTML off, then the allowlist sanitizer),
 // hostPagination, and blob.NewLocal. The only new work is the schema.
 //
 // Its queries join the HOST's users table for u.username, u.role, u.created_at,
@@ -165,7 +165,7 @@ func wireCommunitiesPlugin(c *core.Core, w *web) error {
 		// then the host's allowlist sanitizer. Community bodies are written by
 		// ANY member, not a mod, so the second pass matters more here than it
 		// does on the wiki.
-		Markdown: wikiMarkdown,
+		Markdown: siteMarkdown,
 		PageOffset: func(page, pageSize int) int {
 			if page < 1 {
 				page = 1

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"html/template"
 	"log/slog"
 	"net/url"
 	"strconv"
@@ -303,24 +302,6 @@ func (p forumPagination) HasNext() bool { return p.Page < p.TotalPages }
 func (p forumPagination) Prev() int     { return p.Page - 1 }
 func (p forumPagination) Next() int     { return p.Page + 1 }
 
-// demoForumMarkdown is the demo's sanitized renderer: HTML-escape everything,
-// then paragraphs + line breaks. Deliberately minimal — the contract is
-// "safe HTML", not "rich markdown"; a host wanting more swaps this func.
-func demoForumMarkdown(src string) template.HTML {
-	esc := template.HTMLEscapeString(strings.ReplaceAll(src, "\r\n", "\n"))
-	paras := strings.Split(esc, "\n\n")
-	var b strings.Builder
-	for _, p := range paras {
-		if strings.TrimSpace(p) == "" {
-			continue
-		}
-		b.WriteString("<p>")
-		b.WriteString(strings.ReplaceAll(p, "\n", "<br>"))
-		b.WriteString("</p>\n")
-	}
-	return template.HTML(b.String())
-}
-
 // devPluginRender re-parses the gin set on every render so a template edit
 // shows on refresh (LOON_DEMO_DEV=1). Each request gets its own *Template, so
 // there is no shared mutable state to race on — which re-calling
@@ -381,7 +362,7 @@ func wireForumPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 			w.chromeData(gc, data)
 			return data
 		},
-		Markdown: demoForumMarkdown,
+		Markdown: siteMarkdown,
 		Paginate: func(page, totalPages int, baseURL string) any {
 			return forumPagination{Page: page, TotalPages: totalPages, BaseURL: baseURL}
 		},

@@ -1,16 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"html/template"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
-	gmhtml "github.com/yuin/goldmark/renderer/html"
 
 	"github.com/the-loon-clan/loon/blob"
 	"github.com/the-loon-clan/loon/core"
@@ -69,34 +64,6 @@ func wikiMigrate(db *sqlx.DB) error {
 	return nil
 }
 
-// wikiMarkdown is goldmark configured for the wiki, wrapped so the plugin's
-// Deps.Markdown signature is satisfied.
-//
-// The plugin notes that wiki authors are mods+, so a host "may allow richer
-// markup here". We still do not: goldmark's default already refuses to pass raw
-// inline HTML through (there is no WithUnsafe here), and the result is ALSO run
-// through sanitizeNewsHTML. A moderator account is precisely the level a stored
-// XSS payload wants to reach, and the cost of the second pass is nothing.
-//
-// GFM is on for tables and strikethrough, which is what a knowledge base
-// actually uses. Typographer is off: smart quotes in a page full of config
-// snippets and CLI flags are a liability, not a feature.
-var wikiMD = goldmark.New(
-	goldmark.WithExtensions(extension.GFM),
-	goldmark.WithRendererOptions(gmhtml.WithHardWraps()),
-)
-
-func wikiMarkdown(src string) template.HTML {
-	var buf bytes.Buffer
-	if err := wikiMD.Convert([]byte(src), &buf); err != nil {
-		// Render nothing rather than the raw source: on a page that marks its
-		// result template.HTML, falling back to unrendered input would hand
-		// through exactly the markup the pipeline exists to filter.
-		return ""
-	}
-	return template.HTML(sanitizeNewsHTML(buf.String()))
-}
-
 const (
 	// uploadRoot is the on-disk parent for every user-uploaded image, and
 	// uploadURL is the path it is served under. Shared by the wiki and
@@ -127,7 +94,7 @@ func wireWikiPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 
 	wiki.SetDeps(wiki.Deps{
 		BaseData: func(gc *gin.Context, extra gin.H) gin.H { return w.chromeData(gc, extra) },
-		Markdown: wikiMarkdown,
+		Markdown: siteMarkdown,
 		Files:    blob.NewLocal(uploadRoot, uploadURL),
 	})
 	return nil

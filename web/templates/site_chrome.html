@@ -598,6 +598,36 @@
     </span>
 {{end}}
 
+{{/* ------------------------------------------------------------- comment --
+     One person's message: avatar, who, when, body. UNIT3D's `comment` partial,
+     which it reuses for torrent and article comments.
+
+     Ticket replies and DM messages were .list-row — the compact PREVIEW idiom,
+     spans styled as blocks — so a whole message was squeezed into a one-line
+     summary slot, and because HTML collapses newlines a three-paragraph reply
+     rendered as one run-on sentence. The body here is a real block, so it goes
+     through {{prose}} and paragraphs survive.
+
+     Dot: Name, Body (required); Role, Plain, Tag, At (optional). Plain drops
+     the profile link for rows that carry a staff FLAG rather than a role — see
+     support_ticket.html, where linking a role we do not have would paint every
+     reply the same. */}}
+{{define "comment"}}
+<article class="comment">
+    <span class="avatar avatar--sm avatar--round poster--h{{hue .Name}}">
+        <span class="avatar__fallback">{{initials .Name}}</span>
+    </span>
+    <div class="comment__main">
+        <p class="comment__meta">
+            {{template "user-tag" (dict "Name" .Name "Role" .Role "Plain" .Plain)}}
+            {{if .Tag}}<span class="tag tag--info">{{.Tag}}</span>{{end}}
+            {{with .At}}<span class="comment__time">{{timeAgo .}}</span>{{end}}
+        </p>
+        <div class="prose">{{prose .Body}}</div>
+    </div>
+</article>
+{{end}}
+
 {{/* Plugin site pages that named one of the host's own dropdowns in their
      NavHint, rendered as items INSIDE that dropdown. Dot: Items (may be nil —
      ranging nil is fine) and Path, because a template invocation rebinds $ and
@@ -764,6 +794,115 @@
         window.bootstrap.Tab = window.bootstrap.Tab || {
             getOrCreateInstance: function (el) { return { show: function () { show(el); } }; }
         };
+
+        // Markdown toolbar — UNIT3D's bbcode-input, in the syntax this stack
+        // actually renders (markdown_web.go). Built here rather than emitted as
+        // a partial per form: the prose textareas live in eight templates
+        // across four plugins, so `data-prose` on the textarea is the entire
+        // integration and there is no markup to keep in sync.
+        //
+        // Only marked textareas get it. Auto-attaching to every .form__textarea
+        // would put a Bold button on the ones whose value is never rendered as
+        // markdown — a playlist description, a community blurb — which
+        // advertises formatting that silently does not work.
+        var MD = [
+            { key: 'bold', label: 'B', title: 'Bold  Ctrl+B', wrap: '**', weight: '700' },
+            { key: 'italic', label: 'I', title: 'Italic  Ctrl+I', wrap: '_', italic: true },
+            { key: 'code', label: '</>', title: 'Inline code', wrap: '`', mono: true },
+            { key: 'link', label: 'Link', title: 'Link  Ctrl+K', link: true },
+            { key: 'quote', label: '“', title: 'Quote', prefix: '> ' },
+            { key: 'ul', label: '•', title: 'Bulleted list', prefix: '- ' },
+            { key: 'ol', label: '1.', title: 'Numbered list', prefix: '1. ' }
+        ];
+
+        // Every mutation goes through the undo stack rather than assigning
+        // .value, so Ctrl+Z still works on what the buttons did. execCommand is
+        // deprecated and has no replacement for this; the fallback keeps the
+        // buttons working where it is gone, just without undo.
+        function put(ta, text, selStart, selLen) {
+            ta.focus();
+            if (!document.execCommand || !document.execCommand('insertText', false, text)) {
+                var s = ta.selectionStart, e = ta.selectionEnd;
+                ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
+                ta.selectionStart = ta.selectionEnd = s + text.length;
+            }
+            if (selStart !== undefined) {
+                var base = ta.selectionStart - text.length;
+                ta.setSelectionRange(base + selStart, base + selStart + selLen);
+            }
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        function apply(ta, spec) {
+            var sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+            if (spec.prefix) {
+                // Line-oriented: extend the selection to whole lines first, or
+                // prefixing a mid-line selection would put "> " in the middle
+                // of a sentence and mean nothing.
+                var s = ta.value.lastIndexOf('\n', ta.selectionStart - 1) + 1;
+                var e = ta.value.indexOf('\n', ta.selectionEnd);
+                if (e === -1) e = ta.value.length;
+                ta.setSelectionRange(s, e);
+                var lines = ta.value.slice(s, e).split('\n');
+                var out = lines.map(function (ln, i) {
+                    return (spec.key === 'ol' ? (i + 1) + '. ' : spec.prefix) + ln;
+                }).join('\n');
+                put(ta, out);
+                return;
+            }
+            if (spec.link) {
+                var text = sel || 'link text';
+                put(ta, '[' + text + '](url)', text.length + 3, 3); // select "url"
+                return;
+            }
+            var w = spec.wrap;
+            // Pressing Bold on already-bold text unwraps it, which is what
+            // every editor does and what makes the button feel like a toggle.
+            if (sel.length > 2 * w.length && sel.slice(0, w.length) === w &&
+                sel.slice(-w.length) === w) {
+                put(ta, sel.slice(w.length, -w.length));
+                return;
+            }
+            var body = sel || (spec.key === 'code' ? 'code' : 'text');
+            put(ta, w + body + w, w.length, body.length);
+        }
+
+        function toolbar(ta) {
+            var bar = document.createElement('div');
+            bar.className = 'prose-toolbar';
+            bar.setAttribute('role', 'toolbar');
+            bar.setAttribute('aria-label', 'Formatting');
+            MD.forEach(function (spec) {
+                var b = document.createElement('button');
+                b.type = 'button'; // NOT submit: these sit inside the post form
+                b.className = 'prose-toolbar__btn';
+                // textContent, not innerHTML: the code button's label is
+                // literally "</>", which an HTML parser reads as a bogus end
+                // tag and throws away — the button rendered blank.
+                b.textContent = spec.label;
+                b.title = spec.title;
+                b.setAttribute('aria-label', spec.title.split('  ')[0]);
+                if (spec.weight) b.style.fontWeight = spec.weight;
+                if (spec.italic) b.style.fontStyle = 'italic';
+                if (spec.mono) b.style.fontFamily = 'var(--font-mono, monospace)';
+                b.addEventListener('click', function () { apply(ta, spec); });
+                bar.appendChild(b);
+            });
+            var hint = document.createElement('span');
+            hint.className = 'prose-toolbar__hint';
+            hint.textContent = 'Markdown';
+            bar.appendChild(hint);
+            ta.parentNode.insertBefore(bar, ta);
+
+            ta.addEventListener('keydown', function (e) {
+                if (!e.ctrlKey && !e.metaKey) return;
+                var k = { b: 'bold', i: 'italic', k: 'link' }[e.key.toLowerCase()];
+                if (!k) return;
+                e.preventDefault();
+                apply(ta, MD.filter(function (m) { return m.key === k; })[0]);
+            });
+        }
+        document.querySelectorAll('textarea[data-prose]').forEach(toolbar);
 
         // Deep link (/admin/p/usenet#newsgroups): open that tab, do NOT scroll
         // to it.

@@ -185,8 +185,8 @@ most work.
 | `torrent-card` | listings, cards | have (as release-row) |
 | `meta` / `key-value` | detail pages | have |
 | `user-tag` (coloured by role, icon) | everywhere a username appears | have |
-| `comment` / `comments` | torrent + article pages | todo |
-| `bbcode-input` + `bbcode-rendered` | every text input | todo |
+| `comment` / `comments` | ticket replies, DMs | have |
+| `bbcode-input` + `bbcode-rendered` | every prose input | have (markdown) |
 | `mediainfo` | torrent detail | partial |
 | `comparison` (image compare) | torrent detail | n/a-ish |
 | `person` / `collection-card` / `mediahub-card` | mediahub | todo (with TMDB) |
@@ -198,6 +198,27 @@ most work.
 | `article-preview` | news | have (unused) |
 | `quick_search` / `compact-search` | nav | have |
 
+**One prose pipeline, and it is markdown rather than BBCode.** UNIT3D runs
+every user-typed body through one BBCode parser and gives every input the same
+`bbcode-input` toolbar. This stack had already committed to markdown for the
+wiki and communities, so a third syntax would have been the wrong kind of
+parity — `markdown_web.go` is the single renderer (goldmark GFM, raw HTML
+refused, then the news allowlist sanitizer) and every prose body now goes
+through it, including the forum, which previously got escape-and-wrap-in-`<p>`
+and nothing else. Tickets, DMs and announcements got NO renderer at all, so a
+multi-paragraph body arrived as one run-on block; they render through the same
+pipeline now, via the `{{prose}}` helper for the plugin pages whose bodies
+arrive as plain strings. `.prose` was referenced by six templates and defined by
+no stylesheet — it exists now.
+
+The `bbcode-input` equivalent is a markdown toolbar site-scripts attaches to any
+`textarea[data-prose]`: bold, italic, inline code, link, quote, bulleted and
+numbered lists, with Ctrl+B/I/K, selection-aware wrapping, toggle-off, and
+line-oriented prefixes that renumber an ordered list. Twelve textareas across
+four plugins carry the attribute. News is deliberately NOT one of them: its
+Sanitize seam takes raw HTML, so a markdown button there would produce text the
+renderer never interprets.
+
 **`user-tag` was the highest value-per-line item and is now built.** UNIT3D
 colours every username by group, with an icon and an optional CSS gradient
 "effect". Ours colours by role, with a role icon and the role name as the
@@ -208,6 +229,12 @@ fabrication.
 
 Still to wire: the release detail page, the profile header, and
 `community_category.html`'s thread rows.
+
+Not ported from `bbcode-input`: a live preview. Rendering markdown in the
+browser needs a client-side parser, and shipping one whose output could drift
+from the server's sanitizer is how a preview becomes a lie about what will be
+stored. A server-rendered preview endpoint is the honest version if it is ever
+wanted.
 
 ---
 

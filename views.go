@@ -232,9 +232,26 @@ func tmplHelpers() template.FuncMap {
 		"hasPrefix": strings.HasPrefix,
 		"navActive": navActive,
 		"inGroup":   inGroup,
-		"ordinal":   ordinal,
-		"add":       func(a, b int) int { return a + b },
-		"dict":      dict,
+		// prose renders a person-authored body through the site's one
+		// sanitizing markdown pipeline (markdown_web.go). It exists because the
+		// plugin-rendered pages hand their bodies over as plain strings — no
+		// Deps.Markdown seam to route them through — and printing those with
+		// {{.Body}} means HTML collapses every newline, so a multi-paragraph
+		// support ticket arrives as one run-on block.
+		"prose":   siteMarkdown,
+		"ordinal": ordinal,
+		"add":     func(a, b int) int { return a + b },
+		"dict":    dict,
+		// cond is the ternary the template language does not have. It earns its
+		// place in ARGUMENT position: {{if}} is a statement and cannot appear
+		// inside a dict literal, so passing a component an optional label meant
+		// a $var and a three-line {{if}} above every call site.
+		"cond": func(c bool, yes, no any) any {
+			if c {
+				return yes
+			}
+			return no
+		},
 	}
 }
 

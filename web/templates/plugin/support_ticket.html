@@ -33,37 +33,24 @@
             {{with timeAgo .Ticket.CreatedAt}}<span class="meta__item">{{.}}</span>{{end}}
             {{if .Ticket.Public}}<span class="meta__item"><span class="tag">Public</span></span>{{end}}
         </p>
-        <div class="prose">{{.Ticket.Body}}</div>
+        <div class="prose">{{prose .Ticket.Body}}</div>
     </div>
 </section>
 
 {{if .Replies}}
 <section class="panelV2">
     <header class="panel__header"><h2 class="panel__heading">Replies</h2></header>
-    <ul class="list-rows">
+    <div class="panel__body stack">
+        {{/* No Role passed to the comment: a reply carries IsAdmin, a staff
+             FLAG, not a role name — feeding a bool to roleSlug would resolve to
+             "member" and paint every reply the same. Tag carries that signal
+             honestly instead, and Plain drops the profile link that a role we
+             do not have would be pretending to describe. */}}
         {{range .Replies}}
-        <li>
-            <div class="list-row">
-                <span class="avatar avatar--sm avatar--round poster--h{{hue .Username}}">
-                    <span class="avatar__fallback">{{initials .Username}}</span>
-                </span>
-                <span class="list-row__body">
-                    <span class="list-row__title">
-                        {{/* No Role passed: the row carries IsAdmin, a staff
-                             FLAG, not a role name — feeding a bool to roleSlug
-                             would just resolve to "member" and paint every
-                             reply the same. The Staff tag below carries that
-                             signal honestly instead. */}}
-                        {{template "user-tag" (dict "Name" .Username "Plain" true)}}
-                        {{if .IsAdmin}}<span class="tag tag--info">Staff</span>{{end}}
-                    </span>
-                    <span class="list-row__meta">{{with timeAgo .CreatedAt}}{{.}}{{end}}</span>
-                    <span class="list-row__text">{{.Body}}</span>
-                </span>
-            </div>
-        </li>
+        {{template "comment" (dict "Name" .Username "Plain" true "Body" .Body "At" .CreatedAt
+                                   "Tag" (cond .IsAdmin "Staff" ""))}}
         {{end}}
-    </ul>
+    </div>
 </section>
 {{end}}
 
@@ -75,7 +62,7 @@
             <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
             <div class="form__group">
                 <label class="form__label" for="body">Message</label>
-                <textarea class="form__textarea" id="body" name="body" rows="6" required></textarea>
+                <textarea class="form__textarea" id="body" name="body" rows="6" required data-prose></textarea>
             </div>
             <div class="form__actions">
                 <button class="button button--primary" type="submit">Post reply</button>
