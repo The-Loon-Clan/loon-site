@@ -106,7 +106,7 @@ var pageTemplates = []string{
 	"home.html", "groups.html", "search.html", "browse.html", "release.html",
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
-	"admin_jobs.html", "admin_plugins.html",
+	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
 	// Fixed host pages — UNIT3D's page/* and stats/index (pages_web.go).
 	"staff.html", "stats.html", "rules.html", "faq.html", "about.html",
 	// Viewer settings (settings_web.go) — UNIT3D's privacy/notification pages.

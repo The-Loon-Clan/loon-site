@@ -1,0 +1,95 @@
+{{/* Staff dashboard — /admin, the root the admin group never had. Data: .Dash
+     (dashboard_web.go), with .Tiles and .Alerts both always non-nil.
+
+     Every number here comes from a real table or the live scheduler. This page
+     is deliberately absent from docs/MOCKS.md and must stay that way: a staff
+     dashboard is the one surface where an invented figure gets acted on. A tile
+     whose source is unwired shows "—", never 0 — no open tickets and no ticket
+     system are different facts. */}}
+{{define "content"}}
+{{template "admin-subnav" .}}
+
+<header>
+    <h1 class="h3 m-0">Dashboard</h1>
+    <p class="text-muted small m-0 mt-1">Live figures from this deployment.</p>
+</header>
+
+{{/* Alerts first and only when there is something to say. An "all clear" panel
+     that is always present is a panel staff stop reading. */}}
+{{if .Dash.Alerts}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#info"></use></svg>
+            Needs attention
+        </h2>
+    </header>
+    <div class="panel__body">
+        <ul class="list-rows">
+            {{range .Dash.Alerts}}
+            <li>
+                <a class="list-row" href="{{.Href}}">
+                    <span class="list-row__body">
+                        <span class="list-row__title">{{.Label}}</span>
+                        {{if .Sub}}<span class="list-row__meta">{{.Sub}}</span>{{end}}
+                    </span>
+                    <span class="list-row__trail"><span class="tag tag--warning">{{.Value}}</span></span>
+                </a>
+            </li>
+            {{end}}
+        </ul>
+    </div>
+</section>
+{{end}}
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
+            At a glance
+        </h2>
+    </header>
+    <div class="panel__body">
+        {{if .Dash.Tiles}}
+        <div class="dash-grid">
+            {{range .Dash.Tiles}}
+            {{/* A tile is a link only when there is somewhere to go. Both arms
+                 carry .dash-tile so the grid does not shift between them. */}}
+            {{if .Href}}<a class="dash-tile" href="{{.Href}}">{{else}}<div class="dash-tile">{{end}}
+                <span class="dash-tile__label">{{.Label}}</span>
+                <span class="dash-tile__value">{{.Value}}</span>
+                {{if .Sub}}<span class="dash-tile__sub">{{.Sub}}</span>{{end}}
+            {{if .Href}}</a>{{else}}</div>{{end}}
+            {{end}}
+        </div>
+        {{else}}
+        <div class="empty">Nothing to report — no data source is wired.</div>
+        {{end}}
+    </div>
+</section>
+
+{{/* The admin area's own index. .AdminNav is what the subnav above renders, so
+     this cannot list a page that does not exist or miss one that does. */}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#settings"></use></svg>
+            Admin pages
+        </h2>
+    </header>
+    <div class="panel__body">
+        <div class="tile-grid">
+            {{range .AdminNav}}
+            {{if ne .Href "/admin"}}
+            <a class="tile" href="{{.Href}}">
+                <span class="tile__body">
+                    <span class="tile__title">{{.Label}}</span>
+                    <span class="tile__meta">{{.Href}}</span>
+                </span>
+            </a>
+            {{end}}
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}

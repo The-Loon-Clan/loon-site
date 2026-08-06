@@ -163,9 +163,22 @@ deliberately not stubbed — a page that ranks nothing is worse than no page.
 
 ### Staff / admin
 
-**127 views — the single largest area, and the least explored.** Ours is four
-templates (`admin_settings`, `admin_jobs`, `admin_plugins`, `admin_view`) plus
-loon's own admin surface and plugin `AdminView` fragments.
+**127 views — the single largest area, and the least explored.** Ours is five
+templates (`admin_dashboard`, `admin_settings`, `admin_jobs`, `admin_plugins`,
+`admin_view`) plus loon's own admin surface and plugin `AdminView` fragments.
+
+The staff dashboard at `/admin` is built. That URL was a **404** — twenty-odd
+routes hung beneath a root nothing served, and the usenet settings page's own
+"Back" button pointed at it. It now answers "is anything wrong right now?" from
+the live scheduler and real tables: job health, plugin count, members, open
+tickets, releases, newsgroups, forum threads, and failed sign-ins in the last
+24h, plus an index of every admin page built from the same `.AdminNav` the
+subnav renders (so it cannot list a page that does not exist).
+
+It is deliberately absent from `docs/MOCKS.md` and must stay that way — a staff
+dashboard is the one surface where an invented figure gets acted on. A tile
+whose source is unwired renders `—`, never `0`: no open tickets and no ticket
+system are different facts, and `dashboard_test.go` fails if that degrades.
 
 Worth mining for structure even where the subject matter is n/a: the staff
 dashboard layout, the moderation queue table, the audit log, the bans/warnings

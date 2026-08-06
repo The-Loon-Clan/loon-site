@@ -39,8 +39,14 @@ func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup
 		w.jobsWidgets[v.Anchor] = v
 	}
 
-	// Admin subnav: Settings, each admin page, then the host's own pages.
-	w.adminNav = []navItem{{Href: "/admin/settings", Label: "Settings"}}
+	// The staff dashboard at /admin — the root the whole admin group lacked.
+	w.mountDashboard(admin)
+
+	// Admin subnav: Dashboard, Settings, each admin page, then the host's own.
+	w.adminNav = []navItem{
+		{Href: "/admin", Label: "Dashboard"},
+		{Href: "/admin/settings", Label: "Settings"},
+	}
 	for _, v := range c.Views(core.SlotAdminPage) {
 		w.adminNav = append(w.adminNav, navItem{Href: "/admin/p/" + v.Slug, Label: v.Title})
 	}

@@ -339,8 +339,14 @@ func TestSpriteSymbolsCoverUses(t *testing.T) {
 //	                     empty) ordered block list the page ranges over
 var structuralKeys = map[string]map[string]any{
 	"admin_settings.html": {"Tabs": []settingsTab{}},
-	"profile.html":        {"Missing": true},
-	"home.html":           {"Blocks": []homeBlock{}},
+	// NOTE Dash is NOT caught by the no-optional-data sweep the way a {{range}}
+	// or {{len}} is: {{if .Dash.Alerts}} on an ABSENT .Dash does not error, it
+	// renders the whole page as an empty dashboard and passes. So a handler
+	// that stopped setting it would degrade silently. The real-data case below
+	// is what actually pins it — this entry only supplies the shape.
+	"admin_dashboard.html": {"Dash": dashVM{}},
+	"profile.html":         {"Missing": true},
+	"home.html":            {"Blocks": []homeBlock{}},
 }
 
 // chromeKeys are the keys views.go chromeData sets on EVERY render, in both
@@ -525,6 +531,16 @@ func TestPagesExecuteWithRealData(t *testing.T) {
 			"Section": &settingsSection{Slug: "usenet", Title: "Usenet",
 				Fragment: template.HTML("<div class=\"card\">cfg</div>")}},
 		"site_page.html": {"Title": "Inbox", "Page": template.HTML("<div class=\"card\">body</div>")},
+		// Populated, because an EMPTY dashboard renders happily — see the note
+		// on structuralKeys. This is the case that fails if the tiles stop
+		// reaching the page.
+		"admin_dashboard.html": {"Title": "Dashboard", "Dash": dashVM{
+			Tiles: []statTile{
+				{Label: "Releases", Value: "7,829", Href: "/browse"},
+				{Label: "Members", Value: "2", Sub: "0 in the last 7 days"}},
+			Alerts: []statTile{
+				{Label: "Tickets awaiting a reply", Value: "1", Href: "/admin/tickets", Warn: true}},
+		}},
 	}
 
 	for page, extra := range cases {

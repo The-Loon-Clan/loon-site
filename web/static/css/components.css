@@ -1672,3 +1672,49 @@ input[type="range"] { accent-color: var(--primary); }
     font-size: var(--fs-xs);
     overflow-wrap: anywhere;
 }
+
+/* -------------------------------------------------------------- dashboard --
+   The staff dashboard's figure grid. Distinct from .stat-tile (the thin public
+   strip under the nav) because these are drill-down targets, not decoration:
+   each is a link with a real destination, sized like a card. */
+.dash-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: var(--space-3);
+}
+
+.dash-tile {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-2);
+    color: var(--text);
+    text-decoration: none;
+}
+
+a.dash-tile:hover {
+    border-color: var(--primary);
+    background: var(--surface-3);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.dash-tile__label {
+    color: var(--text-muted);
+    font-size: var(--fs-2xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.dash-tile__value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.1;
+    /* Tabular figures so a column of counts lines up on the digit. */
+    font-variant-numeric: tabular-nums;
+}
+
+.dash-tile__sub { color: var(--text-muted); font-size: var(--fs-2xs); }
