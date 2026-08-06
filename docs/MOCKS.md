@@ -48,6 +48,35 @@ admin views plus a `rewards-claim` member widget — no "achievements for user X
 read. So the panel is a mock of a feature the site genuinely has, which makes it
 the most likely of the four to become real.
 
+**Split of work (agreed Aug 2026):** the plugin half belongs in `loon-plugins`
+(the live-site repo); the page is host-side and waits on it. The seam is one
+more extension in the shape rewards already uses for `rewards.trigger` /
+`rewards.admin` / `rewards.validator`, so the host looks it up after Boot the
+way it looks up `news.home`:
+
+```go
+// rewards.achievements — per-user read for the account Achievements page.
+const AchievementsExtension = "rewards.achievements"
+
+type AchievementsFunc func(ctx context.Context, userID int64) (Achievements, error)
+
+type Achievements struct {
+    Unlocked []Achievement // earned, newest first
+    Pending  []Achievement // defined, not yet earned
+}
+
+type Achievement struct {
+    Key, Name, Description string
+    Progress, Target       int       // drives the pending progress bar
+    EarnedAt               time.Time // zero while pending
+}
+```
+
+Nothing else is needed from the plugin: Unlocked/Pending/Statistics are the
+three tabs a live UNIT3D serves (§5e), and the Statistics tab is just
+`len(Unlocked)` against `len(Unlocked)+len(Pending)` — the counts it shows are
+"Unlocked Achievements: N / Locked Achievements: M" and nothing more.
+
 ### M3 — Followers / following
 
 No follow relation exists anywhere in the stack. UNIT3D models this on the user
