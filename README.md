@@ -83,9 +83,26 @@ ALTER TABLE usenet.articles SET (
 );
 ```
 
-Only once the estimate is honest is the soft cap worth raising —
+Only once the estimate is honest is the soft cap worth judging —
 **Usenet → Indexing → Staging soft cap (rows)** (default 2,000,000; this deploy
-runs 10,000,000, about 9 GB of table).
+runs 30,000,000, about 26 GB of table).
+
+Size it against the **pending sets**, not against the article count. The gauge
+is a deadlock, not a queue: a set only completes when *more* of its articles
+arrive, so a cap that pauses the crawl while large sets are still assembling
+removes the very supply they are waiting on, and the builder then has nothing to
+drain. That is what a permanent stall looks like — every job idle, article and
+NZB counts frozen, and the builder reporting `built 0 of N — N incomplete`.
+The worker telemetry names the sets that are short:
+
+```
+select value::json->'pending' from usenet.settings where key = 'worker_telemetry';
+```
+
+Entries like `have=113 need=511` over 47k segments are the ones setting the
+floor. 2,000,000 was far under it here, and even 10,000,000 re-wedged at 95%;
+30,000,000 leaves the room those sets need to finish. Watch for `crawl paused`
+turning into `pass budget reached` and the NZB count climbing again.
 
 Note that **Redis is not involved**: `USENET_STAGING` defaults to `pg`, so Redis
 holds the page cache only and sits around a megabyte with no `maxmemory` set.
