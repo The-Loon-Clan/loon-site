@@ -181,40 +181,48 @@
             </div>
         </section>
 
-        <section class="panelV2" data-mock="1">
+        {{/* REAL as of Aug 2026 — no data-mock, no MOCK chip. Followers and
+             Following read user_follow (M3); Last seen reads users.last_seen_at
+             (M1); Bookmarks reads release_bookmark (M4). All three mocks that
+             lived in this panel are retired.
+
+             Each tile still guards on its Has* key: an unreachable table shows
+             an em dash rather than a zero nobody measured. */}}
+        <section class="panelV2">
             <header class="panel__header">
                 <h2 class="panel__heading">
                     <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>
                     Community
                 </h2>
-                <div class="panel__actions"><span class="tag tag--warning">MOCK</span></div>
+                {{if $.CanFollow}}
+                <div class="panel__actions">
+                    <form method="post" action="/u/{{.Username}}/follow" style="display:contents">
+                        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                        <button class="button button--outlined button--sm" type="submit"
+                                aria-pressed="{{if $.Following}}true{{else}}false{{end}}">
+                            {{if $.Following}}Following{{else}}Follow{{end}}
+                        </button>
+                    </form>
+                </div>
+                {{end}}
             </header>
             <div class="panel__body">
-                <p class="form__help">
-                    Followers, Following and Last seen are placeholders — see
-                    <code>docs/MOCKS.md</code> M1 and M3. No follow relation or
-                    last-seen column exists in this stack. <strong>Bookmarks is
-                    real</strong> (release_bookmark), which is why M4 is gone.
-                </p>
                 <div class="stat-grid stat-grid--2">
                     <div class="stat-tile">
                         <span class="stat-tile__label">Followers</span>
-                        <span class="stat-tile__value">—</span>
+                        <span class="stat-tile__value">{{if $.HasSubjectFollows}}{{$.SubjectFollowers}}{{else}}—{{end}}</span>
                     </div>
                     <div class="stat-tile">
                         <span class="stat-tile__label">Following</span>
-                        <span class="stat-tile__value">—</span>
+                        <span class="stat-tile__value">{{if $.HasSubjectFollows}}{{$.SubjectFollowing}}{{else}}—{{end}}</span>
                     </div>
                     <div class="stat-tile">
                         <span class="stat-tile__label">Bookmarks</span>
-                        {{/* REAL — release_bookmark, not a mock. The other three
-                             tiles in this panel still are; see docs/MOCKS.md
-                             M1 and M3. */}}
                         <span class="stat-tile__value">{{if $.HasSubjectBookmarks}}{{$.SubjectBookmarks}}{{else}}—{{end}}</span>
                     </div>
                     <div class="stat-tile">
                         <span class="stat-tile__label">Last seen</span>
-                        <span class="stat-tile__value">—</span>
+                        <span class="stat-tile__value">{{if $.HasSubjectLastSeen}}{{timeAgo $.SubjectLastSeen}}{{else}}—{{end}}</span>
                     </div>
                 </div>
             </div>

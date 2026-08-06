@@ -27,19 +27,25 @@ real behaviour for a site with no data yet, not fabrication.
 
 | # | Where | What is mocked | Replaced by |
 |---|---|---|---|
-| M1 | `/u/<name>` — Activity | Last seen timestamp | A `last_seen_at` column on users, written by the auth middleware |
+| ~~M1~~ | ~~`/u/<name>` — Activity~~ | ~~Last seen~~ | **RETIRED** — `users.last_seen_at`, written from the session resolve |
 | M2 | `/u/<name>` — Achievements | The achievement list and progress | The `rewards` plugin (wired) once it exposes a per-user read; it currently only registers admin views |
-| M3 | `/u/<name>` — Community | Follower / following counts | A `follows` table; UNIT3D has `users.followers` / `users.following` |
+| ~~M3~~ | ~~`/u/<name>` — Community~~ | ~~Follower / following~~ | **RETIRED** — `user_follow`, plus a Follow button |
 | ~~M4~~ | ~~`/u/<name>` — Collection~~ | ~~Bookmark count~~ | **RETIRED** — `release_bookmark` is real; see below |
 
 ## Status of each
 
-### M1 — Last seen
+### M1 — Last seen — RETIRED
 
-`core.User` carries `ID, Username, Email, Role, CreatedAt` and nothing else, so
-"last seen" has no source. The cheapest real fix is a `last_seen_at` column
-touched by the session middleware — it is one UPDATE on an already-hot path,
-and it also unlocks UNIT3D's online/offline chrome.
+`users.last_seen_at`, written from the session resolve (presence_web.go) — the
+one hook that runs for every authenticated request.
+
+Throttled to one write per user per five minutes, in memory. Unthrottled it
+would put an UPDATE on the users row in front of every page load and every
+sub-resource, which is a lot of writes to answer "roughly when".
+
+NOT a "who is online" list: that needs a presence window and an opinion about
+what counts as online. This column answers the smaller question the profile
+actually asks.
 
 ### M2 — Achievements
 
@@ -77,11 +83,16 @@ three tabs a live UNIT3D serves (§5e), and the Statistics tab is just
 `len(Unlocked)` against `len(Unlocked)+len(Pending)` — the counts it shows are
 "Unlocked Achievements: N / Locked Achievements: M" and nothing more.
 
-### M3 — Followers / following
+### M3 — Followers / following — RETIRED
 
-No follow relation exists anywhere in the stack. UNIT3D models this on the user
-and shows it prominently; ours is a count of nothing. Needs a table and two
-routes before the panel means anything.
+`user_follow (follower_id, followee_id)` plus a Follow button on the profile
+(follows_web.go).
+
+DIRECTIONAL, not mutual — following is a subscription, not a friendship, so
+there is no request/accept flow and no status column. Reciprocity is a
+coincidence, not a state. The pair is the primary key, so following twice is a
+no-op in the database; a CHECK stops self-follows without any handler
+remembering to.
 
 ### M4 — Bookmarks — RETIRED
 

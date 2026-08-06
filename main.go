@@ -289,6 +289,18 @@ func main() {
 	}
 	bookmarksDB = db
 
+	// Last seen (presence_web.go) and follows (follows_web.go) — MOCKS M1 and
+	// M3, the last two placeholders on the profile.
+	if err := lastSeenMigrate(db); err != nil {
+		logger.Error("last-seen migrate", "err", err)
+		os.Exit(1)
+	}
+	if err := followsMigrate(db); err != nil {
+		logger.Error("follows migrate", "err", err)
+		os.Exit(1)
+	}
+	followsDB = db
+
 	points := pgPoints{db: db}
 	pointsSvc := core.NewPoints(points.adapter())
 	wsrv.points = pointsSvc // navbar balance readout

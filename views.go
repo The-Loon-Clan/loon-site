@@ -152,6 +152,11 @@ func newWeb(store users.Store, secret []byte, log *slog.Logger) *web {
 			if err != nil {
 				return nil, webauth.Meta{}, false
 			}
+			// Last seen rides here because this is the one hook that runs for
+			// every authenticated request. It is throttled to one write per
+			// user per interval (presence_web.go) — unthrottled it would put
+			// an UPDATE in front of every page load and sub-resource.
+			touchLastSeen(ctx, usersDB, id)
 			return u.ToCore(), webauth.Meta{}, true
 		},
 	}
@@ -651,6 +656,7 @@ func (w *web) mount(e *gin.Engine) {
 	// WRITES, so it is POST — a GET that mutates is one prefetching browser
 	// away from bookmarking somebody's whole history for them.
 	e.GET("/bookmarks", w.bookmarksPage)
+	e.POST("/u/:name/follow", w.followToggle)
 	e.POST("/release/:id/bookmark", w.bookmarkToggle)
 	e.GET("/search", w.search)
 	e.GET("/browse", w.browse)
@@ -757,6 +763,21 @@ func (w *web) profilePage(c *gin.Context) {
 	// leaves the tile an em dash instead of claiming nobody saved anything.
 	if n, ok := bookmarkCount(ctx, subject.ID); ok {
 		data["SubjectBookmarks"], data["HasSubjectBookmarks"] = n, true
+	}
+	// Followers/following (M3) and last seen (M1) — the last two placeholders
+	// on this page. Has* on each, so an unreachable table leaves an em dash
+	// rather than asserting a zero nobody measured.
+	if followers, following, ok := followCounts(ctx, subject.ID); ok {
+		data["SubjectFollowers"], data["SubjectFollowing"] = followers, following
+		data["HasSubjectFollows"] = true
+	}
+	if t, ok := lastSeenAt(ctx, usersDB, subject.ID); ok {
+		data["SubjectLastSeen"], data["HasSubjectLastSeen"] = t, true
+	}
+	// The follow button is for a signed-in viewer looking at SOMEONE ELSE.
+	if viewer != nil && viewer.ID != subject.ID {
+		data["CanFollow"] = true
+		data["Following"] = isFollowing(ctx, viewer.ID, subject.ID)
 	}
 	// Invites are the viewer's own spendable balance, so they only show on
 	// your own profile — someone else's invite count is not your business.
