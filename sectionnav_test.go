@@ -14,7 +14,7 @@ func TestSectionNavTabsAreReachable(t *testing.T) {
 	// than reflected off gin, because the point is to catch a typo in EITHER
 	// list — deriving one from the other would make them agree by construction.
 	served := map[string]bool{
-		"/browse": true, "/search": true, "/groups": true,
+		"/browse": true, "/search": true, "/groups": true, "/trending": true,
 		"/community/forums": true, "/playlists": true, "/c": true, "/news": true, "/store": true,
 		"/store/history": true, "/rules": true, "/faq": true, "/wiki": true,
 		"/support": true, "/staff": true, "/stats": true, "/about": true,

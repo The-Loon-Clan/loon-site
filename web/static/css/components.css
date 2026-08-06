@@ -1010,6 +1010,22 @@ a.tag { min-height: 24px; }
     text-decoration: none;
 }
 
+/* The selected pill. Three templates have set this class since the facet bar
+   was built — /browse and /search facets, the /admin/settings section strip,
+   and now the trending period — and NOTHING defined it, so "active" looked
+   exactly like "not active" and every one of those strips was a row of
+   identical chips with no indication of where you were.
+
+   Filled rather than merely outlined: .pill:hover already borders in
+   --primary, so a border-only selected state would be indistinguishable from
+   whatever the pointer happens to be over. */
+.pill--active,
+.pill--active:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-fg);
+}
+
 /* ---------------------------------------------------------- rank chips ---- */
 
 .rank-chip {

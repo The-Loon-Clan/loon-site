@@ -1,0 +1,75 @@
+{{/* Trending — most-grabbed releases over a window. Data: .Windows (period
+     pills), .Days, .Results ([]searchRow with Grabs populated).
+
+     Renders through the SAME release-row partial /browse and /search use
+     (listing.html), so a release looks identical wherever it appears. The only
+     thing this page adds is the rank and the grab count.
+
+     No mock: the ranking is release_grab, a real table written on every NZB
+     download. An empty window renders an empty state rather than a list of
+     zeroes — this stack has no seeders, no peers and no popularity score to
+     substitute when nobody has downloaded anything. */}}
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumb--active">Trending</li>
+</ol>
+{{end}}
+
+{{define "content"}}
+<header>
+    <h1 class="h3 m-0">Trending</h1>
+    <p class="text-muted small m-0 mt-1">Most downloaded releases, by NZB grabs.</p>
+</header>
+
+<nav aria-label="Trending period">
+    <ul class="pill-row">
+        {{range .Windows}}
+        <li><a class="pill{{if .Active}} pill--active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}</a></li>
+        {{end}}
+    </ul>
+</nav>
+
+<section class="panelV2 panelV2--overflow">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
+            Most grabbed
+        </h2>
+        {{if .Results}}<div class="panel__actions"><span class="panel__grouping">{{len .Results}}</span></div>{{end}}
+    </header>
+
+    {{if .Results}}
+    {{/* The SHARED release-row, byte-identical to /browse and /search — the
+         listing.html header says these tables must not drift, so this page adds
+         no rank column of its own. The order IS the rank, and Grabs (which
+         release-row already renders) is the signal that produced it. */}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Release</th>
+                    <th class="data-table__nowrap">Category</th>
+                    <th class="data-table__num">Size</th>
+                    <th class="data-table__num" title="NZB downloads">Grabs</th>
+                    <th class="data-table__nowrap">Added</th>
+                    <th class="data-table__shrink"><span class="visually-hidden">Download</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Results}}{{template "release-row" .}}{{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    {{/* Says WHY it is empty. "No results" on a page whose whole input is
+         download history reads as a broken page; the honest message is that
+         nothing has been downloaded in this window yet. */}}
+    <div class="panel__body">
+        <div class="empty">
+            No downloads recorded in this window yet — grab an NZB and it will rank here.
+        </div>
+    </div>
+    {{end}}
+</section>
+{{end}}

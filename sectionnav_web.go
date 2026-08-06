@@ -52,11 +52,12 @@ var sections = []section{
 	},
 	{
 		Title:    "Releases",
-		Prefixes: []string{"/browse", "/search", "/groups", "/release/"},
+		Prefixes: []string{"/browse", "/search", "/groups", "/release/", "/trending"},
 		Tabs: []sectionTab{
 			{Label: "Browse", Href: "/browse"},
 			{Label: "Search", Href: "/search"},
 			{Label: "Newsgroups", Href: "/groups"},
+			{Label: "Trending", Href: "/trending"},
 		},
 	},
 	{

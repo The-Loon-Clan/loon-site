@@ -306,7 +306,7 @@
             <li class="nav-tab"><a class="{{if eq $p "/"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/"{{if eq $p "/"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#home"></use></svg>Home</a></li>
 
             {{/* Releases — UNIT3D's "Torrents": finding indexed content. */}}
-            {{$rel := or (eq $p "/browse") (eq $p "/search") (eq $p "/groups") (hasPrefix $p "/release/") (inGroup $.SiteNavGroup "Releases" $p)}}
+            {{$rel := or (eq $p "/browse") (eq $p "/search") (eq $p "/groups") (eq $p "/trending") (hasPrefix $p "/release/") (inGroup $.SiteNavGroup "Releases" $p)}}
             <li class="nav-tab">
                 <details class="dropdown">
                     <summary class="{{if $rel}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
@@ -317,6 +317,7 @@
                         <a class="dropdown__item{{if eq $p "/browse"}} active{{end}}" href="/browse"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#browse"></use></svg>Browse</a>
                         <a class="dropdown__item{{if eq $p "/search"}} active{{end}}" href="/search"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#search"></use></svg>Search</a>
                         <a class="dropdown__item{{if eq $p "/groups"}} active{{end}}" href="/groups"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#groups"></use></svg>Newsgroups</a>
+                        <a class="dropdown__item{{if eq $p "/trending"}} active{{end}}" href="/trending"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#database"></use></svg>Trending</a>
                         <a class="dropdown__item" href="/api"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#code"></use></svg>Newznab API</a>
                         {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Releases") "Path" $p)}}
                     </div>

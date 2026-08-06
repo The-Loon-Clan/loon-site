@@ -104,6 +104,7 @@ type web struct {
 // it unreachable — templates_test.go fails on that mismatch in either direction.
 var pageTemplates = []string{
 	"home.html", "groups.html", "search.html", "browse.html", "release.html",
+	"trending.html",
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
@@ -119,9 +120,10 @@ var pageTemplates = []string{
 // file both sets name. listing.html holds the release-row and cat-icon blocks
 // that /, /browse and /search render as one table.
 var sharedPartials = map[string][]string{
-	"home.html":   {"listing.html"},
-	"browse.html": {"listing.html", "facets.html"},
-	"search.html": {"listing.html", "facets.html"},
+	"home.html":     {"listing.html"},
+	"browse.html":   {"listing.html", "facets.html"},
+	"search.html":   {"listing.html", "facets.html"},
+	"trending.html": {"listing.html"},
 }
 
 func newWeb(store users.Store, secret []byte, log *slog.Logger) *web {
@@ -619,6 +621,9 @@ func (w *web) mount(e *gin.Engine) {
 	e.StaticFS("/static", http.FS(sub))
 	e.GET("/", w.home)
 	e.GET("/groups", w.groups)
+	// Trending — most-grabbed releases (trending_web.go). Public: it exposes no
+	// more than /browse already does, ordered differently.
+	e.GET("/trending", w.trending)
 	e.GET("/search", w.search)
 	e.GET("/browse", w.browse)
 	e.GET("/release/:id", w.releasePage)

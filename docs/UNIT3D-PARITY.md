@@ -109,7 +109,7 @@ stated in `filters_web.go`.
 | `torrent/create` (upload) | — | n/a | Releases come from crawling, not uploads |
 | `torrents/pending` | — | n/a | No upload moderation queue |
 | `requests/*` (12 views) | — | todo | Wants a request board; needs schema |
-| `trending/index` | home "Most grabbed this week" | partial | Grabs are recorded now; a dedicated /trending page is still todo |
+| `trending/index` | home "Most grabbed this week" + `/trending` | have | The page ranks grabbed ids back through the index, so a release still counts once it leaves the recent window; the home block stays a view of the rows on screen |
 | `missing/index` | — | todo | Honest analogue: groups with coverage gaps |
 | `mediahub/*` (8 views) | — | todo | Browse by genre/network/company/person; TMDB data lands this |
 | `torrent-reseed` | — | n/a | Peer concept |
@@ -521,7 +521,7 @@ grouping work is done; what is missing is pages to put in the groups.
 | `/mediahub` | Torrents | — | blocked on `TMDB_API_KEY` |
 | `/polls` | Community | — | §3.4 |
 | `/subtitles` | Other | — | §3.6 |
-| `/trending` | Other | — | **buildable today** — `release_grab` exists and `popularGrabs` already ranks it; this is a page over data we have |
+| `/trending` | Other | **built** | `/trending`, ranked off `release_grab` with day/week/month/year windows |
 | `/pages`, `/pages/N` | footer | — | a static-page CMS. We hardcode `/rules`, `/faq`, `/about`; theirs has arbitrary admin-authored pages, an index, and a `[View All]`. Their footer carries five of them |
 | VIP Area | top bar | — | a whole nav SECTION gated on a group. `siteNav` already role-filters every entry, so this is a gated group + its pages, not new machinery |
 | Donate goal in the nav | top bar | partial | theirs reads "Support ClearJav (86%)" — the tip-jar goals exist in the donations plugin (`tipjar_goal_*`), the nav badge does not |
