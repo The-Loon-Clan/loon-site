@@ -119,3 +119,48 @@ func TestItoaGroupsThousands(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderPreservesHandlerStatus is a regression guard with a real cause:
+// render() briefly hard-coded 200, which silently overrode the c.Status(404)
+// that profile, release and the follow lists set before rendering their
+// "not found" body. The pages looked right in a browser and lied to everything
+// else.
+func TestRenderPreservesHandlerStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	w.auth = webauth.Auth{Session: session.Config{Secret: []byte("test-secret-test-secret-abc")}}
+	tmpl, err := parseSet(w, "admin_dashboard.html")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	w.tmpls["admin_dashboard.html"] = tmpl
+
+	for _, tc := range []struct {
+		name string
+		set  int
+		want int
+	}{
+		{"untouched defaults to 200", 0, http.StatusOK},
+		{"handler set 404 survives", http.StatusNotFound, http.StatusNotFound},
+		{"handler set 403 survives", http.StatusForbidden, http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := gin.New()
+			e.Use(w.auth.Session.Middleware())
+			e.GET("/x", func(c *gin.Context) {
+				if tc.set != 0 {
+					c.Status(tc.set)
+				}
+				w.render(c, "admin_dashboard.html", map[string]any{"Title": "t", "Dash": dashVM{}})
+			})
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/x", nil))
+			if rec.Code != tc.want {
+				t.Errorf("status %d, want %d", rec.Code, tc.want)
+			}
+			if !strings.Contains(rec.Body.String(), "</html>") {
+				t.Error("body did not render")
+			}
+		})
+	}
+}

@@ -104,7 +104,7 @@ type web struct {
 // it unreachable — templates_test.go fails on that mismatch in either direction.
 var pageTemplates = []string{
 	"home.html", "groups.html", "search.html", "browse.html", "release.html",
-	"trending.html", "bookmarks.html",
+	"trending.html", "bookmarks.html", "follows.html",
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
@@ -258,8 +258,15 @@ func tmplHelpers() template.FuncMap {
 		// place in ARGUMENT position: {{if}} is a statement and cannot appear
 		// inside a dict literal, so passing a component an optional label meant
 		// a $var and a three-line {{if}} above every call site.
-		"cond": func(c bool, yes, no any) any {
-			if c {
+		//
+		// Takes `any`, not bool, and applies the SAME truthiness {{if}} does.
+		// As a bool it rejected `cond .Since "…" ""` with "wrong type for
+		// value" at EXECUTE time — which truncates the page mid-document and
+		// still returns 200, so it looks like a blank section rather than an
+		// error. A ternary that only accepts one type is a trap in a language
+		// where every {{if}} accepts all of them.
+		"cond": func(c, yes, no any) any {
+			if templateTruth(c) {
 				return yes
 			}
 			return no
@@ -657,6 +664,8 @@ func (w *web) mount(e *gin.Engine) {
 	// away from bookmarking somebody's whole history for them.
 	e.GET("/bookmarks", w.bookmarksPage)
 	e.POST("/u/:name/follow", w.followToggle)
+	e.GET("/u/:name/followers", w.followPage(false))
+	e.GET("/u/:name/following", w.followPage(true))
 	e.POST("/release/:id/bookmark", w.bookmarkToggle)
 	e.GET("/search", w.search)
 	e.GET("/browse", w.browse)
@@ -894,7 +903,14 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 }
 
 func (w *web) render(c *gin.Context, page string, data map[string]any) {
-	w.renderStatus(c, http.StatusOK, page, data)
+	// c.Writer.Status(), NOT http.StatusOK. Several handlers call c.Status(404)
+	// and THEN render a "not found" body — profile, release and the follow
+	// lists all do. Hard-coding 200 here overrode every one of them, so three
+	// pages answered 200 while showing "Not found": invisible in a browser, and
+	// wrong for every crawler, cache and scripted client. gin's writer already
+	// defaults to 200, so this preserves the handler's choice without needing
+	// one at each call site.
+	w.renderStatus(c, c.Writer.Status(), page, data)
 }
 
 // renderStatus is render with an explicit HTTP status.
@@ -1409,4 +1425,15 @@ func popularRows(ctx context.Context, rows []searchRow, limit int) []searchRow {
 		}
 	}
 	return out
+}
+
+// templateTruth mirrors text/template's own truth test: the zero value of any
+// kind is false, everything else true. Kept next to cond because that is the
+// only caller and the two must not drift.
+func templateTruth(v any) bool {
+	if v == nil {
+		return false
+	}
+	t, ok := template.IsTrue(v)
+	return ok && t
 }

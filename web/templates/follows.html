@@ -1,0 +1,72 @@
+{{/* Followers / Following for one member. Data: .Subject (username),
+     .Following (bool — which direction this page shows), .People, .Missing.
+
+     One template for both directions, matching the one handler: they differ
+     only in the heading and which side of the edge was read, and two copies is
+     how the two drift.
+
+     Members render through the SHARED user-card (site_chrome.html), the same
+     tile /staff uses. */}}
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    {{if .Missing}}
+    <li class="breadcrumb--active">Not found</li>
+    {{else}}
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/u/{{.Subject}}">{{.Subject}}</a></li>
+    <li class="breadcrumb--active">{{if .Following}}Following{{else}}Followers{{end}}</li>
+    {{end}}
+</ol>
+{{end}}
+
+{{define "content"}}
+{{if .Missing}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#info"></use></svg>Not found
+        </h1>
+    </header>
+    <div class="panel__body"><div class="empty">No such member.</div></div>
+</section>
+{{else}}
+<header>
+    <h1 class="h3 m-0">{{if .Following}}Following{{else}}Followers{{end}}</h1>
+    <p class="text-muted small m-0 mt-1">
+        {{if .Following}}Members {{.Subject}} follows.{{else}}Members following {{.Subject}}.{{end}}
+    </p>
+</header>
+
+{{/* Both directions are always reachable from either page — a follower list
+     with no way back to the following list is a dead end. */}}
+<nav aria-label="Follow lists">
+    <ul class="pill-row">
+        <li><a class="pill{{if not .Following}} pill--active{{end}}" href="/u/{{.Subject}}/followers"{{if not .Following}} aria-current="page"{{end}}>Followers</a></li>
+        <li><a class="pill{{if .Following}} pill--active{{end}}" href="/u/{{.Subject}}/following"{{if .Following}} aria-current="page"{{end}}>Following</a></li>
+    </ul>
+</nav>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>
+            {{if .Following}}Following{{else}}Followers{{end}}
+        </h2>
+        {{if .People}}<div class="panel__actions"><span class="panel__grouping">{{len .People}}</span></div>{{end}}
+    </header>
+    <div class="panel__body">
+        {{if .People}}
+        <div class="tile-grid">
+            {{range .People}}
+            {{template "user-card" (dict "Name" .Username "Role" .Role "Meta" (cond .Since (print "Since " .Since) ""))}}
+            {{end}}
+        </div>
+        {{else}}
+        <div class="empty">
+            {{if .Following}}{{.Subject}} isn't following anyone yet.{{else}}Nobody is following {{.Subject}} yet.{{end}}
+        </div>
+        {{end}}
+    </div>
+</section>
+{{end}}
+{{end}}

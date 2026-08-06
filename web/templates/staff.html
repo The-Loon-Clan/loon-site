@@ -24,17 +24,12 @@
     </header>
     <div class="panel__body">
         <div class="tile-grid">
+            {{/* The shared user-card (site_chrome.html) — the same tile the
+                 follower and following lists render, so the three cannot
+                 drift. */}}
             {{range .Members}}
-            <a class="tile" href="/u/{{.Username}}">
-                <span class="avatar avatar--lg avatar--round poster--h{{hue .Username}}">
-                    <span class="avatar__fallback">{{initials .Username}}</span>
-                </span>
-                <span class="tile__body">
-                    <span class="tile__title">{{template "user-tag" (dict "Name" .Username "Role" .Role "Plain" true)}}</span>
-                    <span class="tile__meta">{{.RoleName}}</span>
-                    {{if .Since}}<span class="tile__meta">Member since {{.Since}}</span>{{end}}
-                </span>
-            </a>
+            {{template "user-card" (dict "Name" .Username "Role" .Role "Meta" .RoleName
+                                         "Meta2" (cond .Since (print "Member since " .Since) ""))}}
             {{end}}
         </div>
     </div>

@@ -208,14 +208,16 @@
             </header>
             <div class="panel__body">
                 <div class="stat-grid stat-grid--2">
-                    <div class="stat-tile">
+                    {{/* Both counts link to their list — a number with no way
+                         to see what it counts is a dead end. */}}
+                    <a class="stat-tile" href="/u/{{.Username}}/followers">
                         <span class="stat-tile__label">Followers</span>
                         <span class="stat-tile__value">{{if $.HasSubjectFollows}}{{$.SubjectFollowers}}{{else}}—{{end}}</span>
-                    </div>
-                    <div class="stat-tile">
+                    </a>
+                    <a class="stat-tile" href="/u/{{.Username}}/following">
                         <span class="stat-tile__label">Following</span>
                         <span class="stat-tile__value">{{if $.HasSubjectFollows}}{{$.SubjectFollowing}}{{else}}—{{end}}</span>
-                    </div>
+                    </a>
                     <div class="stat-tile">
                         <span class="stat-tile__label">Bookmarks</span>
                         <span class="stat-tile__value">{{if $.HasSubjectBookmarks}}{{$.SubjectBookmarks}}{{else}}—{{end}}</span>

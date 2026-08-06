@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+
+	"github.com/the-loon-clan/loon/core"
 )
 
 // Follows — docs/MOCKS.md M3. UNIT3D models this on the user; here it is its
@@ -121,4 +123,78 @@ func (w *web) followToggle(c *gin.Context) {
 		w.log.Error("toggle follow", "followee", subject.ID, "err", err)
 	}
 	c.Redirect(http.StatusSeeOther, "/u/"+name)
+}
+
+// followList is one member on a follower/following page.
+type followList struct {
+	Username string
+	Role     any
+	Since    string
+}
+
+// followers/following read the two directions of the same edge. Capped: these
+// are unbounded relations, and a page that renders every follower of a popular
+// account is the query nobody notices until there is one.
+const followPageRows = 200
+
+func listFollowers(ctx context.Context, userID int64) []followList {
+	return followQuery(ctx,
+		`SELECT u.username, u.role, to_char(f.created_at, 'Mon YYYY') AS since
+		   FROM user_follow f JOIN users u ON u.id = f.follower_id
+		  WHERE f.followee_id = $1 ORDER BY f.created_at DESC LIMIT $2`, userID)
+}
+
+func listFollowing(ctx context.Context, userID int64) []followList {
+	return followQuery(ctx,
+		`SELECT u.username, u.role, to_char(f.created_at, 'Mon YYYY') AS since
+		   FROM user_follow f JOIN users u ON u.id = f.followee_id
+		  WHERE f.follower_id = $1 ORDER BY f.created_at DESC LIMIT $2`, userID)
+}
+
+func followQuery(ctx context.Context, q string, userID int64) []followList {
+	if followsDB == nil || userID <= 0 {
+		return nil
+	}
+	var rows []struct {
+		Username string `db:"username"`
+		Role     int    `db:"role"`
+		Since    string `db:"since"`
+	}
+	if err := followsDB.SelectContext(ctx, &rows, q, userID, followPageRows); err != nil {
+		return nil
+	}
+	out := make([]followList, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, followList{Username: r.Username, Role: core.Role(r.Role), Since: r.Since})
+	}
+	return out
+}
+
+// followPage serves /u/:name/followers and /u/:name/following.
+//
+// One handler for both directions: the pages differ only in which side of the
+// edge they read and what the heading says, and two near-identical handlers is
+// how the two drift.
+func (w *web) followPage(following bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+		name := c.Param("name")
+		subject, err := w.store.ByUsername(ctx, name)
+		if err != nil || subject == nil {
+			c.Status(http.StatusNotFound)
+			w.render(c, "follows.html", map[string]any{"Title": "Not found", "Missing": true, "People": []followList{}})
+			return
+		}
+		people := listFollowers(ctx, subject.ID)
+		title := "Followers"
+		if following {
+			people, title = listFollowing(ctx, subject.ID), "Following"
+		}
+		w.render(c, "follows.html", map[string]any{
+			"Title":     title,
+			"Subject":   subject.Username,
+			"Following": following,
+			"People":    people,
+		})
+	}
 }

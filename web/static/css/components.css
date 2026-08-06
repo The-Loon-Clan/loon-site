@@ -856,6 +856,18 @@ a.tag { min-height: 24px; }
     min-width: 0;
 }
 
+/* A stat tile that IS a link (the profile's Followers/Following counts). It
+   inherits link colour and an underline otherwise, which turns a figure into
+   what looks like body copy with a hyperlink in it. The whole tile is the
+   target and is well past 24px, so SC 2.5.8 needs nothing extra here. */
+a.stat-tile { color: inherit; text-decoration: none; }
+a.stat-tile:hover {
+    border-color: var(--primary);
+    background: var(--surface-3);
+    color: inherit;
+    text-decoration: none;
+}
+
 .stat-tile__icon { color: var(--primary-tint); font-size: 0.95rem; }
 
 .stat-tile__label {

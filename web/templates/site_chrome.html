@@ -607,6 +607,27 @@
     </span>
 {{end}}
 
+{{/* ----------------------------------------------------------- user-card --
+     One member as a tile: avatar, role-coloured name, and up to two lines of
+     meta. Used by /staff and by the follower/following lists, which is why it
+     lives here rather than in whichever page needed it first.
+
+     Dot: Name (required), Role, Meta, Meta2. Plain on the user-tag because the
+     whole tile is already a link to the profile — a link inside a link is
+     invalid, and the nested one is what a browser drops. */}}
+{{define "user-card"}}
+<a class="tile" href="/u/{{.Name}}">
+    <span class="avatar avatar--lg avatar--round poster--h{{hue .Name}}">
+        <span class="avatar__fallback">{{initials .Name}}</span>
+    </span>
+    <span class="tile__body">
+        <span class="tile__title">{{template "user-tag" (dict "Name" .Name "Role" .Role "Plain" true)}}</span>
+        {{with .Meta}}<span class="tile__meta">{{.}}</span>{{end}}
+        {{with .Meta2}}<span class="tile__meta">{{.}}</span>{{end}}
+    </span>
+</a>
+{{end}}
+
 {{/* ------------------------------------------------------------- comment --
      One person's message: avatar, who, when, body. UNIT3D's `comment` partial,
      which it reuses for torrent and article comments.
