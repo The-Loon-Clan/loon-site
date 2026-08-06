@@ -1372,3 +1372,63 @@ input[type="range"] { accent-color: var(--primary); }
     height: 1px;
     background: var(--border);
 }
+
+/* ---------------------------------------------------- section-nav ---- */
+
+/* The contextual second bar (site_chrome.html). Reads as a continuation of the
+   main nav rather than a panel: no card treatment, one rule below it, and it
+   scrolls horizontally rather than wrapping — a section can carry eight tabs
+   and a wrapped second row would compete with the main nav for the eye. */
+.section-nav {
+    background: var(--panel-head-bg);
+    border-bottom: var(--panel-head-border);
+}
+
+.section-nav__items {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    margin: 0;
+    /* Same gutter as .secondary-nav above it, so the two bars share an edge
+       rather than stepping in and out. */
+    padding: 0 var(--gutter);
+    list-style: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.section-nav__items::-webkit-scrollbar { display: none; }
+
+.section-nav__title {
+    flex-shrink: 0;
+    padding: var(--space-3) 0;
+    color: var(--text-muted);
+    font-size: var(--fs-2xs);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.section-nav__link {
+    display: inline-flex;
+    align-items: center;
+    /* WCAG 2.2 2.5.8: a standalone control needs 24px. */
+    min-height: 24px;
+    flex-shrink: 0;
+    padding: var(--space-3) 0;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.section-nav__link:hover {
+    color: var(--text);
+    text-decoration: none;
+}
+
+.section-nav__link--active {
+    color: var(--text-strong);
+    border-bottom-color: var(--primary);
+}

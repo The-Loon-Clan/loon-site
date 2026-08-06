@@ -74,9 +74,19 @@ universally safe anchor: the side is chosen per item via `.dropdown__menu--end`.
 That modifier MUST stay after `.dropdown__menu` in the stylesheet — same
 specificity, so source order is what makes it win.
 
-**Still to do:** the contextual SECOND bar. Live sites put section tabs under
-the main nav (Profile · Settings · Torrents · Activity … for the user area).
-We have breadcrumbs in that slot but no section tabs.
+The contextual SECOND bar now exists too (`sectionnav_web.go`): the main nav
+answers "where can I go", the section bar answers "what else is here". Five
+sections — Account, Releases, Community, Support, Site — matched by path prefix
+so a page cannot forget to declare itself.
+
+Absent by design on home, the auth pages and `/admin/*`. A bar with one tab is
+furniture, and admin already has its own subnav built from the view registry;
+two competing section bars would be worse than one.
+
+Two matching subtleties, both tested: `/store/history` marks **Points** under
+Account rather than Store (longest matching href wins, so a shorter prefix
+cannot steal a deeper page), and section matching is per SEGMENT rather than a
+bare prefix — otherwise the `/c` section would swallow `/community/forums`.
 
 ---
 

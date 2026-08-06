@@ -401,6 +401,26 @@
         </ul>
     </nav>
 
+    {{/* ---------------------------------------------------- section bar --
+         The contextual second bar live UNIT3D sites carry: the main nav
+         answers "where can I go", this answers "what else is here". Five broad
+         dropdowns up top only work if the detail sits one level down.
+
+         Absent on pages with nowhere sideways to go (home, auth) and on
+         /admin/*, which already has its own subnav — two competing section
+         bars would be worse than one. Active is resolved in Go so the matching
+         rule lives in one place; see sectionNav. */}}
+    {{if .SectionNav}}
+    <nav class="section-nav" aria-label="{{if .SectionTitle}}{{.SectionTitle}}{{else}}Section{{end}}">
+        <ul class="section-nav__items">
+            {{if .SectionTitle}}<li class="section-nav__title">{{.SectionTitle}}</li>{{end}}
+            {{range .SectionNav}}
+            <li><a class="section-nav__link{{if .Active}} section-nav__link--active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}</a></li>
+            {{end}}
+        </ul>
+    </nav>
+    {{end}}
+
     {{/* Stat strip. Every tile below is backed by a value the host actually
          computes for this request — role, points balance, unread count and the
          real account creation date. A page that has site-wide figures in hand
