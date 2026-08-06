@@ -501,6 +501,58 @@ None was a crash. The lesson for wiring the rest: **exercise the feature, do
 not just load the page.** Four of those five look fine until you send a
 message, open a ledger, or create an item.
 
+## 5e. Read from a live UNIT3D site (ClearJav, Aug 2026)
+
+`examples/` holds a saved page from a running UNIT3D deployment — the account
+Achievements view, which drags in the whole nav, the account sidebar and the
+footer with it. It is gitignored (someone else's markup and assets); this
+section is what it told us, so the file is not needed to act on this.
+
+**The top bar is already right.** Theirs is Torrents / Community / Support /
+Other / VIP Area / Donate; ours is Releases / Community / Support / Other /
+(Donate). Support is 5-for-5 exact — Rules, FAQ, Wiki, Helpdesk, Staff. The
+grouping work is done; what is missing is pages to put in the groups.
+
+### Missing and applicable
+
+| Their page | Group | Ours | Note |
+|---|---|---|---|
+| `/requests` | Torrents | — | §3.1, the largest single gap |
+| `/mediahub` | Torrents | — | blocked on `TMDB_API_KEY` |
+| `/polls` | Community | — | §3.4 |
+| `/subtitles` | Other | — | §3.6 |
+| `/trending` | Other | — | **buildable today** — `release_grab` exists and `popularGrabs` already ranks it; this is a page over data we have |
+| `/pages`, `/pages/N` | footer | — | a static-page CMS. We hardcode `/rules`, `/faq`, `/about`; theirs has arbitrary admin-authored pages, an index, and a `[View All]`. Their footer carries five of them |
+| VIP Area | top bar | — | a whole nav SECTION gated on a group. `siteNav` already role-filters every entry, so this is a gated group + its pages, not new machinery |
+| Donate goal in the nav | top bar | partial | theirs reads "Support ClearJav (86%)" — the tip-jar goals exist in the donations plugin (`tipjar_goal_*`), the nav badge does not |
+
+### The account area is the real gap
+
+Theirs has ~25 entries; ours has 6 (My profile, Notifications, Store, Account,
+API key, Sign-ins). Applicable ones, none of which exist here:
+
+- **Achievements** — the saved page is three tabs (Unlocked / Pending /
+  Statistics) over a locked/unlocked count. MOCKS M2 tracks the missing DATA
+  (`rewards` has no per-user read); this is the page SHAPE to build onto it.
+- **Bookmarks**, **Wishlist** — MOCKS M4, one table and two routes each.
+- **Followers / Following** — MOCKS M3, no follow relation exists.
+- **Topics / Posts** — a member's own forum activity. The forum has both
+  already; these are two filtered listings.
+- **Gifts**, **Post Tips** — points transfers between members. The points
+  ledger is durable and already supports a guarded debit.
+- **Edit Profile**, **E-mail change**, **Password page**, **Passkey**,
+  **Two-Factor**, **RSS key** — we have change-password inside `/p/account`
+  and an API key page; the rest are absent.
+- **Invites + Invite Tree** — deliberately a BALANCE here (invites_web.go says
+  so). Their tree is the feature that balance declines to be.
+
+### Not applicable — do not build
+
+Upload, Pending Torrents, Reseed Requests, Seedboxes, Resurrections,
+Unregistered Info Hashes, Torrent Tips, and every ratio/seeding surface. An
+indexer crawls; it has no upload path, no swarm and no peers. `/missing` and
+`/internal` are torrent-flag pages with no indexer meaning either.
+
 ## 6. Suggested order
 
 1. **`user-tag`** — small, touches every page, biggest consistency win
