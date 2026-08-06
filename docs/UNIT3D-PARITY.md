@@ -553,6 +553,40 @@ Unregistered Info Hashes, Torrent Tips, and every ratio/seeding surface. An
 indexer crawls; it has no upload path, no swarm and no peers. `/missing` and
 `/internal` are torrent-flag pages with no indexer meaning either.
 
+## 5f. Plugins that took ownership of their markup (Aug 2026)
+
+Three plugins moved from "render the host's template by name" to "render my
+own markup and hand the host a fragment" in one day: **store**, **tickets**,
+**wiki**. The host seam changed shape each time:
+
+    BaseData(c, gin.H) gin.H   ->  RenderPage(c, status, title, template.HTML)
+    Pagination(...) any        ->  RenderPagination(...) template.HTML
+    (new)                      ->  RenderEditor(opts) template.HTML   [tickets]
+    (new)                      ->  CSRFToken(c) string                [store]
+
+`status` is a parameter on purpose: several of these pages re-render on a
+validation failure, and a seam fixed at 200 reports success while showing an
+error. `render()` gained `renderStatus()` beneath it for this.
+
+Fifteen host templates were deleted as dead. What the host renders for them
+now is `site_page.html` (chrome), `fpagination` (the one pager) and
+`editor.html` (the prose editor) — via `renderPartial`, because a plugin
+fragment runs in the plugin's own template set and cannot reach the host's.
+
+**Open: the wiki editor lost its formatting toolbar.** The toolbar is not
+markup — site-scripts builds it for any `textarea[data-prose]` — so it
+followed the template. The wiki's six templates carry no `data-prose` and its
+Deps has no `RenderEditor`, so `/admin/wiki/posts/new` now has a bare textarea
+(it keeps its own preview pane and scoped styles). tickets already defines the
+seam, so the fix is the same one line of contract:
+
+```go
+RenderEditor func(opts map[string]any) template.HTML
+```
+
+...called where the content textarea is emitted. Host-side it is already
+wired and free — `w.renderEditor` exists and is passed to tickets today.
+
 ## 6. Suggested order
 
 1. **`user-tag`** — small, touches every page, biggest consistency win

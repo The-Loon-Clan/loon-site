@@ -13,7 +13,6 @@ import (
 	"github.com/the-loon-clan/loon-plugins/messages"
 	"github.com/the-loon-clan/loon-plugins/news"
 	"github.com/the-loon-clan/loon-plugins/playlists"
-	"github.com/the-loon-clan/loon-plugins/wiki"
 )
 
 // Every template under web/templates/plugin/ is rendered by a PLUGIN through
@@ -78,41 +77,9 @@ func pluginFixtures() []pluginFixture {
 		{"admin_news_form.html",
 			map[string]any{"Post": news.NewsPost{ID: 1, Title: "t", Slug: "s", CreatedAt: now, UpdatedAt: now}}, nil},
 
-		// ── wiki
-		{"wiki.html",
-			map[string]any{"Topics": nil, "RecentPosts": nil, "PopularPosts": nil},
-			map[string]any{
-				"Topics":       []*wiki.Topic{{ID: 1, Name: "Guides", Slug: "guides", Icon: "book", PostCount: 2}},
-				"RecentPosts":  []*wiki.RecentPost{{ID: 1, Title: "P", Slug: "p", TopicName: "Guides", TopicSlug: "guides", UpdatedAt: now}},
-				"PopularPosts": []*wiki.RecentPost{{ID: 1, Title: "P", Slug: "p", TopicName: "Guides", TopicSlug: "guides", UpdatedAt: now, ViewCount: 9}},
-			}},
-		{"wiki_topic.html",
-			map[string]any{"Topic": &wiki.Topic{ID: 1, Name: "Guides", Slug: "guides"}, "Posts": nil, "AllTopics": nil},
-			map[string]any{
-				"Posts":     []*wiki.Post{{ID: 1, TopicID: 1, Title: "P", Slug: "p", UpdatedAt: now}},
-				"AllTopics": []*wiki.Topic{{ID: 1, Name: "Guides", Slug: "guides"}},
-			}},
-		{"wiki_post.html",
-			map[string]any{
-				"Topic": &wiki.Topic{ID: 1, Name: "Guides", Slug: "guides"},
-				"Post":  &wiki.Post{ID: 1, TopicID: 1, Title: "P", Slug: "p", UpdatedAt: now},
-				// Already safe: the plugin ran it through Deps.Markdown.
-				"RenderedContent": template.HTML("<p>x</p>"),
-				"Posts":           nil,
-			},
-			map[string]any{"Posts": []*wiki.Post{{ID: 2, TopicID: 1, Title: "Q", Slug: "q"}}}},
-		{"admin_wiki.html",
-			map[string]any{"Topics": nil, "PostsByTopic": map[int][]*wiki.Post{}},
-			map[string]any{
-				"Topics":       []*wiki.Topic{{ID: 1, Name: "Guides", Slug: "guides"}},
-				"PostsByTopic": map[int][]*wiki.Post{1: {{ID: 1, Title: "P"}}},
-			}},
-		{"admin_wiki_topic_form.html",
-			map[string]any{"Action": "Create", "Icons": wiki.TopicIcons},
-			map[string]any{"Action": "Edit", "Topic": &wiki.Topic{ID: 1, Name: "G", Slug: "g", Icon: "book", Color: "#4c8dff"}}},
-		{"admin_wiki_post_form.html",
-			map[string]any{"Action": "Create", "TopicID": 1},
-			map[string]any{"Action": "Edit", "Post": &wiki.Post{ID: 1, TopicID: 1, Title: "P", Content: "# x"}}},
+		// ── wiki: NOT here. Third plugin to take ownership of its own markup
+		// (after store and tickets); the host now sets RenderPage and its
+		// copies are gone.
 
 		// ── messages
 		{"inbox.html",

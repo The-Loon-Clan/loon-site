@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -93,7 +94,18 @@ func wireWikiPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 	engine.Static(uploadURL, uploadRoot)
 
 	wiki.SetDeps(wiki.Deps{
-		BaseData: func(gc *gin.Context, extra gin.H) gin.H { return w.chromeData(gc, extra) },
+		// RenderPage, not BaseData. The plugin owns its six pages now and left
+		// BaseData behind purely so this repo would keep building mid-migration
+		// ("Delete it, and the legacy branch in views.go, once demo sets
+		// RenderPage" — wiki/plugin.go). Setting this is what lets that happen.
+		//
+		// status is passed through because the admin forms re-render on a
+		// validation failure, and a seam fixed at 200 reports success while
+		// showing an error.
+		RenderPage: func(gc *gin.Context, status int, title string, body template.HTML) {
+			w.renderStatus(gc, status, "site_page.html",
+				map[string]any{"Title": title, "Fragment": body})
+		},
 		Markdown: siteMarkdown,
 		Files:    blob.NewLocal(uploadRoot, uploadURL),
 	})
