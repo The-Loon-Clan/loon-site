@@ -74,16 +74,26 @@
     --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-    --fs-3xs: 0.62rem;
-    --fs-2xs: 0.68rem;
-    --fs-xs: 0.72rem;
-    --fs-sm: 0.78rem;
-    --fs-md: 0.82rem;
-    --fs-base: 0.85rem;
-    --fs-lg: 0.9rem;
-    --fs-xl: 1rem;
-    --fs-2xl: 1.15rem;
-    --fs-3xl: 1.3rem;
+    /* Measured against a live UNIT3D (ClearJav) at the same viewport, because
+       "their font looks bigger" needed a number rather than an impression.
+       Their body copy is 15px and their panel headings 16px; ours were 13.6px
+       and 12.5px, while <body> was 16px on both — so the gap was never the root
+       size, it was this scale sitting ~15% under it.
+
+       The site is meant to read dense, and it still does: the steps below base
+       are unchanged in ROLE, they have just stopped being small enough to
+       squint at. --fs-3xs was 9.9px, which the accessibility sweep had been
+       reporting as unreadable on four labels. */
+    --fs-3xs: 0.70rem;   /* 11.2px — was 9.9, flagged by the a11y sweep */
+    --fs-2xs: 0.75rem;   /* 12.0 */
+    --fs-xs: 0.80rem;    /* 12.8 */
+    --fs-sm: 0.85rem;    /* 13.6 */
+    --fs-md: 0.90rem;    /* 14.4 — nav links, theirs 14 */
+    --fs-base: 0.94rem;  /* 15.0 — body copy, theirs 15 */
+    --fs-lg: 1.00rem;    /* 16.0 — panel headings, theirs 16 */
+    --fs-xl: 1.10rem;    /* 17.6 */
+    --fs-2xl: 1.30rem;
+    --fs-3xl: 1.50rem;
 
     /* ---- z-index layers ----------------------------------------------
        Five layers, nothing between them. A raw z-index in a component rule

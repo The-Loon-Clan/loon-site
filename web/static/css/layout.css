@@ -93,7 +93,7 @@ hr {
     vertical-align: -0.125em;
 }
 
-.icon--sm { font-size: 0.75rem; }
+.icon--sm { font-size: var(--fs-2xs); }
 /* Accessible-but-invisible label text (icon-only buttons still need a name). */
 .visually-hidden {
     position: absolute;
@@ -284,7 +284,7 @@ main > article {
     color: var(--primary-fg);
     background: var(--button-filled-bg);
     box-shadow: 0 6px 16px -8px var(--primary);
-    font-size: 1.25rem;
+    font-size: var(--fs-2xl);
 }
 
 /* overflow:hidden + ellipsis, not just min-width:0 — the nowrap children below
@@ -297,7 +297,7 @@ main > article {
 }
 
 .top-nav__wordmark {
-    font-size: 1.15rem;
+    font-size: var(--fs-xl);
     font-weight: 700;
     line-height: 1.15;
     letter-spacing: -0.01em;
@@ -311,7 +311,7 @@ main > article {
 }
 
 .top-nav__tagline {
-    font-size: 0.7rem;
+    font-size: var(--fs-3xs);
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--top-nav-tagline-fg);
@@ -360,7 +360,7 @@ main > article {
     border-radius: var(--radius-pill);
     background: var(--top-nav-badge-bg);
     color: var(--top-nav-badge-fg);
-    font-size: 0.62rem;
+    font-size: var(--fs-3xs);
     font-weight: 700;
     line-height: 17px;
     text-align: center;
@@ -390,13 +390,13 @@ main > article {
 }
 
 .top-nav__username {
-    font-size: 0.85rem;
+    font-size: var(--fs-sm);
     font-weight: 600;
     white-space: nowrap;
 }
 
 .top-nav__rank {
-    font-size: 0.66rem;
+    font-size: var(--fs-3xs);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--muted-2);
@@ -468,7 +468,11 @@ main > article {
     border-bottom: 2px solid transparent;
     background: var(--secondary-nav-tab-bg);
     color: var(--secondary-nav-tab-fg);
-    font-size: 0.82rem;
+    /* --fs-md, not the step the automatic mapping picked: this is the section
+       bar, read at a glance while scanning, and it measured 12.8px against
+       ClearJav's 14. Uppercase with letter-spacing already costs legibility at
+       small sizes. */
+    font-size: var(--fs-md);
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -492,7 +496,7 @@ main > article {
 }
 
 .nav-tab__icon {
-    font-size: 0.95rem;
+    font-size: var(--fs-base);
     opacity: 0.85;
 }
 
@@ -502,7 +506,7 @@ main > article {
     display: flex;
     align-items: center;
     list-style: none;
-    font-size: 0.85rem;
+    font-size: var(--fs-sm);
     overflow-x: hidden;
     max-width: 100%;
 }
@@ -553,13 +557,13 @@ main > article {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    font-size: 0.75rem;
+    font-size: var(--fs-2xs);
     white-space: nowrap;
 }
 
 .stat-strip__icon {
     color: var(--stat-strip-icon-fg);
-    font-size: 0.9rem;
+    font-size: var(--fs-md);
 }
 
 .stat-strip__label {
@@ -590,7 +594,7 @@ main > article {
     background: var(--footer-bg);
     border-top: 1px solid var(--footer-hr-fg);
     color: var(--footer-fg);
-    font-size: 0.85rem;
+    font-size: var(--fs-sm);
 }
 
 .footer a,
@@ -636,7 +640,7 @@ main > article {
 
 .footer__section-title {
     margin: 0 0 0.9rem;
-    font-size: 0.7rem;
+    font-size: var(--fs-3xs);
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -650,7 +654,7 @@ main > article {
     margin: 0;
     padding: 0;
     list-style: none;
-    font-size: 0.85rem;
+    font-size: var(--fs-sm);
 }
 
 .footer__socials {
@@ -687,7 +691,7 @@ main > article {
     margin-top: 2rem;
     padding-top: 1rem;
     border-top: 1px solid var(--footer-hr-fg);
-    font-size: 0.75rem;
+    font-size: var(--fs-2xs);
     color: var(--muted-2);
 }
 

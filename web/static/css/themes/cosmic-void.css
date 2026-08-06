@@ -127,8 +127,8 @@
     --panel-head-padding-block: 0;
     --panel-head-padding-inline: var(--space-6);
     --panel-heading-padding-block: var(--space-4);
-    --panel-heading-font-size: var(--fs-sm);
-    --panel-body-padding: var(--space-6);
+    --panel-heading-font-size: var(--fs-lg);
+    --panel-body-padding: var(--space-9);
     --panel-body-font-size: var(--fs-base);
 
     /* ---- data-table --------------------------------------------------- */
