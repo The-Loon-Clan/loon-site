@@ -10,3 +10,8 @@ go.work.sum
 # here instead of in the scratchpad, and `git add -A` will happily commit a
 # 15 MB browser profile (231 files, once).
 shots*/
+
+# Reference material saved from other sites (saved-page HTML + its _files dir).
+# Kept locally to work from, never committed: it is someone else's markup and
+# assets, and a saved page drags in a few MB of js/css/images.
+examples/

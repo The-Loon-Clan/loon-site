@@ -288,7 +288,29 @@ details.job-group[open] > summary::before { transform: rotate(90deg); }
    unstyled before, so the strip stacked above the caption. */
 .cov-line { display: flex; align-items: center; gap: .5rem; }
 .cov-line .cov-cells { flex: 1; margin-top: 0; }
-.cov-pct { font-size: .78rem; color: var(--muted); white-space: nowrap; }
+/* The strip beside this is flex:1 and takes whatever the label leaves, so a
+   label sized to its text rescales the chart: "<1% crawled" is 9px wider than
+   "1% crawled", which made that row's bar 492px against 500px and each of its
+   48 cells 9.25px against 9.42px. These rows are stacked to be COMPARED, and
+   they only compare on a shared scale — a leading "<" must not resize the bar.
+
+   The plugin's own inline <style> already reaches for this with
+   min-width:2.6rem, and the idea is right, but 2.6rem is 41.6px while the
+   labels run 60-69px: the text is "1% crawled", not "1%", so the min-width
+   never binds. 5.75rem clears the longest form ("100% crawled").
+
+   Two-class selector ON PURPOSE. The plugin ships that rule in an inline
+   <style> in the page body, which beats an external stylesheet at EQUAL
+   specificity no matter how late theme.css loads — a bare .cov-pct here lost
+   silently. .cov-line .cov-pct outranks it, which is the same reason the
+   .cov-line .cov-cells rule below is written that way. */
+.cov-line .cov-pct {
+    flex: 0 0 auto;
+    min-width: 5.75rem;
+    font-size: .78rem;
+    color: var(--muted);
+    white-space: nowrap;
+}
 
 @media (max-width: 800px) {
     .group-list { columns: 1; }
