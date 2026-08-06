@@ -735,9 +735,10 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	data["AdminNav"] = w.adminNav
 	// Plugin site pages the viewer may open: SiteNav is the top-level nodes,
 	// SiteNavGroup the ones that asked to sit inside a dropdown the host writes
-	// itself (see hostNavGroups). Both ALWAYS set — the nav indexes
+	// itself (see hostNavGroups), SiteNavAccount the per-viewer pages that
+	// belong on the account menu. All three ALWAYS set — the nav indexes
 	// SiteNavGroup by name on every render.
-	data["SiteNav"], data["SiteNavGroup"] = w.siteNav(c)
+	data["SiteNav"], data["SiteNavGroup"], data["SiteNavAccount"] = w.siteNav(c)
 	// Theme is resolved from an allowlist (theme.go): the cookie value never
 	// reaches the page, only the matching entry does — the head prints
 	// .Theme.Href, which is a constant. Both keys are ALWAYS set: the

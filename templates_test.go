@@ -362,7 +362,8 @@ func chromeKeys() map[string]any {
 		// on an ABSENT key is an execute error ("index of untyped nil") that
 		// kills the whole render — a nil map of the right type is fine, a
 		// missing key is not. chromeData always sets it; so must the fixture.
-		"SiteNavGroup": map[string][]navItem(nil),
+		"SiteNavGroup":   map[string][]navItem(nil),
+		"SiteNavAccount": []navItem(nil),
 		// chromeData sets this on every render, so the fixture must too — the
 		// nav reads it to decide whether Donate appears.
 		"DonateEnabled": false,

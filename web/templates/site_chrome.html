@@ -230,6 +230,14 @@
                     <a class="dropdown__item{{if eq .Path "/p/inbox"}} active{{end}}" href="/p/inbox">
                         <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#bell"></use></svg>Notifications{{if .Unread}} ({{.Unread}}){{end}}
                     </a>
+                    {{/* Per-viewer plugin pages — your API key, your sign-ins,
+                         your purchases. They used to land in the site nav's
+                         Other dropdown, between About and Sitemap, which is a
+                         site-info menu and not where anyone looks for their own
+                         account. Which pages these are is decided by the
+                         sections table (sectionnav_web.go), the same one the
+                         second bar uses, so the two bars agree. */}}
+                    {{template "nav-plugin-items" (dict "Items" .SiteNavAccount "Path" .Path)}}
                     {{if .IsAdmin}}
                     <a class="dropdown__item{{if eq .Path "/admin/settings"}} active{{end}}" href="/admin/settings">
                         <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#settings"></use></svg>Site settings

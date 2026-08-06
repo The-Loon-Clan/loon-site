@@ -79,6 +79,11 @@ func TestSiteNavMergesHostGroups(t *testing.T) {
 	w := &web{siteNavEntries: []siteNavEntry{
 		// Sorted the way wireViews sorts them: by group, then weight.
 		{href: "/p/loose", label: "Loose", group: "", view: pub},
+		// Ungrouped, but the sections table calls it an Account page, so it
+		// belongs on the account menu rather than in the Other bucket.
+		{href: "/p/api-key", label: "API key", group: "", view: pub},
+		// Ungrouped AND already hand-written into the account menu.
+		{href: "/p/inbox", label: "Inbox", group: "", view: pub},
 		{href: "/p/stats", label: "Site stats", group: "Community", view: pub},
 		{href: "/p/logs", label: "Logs", group: "Operations", view: pub},
 		{href: "/p/backup", label: "Backup", group: "Operations", view: pub},
@@ -91,9 +96,10 @@ func TestSiteNavMergesHostGroups(t *testing.T) {
 	w.auth = webauth.Auth{Session: session.Config{Secret: []byte("test-secret-test-secret-abc")}}
 	var nodes []navNode
 	var merged map[string][]navItem
+	var account []navItem
 	e := gin.New()
 	e.Use(w.auth.Session.Middleware())
-	e.GET("/", func(c *gin.Context) { nodes, merged = w.siteNav(c) })
+	e.GET("/", func(c *gin.Context) { nodes, merged, account = w.siteNav(c) })
 	e.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil))
 
 	if got := merged["Community"]; len(got) != 1 || got[0].Href != "/p/stats" {
@@ -122,6 +128,17 @@ func TestSiteNavMergesHostGroups(t *testing.T) {
 	}
 	if _, ok := byLabel["Solitary"]; ok {
 		t.Error("a one-page group should not also keep its group node")
+	}
+
+	// Per-viewer pages go to the account menu, not the Other bucket, and a page
+	// the chrome already writes by hand is not duplicated into it.
+	if len(account) != 1 || account[0].Href != "/p/api-key" {
+		t.Errorf("account bucket = %+v, want just /p/api-key", account)
+	}
+	for _, n := range nodes {
+		if n.Href == "/p/api-key" || n.Href == "/p/inbox" {
+			t.Errorf("%s is an account page and must not be a top-level nav node", n.Href)
+		}
 	}
 }
 

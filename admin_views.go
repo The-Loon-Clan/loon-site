@@ -131,23 +131,43 @@ var hostNavGroups = map[string]bool{
 	"Releases": true, "Community": true, "Support": true, "Other": true,
 }
 
+// accountSection is the sections[] entry (sectionnav_web.go) that already
+// classifies the per-viewer pages. An UNGROUPED plugin page landing in it is a
+// personal page — your API key, your sign-ins, your purchases — and belongs on
+// the account menu, not in the site nav's Other bucket where it sat next to
+// About and Sitemap. Reusing the section table rather than a second list of
+// paths means the two bars cannot disagree about what "Account" means.
+const accountSection = "Account"
+
+// accountMenuBuiltins are account-menu rows site_chrome.html writes itself. A
+// plugin page at one of these is already on the menu — with its unread count
+// and its own icon — so the generic list must not add a second, plainer copy.
+var accountMenuBuiltins = map[string]bool{"/p/inbox": true}
+
 // siteNav builds the top nav for the current viewer from the pre-sorted
 // entries: ungrouped pages become plain links; a named group with 2+ visible
 // pages collapses into a dropdown; a group with a single visible page flattens
 // to a plain link (no one-item dropdowns). The user is resolved ONCE and the
 // entries are already sorted, so this is a linear role-filter — nothing hot.
 //
-// The second return is the by-name merge into the host's own dropdowns: entries
-// whose group is one of hostNavGroups never become a top-level node, they get
-// appended to that host menu instead.
-func (w *web) siteNav(c *gin.Context) ([]navNode, map[string][]navItem) {
+// Two side-buckets come back with the nodes: merged is the by-name merge into
+// the host's own dropdowns (entries whose group is one of hostNavGroups never
+// become a top-level node), and account is the per-viewer pages above.
+func (w *web) siteNav(c *gin.Context) ([]navNode, map[string][]navItem, []navItem) {
 	u, _ := w.auth.Current(c)
 	var nodes []navNode
+	var account []navItem
 	merged := map[string][]navItem{}
 	for i := 0; i < len(w.siteNavEntries); {
 		e := w.siteNavEntries[i]
 		if e.group == "" {
-			if e.view.AllowsUser(u) {
+			switch {
+			case !e.view.AllowsUser(u):
+			case accountMenuBuiltins[e.href]:
+				// already on the account menu, written by hand
+			case sectionTitle(e.href) == accountSection:
+				account = append(account, navItem{Href: e.href, Label: e.label})
+			default:
 				nodes = append(nodes, navNode{Label: e.label, Href: e.href})
 			}
 			i++
@@ -175,7 +195,7 @@ func (w *web) siteNav(c *gin.Context) ([]navNode, map[string][]navItem) {
 			nodes = append(nodes, navNode{Label: e.group, Children: kids})
 		}
 	}
-	return nodes, merged
+	return nodes, merged, account
 }
 
 // homeWidgets renders the site widgets the current viewer may see.
