@@ -90,12 +90,19 @@ func achievementMetrics(db *sqlx.DB) map[string]metricFunc {
 	}
 }
 
-// registerAchievementMetrics publishes every counter above.
+// registerAchievementMetrics publishes every counter above, plus the payout
+// handler that lets an earned achievement actually be claimed.
 func registerAchievementMetrics(c *core.Core, db *sqlx.DB) error {
 	for key, src := range achievementMetrics(db) {
 		if err := c.Register(rewards.MetricSourcePrefix+key, src); err != nil {
 			return fmt.Errorf("register metric %q: %w", key, err)
 		}
+	}
+	// Same before-Boot rule as the metrics: the plugin looks this up during its
+	// own Provision, so one registered afterwards is never seen.
+	if err := c.Register("rewards.payout."+string(rewards.PayoutAchievement),
+		achievementPayoutHandler()); err != nil {
+		return fmt.Errorf("register achievement payout handler: %w", err)
 	}
 	return nil
 }
@@ -180,4 +187,38 @@ func achievementsSeed(db *sqlx.DB, log *slog.Logger) {
 		}
 	}
 	log.Info("seeded the achievements catalogue")
+}
+
+// achievementPayoutHandler settles a payout of kind "achievement".
+//
+// Without one, an earned achievement can never be claimed: ClaimGrant refuses
+// with `no handler for payout kind "achievement"`, the grant stays pending, and
+// the plugin reports the achievement as Pending forever. Earning worked, the
+// badge appeared, and the loop simply never closed — the claim button returned
+// a redirect and changed nothing.
+//
+// It hands over nothing, and that is correct HERE rather than lazy. The badge
+// is not a thing this host stores: the plugin already records completion in its
+// own user_achievements table, and every surface that shows a badge — the
+// achievements page, the profile card — reads it back through the
+// rewards.achievements extension. There is no second place for a handler to
+// write. What the handler is FOR is letting the grant settle, which is what
+// moves the achievement from Pending to Unlocked.
+//
+// A host that keeps its own medal cabinet would write to it here instead, and
+// the Grant carries what that needs: g.UserID for whose, p.Target for which.
+//
+// Idempotent by construction, which the contract requires: running twice for
+// the same (user, payout) does the same nothing.
+//
+// Deliberately NOT validating that p.Target names a known achievement. The
+// rewards plugin ships demo rewards whose payouts target badge slugs with no
+// achievement row (first-grab, night-owl, completionist, early-adopter), and
+// refusing those would turn old pending grants into permanently unclaimable
+// ones — a stricter handler that breaks existing data to catch a
+// misconfiguration nobody has.
+func achievementPayoutHandler() rewards.PayoutHandler {
+	return func(ctx context.Context, g rewards.Grant, p rewards.Payout) error {
+		return nil
+	}
 }
