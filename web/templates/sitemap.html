@@ -1,0 +1,40 @@
+{{/* Sitemap — the human index of the site. Data from sitemappage_web.go:
+     .Groups []sitemapGroup, each with .Title and .Links (.Href .Label .Note).
+
+     One shape repeated, deliberately: every group is the same panel and every
+     row is the same link + note. A page whose job is "here is everything"
+     should be scannable, and a page of differently-sized boxes is the thing it
+     is trying to be an antidote to.
+
+     Not to be confused with /sitemap.xml, which is the crawler's copy — it is
+     listed here, under For machines, saying exactly that. */}}
+{{define "content"}}
+<header>
+    <h1 class="h3 m-0">Sitemap</h1>
+    <p class="text-muted small m-0 mt-1">Every page on this site, in one list.</p>
+</header>
+
+<div class="grid grid--2">
+    {{range .Groups}}
+    <section class="panelV2">
+        <header class="panel__header">
+            <h2 class="panel__heading">
+                <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#globe"></use></svg>
+                {{.Title}}
+            </h2>
+            <div class="panel__actions"><span class="panel__grouping">{{len .Links}}</span></div>
+        </header>
+        <div class="panel__body">
+            <ul class="sitemap-list">
+                {{range .Links}}
+                <li class="sitemap-list__item">
+                    <a class="sitemap-list__link" href="{{.Href}}">{{.Label}}</a>
+                    {{with .Note}}<span class="sitemap-list__note">{{.}}</span>{{end}}
+                </li>
+                {{end}}
+            </ul>
+        </div>
+    </section>
+    {{end}}
+</div>
+{{end}}

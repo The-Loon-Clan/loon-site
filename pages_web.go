@@ -157,6 +157,10 @@ func (w *web) mountSitePages(e *gin.Engine) {
 	e.GET("/rules", w.sitePagePlain("rules.html", "Rules"))
 	e.GET("/faq", w.sitePagePlain("faq.html", "FAQ"))
 	e.GET("/about", w.sitePagePlain("about.html", "About"))
+	// The HUMAN sitemap (sitemappage_web.go). /sitemap.xml is the crawler's,
+	// wired separately in main.go — the nav has linked this one since before
+	// anything served it.
+	e.GET("/sitemap", w.sitemapPage)
 	// UNIT3D links /help/donate from the same Support menu; that route belongs
 	// to the donations plugin and is registered there.
 }

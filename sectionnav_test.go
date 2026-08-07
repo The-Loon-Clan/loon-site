@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"io/fs"
+	"regexp"
+	"strings"
+	"testing"
+)
 
 // The account menu's entries are hand-written hrefs, so they can drift from the
 // routes without anything noticing — an entry would simply 404. These assert
@@ -259,4 +264,59 @@ func TestAccountBarKeepsItsOwnDestinationsInScope(t *testing.T) {
 		}
 	}
 	check(accountMenu)
+}
+
+// Every internal link the CHROME offers must be a route the site serves.
+//
+// This is the check that used to exist as part of the section-nav test and went
+// with it when that table shrank to the account menu — and /sitemap 404'd from
+// the moment it did, linked from both the Other dropdown and the footer with
+// nothing serving it. Restored against the chrome itself rather than against a
+// table, so it covers whatever the chrome links, not whatever a table happens
+// to list.
+func TestChromeLinksAreServed(t *testing.T) {
+	b, err := fs.ReadFile(siteFS, "web/templates/site_chrome.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Routes the host or a wired plugin registers. Explicit on purpose: the
+	// point is to catch a typo in EITHER list, and deriving one from the other
+	// would make them agree by construction.
+	served := map[string]bool{
+		"/": true, "/browse": true, "/search": true, "/groups": true, "/trending": true,
+		"/community/forums": true, "/community/forums/new": true, "/c": true,
+		"/news": true, "/playlists": true, "/store": true, "/store/history": true,
+		"/rules": true, "/faq": true, "/wiki": true, "/support": true, "/staff": true,
+		"/stats": true, "/about": true, "/sitemap": true, "/sitemap.xml": true,
+		"/inbox": true, "/p/inbox": true, "/p/account": true, "/p/api-key": true,
+		"/p/topics": true, "/p/posts": true, "/bookmarks": true, "/calendar": true,
+		"/achievements": true, "/rewards": true,
+		"/settings/privacy": true, "/settings/notifications": true,
+		"/login": true, "/logout": true, "/register": true, "/forgot": true,
+		"/admin/settings": true, "/verify/resend": true,
+		// The Newznab endpoint, linked bare from the footer as well as with a
+		// ?t=caps query.
+		"/api": true,
+		// Rendered only while .DonateEnabled, which is the env flag AND the
+		// admin toggle — but when it renders, it has to resolve.
+		"/help/donate": true,
+	}
+	// Skip anything with template syntax in it (/u/{{...}}), a query or a
+	// fragment — those are not paths this list can speak about.
+	href := regexp.MustCompile(`href="(/[^"?#{]*)"`)
+	seen := map[string]bool{}
+	for _, m := range href.FindAllStringSubmatch(string(b), -1) {
+		p := m[1]
+		if p == "" || seen[p] || strings.HasPrefix(p, "/static/") {
+			continue
+		}
+		seen[p] = true
+		if !served[p] {
+			t.Errorf("the chrome links %s, which nothing in this list serves — "+
+				"either the route is missing or this list is stale", p)
+		}
+	}
+	if len(seen) < 15 {
+		t.Errorf("only %d chrome links found; the scan is probably not matching", len(seen))
+	}
 }
