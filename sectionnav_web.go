@@ -67,9 +67,48 @@ var accountMenu = []sectionTab{
 	}},
 }
 
-// accountNav returns the menu with the page you are on marked.
+// accountNav returns the account entries with the page you are on marked.
 func accountNav(path string) []sectionTab {
 	return markActive(accountMenu, path)
+}
+
+// accountAreaPrefixes select the pages the account BAR covers — the second row
+// of the header, beside the breadcrumb, the way UNIT3D carries Profile ·
+// Settings · Torrents · Activity across its user area.
+//
+// Matched by prefix rather than declared per page so a page cannot forget to
+// say it is in the area. /u/ is here because the profile is the area's landing
+// page: the avatar menu points at it, and arriving there is what puts the rest
+// of the account within one click.
+var accountAreaPrefixes = []string{
+	"/u/", "/inbox", "/p/inbox", "/p/account", "/p/api-key",
+	"/p/topics", "/p/posts", "/settings/", "/store/history",
+	"/bookmarks", "/calendar", "/achievements", "/rewards",
+}
+
+// inAccountArea reports whether the account bar belongs on a path.
+func inAccountArea(path string) bool {
+	for _, p := range accountAreaPrefixes {
+		if path == p || hasPathPrefix(path, p) {
+			return true
+		}
+		// A trailing slash is a prefix on purpose ("/settings/", "/u/"): those
+		// have no bare landing page, only children.
+		if len(p) > 0 && p[len(p)-1] == '/' && len(path) >= len(p) && path[:len(p)] == p {
+			return true
+		}
+	}
+	return false
+}
+
+// accountBar returns the bar's entries for a path, or nil when the path is not
+// in the account area. Nil is the template's guard — no bar rather than an
+// empty one.
+func accountBar(path string) []sectionTab {
+	if !inAccountArea(path) {
+		return nil
+	}
+	return accountNav(path)
 }
 
 // markActive copies the entries and lights the one the path is on.

@@ -268,31 +268,22 @@
                     <a class="dropdown__item{{if eq .Path (print "/u/" .User.Username)}} active{{end}}" href="/u/{{.User.Username}}">
                         <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#user"></use></svg>My profile
                     </a>
-                    {{/* The account area itself (sectionnav_web.go). These used
-                         to be reachable ONLY from the second bar under the main
-                         nav; when that bar went, they came here, which is where
-                         a reader looks for their own things anyway.
-
-                         Groups render as a labelled run rather than a nested
-                         dropdown: a dropdown inside a dropdown needs a second
-                         click to find out whether the thing you want is in it,
-                         and at this size the whole menu fits without one. */}}
-                    {{range .AccountNav}}
-                    {{- if .Items}}
-                    <span class="dropdown__group-label">{{.Label}}</span>
-                    {{range .Items}}
-                    <a class="dropdown__item dropdown__item--sub{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}{{if and (eq .Href "/p/inbox") $.Unread}} ({{$.Unread}}){{end}}</a>
-                    {{end}}
-                    {{- else}}
-                    <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>
-                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#coin"></use></svg>{{.Label}}
+                    {{/* Notifications keeps its place here because the count is
+                         the reason to look: the bell beside this menu carries
+                         the same badge, and a number you can see from any page
+                         is worth a row. */}}
+                    <a class="dropdown__item{{if eq .Path "/p/inbox"}} active{{end}}" href="/p/inbox">
+                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#bell"></use></svg>Notifications{{if .Unread}} ({{.Unread}}){{end}}
                     </a>
-                    {{- end}}
-                    {{end}}
-                    {{/* Per-viewer plugin pages — your API key, your sign-ins,
-                         your purchases. Not in the list above because which of
-                         them exist depends on what is wired; they come from the
-                         view registry at runtime. */}}
+                    {{/* The rest of the account area is NOT here any more. It is
+                         the bar beside the breadcrumb, which appears across the
+                         account area — so "My profile" above is the way in, and
+                         everything else is one click from there rather than
+                         fifteen rows deep in a menu that scrolled.
+
+                         Per-viewer PLUGIN pages still come through, since which
+                         of them exist depends on what is wired; the registry
+                         answers that at runtime, and the bar cannot. */}}
                     {{template "nav-plugin-items" (dict "Items" .SiteNavAccount "Path" .Path)}}
                     {{if .IsAdmin}}
                     <a class="dropdown__item{{if eq .Path "/admin/settings"}} active{{end}}" href="/admin/settings">
@@ -495,6 +486,51 @@
             <li class="breadcrumb--active">{{.Title}}</li>
         </ol>
         {{end}}{{end}}
+
+        {{/* The account bar, in the SAME row as the breadcrumb — which is where
+             UNIT3D puts it: its secondary-nav carries breadcrumbsV2 and
+             nav-tabsV2 side by side, so "where am I" and "what else is here"
+             are one strip rather than two.
+
+             Only in the account area (sectionnav_web.go). This is not the old
+             site-wide second bar coming back: that one restated the main nav's
+             dropdowns on Releases, Community, Support and Site, which is why it
+             went. The account half was the part that was never a restatement,
+             and it is the part that returns. */}}
+        {{with .AccountBar}}
+        <ul class="section-tabs">
+            {{/* Profile leads, as it does on UNIT3D's user bar. Written here
+                 rather than in accountMenu because its href carries the
+                 viewer's own name, and that table is a package-level value
+                 shared by every request — it cannot hold a per-request path.
+                 Without it the bar renders on the profile with nothing marked,
+                 which is a bar that has stopped answering "where am I" on the
+                 one page it treats as its landing page. */}}
+            {{if $.User}}
+            {{$me := print "/u/" $.User.Username}}
+            <li><a class="section-tabs__link{{if eq $.Path $me}} section-tabs__link--active{{end}}" href="{{$me}}"{{if eq $.Path $me}} aria-current="page"{{end}}>Profile</a></li>
+            {{end}}
+            {{range .}}
+            {{if .Items}}
+            <li>
+                <details class="dropdown">
+                    <summary class="section-tabs__link{{if .Active}} section-tabs__link--active{{end}}">
+                        {{.Label}}
+                        <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
+                    </summary>
+                    <div class="dropdown__menu">
+                        {{range .Items}}
+                        <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}</a>
+                        {{end}}
+                    </div>
+                </details>
+            </li>
+            {{else}}
+            <li><a class="section-tabs__link{{if .Active}} section-tabs__link--active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}</a></li>
+            {{end}}
+            {{end}}
+        </ul>
+        {{end}}
     </nav>
     {{end}}
 

@@ -489,7 +489,10 @@ main > article {
 .secondary-nav {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    /* Centred, the way live UNIT3D sites carry theirs. Left-aligned it hung
+       off the logo's edge with the rest of the row empty; centred it reads as
+       the site's own row rather than as a continuation of the branding. */
+    justify-content: center;
     gap: 18px;
     padding: 0 var(--gutter);
     background: var(--secondary-nav-bg);
@@ -653,13 +656,66 @@ main > article {
     border-bottom: var(--stat-strip-border);
 }
 
+/* The breadcrumb row carries a second thing on account pages — the account
+   bar — so it is a three-track grid rather than a plain flex row: crumbs left,
+   tabs CENTRED in the bar regardless of how long the crumbs are. A flex row
+   would centre them in the space the crumbs left over, which moves the tabs
+   every time the page title changes length. */
+.breadcrumb-bar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    column-gap: var(--space-5);
+}
+
+.breadcrumb-bar > .breadcrumbsV2 { grid-column: 1; }
+.breadcrumb-bar > .section-tabs { grid-column: 2; }
+
 /* Both rows' content: a flex child that may shrink, so the strip can scroll
    sideways and a long breadcrumb can ellipsis instead of widening the page. */
 .stat-strip__items,
 .breadcrumb-bar > .breadcrumbsV2 {
-    flex: 1;
     min-width: 0;
 }
+
+/* The account bar — UNIT3D's nav-tabsV2, sharing the breadcrumb's row. */
+.section-tabs {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.section-tabs__link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    /* WCAG 2.2 2.5.8: a standalone control needs 24px. The bar is 36px, so
+       this fits with room either side. */
+    min-height: 24px;
+    padding: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--muted);
+    font-size: var(--fs-sm);
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    list-style: none;
+}
+
+.section-tabs__link::-webkit-details-marker { display: none; }
+.section-tabs__link:hover { color: var(--text); text-decoration: none; }
+
+.section-tabs__link--active {
+    color: var(--text-strong);
+    border-bottom-color: var(--primary);
+}
+
+/* A grouped tab is a <details>, same as the main nav's, so it needs the
+   positioning context its absolutely placed menu anchors against. */
+.section-tabs .dropdown { position: relative; }
 
 .stat-strip__items {
     display: flex;

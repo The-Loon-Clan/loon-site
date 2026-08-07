@@ -205,3 +205,46 @@ func TestAccountMenuMatchesWholeSegments(t *testing.T) {
 		}
 	}
 }
+
+// The account bar appears across the account area and nowhere else. Both halves
+// matter: absent on a release page it would be the site-wide second bar coming
+// back, and absent on an account page every entry it carries is unreachable,
+// because the avatar menu no longer lists them.
+func TestAccountBarScope(t *testing.T) {
+	for _, p := range []string{
+		"/u/alice", "/achievements", "/calendar", "/bookmarks", "/inbox",
+		"/p/inbox", "/p/topics", "/p/posts", "/p/account", "/p/api-key",
+		"/settings/privacy", "/settings/notifications", "/store/history", "/rewards",
+	} {
+		if accountBar(p) == nil {
+			t.Errorf("%s is in the account area but gets no bar", p)
+		}
+	}
+	for _, p := range []string{
+		"/", "/browse", "/search", "/community/forums", "/store", "/stats",
+		"/about", "/login", "/admin/settings", "/p/stats", "/p/store",
+	} {
+		if tabs := accountBar(p); tabs != nil {
+			t.Errorf("%s got an account bar (%d entries) — that is the site-wide second bar again", p, len(tabs))
+		}
+	}
+}
+
+// Every destination the bar carries must be in the area the bar covers, or
+// clicking it navigates away from the bar that offered it.
+func TestAccountBarKeepsItsOwnDestinationsInScope(t *testing.T) {
+	var check func(tabs []sectionTab)
+	check = func(tabs []sectionTab) {
+		for _, tab := range tabs {
+			if len(tab.Items) > 0 {
+				check(tab.Items)
+				continue
+			}
+			if !inAccountArea(tab.Href) {
+				t.Errorf("bar entry %q -> %s leaves the account area, so the bar vanishes on arrival",
+					tab.Label, tab.Href)
+			}
+		}
+	}
+	check(accountMenu)
+}

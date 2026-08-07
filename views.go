@@ -900,10 +900,11 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// same as IsDonateEnabled — see donations_web.go.
 	data["DonateEnabled"] = donationsEnabled && donateToggle.Load()
 	data["Path"] = c.Request.URL.Path
-	// The account area, for the avatar dropdown — see sectionnav_web.go. Set
-	// unconditionally: the menu only renders for a signed-in viewer, and the
-	// template already guards on .User.
-	data["AccountNav"] = accountNav(c.Request.URL.Path)
+	// The account area as a BAR, beside the breadcrumb — see sectionnav_web.go.
+	// Nil off the account area, which is the template's guard. The avatar menu
+	// no longer lists these; landing on the profile is what brings them up,
+	// the way UNIT3D's user area works.
+	data["AccountBar"] = accountBar(c.Request.URL.Path)
 	// PathQuery is Path PLUS the query string: the "send me back exactly here"
 	// target for the theme switcher's hidden next field. It has to be a SECOND
 	// key rather than a richer Path, because every nav active-state comparison
