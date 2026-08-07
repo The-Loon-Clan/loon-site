@@ -29,6 +29,23 @@
 
             <form class="form" method="post" action="/register">
                 <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                {{/* FIRST, not last. In invite mode this is the field that
+                     decides whether any of the others matter, and a gate at the
+                     bottom of a form is one people fill in three answers before
+                     discovering.
+
+                     Rendered only in invite mode: an invite box on an open site
+                     invites the question "do I need one of these?", and the
+                     honest answer there is no. */}}
+                {{if eq .RegMode "invite"}}
+                <div class="form__group">
+                    <label class="form__label" for="invite">Invite code</label>
+                    <input class="form__input" id="invite" type="text" name="invite" value="{{.Invite}}"
+                           placeholder="ABCD-EFGH-IJKL-MNOP" autocomplete="off" spellcheck="false" required
+                           aria-describedby="invite-help">
+                    <p class="form__help" id="invite-help">This site is invite only. Case and dashes do not matter.</p>
+                </div>
+                {{end}}
                 <div class="form__group">
                     <label class="form__label" for="username">Username</label>
                     <input class="form__input" id="username" type="text" name="username" value="{{.Username}}" autocomplete="username" autofocus>

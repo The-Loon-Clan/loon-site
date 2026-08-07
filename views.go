@@ -1390,20 +1390,21 @@ func (w *web) registerPost(c *gin.Context) {
 			w.render(c, "register.html", map[string]any{
 				"Title": "Register", "RegMode": RegInvite,
 				"Error": "That invite code is not valid.", "Username": name, "Email": email,
+				"Invite": strings.TrimSpace(c.PostForm("invite")),
 			})
 			return
 		}
 	}
 	if err := w.captcha.Verify(c.Request.Context(), c.PostForm(captcha.FormField), c.ClientIP()); err != nil {
 		c.Status(http.StatusBadRequest)
-		w.render(c, "register.html", map[string]any{"Title": "Register", "Error": "Please complete the captcha and try again.", "Username": name, "Email": email})
+		w.render(c, "register.html", map[string]any{"Title": "Register", "Error": "Please complete the captcha and try again.", "Username": name, "Email": email, "RegMode": registrationMode(), "Invite": strings.TrimSpace(c.PostForm("invite"))})
 		return
 	}
 	invite := strings.TrimSpace(c.PostForm("invite"))
 	u, err := w.flow.Register(c.Request.Context(), name, email, c.PostForm("password"))
 	if err != nil {
 		c.Status(http.StatusBadRequest)
-		w.render(c, "register.html", map[string]any{"Title": "Register", "Error": err.Error(), "Username": name, "Email": email, "RegMode": registrationMode()})
+		w.render(c, "register.html", map[string]any{"Title": "Register", "Error": err.Error(), "Username": name, "Email": email, "RegMode": registrationMode(), "Invite": invite})
 		return
 	}
 	// Consume the code now the account exists. Redeem, not just validate: a
