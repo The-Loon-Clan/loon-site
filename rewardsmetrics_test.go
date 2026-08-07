@@ -48,8 +48,29 @@ func TestSeededAchievementSlugsAreUnique(t *testing.T) {
 			t.Errorf("duplicate achievement slug %q", d.Slug)
 		}
 		seen[d.Slug] = true
-		if d.Slug == "" || d.Name == "" || d.RewardSlug == "" {
+		if d.Slug == "" || d.Name == "" {
 			t.Errorf("achievement %+v has an empty required field", d)
 		}
+	}
+}
+
+// Each achievement must own its badge reward. Rewards are one_off, so a shared
+// one means whichever achievement completes first takes it and the other can
+// never complete for that member — showing as permanently in progress, with
+// nothing logged.
+//
+// This is not hypothetical: the first version of this seed pointed first-post
+// and forum-regular at the same reward, and alice (who already held it from the
+// plugin's own demo grants) completed neither while bob completed both.
+func TestEachSeededAchievementOwnsItsReward(t *testing.T) {
+	// The seed derives the reward slug from the achievement slug, so uniqueness
+	// of the achievement slugs IS uniqueness of the rewards. Asserted here as
+	// its own statement so the reason survives if that ever stops being true.
+	seen := map[string]bool{}
+	for _, d := range achievementSeeds {
+		if seen[d.Slug] {
+			t.Errorf("two achievements would share the reward slug %q", d.Slug)
+		}
+		seen[d.Slug] = true
 	}
 }

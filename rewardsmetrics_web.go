@@ -100,11 +100,16 @@ func registerAchievementMetrics(c *core.Core, db *sqlx.DB) error {
 	return nil
 }
 
-// achievementDef is one seeded achievement.
+// achievementDef is one seeded achievement, WITH the badge reward it grants.
+//
+// Its own reward, never a shared one. Rewards are one_off: a member can hold
+// each at most once, so two achievements pointing at the same reward means
+// whichever completes first takes it and the other can never complete for that
+// member — silently, showing as permanently in-progress. Reusing a reward that
+// already has grants is the same trap with a head start.
 type achievementDef struct {
 	Slug, Name, Desc, Metric string
 	Threshold                int
-	RewardSlug               string
 	Ordinal                  int
 }
 
@@ -116,10 +121,11 @@ type achievementDef struct {
 // the seeded forum activity, the high ones sit in progress. A page where
 // everything is unlocked demonstrates as little as one where nothing is.
 var achievementSeeds = []achievementDef{
-	{"first-post", "First Post", "Reply to a thread.", "posts.created", 1, "forum-regular", 0},
-	{"forum-regular", "Forum Regular", "Write 5 posts.", "posts.created", 5, "forum-regular", 1},
-	{"thread-starter", "Thread Starter", "Start a thread of your own.", "threads.created", 1, "night-owl", 2},
-	{"familiar-face", "Familiar Face", "Sign in 10 times.", "login", 10, "early-adopter", 3},
+	{"first-post", "First Post", "Reply to a thread.", "posts.created", 1, 0},
+	{"forum-regular", "Forum Regular", "Write 5 posts.", "posts.created", 5, 1},
+	{"thread-starter", "Thread Starter", "Start a thread of your own.", "threads.created", 1, 2},
+	{"conversationalist", "Conversationalist", "Write 25 posts.", "posts.created", 25, 3},
+	{"familiar-face", "Familiar Face", "Sign in 10 times.", "login", 10, 4},
 }
 
 // achievementsSeed gives the demo a working achievements page on first boot.
@@ -144,14 +150,23 @@ func achievementsSeed(db *sqlx.DB, log *slog.Logger) {
 		return
 	}
 	for _, d := range achievementSeeds {
+		// One badge reward per achievement, created here rather than borrowed
+		// from the plugin's own catalogue — see achievementDef.
 		var rewardID int64
-		if err := db.Get(&rewardID,
-			`SELECT id FROM rewards.rewards WHERE slug = $1`, d.RewardSlug); err != nil {
-			// The reward catalogue is the rewards plugin's to seed. If it has
-			// not run yet there is nothing to attach to, and a half-seeded
-			// catalogue is worse than none — stop rather than insert rows
-			// pointing at an id that does not exist.
-			log.Warn("achievements seed: reward missing, skipping", "reward", d.RewardSlug)
+		if err := db.Get(&rewardID, `
+			INSERT INTO rewards.rewards (slug, name, kind, trigger, delivery, enabled)
+			VALUES ($1, $2, 'one_off', '', 'auto', true)
+			ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+			RETURNING id`, d.Slug, d.Name); err != nil {
+			log.Error("achievements seed: reward", "slug", d.Slug, "err", err)
+			return
+		}
+		// The payout IS the badge: kind 'achievement' targeting this slug.
+		if _, err := db.Exec(`
+			INSERT INTO rewards.reward_payouts (reward_id, kind, target, amount, ordinal)
+			VALUES ($1, 'achievement', $2, 0, 0)
+			ON CONFLICT DO NOTHING`, rewardID, d.Slug); err != nil {
+			log.Error("achievements seed: payout", "slug", d.Slug, "err", err)
 			return
 		}
 		if _, err := db.Exec(`
