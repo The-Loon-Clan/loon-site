@@ -318,6 +318,60 @@ main > article {
     white-space: nowrap;
 }
 
+/* Per-viewer live figures, sitting left of the icon bar — UNIT3D's
+   top-nav__ratio-bar slot. Same 36px control height as the icon bar so the two
+   read as one row rather than two stacked scales. */
+.top-nav__ratio-bar {
+    display: flex;
+    align-items: center;
+    column-gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.top-nav__ratio-bar > li > a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 36px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-pill);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.ratio-bar__points > a {
+    background: var(--top-nav-icon-bar-icon-bg);
+    color: var(--top-nav-icon-bar-icon-fg);
+}
+
+.ratio-bar__points > a:hover {
+    background: var(--top-nav-icon-bar-icon-hover-bg);
+    color: var(--top-nav-icon-bar-icon-hover-fg);
+    text-decoration: none;
+}
+
+/* The daily claim. Rendered only while today's claim is still available
+   (site_chrome.html), so it is an offer rather than a status — which is why it
+   is styled as a control and not as another figure. */
+.ratio-bar__claim > a {
+    border: 1px solid var(--primary);
+    color: var(--primary-tint);
+    font-size: var(--fs-2xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.ratio-bar__claim > a:hover {
+    background: var(--primary);
+    color: var(--primary-fg);
+    text-decoration: none;
+}
+
 /* Icon bar (bell / envelope / bell). */
 .top-nav__icon-bar {
     display: flex;
@@ -419,6 +473,13 @@ main > article {
     .top-nav__tagline { display: none; }
     .top-nav__user-names { display: none; }
     .top-nav__icon-bar { column-gap: 4px; }
+    /* The claim keeps its star but loses its word — at this width the row has
+       to fit a logo, a nav toggle and the avatar. The points FIGURE stays: it
+       is the number, not a label, and dropping it would leave nowhere on a
+       phone to see a balance without opening the account menu. */
+    .top-nav__ratio-bar { column-gap: 4px; }
+    .top-nav__ratio-bar > li > a { padding: 0 var(--space-2); }
+    .ratio-bar__claim > a > span { display: none; }
 }
 
 /* ------------------------------------------------------- secondary nav ---- */
@@ -533,7 +594,9 @@ main > article {
 /* --------------------------------------------------------- stat strip ----- */
 
 /* Thin full-width band of icon + LABEL: VALUE pairs. Only render tiles you can
-   populate from real data — an unpopulated slot is worse than a missing one. */
+   populate from real data — an unpopulated slot is worse than a missing one.
+   SITE-wide figures only; the viewer's own live figures are in the top nav's
+   ratio bar. Home is currently the only page that fills the slot. */
 .stat-strip {
     padding: 0 var(--gutter);
     background: var(--stat-strip-bg);
@@ -576,8 +639,6 @@ main > article {
     color: var(--stat-strip-value-fg);
     font-weight: 700;
 }
-
-.stat-strip__item--end { margin-left: auto; }
 
 /* ------------------------------------------------------------- footer ----- */
 

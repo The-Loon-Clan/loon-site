@@ -448,12 +448,20 @@ func TestPagesExecuteForSignedInViewer(t *testing.T) {
 		if !strings.Contains(out, "</html>") {
 			t.Errorf("%s: render stopped early — no closing </html>", page)
 		}
-		// A genuine zero must still produce its tile; that is the whole point
-		// of HasPoints/HasUnread over {{if .Points}}.
-		if page == "home.html" || page == "profile.html" {
-			if !strings.Contains(out, "stat-tile__label") && !strings.Contains(out, "stat-strip__label") {
-				t.Errorf("%s: no viewer stat tiles rendered for a zero-balance user", page)
-			}
+		// A genuine zero must still produce its figure; that is the whole point
+		// of HasPoints/HasUnread over {{if .Points}}. The viewer's points moved
+		// out of the per-page stat strip and into the shared top-nav ratio bar,
+		// so the guard now has to hold on EVERY page rather than only on the two
+		// that happened to carry tiles.
+		//
+		// The profile's OWN tiles are not asserted here: they are the subject's
+		// figures, guarded on HasSubjectPoints / IsSelf, and legitimately absent
+		// on this no-optional-data path. TestPagesExecuteWithRealData pins them,
+		// with IsSelf set. Before points moved, this branch nominally covered
+		// home and profile — but it was satisfied by the chrome strip both
+		// times, so it never actually reached either page's own markup.
+		if !strings.Contains(out, "ratio-bar__points") {
+			t.Errorf("%s: no points figure in the top nav for a zero-balance viewer", page)
 		}
 	}
 }

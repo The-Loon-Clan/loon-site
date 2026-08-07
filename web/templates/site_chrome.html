@@ -200,6 +200,47 @@
         </div>
         <div class="top-nav__right">
             {{if .User}}
+            {{/* Per-viewer live figures — UNIT3D's top-nav__ratio-bar slot, which
+                 there carries upload, download, ratio, buffer and bonus points.
+                 There is no ratio economy in this stack, so points is what it
+                 holds, plus the claim that grows it.
+
+                 Rank, member-since and unread are deliberately NOT here. Rank is
+                 already under the username in the account toggle below,
+                 member-since is a fixed profile fact rather than a live figure,
+                 and unread is the bell's badge two elements over. All three used
+                 to be repeated in a second bar under the section nav, on every
+                 page — see the {{block "stat-strip"}} note further down. */}}
+            <ul class="top-nav__ratio-bar">
+                {{if .HasPoints}}
+                <li class="ratio-bar__points">
+                    <a href="/store/history" title="Points balance">
+                        <svg class="icon" aria-hidden="true"><use href="#coin"></use></svg>
+                        <span>{{.Points}}</span>
+                        <span class="visually-hidden">points</span>
+                    </a>
+                </li>
+                {{end}}
+                {{/* Daily reward — the tracker convention some sites call "show
+                     up". Present ONLY while today's claim is still available, so
+                     its absence is the signal that you already took it; a
+                     permanently visible control would say nothing.
+
+                     The once-per-day rule and the streak belong to the dailyreward
+                     plugin — the host only asks whether a claim is on offer
+                     (dailyreward.StatusExtension) and links to the card that takes
+                     it. The claim itself is a captcha-gated POST over there, which
+                     is exactly the kind of thing a nav bar should not try to
+                     inline. */}}
+                {{if .CanClaimDaily}}
+                <li class="ratio-bar__claim">
+                    <a href="/#daily-reward" title="Claim today's reward{{if .DailyStreak}} — {{.DailyStreak}} day streak{{end}}">
+                        <svg class="icon" aria-hidden="true"><use href="#star"></use></svg>
+                        <span>Claim{{if .DailyReward}} {{.DailyReward}}{{end}}</span>
+                    </a>
+                </li>
+                {{end}}
+            </ul>
             <ul class="top-nav__icon-bar">
                 <li>
                     <a href="/p/inbox">
@@ -457,62 +498,18 @@
     </nav>
     {{end}}
 
-    {{/* Stat strip. Every tile below is backed by a value the host actually
-         computes for this request — role, points balance, unread count and the
-         real account creation date. A page that has site-wide figures in hand
-         (release count, group count, retention) can override the whole block
-         with its own {{define "stat-strip"}}. */}}
-    {{block "stat-strip" .}}{{if .User}}
-    <div class="stat-strip">
-        <ul class="stat-strip__items">
-            <li class="stat-strip__item">
-                <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#shield"></use></svg>
-                <span class="stat-strip__label">Rank</span>
-                <span class="stat-strip__value">{{roleName .User.Role}}</span>
-            </li>
-            {{if not .User.CreatedAt.IsZero}}
-            <li class="stat-strip__item">
-                <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#calendar"></use></svg>
-                <span class="stat-strip__label">Member since</span>
-                <span class="stat-strip__value">{{.User.CreatedAt.Format "Jan 2006"}}</span>
-            </li>
-            {{end}}
-            {{if .HasUnread}}
-            <li class="stat-strip__item">
-                <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#bell"></use></svg>
-                <span class="stat-strip__label">Unread</span>
-                <span class="stat-strip__value">{{.Unread}}</span>
-            </li>
-            {{end}}
-            {{if .HasPoints}}
-            <li class="stat-strip__item{{if not .CanClaimDaily}} stat-strip__item--end{{end}}">
-                <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#coin"></use></svg>
-                <span class="stat-strip__label">Points</span>
-                <span class="stat-strip__value">{{.Points}}</span>
-            </li>
-            {{end}}
-            {{/* Daily reward — the tracker convention some sites call "show up".
-                 Present ONLY while today's claim is still available, so its
-                 absence is the signal that you already took it; a permanently
-                 visible control would say nothing.
+    {{/* Stat strip — an EMPTY slot by default. Only a page that has SITE-WIDE
+         figures in hand fills it, with its own {{define "stat-strip"}}; home is
+         the one that does, with release / group / category counts.
 
-                 The once-per-day rule and the streak belong to the dailyreward
-                 plugin — the host only asks whether a claim is on offer
-                 (dailyreward.StatusExtension) and links to the card that takes
-                 it. The claim itself is a captcha-gated POST over there, which
-                 is exactly the kind of thing a stat strip should not try to
-                 inline. */}}
-            {{if .CanClaimDaily}}
-            <li class="stat-strip__item stat-strip__item--end">
-                <a class="stat-strip__claim" href="/#daily-reward" title="Claim today's reward{{if .DailyStreak}} — {{.DailyStreak}} day streak{{end}}">
-                    <svg class="icon" aria-hidden="true"><use href="#star"></use></svg>
-                    <span>Claim{{if .DailyReward}} {{.DailyReward}}{{end}}</span>
-                </a>
-            </li>
-            {{end}}
-        </ul>
-    </div>
-    {{end}}{{end}}
+         It used to render the VIEWER's own row here on every page: rank, member
+         since, unread, points. Three of those four were already on screen — rank
+         sits under the username in the account toggle, unread is the bell's
+         badge — and member-since is a fixed fact that belongs on a profile, not
+         on a full-width bar above every page's content. The one live figure
+         worth carrying, points, moved up into the top nav's ratio bar along with
+         the daily claim, which is where UNIT3D keeps its per-viewer figures too. */}}
+    {{block "stat-strip" .}}{{end}}
 {{end}}
 
 {{/* -------------------------------------------------------------- footer --

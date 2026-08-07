@@ -38,16 +38,18 @@
      =========================================================================== */}}
 
 {{/* ---------------------------------------------------------- stat strip --
-     Overrides site_chrome.html's {{block "stat-strip"}}: this page is the one
-     place that has the site-wide figures in hand. The viewer tiles the shared
-     strip shows are re-emitted here (via home-viewer-stats) so overriding
-     costs nothing. */}}
+     Fills site_chrome.html's {{block "stat-strip"}}, which is an empty slot
+     everywhere else: this page is the one place holding the site-wide figures.
+
+     SITE figures only. The viewer's own tiles — rank, unread, points — were
+     re-emitted here as well, so that overriding the shared strip cost nothing.
+     The shared strip no longer carries a viewer row at all: points moved to the
+     top nav's ratio bar, and rank and unread were already in the nav. There is
+     nothing left here to match. */}}
 {{define "stat-strip"}}
-{{- $any := false}}{{if .Stats}}{{$any = true}}{{end}}{{if .User}}{{$any = true}}{{end}}
-{{- if $any}}
+{{- if .Stats}}
 <div class="stat-strip">
     <ul class="stat-strip__items">
-        {{if .Stats}}
         {{if .Stats.Releases}}
         <li class="stat-strip__item">
             <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#database"></use></svg>
@@ -79,38 +81,8 @@
             <span class="stat-strip__value">{{.Stats.Categories}}</span>
         </li>
         {{end}}
-        {{end}}
-        {{template "home-viewer-stats" .}}
     </ul>
 </div>
-{{end}}
-{{end}}
-
-{{/* The viewer half of the strip. Same tiles the shared chrome renders, same
-     guards: Points/Unread are absent (not zero) when their service is unwired,
-     and a template cannot tell an absent key from 0 — so guard on the Has*
-     sentinel chromeData() sets, never on the value. */}}
-{{define "home-viewer-stats"}}
-{{- if .User}}
-<li class="stat-strip__item">
-    <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#shield"></use></svg>
-    <span class="stat-strip__label">Rank</span>
-    <span class="stat-strip__value">{{if .RoleLabel}}{{.RoleLabel}}{{else}}{{roleName .User.Role}}{{end}}</span>
-</li>
-{{if .HasUnread}}
-<li class="stat-strip__item">
-    <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#bell"></use></svg>
-    <span class="stat-strip__label">Unread</span>
-    <span class="stat-strip__value">{{.Unread}}</span>
-</li>
-{{end}}
-{{if .HasPoints}}
-<li class="stat-strip__item stat-strip__item--end">
-    <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#coin"></use></svg>
-    <span class="stat-strip__label">Points</span>
-    <span class="stat-strip__value">{{.Points}}</span>
-</li>
-{{end}}
 {{end}}
 {{end}}
 
