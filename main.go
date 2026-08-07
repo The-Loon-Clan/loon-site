@@ -716,12 +716,26 @@ func main() {
 			}
 		}
 	}
-	// loon-baseline login audit views: /admin/p/login-log (all attempts) and
-	// /p/sign-ins (the current user's own history).
+	// loon-baseline login audit views. Two are offered: /admin/p/login-log
+	// (every attempt, with a user column) and /p/sign-ins (your own).
+	//
+	// Only the ADMIN one is registered. The member page is the same table minus
+	// the user column, and its one distinguishing column is "IP fingerprint" —
+	// a hash, because the raw address is deliberately never stored. A row
+	// reading "fc73e44eeb75…" cannot tell a member whether a sign-in was
+	// theirs, which is the only question the page exists to answer; it closed
+	// by asking them to change their password if they saw one they did not
+	// recognise, which they had no way to determine.
+	//
+	// Staff keep the whole log, where the hash does earn its place: it groups
+	// attempts by origin without the site holding anyone's address.
 	if lviews, err := loginlog.Views(loginLog, wsrv.currentUser); err != nil {
 		logger.Error("loginlog.Views", "err", err)
 	} else {
 		for _, v := range lviews {
+			if v.Slot == core.SlotSitePage {
+				continue // the member-facing "Sign-ins" page — see above
+			}
 			if err := c.RegisterView(v); err != nil {
 				logger.Error("register loginlog view", "slug", v.Slug, "err", err)
 			}

@@ -58,13 +58,12 @@ var accountMenu = []sectionTab{
 		{Label: "Account", Href: "/p/account"},
 		{Label: "Privacy", Href: "/settings/privacy"},
 		{Label: "Alerts", Href: "/settings/notifications"},
-		// Both are plugin pages, listed here by hand rather than left to the
-		// generic tail: they configure your account, so they belong under
-		// Settings with the rest of it and not loose underneath it. See
-		// navPlacedByHost (admin_views.go), which keeps the generic nav from
-		// adding a second copy.
+		// A plugin page, listed here by hand rather than left to the generic
+		// tail: it configures your account, so it belongs under Settings with
+		// the rest of it and not loose underneath it. See navPlacedByHost
+		// (admin_views.go), which keeps the generic nav from adding a second
+		// copy.
 		{Label: "API key", Href: "/p/api-key"},
-		{Label: "Sign-ins", Href: "/p/sign-ins"},
 	}},
 }
 

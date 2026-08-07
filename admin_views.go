@@ -152,13 +152,14 @@ var hostNavGroups = map[string]bool{
 //	/p/api-key   account menu, Settings group — it configures your account, so
 //	             it belongs with the other things that do, not loose at the
 //	             bottom of the menu under them
-//	/p/sign-ins  account menu, Settings group — same argument; leaving this one
-//	             loose while its sibling moved would be arbitrary
+//
+// /p/sign-ins is NOT here because it is no longer registered at all: staff keep
+// the full login log at /admin/p/login-log, and the member-facing copy showed a
+// hashed fingerprint no member could act on. See main.go.
 var navPlacedByHost = map[string]bool{
-	"/p/inbox":    true,
-	"/p/account":  true,
-	"/p/api-key":  true,
-	"/p/sign-ins": true,
+	"/p/inbox":   true,
+	"/p/account": true,
+	"/p/api-key": true,
 }
 
 // navPlacement re-homes and re-labels a plugin page whose own NavHint puts it
