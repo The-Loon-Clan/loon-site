@@ -22,7 +22,10 @@
                 <input type="hidden" name="token" value="{{.Token}}">
                 <div class="form__group">
                     <label class="form__label" for="password">New password</label>
-                    <input class="form__input" id="password" type="password" name="password" placeholder="at least 8 characters" autocomplete="new-password" autofocus>
+                    <input class="form__input" id="password" type="password" name="password"
+                           minlength="{{pwmin}}" required autocomplete="new-password" autofocus
+                           aria-describedby="password-help">
+                    <p class="form__help mt-1 mb-0" id="password-help">At least {{pwmin}} characters. Length beats symbols &mdash; a few ordinary words is a good password.</p>
                 </div>
                 <button class="form__button form__button--filled justify-content-center" type="submit">
                     <svg class="icon" aria-hidden="true"><use href="#check"></use></svg>Update password

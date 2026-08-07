@@ -57,7 +57,10 @@
                 </div>
                 <div class="form__group">
                     <label class="form__label" for="password">Password</label>
-                    <input class="form__input" id="password" type="password" name="password" placeholder="at least 8 characters" autocomplete="new-password">
+                    <input class="form__input" id="password" type="password" name="password"
+                           minlength="{{pwmin}}" required autocomplete="new-password"
+                           aria-describedby="password-help">
+                    <p class="form__help mt-1 mb-0" id="password-help">At least {{pwmin}} characters. Length beats symbols &mdash; a few ordinary words is a good password.</p>
                 </div>
                 {{/* Empty unless Turnstile is configured — no wrapper, see login.html. */}}
                 {{captcha}}

@@ -833,10 +833,11 @@
 
 {{/* ------------------------------------------------------------- scripts --
      Hand-written vanilla JS only: no framework, no bundler, no external host.
-     Four tiny behaviours — the CSRF double-submit shim, the "/" search
+     Five tiny behaviours — the CSRF double-submit shim, the "/" search
      hotkey the quick-search chip advertises, the carousel arrows the design
-     system documents (the arrows are inert without it), and the tab shim that
-     makes plugin-rendered Bootstrap tab strips actually switch panes. */}}
+     system documents (the arrows are inert without it), the tab shim that
+     makes plugin-rendered Bootstrap tab strips actually switch panes, and the
+     strength meter and reveal toggle on any new-password field. */}}
 {{define "site-scripts"}}
     <script>
     // Double-submit CSRF: on submit, make every same-origin POST form carry the
@@ -1181,6 +1182,161 @@
 
         // Insurance for anything appended after this script ran.
         document.addEventListener('DOMContentLoaded', arm);
+    })();
+
+    // New-password fields: a strength meter and a reveal toggle.
+    //
+    // Bound by SELECTOR, not by id — input[type=password][autocomplete=
+    // new-password] is exactly "a field where somebody is choosing a password",
+    // and it is already on the host's register and reset forms and on the
+    // plugin-rendered change-password form. So the plugin pages get this
+    // without the plugin knowing it exists, and a future form gets it by using
+    // the autocomplete value it should be using anyway. Nothing is wired per
+    // page.
+    //
+    // Purely an ENHANCEMENT. It blocks nothing and submits nothing: the field
+    // works with this script deleted, the browser enforces minlength on its
+    // own, and the server enforces it again regardless. The meter is advice.
+    //
+    // The distinction it is built around is advice vs RULE. Below the minimum
+    // is a requirement and says so; at or above it, every score is a suggestion
+    // and the form will submit whatever was chosen. A meter that shades "weak"
+    // the same way it shades "too short" teaches people that its opinion is a
+    // gate, and then they believe the next one, which may be lying.
+    (function () {
+        var SEL = 'input[type="password"][autocomplete="new-password"]';
+
+        // The passwords that are not passwords. Not a security control — a real
+        // blocklist is server-side and has millions of rows — but the handful
+        // worth catching before somebody fills in the rest of the form.
+        var COMMON = ['password', 'qwerty', 'letmein', 'welcome', 'monkey',
+            'dragon', 'football', 'iloveyou', 'admin', 'abc123', '123456',
+            'changeme', 'trustno1', 'sunshine', 'princess', 'starwars'];
+
+        var BANDS = [
+            { key: 'weak', label: 'Weak' },
+            { key: 'fair', label: 'Fair' },
+            { key: 'good', label: 'Good' },
+            { key: 'strong', label: 'Strong' }
+        ];
+
+        // score returns 0..3 for a password at or over the minimum.
+        //
+        // LENGTH LEADS, deliberately. Variety can add at most one step and can
+        // never carry a short password to the top, because "Xy9!" satisfies
+        // four character classes and falls to a wordlist in seconds, while
+        // "correct horse battery staple" satisfies one and does not. Same
+        // reasoning as password_web.go's single length rule; if the two ever
+        // disagree, that file is the one that is actually enforced.
+        function score(pw, min) {
+            var lower = pw.toLowerCase();
+            for (var i = 0; i < COMMON.length; i++) {
+                // A common word with something bolted on is still the common
+                // word: the attacker's list is generated with those suffixes.
+                if (lower === COMMON[i] || lower.indexOf(COMMON[i]) === 0) return 0;
+            }
+            // One character repeated is long without being varied at all.
+            // Length must not pay for "aaaaaaaaaaaa".
+            if (/^(.)\1+$/.test(pw)) return 0;
+
+            var s = 0;
+            if (pw.length >= min + 4) s++;   // 12 at the default minimum
+            if (pw.length >= min + 8) s++;   // 16
+            if (pw.length >= min + 12) s++;  // 20
+
+            var classes = 0;
+            if (/[a-z]/.test(pw)) classes++;
+            if (/[A-Z]/.test(pw)) classes++;
+            if (/[0-9]/.test(pw)) classes++;
+            if (/[^a-zA-Z0-9]/.test(pw)) classes++;
+            // At most one step, and only for something already past the floor,
+            // so variety is a nudge and never a substitute for length.
+            if (classes >= 3 && s > 0) s++;
+
+            return Math.min(s, 3);
+        }
+
+        function build(input) {
+            var min = input.minLength > 0 ? input.minLength : 8;
+            var group = input.parentNode;
+
+            // The reveal toggle. Recommended for the same reason this meter
+            // rewards length: a password nobody can see is a password nobody
+            // types correctly at twenty characters, and the usual answer to
+            // that is to pick a shorter one.
+            var wrap = document.createElement('div');
+            wrap.className = 'pw-field';
+            group.insertBefore(wrap, input);
+            wrap.appendChild(input);
+
+            var eye = document.createElement('button');
+            eye.type = 'button';   // never a submit, inside a form
+            eye.className = 'pw-field__reveal';
+            eye.setAttribute('aria-pressed', 'false');
+            eye.setAttribute('aria-label', 'Show password');
+            eye.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#eye"></use></svg>';
+            wrap.appendChild(eye);
+            eye.addEventListener('click', function () {
+                var shown = input.type === 'text';
+                input.type = shown ? 'password' : 'text';
+                eye.setAttribute('aria-pressed', shown ? 'false' : 'true');
+                eye.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
+                input.focus();
+            });
+
+            var meter = document.createElement('div');
+            meter.className = 'pw-meter';
+            meter.hidden = true;   // nothing to say about an empty field
+            // The bar is decoration: it repeats what the text says, in colour,
+            // which is the one channel a reader may not have. aria-hidden stops
+            // a screen reader reading four empty spans.
+            meter.innerHTML =
+                '<div class="pw-meter__track" aria-hidden="true">' +
+                '<span></span><span></span><span></span><span></span></div>' +
+                '<p class="pw-meter__text" role="status"></p>';
+            group.insertBefore(meter, wrap.nextSibling);
+
+            var text = meter.querySelector('.pw-meter__text');
+            var last = null;
+
+            input.addEventListener('input', function () {
+                var pw = input.value;
+                if (!pw) {
+                    meter.hidden = true;
+                    meter.className = 'pw-meter';
+                    last = null;
+                    return;
+                }
+                meter.hidden = false;
+
+                var band, msg;
+                if (pw.length < min) {
+                    // A REQUIREMENT, phrased as the thing still to do rather
+                    // than as a failure. Not a score, so it gets its own state
+                    // and no filled bars.
+                    var left = min - pw.length;
+                    band = 'short';
+                    msg = left + ' more character' + (left === 1 ? '' : 's') + ' needed';
+                } else {
+                    var n = score(pw, min);
+                    band = BANDS[n].key;
+                    msg = BANDS[n].label + (n === 0 ? ' — try making it longer' : '');
+                }
+
+                meter.className = 'pw-meter pw-meter--' + band;
+                // Written only when the BAND changes. role="status" announces
+                // whatever lands in it, and rewriting on every keystroke turns
+                // a screen reader into a stutter; this way it says "Fair", then
+                // "Good", which is the whole message anyway. The countdown is
+                // the exception: same band every keystroke, new fact each time.
+                if (band !== last || band === 'short') {
+                    text.textContent = msg;
+                    last = band;
+                }
+            });
+        }
+
+        document.querySelectorAll(SEL).forEach(build);
     })();
     </script>
 {{end}}

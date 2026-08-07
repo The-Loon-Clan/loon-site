@@ -272,7 +272,8 @@ func main() {
 	// so you can follow it in the logs; a real host sends via SMTP.
 	wsrv.resetFlow = authtoken.Flow{
 		Tokens: tokenStore, Users: userStore, Hasher: password.Hasher{},
-		BaseURL: getenvDefault("LOON_DEMO_BASE_URL", "http://localhost:8090"),
+		MinPwLen: minPasswordLen,
+		BaseURL:  getenvDefault("LOON_DEMO_BASE_URL", "http://localhost:8090"),
 		Mail: func(to, subject, body string) error {
 			logger.Info("email (demo mailer)", "to", to, "subject", subject, "body", body)
 			return nil

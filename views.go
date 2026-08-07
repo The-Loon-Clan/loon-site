@@ -155,7 +155,7 @@ var sharedPartials = map[string][]string{
 func newWeb(store users.Store, secret []byte, log *slog.Logger) *web {
 	w := &web{
 		store: store,
-		flow:  authflow.Flow{Users: store, Hasher: password.Hasher{}, DefaultRole: core.RoleUser},
+		flow:  authflow.Flow{Users: store, Hasher: password.Hasher{}, DefaultRole: core.RoleUser, MinPasswordLen: minPasswordLen},
 		log:   log,
 		tmpls: map[string]*template.Template{},
 	}
@@ -268,6 +268,10 @@ func tmplHelpers() template.FuncMap {
 		"hue":       hueBucket,
 		"initials":  initials,
 		"roleName":  roleName,
+		// pwmin is the minimum password length, so a form's minlength attribute
+		// and its help text quote the number the server enforces rather than a
+		// number someone typed once. See password_web.go.
+		"pwmin":     func() int { return minPasswordLen },
 		"roleSlug":  roleSlug,
 		"roleLabel": roleLabel,
 		"eqID":      eqID,
