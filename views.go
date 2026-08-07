@@ -120,7 +120,7 @@ type web struct {
 var pageTemplates = []string{
 	"home.html", "groups.html", "search.html", "browse.html", "release.html",
 	"trending.html", "bookmarks.html", "follows.html", "calendar.html",
-	"achievements.html", "forum_activity.html",
+	"achievements.html", "forum_activity.html", "rewards.html",
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
@@ -688,6 +688,9 @@ func (w *web) mount(e *gin.Engine) {
 	e.GET("/achievements", w.achievementsPage)
 	e.GET("/p/topics", w.forumActivityPage(false))
 	e.GET("/p/posts", w.forumActivityPage(true))
+	// Rewards (rewards_web.go) — the points area's third tab. Registered here
+	// rather than under /store/*, which the store plugin owns.
+	e.GET(storeRewardsPath, w.rewardsPage)
 	e.POST("/u/:name/follow", w.followToggle)
 	e.GET("/u/:name/followers", w.followPage(false))
 	e.GET("/u/:name/following", w.followPage(true))

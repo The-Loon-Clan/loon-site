@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io/fs"
 	"log/slog"
+	"net/http/httptest"
 	"path"
 	"regexp"
 	"sort"
@@ -12,6 +13,8 @@ import (
 	"testing"
 	"text/template/parse"
 	"time"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/the-loon-clan/loon/core"
 
@@ -1408,5 +1411,56 @@ func TestDailyRewardClaimLinkMatchesTheCardsAnchor(t *testing.T) {
 	}
 	if !homeWidgetsExcluded["daily-reward"] {
 		t.Error("homeWidgets no longer excludes daily-reward, so home renders it again")
+	}
+}
+
+// The rewards claim card came off the home page and became the points area's
+// third tab, which is two halves that have to agree: the store plugin renders
+// a tab at whatever Href the host hands it, and the host serves the page. A
+// mismatch is a 404 behind a tab that looks fine, so it is asserted.
+//
+// The tab is also OFFERED conditionally — no rewards plugin, no tab — because
+// the store plugin cannot know whether the page behind a host tab exists. That
+// half is asserted too, since the failure is a dead tab on every site running
+// store without rewards.
+func TestRewardsTabAndPageAgree(t *testing.T) {
+	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+
+	// No rewards widget registered: no tab, or the strip advertises a page
+	// this host does not serve.
+	if tabs := w.pointsAreaTabs(&gin.Context{Request: httptest.NewRequest("GET", "/store", nil)}); len(tabs) != 0 {
+		t.Errorf("with no rewards widget registered, got %d tab(s), want none", len(tabs))
+	}
+
+	// Registered: exactly one tab, pointing at the route views.go mounts.
+	w.siteWidgets = []core.View{{Slug: rewardsClaimWidget, Title: "Rewards to claim"}}
+	tabs := w.pointsAreaTabs(&gin.Context{Request: httptest.NewRequest("GET", storeRewardsPath, nil)})
+	if len(tabs) != 1 {
+		t.Fatalf("got %d tabs, want 1", len(tabs))
+	}
+	if tabs[0].Href != storeRewardsPath {
+		t.Errorf("tab points at %q, want %q", tabs[0].Href, storeRewardsPath)
+	}
+	// On the page itself the tab must read as current, or the strip says you
+	// are somewhere you are not.
+	if !tabs[0].Active {
+		t.Errorf("tab is not marked active on %s", storeRewardsPath)
+	}
+	// And NOT current anywhere else.
+	other := w.pointsAreaTabs(&gin.Context{Request: httptest.NewRequest("GET", "/store/history", nil)})
+	if len(other) == 1 && other[0].Active {
+		t.Error("tab is marked active on /store/history")
+	}
+
+	// The page behind it must render the card, and home must not.
+	body, err := fs.ReadFile(siteFS, "web/templates/rewards.html")
+	if err != nil {
+		t.Fatalf("rewards.html: %v", err)
+	}
+	if !strings.Contains(string(body), ".Card") {
+		t.Error("rewards.html never renders .Card")
+	}
+	if !homeWidgetsExcluded[rewardsClaimWidget] {
+		t.Error("home still renders the rewards card, so it is in two places")
 	}
 }

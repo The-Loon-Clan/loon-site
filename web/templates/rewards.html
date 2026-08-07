@@ -1,0 +1,44 @@
+{{/* Rewards — the claim card off the home page, as the points area's third
+     tab. Data from rewards_web.go: .Card (a widgetVM) or .Unavailable, and
+     neither when the plugin is wired but has nothing to offer today.
+
+     The tab strip is rendered here rather than shared with the store plugin's
+     two pages: those are the plugin's own markup, in the plugin's template
+     set, which this cannot reach. The classes match so the three read as one
+     strip — a Bootstrap-subset `nav tabs`, same as store.html. */}}
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/store">Store</a></li>
+    <li class="breadcrumb--active">Rewards</li>
+</ol>
+{{end}}
+
+{{define "content"}}
+<div class="container mt-4 page-narrow">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="mb-0" style="font-weight:600;">Rewards</h5>
+        {{if .HasPoints}}<span class="badge bg-warning text-dark" style="font-size:0.82rem;">{{.Points}} pts</span>{{end}}
+    </div>
+
+    <ul class="nav tabs mb-3">
+        <li class="nav-item"><a class="nav-link" href="/store">Store</a></li>
+        <li class="nav-item"><a class="nav-link" href="/store/history">History</a></li>
+        <li class="nav-item"><a class="nav-link active" href="/rewards">Rewards</a></li>
+    </ul>
+
+    {{if .Unavailable}}
+    <div class="empty">Rewards need the rewards plugin, which is not running here.</div>
+    {{else if .Card}}
+    {{.Card.Fragment}}
+    {{else}}
+    {{/* Wired, and nothing to claim. Said plainly rather than left blank: an
+         empty page under a tab you deliberately clicked reads as broken, which
+         is the opposite of the reason the card hides itself on a page you did
+         not. */}}
+    <div class="empty">Nothing to claim right now. Rewards appear here as you earn them.</div>
+    {{end}}
+
+</div>
+{{end}}

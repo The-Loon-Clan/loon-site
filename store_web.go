@@ -51,7 +51,34 @@ func wireStorePlugin(w *web) {
 			}
 			return (page - 1) * pageSize
 		},
+		// The points area's third tab. The store plugin knows nothing about
+		// rewards and should not — it takes tabs from the host rather than
+		// linking to a page that may not exist on a site running store alone.
+		ExtraTabs: w.pointsAreaTabs,
 	})
+}
+
+// storeRewardsPath is the claim page. Host-owned and OUTSIDE /store/*, which
+// the store plugin owns: a host route inside a plugin's namespace reads like
+// the plugin's until you go looking. It appears as a tab on the store's strip
+// regardless — the strip is about where the reader can go, not about who
+// serves it.
+const storeRewardsPath = "/rewards"
+
+// pointsAreaTabs is store.Deps.ExtraTabs: the tabs the HOST adds to the points
+// area. Only Rewards today.
+//
+// Empty when the rewards plugin is not wired, so a host without it gets the
+// store's own two tabs and no dead link.
+func (w *web) pointsAreaTabs(c *gin.Context) []store.Tab {
+	if !w.hasSiteWidget(rewardsClaimWidget) {
+		return nil
+	}
+	return []store.Tab{{
+		Label:  "Rewards",
+		Href:   storeRewardsPath,
+		Active: c.Request.URL.Path == storeRewardsPath,
+	}}
 }
 
 // renderPartial executes one shared partial from the HOST's template set and

@@ -223,12 +223,20 @@ type widgetVM struct {
 // A site widget is a card any host page may render; home showing every one of
 // them is a default, not a rule.
 //
-// daily-reward is per-viewer — your streak, your claim — and the front page is
-// the site's, not yours. It renders on /calendar instead, which is the page
-// about what you did on which day and already plots the claims themselves. The
-// nav's claim control points there, so the card is still one click from
-// anywhere.
-var homeWidgetsExcluded = map[string]bool{"daily-reward": true}
+// Both entries are per-viewer cards — your streak, your claim — and the front
+// page is the site's, not yours:
+//
+//	daily-reward   -> /calendar, the page about what you did on which day,
+//	                  whose grid already plots the claims this card takes.
+//	rewards-claim  -> /rewards, a third tab on the points area beside Store
+//	                  and History, which is where points are spent and listed.
+//
+// Both destinations are linked from chrome — the nav's claim control and the
+// store's tab strip — so neither card is further away than it was.
+var homeWidgetsExcluded = map[string]bool{
+	dailyRewardWidget:  true,
+	rewardsClaimWidget: true,
+}
 
 func (w *web) homeWidgets(c *gin.Context) []widgetVM {
 	var out []widgetVM
@@ -244,6 +252,30 @@ func (w *web) homeWidgets(c *gin.Context) []widgetVM {
 		out = append(out, widgetVM{Title: v.Title, Fragment: frag})
 	}
 	return out
+}
+
+// Site widgets this host renders somewhere OTHER than the home page. Named
+// rather than spelled inline because each one is referred to from at least two
+// places — the exclusion below and the page that adopts it — and a typo in
+// either half is silent: the card simply appears in neither.
+const (
+	dailyRewardWidget  = "daily-reward"
+	rewardsClaimWidget = "rewards-claim"
+)
+
+// hasSiteWidget reports whether a slug is registered at all, without rendering
+// it. For deciding whether to OFFER a page — a nav entry or a tab — where
+// rendering the card just to count it would run the plugin's query for nothing.
+//
+// Registration only. Whether this viewer may see it, and whether it has
+// anything to say today, are questions for the render.
+func (w *web) hasSiteWidget(slug string) bool {
+	for _, v := range w.siteWidgets {
+		if v.Slug == slug {
+			return true
+		}
+	}
+	return false
 }
 
 // siteWidget renders ONE registered site widget by slug, for a host page that

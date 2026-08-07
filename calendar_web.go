@@ -231,7 +231,7 @@ func (w *web) calendarPage(c *gin.Context) {
 	// what you did on which day, and the grid below already plots the claims
 	// this card takes. Absent when the plugin is not wired, which is why the
 	// template guards on the key rather than assuming it.
-	if card, ok := w.siteWidget(c, "daily-reward"); ok {
+	if card, ok := w.siteWidget(c, dailyRewardWidget); ok {
 		data["DailyCard"] = card
 	}
 	w.render(c, "calendar.html", data)
