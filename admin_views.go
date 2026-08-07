@@ -223,19 +223,30 @@ type widgetVM struct {
 // A site widget is a card any host page may render; home showing every one of
 // them is a default, not a rule.
 //
-// Both entries are per-viewer cards — your streak, your claim — and the front
-// page is the site's, not yours:
+// Every entry is a card that has a PAGE of its own, which is the test: the
+// slot is for a card with nowhere better to be, and none of these is that.
 //
 //	daily-reward   -> /calendar, the page about what you did on which day,
 //	                  whose grid already plots the claims this card takes.
 //	rewards-claim  -> /rewards, a third tab on the points area beside Store
 //	                  and History, which is where points are spent and listed.
+//	stats          -> /p/stats, the widget's own "all stats" page, which the
+//	                  plugin registers and the site nav already links under
+//	                  Community. The card was a five-row preview of it.
 //
-// Both destinations are linked from chrome — the nav's claim control and the
-// store's tab strip — so neither card is further away than it was.
+// Every destination is linked from chrome — the nav's claim control, the
+// store's tab strip, the Community menu — so no card is further away than it
+// was, and none needed a new home built for it.
+//
+// This is currently ALL THREE registered site widgets, so home renders no
+// widget block today. The slot is kept rather than deleted because it is a
+// real extension point with a real purpose: a card that belongs on the front
+// page because it has no page of its own — an announcement, a notice. Nothing
+// registered has been that yet.
 var homeWidgetsExcluded = map[string]bool{
 	dailyRewardWidget:  true,
 	rewardsClaimWidget: true,
+	siteStatsWidget:    true,
 }
 
 func (w *web) homeWidgets(c *gin.Context) []widgetVM {
@@ -261,6 +272,7 @@ func (w *web) homeWidgets(c *gin.Context) []widgetVM {
 const (
 	dailyRewardWidget  = "daily-reward"
 	rewardsClaimWidget = "rewards-claim"
+	siteStatsWidget    = "stats"
 )
 
 // hasSiteWidget reports whether a slug is registered at all, without rendering
