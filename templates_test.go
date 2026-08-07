@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -1362,3 +1363,50 @@ func TestHomeBlockOrderMatchesTemplateArms(t *testing.T) {
 // delete form must reach for $.CSRFToken or every delete 403s — but that markup
 // belongs to the news plugin now. The equivalent guard has to live there,
 // against its own template set; this sweep cannot see it.
+
+// The daily-reward card is a plugin widget, and which PAGE renders it is a host
+// decision — it was on the home page, and it is on the calendar now. The nav's
+// claim control is a link to it, so those two facts have to agree.
+//
+// Asserted because the failure is silent in both directions: a link to a
+// missing anchor scrolls nowhere and still returns 200, and a card left on a
+// page nobody links to is simply never claimed. Neither shows up as an error.
+func TestDailyRewardClaimLinkMatchesTheCardsAnchor(t *testing.T) {
+	read := func(name string) string {
+		b, err := fs.ReadFile(siteFS, "web/templates/"+name)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		return string(b)
+	}
+	chrome, calendar, home := read("site_chrome.html"), read("calendar.html"), read("home.html")
+
+	// The href the claim control points at, whatever it is.
+	m := regexp.MustCompile(`href="([^"]*#daily-reward)"`).FindStringSubmatch(chrome)
+	if m == nil {
+		t.Fatal("site_chrome.html has no link to a #daily-reward anchor — the claim control lost its target")
+	}
+	href := m[1]
+	path, anchor, _ := strings.Cut(href, "#")
+
+	// The page it names must be the one carrying the anchor.
+	if path != "/calendar" {
+		t.Errorf("claim control points at %q; this test knows how to verify /calendar only — "+
+			"if the card moved, move this assertion with it", href)
+	}
+	if !strings.Contains(calendar, `id="`+anchor+`"`) {
+		t.Errorf("calendar.html has no id=%q, so %s scrolls nowhere", anchor, href)
+	}
+	// And it must render the card, not merely own the anchor.
+	if !strings.Contains(calendar, ".DailyCard") {
+		t.Error("calendar.html carries the anchor but never renders .DailyCard")
+	}
+	// Home must NOT still render it, or it is in two places and the exclusion
+	// in homeWidgets is dead code.
+	if strings.Contains(home, "daily-reward") {
+		t.Error("home.html still references daily-reward — the card is meant to have moved")
+	}
+	if !homeWidgetsExcluded["daily-reward"] {
+		t.Error("homeWidgets no longer excludes daily-reward, so home renders it again")
+	}
+}

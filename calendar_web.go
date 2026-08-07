@@ -221,11 +221,20 @@ func (w *web) calendarPage(c *gin.Context) {
 		return events[i].End.Sub(events[i].Start) > events[j].End.Sub(events[j].Start)
 	})
 
-	w.render(c, "calendar.html", map[string]any{
+	data := map[string]any{
 		"Title":     "Calendar",
 		"Calendar":  buildCalendar(year, month, now, events),
 		"ThisMonth": now.Format("2006-01"),
-	})
+	}
+	// The daily-reward card. It used to be the first thing on the home page,
+	// which is the site's front page rather than yours; this is the page about
+	// what you did on which day, and the grid below already plots the claims
+	// this card takes. Absent when the plugin is not wired, which is why the
+	// template guards on the key rather than assuming it.
+	if card, ok := w.siteWidget(c, "daily-reward"); ok {
+		data["DailyCard"] = card
+	}
+	w.render(c, "calendar.html", data)
 }
 
 // ── Sources ──────────────────────────────────────────────────────────────

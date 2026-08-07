@@ -219,10 +219,21 @@ type widgetVM struct {
 	Fragment template.HTML
 }
 
+// homeWidgetsExcluded are SlotSiteWidget cards the HOME page does not show.
+// A site widget is a card any host page may render; home showing every one of
+// them is a default, not a rule.
+//
+// daily-reward is per-viewer — your streak, your claim — and the front page is
+// the site's, not yours. It renders on /calendar instead, which is the page
+// about what you did on which day and already plots the claims themselves. The
+// nav's claim control points there, so the card is still one click from
+// anywhere.
+var homeWidgetsExcluded = map[string]bool{"daily-reward": true}
+
 func (w *web) homeWidgets(c *gin.Context) []widgetVM {
 	var out []widgetVM
 	for _, v := range w.siteWidgets {
-		if !w.canView(v, c) {
+		if homeWidgetsExcluded[v.Slug] || !w.canView(v, c) {
 			continue
 		}
 		frag, err := v.Render(c)
@@ -233,6 +244,32 @@ func (w *web) homeWidgets(c *gin.Context) []widgetVM {
 		out = append(out, widgetVM{Title: v.Title, Fragment: frag})
 	}
 	return out
+}
+
+// siteWidget renders ONE registered site widget by slug, for a host page that
+// wants a specific card rather than the whole set. Reports false when the slug
+// is not registered, the viewer may not see it, or it renders nothing — all
+// three are ordinary (the plugin may not be wired at all), so the caller drops
+// the card rather than showing an empty panel.
+func (w *web) siteWidget(c *gin.Context, slug string) (widgetVM, bool) {
+	for _, v := range w.siteWidgets {
+		if v.Slug != slug {
+			continue
+		}
+		if !w.canView(v, c) {
+			return widgetVM{}, false
+		}
+		frag, err := v.Render(c)
+		if err != nil {
+			w.log.Error("site widget", "slug", v.Slug, "err", err)
+			return widgetVM{}, false
+		}
+		if frag == "" {
+			return widgetVM{}, false
+		}
+		return widgetVM{Title: v.Title, Fragment: frag}, true
+	}
+	return widgetVM{}, false
 }
 
 // ── /admin/settings (aggregated sections) ───────────────────────────

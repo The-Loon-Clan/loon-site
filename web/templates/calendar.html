@@ -18,6 +18,24 @@
     <p class="text-muted small m-0 mt-1">Your claims and the releases you follow, by day.</p>
 </header>
 
+{{/* The daily-reward card, moved here off the home page — this is the page
+     about what you did on which day, and the grid below plots the very claims
+     this card takes. The id is the anchor the nav's claim control targets.
+
+     Guarded on the key rather than assumed: the card is a plugin widget, and a
+     host running without the dailyreward plugin has no card to draw. */}}
+{{with .DailyCard}}
+<section class="panelV2" id="daily-reward">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#star"></use></svg>
+            {{.Title}}
+        </h2>
+    </header>
+    <div class="panel__body">{{.Fragment}}</div>
+</section>
+{{end}}
+
 <section class="panelV2">
     <header class="panel__header">
         <h2 class="panel__heading">
