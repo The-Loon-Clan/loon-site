@@ -130,15 +130,59 @@ func TestSiteNavMergesHostGroups(t *testing.T) {
 		t.Error("a one-page group should not also keep its group node")
 	}
 
-	// Per-viewer pages go to the account menu, not the Other bucket, and a page
-	// the chrome already writes by hand is not duplicated into it.
-	if len(account) != 1 || account[0].Href != "/p/api-key" {
-		t.Errorf("account bucket = %+v, want just /p/api-key", account)
+	// A page the host places ITSELF (navPlacedByHost) appears in neither
+	// bucket: not as a top-level node, and not a second time at the tail of
+	// the account menu. /p/api-key is on the menu by name, inside the Settings
+	// group; /p/inbox is written into the chrome by hand with its unread count.
+	if len(account) != 0 {
+		t.Errorf("account bucket = %+v, want empty — every registered per-viewer page is placed by hand", account)
 	}
 	for _, n := range nodes {
 		if n.Href == "/p/api-key" || n.Href == "/p/inbox" {
-			t.Errorf("%s is an account page and must not be a top-level nav node", n.Href)
+			t.Errorf("%s is placed by the host and must not be a top-level nav node", n.Href)
 		}
+	}
+}
+
+// The account bucket is the fallback for a per-viewer plugin page the host has
+// NOT placed by hand. It is empty in production today, so the path is exercised
+// here with a page registered for the duration of this test — otherwise the
+// next plugin to need it would be the one to find out whether it still works.
+func TestSiteNavAccountBucketCatchesUnplacedPersonalPages(t *testing.T) {
+	accountPluginPages["/p/personal"] = true
+	t.Cleanup(func() { delete(accountPluginPages, "/p/personal") })
+
+	pub := core.View{Slug: "x", Public: true}
+	w := &web{siteNavEntries: []siteNavEntry{
+		{href: "/p/personal", label: "Personal", group: "", view: pub},
+		{href: "/p/loose", label: "Loose", group: "", view: pub},
+	}}
+	gin.SetMode(gin.TestMode)
+	w.auth = webauth.Auth{Session: session.Config{Secret: []byte("test-secret-test-secret-abc")}}
+	var nodes []navNode
+	var account []navItem
+	e := gin.New()
+	e.Use(w.auth.Session.Middleware())
+	e.GET("/", func(c *gin.Context) { nodes, _, account = w.siteNav(c) })
+	e.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil))
+
+	if len(account) != 1 || account[0].Href != "/p/personal" {
+		t.Errorf("account bucket = %+v, want just /p/personal", account)
+	}
+	for _, n := range nodes {
+		if n.Href == "/p/personal" {
+			t.Error("/p/personal reached the site nav as well as the account menu")
+		}
+	}
+	// The ordinary ungrouped page is unaffected — it is still a plain nav link.
+	var sawLoose bool
+	for _, n := range nodes {
+		if n.Href == "/p/loose" {
+			sawLoose = true
+		}
+	}
+	if !sawLoose {
+		t.Error("an ungrouped, non-personal page should still be a top-level nav link")
 	}
 }
 

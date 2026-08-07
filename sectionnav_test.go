@@ -22,6 +22,9 @@ func TestAccountMenuEntriesAreReachable(t *testing.T) {
 		"/p/account": true, "/settings/privacy": true, "/settings/notifications": true,
 		"/bookmarks": true, "/calendar": true, "/achievements": true,
 		"/p/topics": true, "/p/posts": true,
+		// Plugin pages named on the menu by hand rather than left to the
+		// generic tail — see navPlacedByHost (admin_views.go).
+		"/p/api-key": true, "/p/sign-ins": true,
 	}
 	// Walks GROUPS too. A group has no Href of its own, so checking only the
 	// top level would cover almost nothing — most of the menu is grouped.

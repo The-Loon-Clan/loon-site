@@ -93,9 +93,16 @@ func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup
 		if v.Nav.Menu == core.NavHidden {
 			continue
 		}
+		href, label, group := "/p/"+v.Slug, v.Title, v.Nav.Group
+		// A host override of the plugin's own placement. Applied HERE, before
+		// the sort, so a re-homed page is grouped and ordered like any other
+		// rather than being special-cased at render time.
+		if p, ok := navPlacement[href]; ok {
+			group, label = p.Group, p.Label
+		}
 		w.siteNavEntries = append(w.siteNavEntries, siteNavEntry{
-			href: "/p/" + v.Slug, label: v.Title,
-			group: v.Nav.Group, weight: v.Nav.Weight, view: v,
+			href: href, label: label,
+			group: group, weight: v.Nav.Weight, view: v,
 		})
 	}
 	sort.SliceStable(w.siteNavEntries, func(i, j int) bool {
@@ -137,27 +144,50 @@ var hostNavGroups = map[string]bool{
 	"Releases": true, "Community": true, "Support": true, "Other": true,
 }
 
-// accountPluginPages are the per-viewer PLUGIN pages — your API key, your
-// sign-ins, your purchases. An ungrouped plugin page at one of these belongs on
-// the account menu, not in the site nav's Other bucket where it sat next to
-// About and Sitemap.
+// navPlacedByHost are plugin pages the HOST puts somewhere specific itself, so
+// the generic nav must not bucket them a second time. Each says where it went:
 //
-// An explicit list. It used to be derived from the section table's Account
-// prefixes, which was free while that table also drove a section bar; with the
-// bar gone the table is the account menu itself, and deriving one from the
-// other would make a page appear on the menu twice. A plugin page is personal
-// because of what it SHOWS, which no path pattern was really answering anyway.
-var accountPluginPages = map[string]bool{
+//	/p/inbox     account menu, hand-written so it can carry its unread count
+//	/p/account   account menu, Settings group
+//	/p/api-key   account menu, Settings group — it configures your account, so
+//	             it belongs with the other things that do, not loose at the
+//	             bottom of the menu under them
+//	/p/sign-ins  account menu, Settings group — same argument; leaving this one
+//	             loose while its sibling moved would be arbitrary
+var navPlacedByHost = map[string]bool{
+	"/p/inbox":    true,
+	"/p/account":  true,
 	"/p/api-key":  true,
 	"/p/sign-ins": true,
-	"/p/store":    true,
 }
 
-// accountMenuBuiltins are account-menu rows the menu already carries by name
-// (accountMenu in sectionnav_web.go, or written into site_chrome.html) — with
-// their unread count and their own icon. The generic list must not add a
-// second, plainer copy.
-var accountMenuBuiltins = map[string]bool{"/p/inbox": true, "/p/account": true}
+// navPlacement re-homes and re-labels a plugin page whose own NavHint puts it
+// somewhere this site does not want it. The plugin still owns the page; the
+// host owns where it is advertised and what the menu calls it.
+//
+// /p/store is the POINTSTORE plugin, which sells cosmetic flair for points —
+// nothing to do with /store, the points store selling invites and ranks. It
+// registered ungrouped and titled "Store", so it landed in the account menu as
+// a row called Store, one menu away from a "Points store": two unrelated shops
+// under one word. It belongs in Community beside the other one, called what it
+// actually sells.
+//
+// Not made a tab in the points area, which was the other candidate: the view
+// registry mounts /p/<slug> in core and the host does not wrap those pages, so
+// the strip cannot be rendered on it. The tab would have led to a dead end.
+var navPlacement = map[string]struct{ Group, Label string }{
+	"/p/store": {Group: "Community", Label: "Flair"},
+}
+
+// accountPluginPages is the fallback for a per-viewer plugin page the host has
+// NOT placed by hand: it lands at the tail of the account menu rather than in
+// the site nav's Other bucket, next to About and Sitemap.
+//
+// Empty today, because every registered per-viewer page is placed above. It is
+// the entry the next one would need, and an empty map here is the difference
+// between "nothing needs this" and "a new personal page silently appears in a
+// site-info menu".
+var accountPluginPages = map[string]bool{}
 
 // siteNav builds the top nav for the current viewer from the pre-sorted
 // entries: ungrouped pages become plain links; a named group with 2+ visible
@@ -178,7 +208,7 @@ func (w *web) siteNav(c *gin.Context) ([]navNode, map[string][]navItem, []navIte
 		if e.group == "" {
 			switch {
 			case !e.view.AllowsUser(u):
-			case accountMenuBuiltins[e.href]:
+			case navPlacedByHost[e.href]:
 				// already on the account menu, written by hand
 			case accountPluginPages[e.href]:
 				account = append(account, navItem{Href: e.href, Label: e.label})
@@ -274,6 +304,19 @@ const (
 	rewardsClaimWidget = "rewards-claim"
 	siteStatsWidget    = "stats"
 )
+
+// hasSitePage reports whether a "/p/<slug>" page is registered, for deciding
+// whether to advertise it — a tab, a link. Registration only: whether THIS
+// viewer may open it is the page's own gate, and a tab a member cannot use is
+// a better failure than a feature nobody can find.
+func (w *web) hasSitePage(href string) bool {
+	for _, v := range w.sitePages {
+		if "/p/"+v.Slug == href {
+			return true
+		}
+	}
+	return false
+}
 
 // hasSiteWidget reports whether a slug is registered at all, without rendering
 // it. For deciding whether to OFFER a page — a nav entry or a tab — where

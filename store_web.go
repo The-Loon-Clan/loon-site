@@ -66,10 +66,14 @@ func wireStorePlugin(w *web) {
 const storeRewardsPath = "/rewards"
 
 // pointsAreaTabs is store.Deps.ExtraTabs: the tabs the HOST adds to the points
-// area. Only Rewards today.
+// area. Only Rewards, and only while the rewards plugin is wired — a host
+// without it gets the store's own two tabs and no dead link.
 //
-// Empty when the rewards plugin is not wired, so a host without it gets the
-// store's own two tabs and no dead link.
+// The pointstore plugin's flair shop is deliberately NOT a tab here. Its page
+// is served by the view registry at /p/<slug>, which core mounts and the host
+// does not wrap, so the host cannot put this strip on it: a Flair tab would
+// lead somewhere with no way back to Store or History. It is in the Community
+// menu instead, beside the other shop — see navPlacement (admin_views.go).
 func (w *web) pointsAreaTabs(c *gin.Context) []store.Tab {
 	if !w.hasSiteWidget(rewardsClaimWidget) {
 		return nil
