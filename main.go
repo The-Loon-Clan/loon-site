@@ -549,6 +549,13 @@ func main() {
 	if err := pluginapi.RegisterEvents(c, bus); err != nil {
 		logger.Error("register events capability", "err", err)
 	}
+	// Achievement metric counters (rewardsmetrics_web.go). BEFORE Boot is not a
+	// preference: the rewards plugin collects these during its own Provision by
+	// scanning the registry, so one registered afterwards is never seen and its
+	// achievements sit at zero forever with nothing logged.
+	if err := registerAchievementMetrics(c, db); err != nil {
+		logger.Error("register achievement metrics", "err", err)
+	}
 	// Scraper enrichment: persist entries + link covers via the catalog plugin
 	// (resolved lazily after Boot), fed release candidates from the usenet index.
 	scraper.SetDeps(scraper.Deps{
@@ -634,6 +641,11 @@ func main() {
 	// so, rather than 404ing a link the account nav always renders.
 	if v, ok := c.Lookup(rewards.AchievementsExtension); ok {
 		wsrv.achievements, _ = v.(rewards.AchievementsFunc)
+		// Seed the catalogue here rather than beside the other seeds up top:
+		// rewards.achievements is the PLUGIN's table, created by its own
+		// migration during Boot, so nothing could be inserted into it before
+		// this point. Guarded on the table being empty, so it runs once.
+		achievementsSeed(db, logger)
 	}
 
 	// Calendar sources. Registered AFTER the capability lookups above because
