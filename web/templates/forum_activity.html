@@ -1,0 +1,71 @@
+{{/* A member's own forum activity. Data: .Posts (bool — which of the two this
+     is), .Rows, .Capped, .Cap.
+
+     One template for both directions, matching the one handler: Topics and
+     Posts differ in which query ran and what a row's second line says. */}}
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumb--active">{{if .Posts}}Posts{{else}}Topics{{end}}</li>
+</ol>
+{{end}}
+
+{{define "content"}}
+<header>
+    <h1 class="h3 m-0">{{if .Posts}}Posts{{else}}Topics{{end}}</h1>
+    <p class="text-muted small m-0 mt-1">
+        {{if .Posts}}Your replies across the forum.{{else}}Threads you started.{{end}}
+    </p>
+</header>
+
+{{/* Both are always reachable from either — a posts list with no way to the
+     topics list is a dead end, same as the follow pages. */}}
+<nav aria-label="Forum activity">
+    <ul class="pill-row">
+        <li><a class="pill{{if not .Posts}} pill--active{{end}}" href="/p/topics"{{if not .Posts}} aria-current="page"{{end}}>Topics</a></li>
+        <li><a class="pill{{if .Posts}} pill--active{{end}}" href="/p/posts"{{if .Posts}} aria-current="page"{{end}}>Posts</a></li>
+    </ul>
+</nav>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#forums"></use></svg>
+            {{if .Posts}}Posts{{else}}Topics{{end}}
+        </h2>
+        {{if .Rows}}
+        <div class="panel__actions">
+            <span class="panel__grouping">{{len .Rows}}{{if .Capped}}+{{end}}</span>
+        </div>
+        {{end}}
+    </header>
+    <div class="panel__body">
+        {{if .Rows}}
+        <ul class="activity-list">
+            {{range .Rows}}
+            <li class="activity-row">
+                <a class="activity-row__title" href="/community/forums/threads/{{.ThreadID}}">{{.Title}}</a>
+                {{/* The excerpt is raw post source, so it goes through
+                     {{excerpt}} — which strips markup block-aware — and never
+                     through {{prose}}: a rendered paragraph inside a one-line
+                     summary slot is what made ticket replies run together. */}}
+                {{with .Excerpt}}<p class="activity-row__excerpt">{{excerpt 160 (prose .)}}</p>{{end}}
+                <p class="activity-row__meta">
+                    {{with .Category}}<span class="chip">{{.}}</span>{{end}}
+                    {{if not $.Posts}}<span>{{.Replies}} repl{{if eq .Replies 1}}y{{else}}ies{{end}}</span>{{end}}
+                    <span>{{.At}}</span>
+                </p>
+            </li>
+            {{end}}
+        </ul>
+        {{if .Capped}}
+        <p class="text-muted small m-0 mt-3">Showing the most recent {{.Cap}}.</p>
+        {{end}}
+        {{else}}
+        <div class="empty">
+            {{if .Posts}}You haven't posted a reply yet.{{else}}You haven't started a thread yet.{{end}}
+        </div>
+        {{end}}
+    </div>
+</section>
+{{end}}

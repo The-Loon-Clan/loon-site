@@ -159,27 +159,33 @@
              Do NOT quietly promote one of these to look real. Wire the seam,
              delete the mock, and strike the row in the register. */}}
 
-        <section class="panelV2" data-mock="1">
+        {{/* REAL as of Aug 2026 — M2 retired. The rewards plugin now answers
+             "where does this member stand" through rewards.achievements, so
+             this shows what they actually hold. Hidden entirely when the
+             plugin is absent: an empty panel on every profile is furniture. */}}
+        {{if .HasAchievements}}
+        <section class="panelV2">
             <header class="panel__header">
                 <h2 class="panel__heading">
                     <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#star"></use></svg>
                     Achievements
                 </h2>
-                <div class="panel__actions"><span class="tag tag--warning">MOCK</span></div>
+                <div class="panel__actions">
+                    <span class="panel__grouping">{{.Achievements.Unlocked}} of {{.Achievements.Total}}</span>
+                </div>
             </header>
             <div class="panel__body">
-                <p class="form__help">
-                    Placeholder — see <code>docs/MOCKS.md</code> M2. The
-                    <code>rewards</code> plugin owns this domain and is wired, but
-                    exposes no per-user read yet.
-                </p>
-                <div class="pill-row">
-                    <span class="pill">First post</span>
-                    <span class="pill">Week one</span>
-                    <span class="pill">Early member</span>
-                </div>
+                {{if .Achievements.Recent}}
+                <ul class="badge-grid">
+                    {{range .Achievements.Recent}}{{template "achievement-badge" .}}{{end}}
+                </ul>
+                {{if .IsSelf}}<p class="text-muted small m-0 mt-3"><a href="/achievements">See all achievements</a></p>{{end}}
+                {{else}}
+                <div class="empty">Nothing unlocked yet.</div>
+                {{end}}
             </div>
         </section>
+        {{end}}
 
         {{/* REAL as of Aug 2026 — no data-mock, no MOCK chip. Followers and
              Following read user_follow (M3); Last seen reads users.last_seen_at

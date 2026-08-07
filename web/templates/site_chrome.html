@@ -432,7 +432,26 @@
         <ul class="section-nav__items">
             {{if .SectionTitle}}<li class="section-nav__title">{{.SectionTitle}}</li>{{end}}
             {{range .SectionNav}}
+            {{if .Items}}
+            {{/* A GROUP: same <details> dropdown as the main nav, so there is
+                 one dropdown behaviour on the page and the JS that closes the
+                 others already covers it. */}}
+            <li>
+                <details class="dropdown">
+                    <summary class="section-nav__link{{if .Active}} section-nav__link--active{{end}}">
+                        {{.Label}}
+                        <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
+                    </summary>
+                    <div class="dropdown__menu">
+                        {{range .Items}}
+                        <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}</a>
+                        {{end}}
+                    </div>
+                </details>
+            </li>
+            {{else}}
             <li><a class="section-nav__link{{if .Active}} section-nav__link--active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}</a></li>
+            {{end}}
             {{end}}
         </ul>
     </nav>
@@ -645,6 +664,24 @@
         {{with .Meta2}}<span class="tile__meta">{{.}}</span>{{end}}
     </span>
 </a>
+{{end}}
+
+{{/* --------------------------------------------------- achievement-badge --
+     One earned or pending badge. Dot: Name, Icon, When, State.
+
+     A shared partial because Unlocked and Pending render the SAME tile and
+     differ only in the state modifier — the two panels drifting apart is
+     exactly what a second copy would buy. */}}
+{{define "achievement-badge"}}
+<li class="badge-tile badge-tile--{{.State}}" title="{{.Name}}{{with .When}} — {{.}}{{end}}">
+    <span class="badge-tile__icon">
+        <svg class="icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>
+    </span>
+    <span class="badge-tile__body">
+        <span class="badge-tile__name">{{.Name}}</span>
+        {{with .When}}<span class="badge-tile__when">{{.}}</span>{{end}}
+    </span>
+</li>
 {{end}}
 
 {{/* ------------------------------------------------------------ calendar --

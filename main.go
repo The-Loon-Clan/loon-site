@@ -63,7 +63,7 @@ import (
 	// (core.RegisterView), not gin templates, so they need no host templates and
 	// no SetDeps — a blank import is the whole wiring.
 	_ "github.com/the-loon-clan/loon-plugins/ranks"
-	_ "github.com/the-loon-clan/loon-plugins/rewards"
+	"github.com/the-loon-clan/loon-plugins/rewards"
 	"github.com/the-loon-clan/loon-plugins/scraper"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/anidb"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/theporndb"
@@ -300,6 +300,9 @@ func main() {
 		os.Exit(1)
 	}
 	followsDB = db
+	// Topics/Posts read forum_threads and forum_posts, which live in
+	// `public` and are the host's — no migration of its own to run.
+	forumActivityDB = db
 
 	points := pgPoints{db: db}
 	pointsSvc := core.NewPoints(points.adapter())
@@ -626,6 +629,13 @@ func main() {
 			wsrv.catalogCovers, _ = cat.(pluginapi.CatalogCovers)
 		}
 	}
+	// Rewards: the plugin owns what is earnable and who has earned it; the
+	// host owns the page that shows it. Absent extension = the page says
+	// so, rather than 404ing a link the account nav always renders.
+	if v, ok := c.Lookup(rewards.AchievementsExtension); ok {
+		wsrv.achievements, _ = v.(rewards.AchievementsFunc)
+	}
+
 	// Calendar sources. Registered AFTER the capability lookups above because
 	// each source closes over one of them; a source whose dependency is absent
 	// contributes nothing and the grid simply has fewer chips on it, which is

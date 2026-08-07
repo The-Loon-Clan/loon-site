@@ -21,13 +21,89 @@ func TestSectionNavTabsAreReachable(t *testing.T) {
 		"/sitemap": true, "/inbox": true, "/p/inbox": true, "/p/account": true,
 		"/p/api-key": true, "/p/sign-ins": true,
 		"/settings/privacy": true, "/settings/notifications": true, "/bookmarks": true,
-		"/calendar": true,
+		"/calendar": true, "/achievements": true, "/p/topics": true, "/p/posts": true,
 	}
-	for _, s := range sections {
-		for _, tab := range s.Tabs {
+	// Walks GROUPS too. A group has no Href of its own, so checking only the
+	// top level would silently stop covering the account area the moment it
+	// was grouped — which is exactly when it gained most of its entries.
+	var check func(title string, tabs []sectionTab)
+	check = func(title string, tabs []sectionTab) {
+		for _, tab := range tabs {
+			if len(tab.Items) > 0 {
+				if tab.Href != "" {
+					t.Errorf("section %q group %q has both an Href and children; "+
+						"the Href is ignored when rendered", title, tab.Label)
+				}
+				check(title, tab.Items)
+				continue
+			}
 			if !served[tab.Href] {
 				t.Errorf("section %q tab %q points at %s, which nothing serves",
-					s.Title, tab.Label, tab.Href)
+					title, tab.Label, tab.Href)
+			}
+		}
+	}
+	for _, s := range sections {
+		check(s.Title, s.Tabs)
+	}
+}
+
+// A page inside a collapsed group must light the group, or the bar stops
+// answering "where am I" the moment the account area got dropdowns.
+func TestSectionNavLightsTheGroupAPageIsIn(t *testing.T) {
+	for _, tc := range []struct{ path, group, item string }{
+		{"/achievements", "Activity", "Achievements"},
+		{"/p/topics", "Activity", "Topics"},
+		{"/inbox", "Messages", "Inbox"},
+		{"/settings/privacy", "Settings", "Privacy"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			var found bool
+			for _, tab := range sectionNav(tc.path) {
+				if tab.Label != tc.group {
+					if tab.Active {
+						t.Errorf("%s: group %q is lit as well", tc.path, tab.Label)
+					}
+					continue
+				}
+				found = true
+				if !tab.Active {
+					t.Errorf("%s: group %q is not lit", tc.path, tc.group)
+				}
+				var itemLit bool
+				for _, it := range tab.Items {
+					if it.Active {
+						itemLit = true
+						if it.Label != tc.item {
+							t.Errorf("%s: lit %q, want %q", tc.path, it.Label, tc.item)
+						}
+					}
+				}
+				if !itemLit {
+					t.Errorf("%s: no item lit inside %q", tc.path, tc.group)
+				}
+			}
+			if !found {
+				t.Fatalf("%s: no group %q in the account bar", tc.path, tc.group)
+			}
+		})
+	}
+}
+
+// The package-level `sections` is shared by every request. Marking a tab in
+// place would leave one reader's active page lit for everyone — a bug that
+// only shows under concurrency, so it is asserted directly instead.
+func TestSectionNavDoesNotMutateTheSharedTabs(t *testing.T) {
+	_ = sectionNav("/achievements")
+	for _, s := range sections {
+		for _, tab := range s.Tabs {
+			if tab.Active {
+				t.Errorf("section %q tab %q was marked active in the shared slice", s.Title, tab.Label)
+			}
+			for _, it := range tab.Items {
+				if it.Active {
+					t.Errorf("section %q item %q was marked active in the shared slice", s.Title, it.Label)
+				}
 			}
 		}
 	}
@@ -59,10 +135,24 @@ func TestSectionNavSelectsOneTab(t *testing.T) {
 			t.Errorf("%s: no section", tc.path)
 			continue
 		}
+		// The DESTINATION is what the reader is looking for, and once the
+		// account bar grouped its tabs that is a dropdown item rather than a
+		// top-level tab. Descend into a lit group and name its lit child, so
+		// this keeps asserting "exactly one page is marked current" instead
+		// of quietly starting to assert "exactly one group is open".
 		var active []string
 		for _, tab := range tabs {
-			if tab.Active {
+			if !tab.Active {
+				continue
+			}
+			if len(tab.Items) == 0 {
 				active = append(active, tab.Label)
+				continue
+			}
+			for _, it := range tab.Items {
+				if it.Active {
+					active = append(active, it.Label)
+				}
 			}
 		}
 		if len(active) != 1 {

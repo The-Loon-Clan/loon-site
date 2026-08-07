@@ -1983,3 +1983,96 @@ a.cal-ev:hover { background: var(--surface-3); }
     .cal-key .cal-ev__label { display: inline; }
     .cal-ev { justify-content: center; padding: 1px; }
 }
+
+/* ── achievement badges ─────────────────────────────────────────────────────
+   The tiles on /achievements and the profile card. Auto-fill rather than a
+   fixed column count: the same grid serves a wide panel and a narrow aside. */
+.badge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: var(--space-4);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.badge-tile {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    min-width: 0;
+    padding: var(--space-4);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+.badge-tile__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--radius-pill);
+    background: var(--surface-3);
+    color: var(--text-muted);
+}
+.badge-tile__icon .icon { width: 1rem; height: 1rem; }
+/* Unlocked earns the colour; pending is visibly provisional. Both also differ
+   by ICON, because a badge whose only distinguishing mark is a hue is one
+   nobody can distinguish. */
+.badge-tile--unlocked .badge-tile__icon { background: var(--success-soft); color: var(--success); }
+.badge-tile--pending  .badge-tile__icon { background: var(--warning-soft); color: var(--warning); }
+.badge-tile__body { display: flex; flex-direction: column; min-width: 0; }
+.badge-tile__name {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.badge-tile__when { font-size: var(--fs-2xs); color: var(--text-muted); }
+
+/* ── activity list ──────────────────────────────────────────────────────────
+   Topics and Posts. A real block per row, not the compact .list-row preview
+   idiom: a post excerpt squeezed into a one-line slot is what made ticket
+   replies run together. */
+.activity-list { list-style: none; margin: 0; padding: 0; }
+.activity-row {
+    padding: var(--space-5) 0;
+    border-bottom: 1px solid var(--border);
+}
+.activity-row:last-child { border-bottom: 0; }
+.activity-row:first-child { padding-top: 0; }
+.activity-row__title {
+    display: block;
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--link-fg);
+}
+.activity-row__title:hover { color: var(--link-hover-fg); }
+.activity-row__excerpt {
+    margin: var(--space-2) 0 0;
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+.activity-row__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
+    margin: var(--space-3) 0 0;
+    font-size: var(--fs-2xs);
+    color: var(--text-muted);
+}
+
+/* A grouped section-nav tab is a <details> like the main nav's, so it needs
+   the same positioning context its menu is absolutely placed against. */
+.section-nav .dropdown { position: relative; }
+.section-nav summary.section-nav__link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    list-style: none;
+}
+.section-nav summary.section-nav__link::-webkit-details-marker { display: none; }

@@ -33,6 +33,7 @@ import (
 
 	"github.com/the-loon-clan/loon-plugins/dailyreward"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
+	"github.com/the-loon-clan/loon-plugins/rewards"
 )
 
 //go:embed web/templates web/static
@@ -88,6 +89,11 @@ type web struct {
 	catalogSink   pluginapi.CatalogSink   // scraper write side (filled after Boot)
 	catalogCovers pluginapi.CatalogCovers // release↔cover store (filled after Boot)
 	rt            *core.Runtime           // plugin runtime, for the /admin/plugins page
+	// achievements answers where a member stands on every earnable badge.
+	// nil when the rewards plugin is absent, which renders the page's
+	// unavailable state rather than a 404 on a link the nav always shows.
+	achievements rewards.AchievementsFunc
+
 	// calSources contribute dated events to /calendar. A slice rather than a
 	// field per source: the page's whole point is that adding a kind of event
 	// does not touch the page.
@@ -114,6 +120,7 @@ type web struct {
 var pageTemplates = []string{
 	"home.html", "groups.html", "search.html", "browse.html", "release.html",
 	"trending.html", "bookmarks.html", "follows.html", "calendar.html",
+	"achievements.html", "forum_activity.html",
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
@@ -675,6 +682,12 @@ func (w *web) mount(e *gin.Engine) {
 	// Calendar (calendar_web.go) — the member's own dated things, so it is
 	// login-gated inside the handler like /bookmarks rather than by role.
 	e.GET("/calendar", w.calendarPage)
+	// Achievements (achievements_web.go) and the two forum-activity
+	// listings (forumactivity_web.go). All account-scoped, so each gates
+	// on the viewer inside the handler rather than on a role.
+	e.GET("/achievements", w.achievementsPage)
+	e.GET("/p/topics", w.forumActivityPage(false))
+	e.GET("/p/posts", w.forumActivityPage(true))
 	e.POST("/u/:name/follow", w.followToggle)
 	e.GET("/u/:name/followers", w.followPage(false))
 	e.GET("/u/:name/following", w.followPage(true))
@@ -784,6 +797,13 @@ func (w *web) profilePage(c *gin.Context) {
 	// leaves the tile an em dash instead of claiming nobody saved anything.
 	if n, ok := bookmarkCount(ctx, subject.ID); ok {
 		data["SubjectBookmarks"], data["HasSubjectBookmarks"] = n, true
+	}
+	// Achievements — MOCKS M2, retired. Public like the bookmark count: what
+	// someone has earned is a display, and UNIT3D shows it on the profile too.
+	// The "see all" link is self-only, because /achievements is the viewer's
+	// own page and includes what they have NOT earned.
+	if sum, ok := w.recentAchievements(c, subject.ID, profileAchievements); ok && sum.Total > 0 {
+		data["Achievements"], data["HasAchievements"] = sum, true
 	}
 	// Followers/following (M3) and last seen (M1) — the last two placeholders
 	// on this page. Has* on each, so an unreachable table leaves an em dash

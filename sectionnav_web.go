@@ -22,6 +22,15 @@ type sectionTab struct {
 	Label  string
 	Href   string
 	Active bool
+	// Items, when non-empty, makes this a GROUP rather than a destination: it
+	// renders as a dropdown and its own Href is ignored.
+	//
+	// The account area is why. UNIT3D's second bar is five dropdowns (Profile,
+	// Settings, Torrents, Activity, Bonus Points) over ~25 pages; ours was a
+	// flat row, which works at six entries and falls apart at fifteen — the
+	// bar either wraps or scrolls, and either way the thing you want is off
+	// the end. Grouping is what lets the area grow without the bar growing.
+	Items []sectionTab
 }
 
 // section is a named group of tabs plus the prefixes that select it.
@@ -38,18 +47,30 @@ type section struct {
 var sections = []section{
 	{
 		Title:    "Account",
-		Prefixes: []string{"/u/", "/p/account", "/p/api-key", "/p/sign-ins", "/p/inbox", "/p/store", "/p/stats", "/settings/", "/inbox", "/store/history", "/bookmarks", "/calendar"},
+		Prefixes: []string{"/u/", "/p/account", "/p/api-key", "/p/sign-ins", "/p/inbox", "/p/store", "/p/stats", "/p/topics", "/p/posts", "/settings/", "/inbox", "/store/history", "/bookmarks", "/calendar", "/achievements"},
 		Tabs: []sectionTab{
-			{Label: "Inbox", Href: "/inbox"},
-			{Label: "Notifications", Href: "/p/inbox"},
+			// Grouped the way the account area actually divides: things you
+			// have DONE, things sent TO you, and things you CONFIGURE. Points
+			// stays a plain tab — one destination has nothing to group.
+			{Label: "Messages", Items: []sectionTab{
+				{Label: "Inbox", Href: "/inbox"},
+				{Label: "Notifications", Href: "/p/inbox"},
+			}},
+			{Label: "Activity", Items: []sectionTab{
+				{Label: "Achievements", Href: "/achievements"},
+				{Label: "Topics", Href: "/p/topics"},
+				{Label: "Posts", Href: "/p/posts"},
+				{Label: "Bookmarks", Href: "/bookmarks"},
+				{Label: "Calendar", Href: "/calendar"},
+			}},
 			{Label: "Points", Href: "/store/history"},
-			{Label: "Bookmarks", Href: "/bookmarks"},
-			{Label: "Calendar", Href: "/calendar"},
-			{Label: "Account", Href: "/p/account"},
-			{Label: "Privacy", Href: "/settings/privacy"},
-			{Label: "Alerts", Href: "/settings/notifications"},
-			{Label: "API key", Href: "/p/api-key"},
-			{Label: "Sign-ins", Href: "/p/sign-ins"},
+			{Label: "Settings", Items: []sectionTab{
+				{Label: "Account", Href: "/p/account"},
+				{Label: "Privacy", Href: "/settings/privacy"},
+				{Label: "Alerts", Href: "/settings/notifications"},
+				{Label: "API key", Href: "/p/api-key"},
+				{Label: "Sign-ins", Href: "/p/sign-ins"},
+			}},
 		},
 	},
 	{
@@ -111,23 +132,51 @@ func sectionNav(path string) []sectionTab {
 		if !matchesSection(path, s.Prefixes) {
 			continue
 		}
-		out := make([]sectionTab, len(s.Tabs))
-		copy(out, s.Tabs)
-		// Longest matching href wins, so /store/history marks Points rather
-		// than also lighting Store — a shorter prefix must not steal a
-		// deeper page.
-		best, bestLen := -1, -1
-		for i, t := range out {
-			if (path == t.Href || strings.HasPrefix(path, t.Href+"/")) && len(t.Href) > bestLen {
-				best, bestLen = i, len(t.Href)
-			}
-		}
-		if best >= 0 {
-			out[best].Active = true
-		}
-		return out
+		return markActive(s.Tabs, path)
 	}
 	return nil
+}
+
+// markActive copies the tabs and lights the one the path is on.
+//
+// Longest matching href wins, so /store/history marks Points rather than also
+// lighting Store — a shorter prefix must not steal a deeper page. The search
+// runs across GROUP CHILDREN as well as top-level tabs, and a matched child
+// lights its parent too: a collapsed dropdown that gives no sign the current
+// page is inside it is a bar that has stopped answering "where am I".
+func markActive(tabs []sectionTab, path string) []sectionTab {
+	out := make([]sectionTab, len(tabs))
+	copy(out, tabs)
+
+	bestTab, bestItem, bestLen := -1, -1, -1
+	consider := func(href string, ti, ii int) {
+		if href == "" || len(href) <= bestLen {
+			return
+		}
+		if path == href || strings.HasPrefix(path, href+"/") {
+			bestTab, bestItem, bestLen = ti, ii, len(href)
+		}
+	}
+	for i, t := range out {
+		consider(t.Href, i, -1)
+		for j, it := range t.Items {
+			consider(it.Href, i, j)
+		}
+	}
+	if bestTab < 0 {
+		return out
+	}
+	out[bestTab].Active = true
+	if bestItem >= 0 {
+		// Copy the child slice before writing: the package-level `sections`
+		// is shared across every request, and marking in place would leave
+		// one reader's active tab lit for everyone else.
+		items := make([]sectionTab, len(out[bestTab].Items))
+		copy(items, out[bestTab].Items)
+		items[bestItem].Active = true
+		out[bestTab].Items = items
+	}
+	return out
 }
 
 // sectionTitle names the current section, for the bar's label.

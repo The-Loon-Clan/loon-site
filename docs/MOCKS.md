@@ -2,6 +2,12 @@
 
 Every place this demo shows data it does not really have.
 
+**The register is empty as of Aug 2026 — all four are retired.** No page in
+this site carries `data-mock` any more. The rules below still stand: they are
+what any FUTURE mock has to satisfy, and the retired entries are kept as the
+record of what each stub was replaced by rather than deleted, because "this
+used to be fake and here is the seam that fixed it" is the useful half.
+
 The site is a reference host for loon, and several UNIT3D parity pages exist
 before the plugin that would back them. Rather than leave those pages out (and
 lose the layout work) or fill them in silently (and lose the ability to tell
@@ -28,7 +34,7 @@ real behaviour for a site with no data yet, not fabrication.
 | # | Where | What is mocked | Replaced by |
 |---|---|---|---|
 | ~~M1~~ | ~~`/u/<name>` — Activity~~ | ~~Last seen~~ | **RETIRED** — `users.last_seen_at`, written from the session resolve |
-| M2 | `/u/<name>` — Achievements | The achievement list and progress | The `rewards` plugin (wired) once it exposes a per-user read; it currently only registers admin views |
+| ~~M2~~ | ~~`/u/<name>` — Achievements~~ | ~~The achievement list and progress~~ | **RETIRED** — `rewards.achievements`, plus a page at /achievements |
 | ~~M3~~ | ~~`/u/<name>` — Community~~ | ~~Follower / following~~ | **RETIRED** — `user_follow`, plus a Follow button |
 | ~~M4~~ | ~~`/u/<name>` — Collection~~ | ~~Bookmark count~~ | **RETIRED** — `release_bookmark` is real; see below |
 
@@ -47,7 +53,21 @@ NOT a "who is online" list: that needs a presence window and an opinion about
 what counts as online. This column answers the smaller question the profile
 actually asks.
 
-### M2 — Achievements
+### M2 — Achievements — RETIRED
+
+**Retired Aug 2026.** The data was always there — an achievement is a reward
+carrying a payout of `kind='achievement'`, and `reward_grants` already recorded
+who held what. What was missing was a way to ASK, so the host could not render
+it without reading the plugin's tables.
+
+`rewards.achievements` is that seam: one query returning every earnable badge
+with this member's standing on it. `/achievements` renders Unlocked and Pending
+with a Statistics aside; the profile card shows the most recent few.
+
+Grant state maps to page state, and EXPIRED is the case worth naming — the row
+still carries a date, so a naive mapping shows "locked, earned 1 Aug", which
+reads as a bug rather than as history. It drops the date with the badge.
+
 
 The `rewards` plugin IS wired and owns exactly this domain, but it registers
 admin views plus a `rewards-claim` member widget — no "achievements for user X"

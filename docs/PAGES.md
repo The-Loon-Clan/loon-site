@@ -28,6 +28,8 @@ Two rules explain most of the layout:
 | `/trending` | **`release_grab`** — see below |
 | `/bookmarks` | **`release_bookmark`** — see below |
 | `/calendar` | **event sources** — see below |
+| `/achievements` | `rewards.achievements` extension |
+| `/p/topics`, `/p/posts` | `forum_threads` / `forum_posts` (both in `public`) |
 | `/groups` | `UsenetIndex.Groups` |
 | `/u/:name` | users table + `SlotUserWidget` cards from plugins |
 | `/stats` | usenet + catalog + forum counts |

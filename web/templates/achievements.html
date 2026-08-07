@@ -1,0 +1,98 @@
+{{/* Achievements — UNIT3D's shape: Unlocked and Pending down the main column,
+     Statistics in the aside. Data from achievements_web.go.
+
+     Locked badges are counted, not listed — see the file comment there. */}}
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumb--active">Achievements</li>
+</ol>
+{{end}}
+
+{{define "content"}}
+<header>
+    <h1 class="h3 m-0">Achievements</h1>
+    <p class="text-muted small m-0 mt-1">What you have earned, and what is waiting to be claimed.</p>
+</header>
+
+{{if .Unavailable}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#info"></use></svg>Unavailable
+        </h2>
+    </header>
+    <div class="panel__body">
+        <div class="empty">Achievements need the rewards plugin, which is not running here.</div>
+    </div>
+</section>
+{{else}}
+
+{{/* aside second in the DOM: unlike the profile, the badges are the subject
+     here and the counts are a summary OF them, so they read second and stack
+     second on narrow screens. */}}
+<div class="sidebar2">
+    <div>
+        <section class="panelV2 achievements__unlocked">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#verified"></use></svg>
+                    Unlocked
+                </h2>
+                {{if .Unlocked}}<div class="panel__actions"><span class="panel__grouping">{{len .Unlocked}}</span></div>{{end}}
+            </header>
+            <div class="panel__body">
+                {{if .Unlocked}}
+                <ul class="badge-grid">
+                    {{range .Unlocked}}{{template "achievement-badge" .}}{{end}}
+                </ul>
+                {{else}}
+                <div class="empty">
+                    {{if .NoCatalogue}}No achievements have been configured yet.
+                    {{else}}Nothing unlocked yet — {{.CountLocked}} still to earn.{{end}}
+                </div>
+                {{end}}
+            </div>
+        </section>
+
+        {{/* Pending is hidden when empty rather than showing a second empty
+             state. It is a transient condition, not a section of the page. */}}
+        {{if .Pending}}
+        <section class="panelV2 achievements__pending">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#clock"></use></svg>
+                    Pending
+                </h2>
+                <div class="panel__actions"><span class="panel__grouping">{{len .Pending}}</span></div>
+            </header>
+            <div class="panel__body">
+                <ul class="badge-grid">
+                    {{range .Pending}}{{template "achievement-badge" .}}{{end}}
+                </ul>
+            </div>
+        </section>
+        {{end}}
+    </div>
+
+    <aside>
+        <section class="panelV2 achievement__statistics">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
+                    Statistics
+                </h2>
+            </header>
+            <div class="panel__body">
+                <dl class="key-value">
+                    <div class="key-value__group"><dt>Unlocked</dt><dd>{{.CountUnlocked}}</dd></div>
+                    <div class="key-value__group"><dt>Pending</dt><dd>{{.CountPending}}</dd></div>
+                    <div class="key-value__group"><dt>Locked</dt><dd>{{.CountLocked}}</dd></div>
+                    <div class="key-value__group"><dt>Total</dt><dd>{{.CountTotal}}</dd></div>
+                </dl>
+            </div>
+        </section>
+    </aside>
+</div>
+{{end}}
+{{end}}
