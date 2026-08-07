@@ -63,9 +63,13 @@ func TestEveryAccountPageIsOnTheMenu(t *testing.T) {
 			on[it.Href] = true
 		}
 	}
+	// /store/history is absent on purpose: it belongs to the points economy,
+	// which carries its own strip, and it is one click from every page via the
+	// top nav's points pill. Listing it here as well is what gave that page two
+	// tab rows.
 	for _, href := range []string{
 		"/inbox", "/p/inbox", "/achievements", "/p/topics", "/p/posts",
-		"/bookmarks", "/calendar", "/store/history",
+		"/bookmarks", "/calendar",
 		"/p/account", "/settings/privacy", "/settings/notifications",
 	} {
 		if !on[href] {
@@ -143,10 +147,6 @@ func TestAccountMenuSelectsOneEntry(t *testing.T) {
 		{"/calendar", "Calendar"},
 		{"/p/inbox", "Notifications"},
 		{"/inbox", "Inbox"},
-		// The case a naive prefix match gets wrong: /store/history is the
-		// viewer's own ledger. Nothing on this menu points at /store, so a
-		// shorter href must not be invented for it either.
-		{"/store/history", "Points"},
 	} {
 		// The DESTINATION is what the reader is looking for, and most of the
 		// menu is grouped — so descend into a lit group and name its lit child,
@@ -214,7 +214,7 @@ func TestAccountBarScope(t *testing.T) {
 	for _, p := range []string{
 		"/u/alice", "/achievements", "/calendar", "/bookmarks", "/inbox",
 		"/p/inbox", "/p/topics", "/p/posts", "/p/account", "/p/api-key",
-		"/settings/privacy", "/settings/notifications", "/store/history", "/rewards",
+		"/settings/privacy", "/settings/notifications",
 	} {
 		if accountBar(p) == nil {
 			t.Errorf("%s is in the account area but gets no bar", p)
@@ -226,6 +226,18 @@ func TestAccountBarScope(t *testing.T) {
 	} {
 		if tabs := accountBar(p); tabs != nil {
 			t.Errorf("%s got an account bar (%d entries) — that is the site-wide second bar again", p, len(tabs))
+		}
+	}
+}
+
+// The points pages carry the STORE's strip (Store | History | Rewards), which
+// its own templates render. They must not also be in the account area, or the
+// page gets two rows of tabs disagreeing about where the reader is — which is
+// exactly what happened when the account bar first went in.
+func TestPointsPagesGetOneStripNotTwo(t *testing.T) {
+	for _, p := range []string{"/store", "/store/history", "/rewards"} {
+		if tabs := accountBar(p); tabs != nil {
+			t.Errorf("%s gets the account bar AND the store strip — two tab rows on one page", p)
 		}
 	}
 }

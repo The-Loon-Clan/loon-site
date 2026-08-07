@@ -1,6 +1,27 @@
 package main
 
-// The account menu — the contents of the avatar dropdown in the top nav.
+// The account area — its bar, and what the avatar menu keeps.
+//
+// FOUR places can hold a per-viewer link, and each answers one question. The
+// rule is written down because without it things land wherever they were added,
+// which is how the API key ended up beside Log out and the points ledger ended
+// up with two tab strips arguing over it:
+//
+//	top nav      a LIVE FIGURE you want visible without clicking: the points
+//	             pill, the unread bell. Not a menu — a number.
+//	avatar menu  you, from ANY page, plus session controls. Deliberately short:
+//	             profile, notifications, theme, log out (and admin settings).
+//	account bar  the account AREA — the pages you move between while managing
+//	             your account. Only on those pages (accountAreaPrefixes).
+//	page strip   a sub-area with its own pages, rendered by whoever owns them:
+//	             the points economy is Store | History | Rewards.
+//
+// The points ledger is the case that decides the shape. It is per-viewer, so it
+// looks like an account page — but it belongs to the points economy, which has
+// its own strip, and it is already one click from anywhere via the pill in the
+// top nav. Listing it a third time on the account bar put two tab rows on one
+// page. So the account bar covers who you ARE and how you are CONFIGURED, and
+// the points economy is the store's.
 //
 // This file used to build a SECOND full-width bar under the main nav, the one
 // live UNIT3D sites carry (Profile · Settings · Torrents · Activity when you
@@ -53,7 +74,10 @@ var accountMenu = []sectionTab{
 		{Label: "Bookmarks", Href: "/bookmarks"},
 		{Label: "Calendar", Href: "/calendar"},
 	}},
-	{Label: "Points", Href: "/store/history"},
+	// No Points entry. The ledger lives in the points area with its own strip
+	// (Store | History | Rewards) and is already one click from every page via
+	// the top nav's points pill — a third listing here is what gave
+	// /store/history two tab rows.
 	{Label: "Settings", Items: []sectionTab{
 		{Label: "Account", Href: "/p/account"},
 		{Label: "Privacy", Href: "/settings/privacy"},
@@ -80,10 +104,13 @@ func accountNav(path string) []sectionTab {
 // say it is in the area. /u/ is here because the profile is the area's landing
 // page: the avatar menu points at it, and arriving there is what puts the rest
 // of the account within one click.
+// /store/history and /rewards are deliberately NOT here: they are the points
+// economy's, they carry its strip, and the account bar on top of that was the
+// second tab row.
 var accountAreaPrefixes = []string{
 	"/u/", "/inbox", "/p/inbox", "/p/account", "/p/api-key",
-	"/p/topics", "/p/posts", "/settings/", "/store/history",
-	"/bookmarks", "/calendar", "/achievements", "/rewards",
+	"/p/topics", "/p/posts", "/settings/",
+	"/bookmarks", "/calendar", "/achievements",
 }
 
 // inAccountArea reports whether the account bar belongs on a path.
