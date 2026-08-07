@@ -51,6 +51,9 @@ func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup
 		w.adminNav = append(w.adminNav, navItem{Href: "/admin/p/" + v.Slug, Label: v.Title})
 	}
 	w.adminNav = append(w.adminNav,
+		// Moderation is not an /admin route (it gates at RoleMod), but an
+		// admin looking for the queue looks here first.
+		navItem{Href: "/moderation/avatars", Label: "New avatars"},
 		navItem{Href: "/admin/jobs", Label: "Jobs"},
 		navItem{Href: "/admin/plugins", Label: "Plugins"})
 

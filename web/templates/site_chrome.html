@@ -288,6 +288,16 @@
                          of them exist depends on what is wired; the registry
                          answers that at runtime, and the bar cannot. */}}
                     {{template "nav-plugin-items" (dict "Items" .SiteNavAccount "Path" .Path)}}
+                    {{/* IsMod, not IsAdmin: /moderation gates at RoleMod, and a
+                         moderator never sees the admin subnav, so without this
+                         entry the queue they are responsible for has no door.
+                         Admins match IsMod too and get both. */}}
+                    {{if .IsMod}}
+                    <a class="dropdown__item{{if hasPrefix .Path "/moderation"}} active{{end}}" href="/moderation/avatars"{{if hasPrefix .Path "/moderation"}} aria-current="page"{{end}}>
+                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>New avatars
+                        {{if .PendingAvatars}}<span class="badge ms-auto">{{.PendingAvatars}}</span>{{end}}
+                    </a>
+                    {{end}}
                     {{if .IsAdmin}}
                     <a class="dropdown__item{{if eq .Path "/admin/settings"}} active{{end}}" href="/admin/settings"{{if eq .Path "/admin/settings"}} aria-current="page"{{end}}>
                         <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#settings"></use></svg>Site settings

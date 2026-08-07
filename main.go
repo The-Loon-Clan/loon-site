@@ -673,6 +673,10 @@ func main() {
 	// a host fills them in (see migrateUserDisplay). Replaced HERE, after every
 	// migration that adds those columns has run, and before Boot, so the first
 	// plugin query already sees the real view.
+	if err := avatarModMigrate(db); err != nil {
+		logger.Error("avatar moderation migrate", "err", err)
+		os.Exit(1)
+	}
 	if err := migrateUserDisplay(db); err != nil {
 		logger.Error("user_display migrate", "err", err)
 		os.Exit(1)
@@ -691,6 +695,16 @@ func main() {
 	// The demo renders its admin pages (plugins/jobs/usenet) in its own layout
 	// for a consistent look, using loon's data (rt.Plugins, schedule snapshots).
 	wsrv.rt = rt
+	// Moderation sits at RoleMod, NOT under /admin — that group is
+	// RoleAdmin-only, so a moderator could not reach a queue mounted there.
+	// The distinction is the point of having the role: reviewing an avatar is
+	// exactly the judgement a moderator is for, and needing an admin for it is
+	// how a queue goes unworked (see the reports plugin, whose oldest open
+	// item was 98 days).
+	moderation := engine.Group("/moderation", wsrv.auth.Require(core.RoleMod)...)
+	moderation.GET("/avatars", wsrv.avatarModPage)
+	moderation.POST("/avatars", wsrv.avatarModAction)
+
 	admin := engine.Group("/admin", wsrv.auth.Require(core.RoleAdmin)...)
 	// Access modes + the page map (accessadmin_web.go).
 	admin.GET("/access", wsrv.adminAccess)

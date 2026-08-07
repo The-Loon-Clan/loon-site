@@ -253,8 +253,12 @@ func setAvatar(ctx context.Context, db *sqlx.DB, userID int64, raw []byte) error
 		return fmt.Errorf("could not store that image")
 	}
 	old := readAvatarPath(ctx, db, userID)
+	// avatar_updated_at is what puts this member back in the review queue
+	// (avatarmod_web.go). Stamped in the SAME statement as the path, because a
+	// picture that changed without the timestamp moving is one no moderator is
+	// ever shown.
 	if _, err := db.ExecContext(ctx,
-		`UPDATE users SET avatar_path = $1 WHERE id = $2`, url, userID); err != nil {
+		`UPDATE users SET avatar_path = $1, avatar_updated_at = now() WHERE id = $2`, url, userID); err != nil {
 		// Undo the file we just wrote rather than leaving it orphaned.
 		_ = files.Remove(ctx, name)
 		return fmt.Errorf("could not save your avatar")
@@ -268,6 +272,8 @@ func setAvatar(ctx context.Context, db *sqlx.DB, userID int64, raw []byte) error
 // clearAvatar removes a member's avatar and the file behind it.
 func clearAvatar(ctx context.Context, db *sqlx.DB, userID int64) error {
 	old := readAvatarPath(ctx, db, userID)
+	// Clearing leaves avatar_updated_at alone: there is no picture to review,
+	// and the queue predicate already requires a non-empty avatar_path.
 	if _, err := db.ExecContext(ctx,
 		`UPDATE users SET avatar_path = '' WHERE id = $1`, userID); err != nil {
 		return fmt.Errorf("could not remove your avatar")

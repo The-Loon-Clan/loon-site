@@ -132,6 +132,9 @@ var pageTemplates = []string{
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
 	"admin_access.html",
+	// Moderation is not under /admin (it gates at RoleMod) but is the same
+	// kind of page — see avatarmod_web.go.
+	"moderation_avatars.html",
 	// Fixed host pages — UNIT3D's page/* and stats/index (pages_web.go).
 	"staff.html", "stats.html", "rules.html", "faq.html", "about.html",
 	"sitemap.html",
@@ -928,6 +931,16 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// The forum's moderation routes (pin/lock, category admin) gate at RoleMod
 	// — templates must show those buttons to the role that can use them.
 	data["IsMod"] = u != nil && u.AtLeast(core.RoleMod)
+	// The pending-avatar count on the account menu's moderation entry. Only
+	// read for staff — an unread badge is what makes a queue get worked, and
+	// the reports plugin's 98-day-old open item is what the absence of one
+	// looks like. Costs one indexed count per staff page view, nothing at all
+	// for everybody else.
+	if u != nil && u.AtLeast(core.RoleMod) {
+		if n := countPendingAvatars(c.Request.Context(), usersDB); n > 0 {
+			data["PendingAvatars"] = n
+		}
+	}
 	data["CSRFToken"] = csrfToken(c) // hidden _csrf field for every POST form
 	if u != nil {
 		// Viewer identity bits the user panel + top bar show. Both come off the

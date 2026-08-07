@@ -2149,3 +2149,42 @@ a.cal-ev:hover { background: var(--surface-3); }
 .avatar-setting { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: flex-start; }
 .avatar-setting__body { flex: 1 1 260px; min-width: 0; }
 .avatar-setting .form__actions { margin-top: var(--space-3); }
+
+/* Destructive actions.
+   .button--danger and .text-danger were already used across the site -- the
+   forum's Delete, communities' Remove, the admin Clear -- and neither was
+   defined in ANY stylesheet, so every one of them rendered identically to the
+   safe button beside it. A Delete that looks like Cancel is a misclick with a
+   receipt, and it is the reason a review queue needs the two apart at a
+   glance. */
+.text-danger { color: var(--danger); }
+.button--danger {
+    border: 1px solid var(--danger);
+    background: transparent;
+    color: var(--danger);
+}
+.button--danger:hover { background: var(--danger); color: var(--ink-on-image); }
+.button--danger:focus-visible { outline: 2px solid var(--danger); outline-offset: 2px; }
+
+/* New-avatar review queue (moderation_avatars.html). The image is the row, not
+   a thumbnail beside it: this page asks a moderator to look and decide, and a
+   30px preview makes them click through to do the only thing the page is for. */
+.avatar-queue { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-5); }
+.avatar-queue__item {
+    display: flex; gap: var(--space-5); align-items: flex-start;
+    padding-bottom: var(--space-5);
+    border-bottom: 1px solid var(--border);
+}
+.avatar-queue__item:last-child { border-bottom: 0; padding-bottom: 0; }
+.avatar-queue__image {
+    width: 128px; height: 128px; flex: none;
+    /* Square, not round. A circular crop hides the corners, which is where
+       somebody puts the part they are hoping nobody looks at. */
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    object-fit: cover;
+    background: var(--surface-2);
+}
+.avatar-queue__body { flex: 1 1 240px; min-width: 0; }
+.avatar-queue__name { font-weight: 700; }
+.avatar-queue__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); }

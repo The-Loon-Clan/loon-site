@@ -26,7 +26,7 @@ func TestAccountMenuEntriesAreReachable(t *testing.T) {
 		"/store/history": true, "/inbox": true, "/p/inbox": true,
 		"/p/account": true, "/settings/privacy": true, "/settings/notifications": true,
 		"/settings/profile": true,
-		"/bookmarks": true, "/calendar": true, "/achievements": true, "/subscriptions": true,
+		"/bookmarks":        true, "/calendar": true, "/achievements": true, "/subscriptions": true,
 		"/p/topics": true, "/p/posts": true,
 		// A plugin page named on the menu by hand rather than left to the
 		// generic tail — see navPlacedByHost (admin_views.go). /p/sign-ins is
@@ -295,6 +295,8 @@ func TestChromeLinksAreServed(t *testing.T) {
 		"/settings/privacy": true, "/settings/notifications": true, "/settings/profile": true,
 		"/login": true, "/logout": true, "/register": true, "/forgot": true,
 		"/admin/settings": true, "/verify/resend": true,
+		// Staff-only, and linked from the account menu for RoleMod.
+		"/moderation/avatars": true,
 		// The Newznab endpoint, linked bare from the footer as well as with a
 		// ?t=caps query.
 		"/api": true,

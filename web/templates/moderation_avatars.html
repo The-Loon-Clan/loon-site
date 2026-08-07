@@ -1,0 +1,88 @@
+{{/* New-avatar review queue (avatarmod_web.go). .Rows, .History, .Pending,
+     .Limit, .Done.
+
+     A GRID of pictures, not a table of filenames. The judgement this page asks
+     for is "look at it and decide", so the image has to be the row — a table
+     with a 30px thumbnail in the first column makes a moderator click through
+     to do the one thing the page exists for. */}}
+{{define "content"}}
+<header class="mb-3">
+    <h1 class="h3 m-0">New avatars</h1>
+    <p class="text-muted small m-0 mt-1">
+        Avatars go live when they are uploaded and appear here for review afterwards.
+        Approving records that someone looked; clearing removes the picture and leaves the account alone.
+    </p>
+</header>
+
+{{with .Done}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>{{if eq . "cleared"}}Avatar cleared.{{else}}Marked as reviewed.{{end}}</span>
+</div>
+{{end}}
+
+{{/* aria-current on the active tab, not colour alone — the site's own a11y
+     rule, and the reason the audit flagged eight nav strips. */}}
+<nav aria-label="Queue">
+    <ul class="section-tabs mb-3">
+        <li><a class="section-tabs__link{{if not .History}} section-tabs__link--active{{end}}"
+               href="/moderation/avatars"{{if not .History}} aria-current="page"{{end}}>
+            Pending{{if .Pending}} <span class="badge">{{.Pending}}</span>{{end}}
+        </a></li>
+        <li><a class="section-tabs__link{{if .History}} section-tabs__link--active{{end}}"
+               href="/moderation/avatars?reviewed=1"{{if .History}} aria-current="page"{{end}}>Reviewed</a></li>
+    </ul>
+</nav>
+
+<section class="panelV2">
+    <div class="panel__body">
+        {{if .Rows}}
+        <ul class="avatar-queue">
+            {{range .Rows}}
+            <li class="avatar-queue__item">
+                {{/* Deliberately NOT the "avatar" partial. Everywhere else an
+                     avatar is chrome beside a name; here it is the thing being
+                     judged, so it is shown large and unrounded — a circular
+                     crop hides the corners, which is where somebody hides the
+                     part they are hoping nobody looks at. */}}
+                <img class="avatar-queue__image" src="{{.Avatar}}" alt="Avatar uploaded by {{.Username}}"
+                     width="128" height="128" loading="lazy" decoding="async">
+                <div class="avatar-queue__body">
+                    <a class="avatar-queue__name" href="/u/{{.Username}}">{{.Username}}</a>
+                    <p class="text-muted small m-0">
+                        {{if .Uploaded}}Uploaded {{.Uploaded}}{{else}}Upload time not recorded{{end}}
+                        {{if .Reviewed}} · reviewed {{.Reviewed}}{{end}}
+                    </p>
+                    {{if not $.History}}
+                    <div class="avatar-queue__actions">
+                        <form method="post" action="/moderation/avatars">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <input type="hidden" name="action" value="approve">
+                            <button class="button button--outlined" type="submit">Approve</button>
+                        </form>
+                        <form method="post" action="/moderation/avatars">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <input type="hidden" name="action" value="clear">
+                            <button class="button button--danger" type="submit">Clear avatar</button>
+                        </form>
+                    </div>
+                    {{end}}
+                </div>
+            </li>
+            {{end}}
+        </ul>
+        {{if ge (len .Rows) .Limit}}
+        {{/* Said out loud rather than silently truncated: a capped list that
+             does not admit it reads as "that is all of them". */}}
+        <p class="text-muted small mt-3 mb-0">Showing the {{.Limit}} most recent. Work through these and the rest will appear.</p>
+        {{end}}
+        {{else}}
+        <p class="m-0 text-muted">
+            {{if .History}}Nothing has been reviewed yet.{{else}}Nothing waiting. Every uploaded avatar has been looked at.{{end}}
+        </p>
+        {{end}}
+    </div>
+</section>
+{{end}}
