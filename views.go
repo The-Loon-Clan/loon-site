@@ -1242,6 +1242,8 @@ func (w *web) browse(c *gin.Context) {
 			// Facets from the UNFILTERED set; ?cat= rides along on every facet
 			// link so filtering never drops the category you are browsing.
 			data["Facets"] = buildFacets(rows, f, "/browse", keepParams(c, "cat"))
+			// The table's headers ARE the sort control — see sortColumns.
+			data["SortCols"] = sortColumns(f, "/browse", keepParams(c, "cat"))
 			data["Results"] = f.apply(rows)
 			data["Filter"] = f
 			// Total is the category's real size from the index. The filtered
@@ -1301,6 +1303,7 @@ func (w *web) search(c *gin.Context) {
 			// Facets come from the UNFILTERED set so every value offered
 			// matches something; the results are what is left after applying.
 			data["Facets"] = buildFacets(rows, f, "/search", keepParams(c, "q"))
+			data["SortCols"] = sortColumns(f, "/search", keepParams(c, "q"))
 			data["Results"] = f.apply(rows)
 			data["Filter"] = f
 		}

@@ -72,3 +72,27 @@
     </td>
 </tr>
 {{end}}
+
+{{/* A sortable table header. Dot is a sortColumn (filters_web.go) plus the
+     classes the cell needs.
+
+     A column with no ordering renders as plain text rather than a link that
+     does nothing — the affordance has to mean something, or the next reader
+     stops trusting any of them.
+
+     aria-sort is what tells a screen reader the table is ordered and by which
+     column; the arrow only says it to people who can see it. */}}
+{{define "sort-th"}}
+{{- $c := .Col}}
+<th {{with .Class}}class="{{.}}"{{end}}{{if $c.Active}} aria-sort="{{if $c.Down}}descending{{else}}ascending{{end}}"{{end}}{{with .Title}} title="{{.}}"{{end}}>
+    {{- if $c.Sortable}}
+    <a class="data-table__sort{{if $c.Active}} data-table__sort--active{{end}}" href="{{$c.Href}}">
+        {{$c.Label}}
+        {{- if $c.Active}}
+        <svg class="icon data-table__sort-arrow" aria-hidden="true"><use href="#{{if $c.Down}}chevron-down{{else}}chevron-up{{end}}"></use></svg>
+        <span class="visually-hidden">, sorted {{if $c.Down}}descending{{else}}ascending{{end}}</span>
+        {{- end}}
+    </a>
+    {{- else}}{{$c.Label}}{{end}}
+</th>
+{{- end}}

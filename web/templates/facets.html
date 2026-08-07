@@ -30,7 +30,11 @@
         {{template "facet-row" (dict "Label" "Quality" "Facets" .Resolutions)}}
         {{template "facet-row" (dict "Label" "Source" "Facets" .Sources)}}
         {{template "facet-row" (dict "Label" "Newsgroup" "Facets" .Groups)}}
-        {{template "facet-row" (dict "Label" "Sort" "Facets" .Sorts "NoCount" true)}}
+        {{/* No Sort row. The table's own column headers are the sort control
+             now (listing.html "sort-th"), which is where a reader looks for it
+             and what every other table has trained them to click. A chip row
+             saying the same thing three inches above the headers is the same
+             duplicate-affordance problem the second nav bar had. */}}
     </div>
 </section>
 {{end}}

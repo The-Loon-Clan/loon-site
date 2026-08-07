@@ -246,3 +246,80 @@ func keepParams(c *gin.Context, names ...string) url.Values {
 // only a screenful and a narrow filter would find almost nothing. Bounded
 // anyway — this is a window, not the index.
 const listingLimit = 200
+
+// ── sortable column headers ────────────────────────────────────────────────
+//
+// The listing is sortable by exactly the things its columns show — Size by
+// largest/smallest, Added by newest/oldest, Grabs by most-grabbed, Release by
+// title. Until now that lived only in a "Sort" chip row above the table, so a
+// reader who wanted the biggest file first had to find a pill rather than click
+// the Size header, which is where every table on the internet has taught them
+// to click.
+//
+// ui-patterns calls this Sort By Column. Nothing new is computed: the six
+// orderings already existed and already worked from a bookmarked URL. What
+// changes is where the control is.
+
+// sortColumn is one table header that doubles as its column's sort control.
+type sortColumn struct {
+	Label    string
+	Href     string // where clicking goes next
+	Sortable bool   // false renders plain text — a dead control is worse than none
+	Active   bool
+	// Arrow shown when Active. Down means "largest/newest first", which is what
+	// each column's PRIMARY ordering is, so an unsorted column that gets clicked
+	// goes descending first — the answer people usually want from a listing.
+	Down bool
+}
+
+// sortColumns builds the header row for a filtered listing.
+//
+// Each column names its own orderings, most-useful first. Clicking an inactive
+// column applies that first ordering; clicking the active one flips to the
+// second where a column has two, and clears the sort where it does not — the
+// same control both ways, matching how the facet pills already behave.
+func sortColumns(f releaseFilter, base string, keep url.Values) map[string]sortColumn {
+	link := func(sort string) string {
+		v := url.Values{}
+		for k, vals := range keep {
+			for _, s := range vals {
+				v.Add(k, s)
+			}
+		}
+		for k, cur := range map[string]string{"res": f.Resolution, "source": f.Source, "group": f.Group} {
+			if cur != "" {
+				v.Set(k, cur)
+			}
+		}
+		if sort != "" {
+			v.Set("sort", sort)
+		}
+		if q := v.Encode(); q != "" {
+			return base + "?" + q
+		}
+		return base
+	}
+	col := func(label string, orderings ...string) sortColumn {
+		c := sortColumn{Label: label, Sortable: true}
+		for i, o := range orderings {
+			if f.Sort == o {
+				c.Active, c.Down = true, i == 0
+				// Next click: the other ordering if there is one, else off.
+				if i+1 < len(orderings) {
+					c.Href = link(orderings[i+1])
+				} else {
+					c.Href = link("")
+				}
+				return c
+			}
+		}
+		c.Href = link(orderings[0])
+		return c
+	}
+	return map[string]sortColumn{
+		"release": col("Release", "title"),
+		"size":    col("Size", "largest", "smallest"),
+		"grabs":   col("Grabs", "grabs"),
+		"added":   col("Added", "newest", "oldest"),
+	}
+}

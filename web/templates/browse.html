@@ -44,11 +44,11 @@
 <caption class="visually-hidden">Releases in this category</caption>
                 <thead>
                     <tr>
-                        <th>Release</th>
+                        {{template "sort-th" (dict "Col" $.SortCols.release)}}
                         <th class="data-table__nowrap">Category</th>
-                        <th class="data-table__num">Size</th>
-                        <th class="data-table__num" title="NZB downloads">Grabs</th>
-                        <th class="data-table__nowrap">Added</th>
+                        {{template "sort-th" (dict "Col" $.SortCols.size "Class" "data-table__num")}}
+                        {{template "sort-th" (dict "Col" $.SortCols.grabs "Class" "data-table__num" "Title" "NZB downloads")}}
+                        {{template "sort-th" (dict "Col" $.SortCols.added "Class" "data-table__nowrap")}}
                         <th class="data-table__shrink"><span class="visually-hidden">Download</span></th>
                     </tr>
                 </thead>
