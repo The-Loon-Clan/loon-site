@@ -47,7 +47,7 @@ type section struct {
 var sections = []section{
 	{
 		Title:    "Account",
-		Prefixes: []string{"/u/", "/p/account", "/p/api-key", "/p/sign-ins", "/p/inbox", "/p/store", "/p/stats", "/p/topics", "/p/posts", "/settings/", "/inbox", "/store/history", "/bookmarks", "/calendar", "/achievements"},
+		Prefixes: []string{"/u/", "/p/account", "/p/api-key", "/p/sign-ins", "/p/inbox", "/p/store", "/p/topics", "/p/posts", "/settings/", "/inbox", "/store/history", "/bookmarks", "/calendar", "/achievements"},
 		Tabs: []sectionTab{
 			// Grouped the way the account area actually divides: things you
 			// have DONE, things sent TO you, and things you CONFIGURE. Points
@@ -106,8 +106,14 @@ var sections = []section{
 		},
 	},
 	{
-		Title:    "Site",
-		Prefixes: []string{"/stats", "/about", "/sitemap"},
+		Title: "Site",
+		// /p/stats is the stats PLUGIN's site page, and it was listed under
+		// Account — so a public figures page rendered the account bar
+		// (Messages / Activity / Points / Settings) over it. It is site
+		// information, the same as the host's own /stats, and belongs here.
+		// The two pages overlap and want consolidating; until they are, the
+		// shared bar at least makes the pair visible from either one.
+		Prefixes: []string{"/stats", "/p/stats", "/about", "/sitemap"},
 		Tabs: []sectionTab{
 			{Label: "Stats", Href: "/stats"},
 			{Label: "About", Href: "/about"},
