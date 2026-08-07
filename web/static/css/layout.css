@@ -577,11 +577,15 @@ main > article {
     display: flex;
     align-items: center;
     list-style: none;
-    /* One step up from the --fs-2xs this started at. 12px is the size the
+    /* Two steps up from the --fs-2xs this started at. 12px is the size the
        stat-strip LABELS use, and those are shouty uppercase captions next to a
-       number; a breadcrumb is a sentence you read, and at 12px it was the
-       smallest readable text on the page for no reason. */
-    font-size: var(--fs-sm);
+       number; a breadcrumb is a sentence you read.
+
+       --fs-md (14.4px) because UNIT3D sets both halves of this row — its
+       breadcrumbsV2 and its nav-tabsV2 — to a flat 14px, and this is the
+       nearest step on our scale. It is also what the main nav above uses, so
+       the header's two text rows are now one size instead of two. */
+    font-size: var(--fs-md);
     overflow-x: hidden;
     max-width: 100%;
 }
@@ -698,7 +702,9 @@ main > article {
     border-bottom: 2px solid transparent;
     background: none;
     color: var(--muted);
-    font-size: var(--fs-sm);
+    /* Same size as the breadcrumb beside it: they share a row, and UNIT3D sets
+       both to one value for the same reason. */
+    font-size: var(--fs-md);
     text-decoration: none;
     white-space: nowrap;
     cursor: pointer;
