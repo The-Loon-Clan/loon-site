@@ -64,7 +64,7 @@ Not covered, and worth knowing:
 
 ---
 
-## 2. The rar-split root cause was never found
+## 2. The rar-split root cause — FOUND
 
 New splits stopped after the par fix (`6914cc5`, `de55b40`) and the 419
 historical rows were deleted, so nothing is currently wrong. But the mechanism
@@ -81,6 +81,34 @@ single-file form `fileNum` is always 0 — so 42 volumes numbering their segment
 
 **Why it still matters:** if it recurs there is nothing to start from but this
 paragraph. The evidence is still in the staging tables today.
+
+**Found**, and it is the collision `parseSubject` already documents, reached by
+a second route. Confirmed by test, not inferred —
+`loon-plugins/usenet/subject_rarsplit_test.go` (`ae87468`).
+
+A multi-volume post with no `[i/j]` file counter shares ONE base subject across
+every volume — correctly, because the volume number belongs to the filename and
+not to the release — and with no file counter `fileNum` stays 0 for all of them.
+So `formatFieldKey(0, 81)` is `"0:81"` for volume 1 and for volume 42 alike:
+42 volumes numbering 1..137 compete for 137 fields, each overwriting the last,
+and what survives per key is a single segment claiming a whole volume's size.
+That is exactly the shape the junk rows had.
+
+Two corrections to the note above:
+
+* The staging tables are **empty now** — the evidence it counted on is gone.
+  That is why it is pinned as a test instead.
+* **The par fix did not repair this.** It changed which subjects are split
+  apart, not which ones collide; a `.partNN.par2` volume still parses to the
+  same base and the same `fileNum` 0 as its `.rar` siblings. New splits stopping
+  is consistent with the trigger going away, not the mechanism being fixed — so
+  a recurrence is possible and would look identical.
+
+**Not fixed, deliberately.** A fix means teaching `parseSubject` to read
+`.partNNN` as a file counter, which changes staging for every multi-volume post
+on a live indexer, and nothing is currently wrong. The tests pin the two facts
+such a fix must change — shared base, colliding key — and fail loudly with an
+instruction when it does.
 
 ---
 
