@@ -81,6 +81,13 @@
    the padding lives on the card; cards that DO bring their own sections give it
    up, otherwise the content is padded twice. */
 .card {
+    /* Bootstrap's own .card is a flex COLUMN with .card-body growing to fill
+       it. This subset made it a plain block, so `h-100` stretched the card but
+       the body still sized to its content — and the `mt-auto` the store puts on
+       its buy form had nothing to push against, leaving the buttons of a card
+       with a description and one without at different heights. */
+    display: flex;
+    flex-direction: column;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -98,7 +105,7 @@
     font-weight: 600;
     font-size: .95rem;
 }
-.card-body { padding: 1rem 1.25rem; }
+.card-body { padding: 1rem 1.25rem; flex: 1 1 auto; }
 .card-title { font-size: 1rem; font-weight: 600; }
 
 /* -------------------------------------------------------------- tables ---- */
@@ -352,6 +359,14 @@ details.job-group[open] > summary::before { transform: rotate(90deg); }
 .justify-content-end { justify-content: flex-end; }
 .gap-1 { gap: .25rem; } .gap-2 { gap: .5rem; } .gap-3 { gap: 1rem; }
 .w-100 { width: 100%; }
+/* h-100 + mt-auto are Bootstrap's equal-height-card idiom, and the store's
+   markup already uses both: `card h-100` inside a grid column, with
+   `card-body d-flex flex-column` and the buy button on `mt-auto`. Neither
+   existed in this subset, so a card with a description grew taller than one
+   without and the buttons sat at different heights. The markup was right the
+   whole time; these two rules are what it was written against. */
+.h-100 { height: 100%; }
+.mt-auto { margin-top: auto; }
 
 /* Bootstrap's 12-column grid, flex flavour. The plugin admin pages were written
    against it; without these the columns stack and the settings pages sprawl. */
