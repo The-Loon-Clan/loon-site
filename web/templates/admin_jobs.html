@@ -29,7 +29,7 @@
              the whole render at the first control form ("can't evaluate field
              CSRFToken in type []main.jobRow" — /admin/jobs used to stop dead
              there). The token has to be carried in explicitly. */}}
-        {{if .Override}}{{.Override}}{{else}}{{template "jobtable" dict "Jobs" .Jobs "CSRFToken" $.CSRFToken}}{{end}}
+        {{if .Override}}{{.Override}}{{else}}{{template "jobtable" dict "Jobs" .Jobs "CSRFToken" $.CSRFToken "Group" .Name}}{{end}}
     </div>
 </details>
 {{end}}
@@ -49,6 +49,12 @@
 {{define "jobtable"}}
 <div class="table-responsive">
     <table class="table table-dark table-striped table-sm align-middle">
+        {{/* Named per GROUP, not "Jobs". This define renders once per job group
+             and there are nine of them, so a shared name would announce nine
+             tables identically and leave a screen-reader user counting to work
+             out which one they are in. visually-hidden because the group name
+             is already on the <summary> above for anyone who can see it. */}}
+        <caption class="visually-hidden">{{with .Group}}{{.}} jobs{{else}}Jobs{{end}}</caption>
         <thead>
             <tr>
                 <th>Name</th><th>Status</th><th>Last run</th><th>Next run</th>
