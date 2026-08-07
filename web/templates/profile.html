@@ -59,6 +59,14 @@
                          member has to hunt for is one they give up on. Only when
                          there IS a picture, and only for a signed-in stranger —
                          you cannot report your own. */}}
+                    {{/* Gifting starts from the person, not from a form: you
+                         decide to send points while looking at somebody, so
+                         the link carries their name into the page. */}}
+                    {{if and .User (not .IsSelf)}}
+                    <a class="button button--outlined button--sm mt-2" href="/gifts?to={{.Subject.Username}}">
+                        <svg class="icon" aria-hidden="true"><use href="#coin"></use></svg>Gift points
+                    </a>
+                    {{end}}
                     {{if and .SubjectAvatar .User (not .IsSelf)}}
                     <details class="avatar-report">
                         <summary class="button button--text button--sm">Report avatar</summary>

@@ -72,6 +72,7 @@ var accountMenu = []sectionTab{
 		{Label: "Topics", Href: "/p/topics"},
 		{Label: "Posts", Href: "/p/posts"},
 		{Label: "Bookmarks", Href: "/bookmarks"},
+		{Label: "Gifts", Href: "/gifts"},
 		{Label: "Subscriptions", Href: "/subscriptions"},
 		{Label: "Calendar", Href: "/calendar"},
 	}},
@@ -112,7 +113,7 @@ func accountNav(path string) []sectionTab {
 var accountAreaPrefixes = []string{
 	"/u/", "/inbox", "/p/inbox", "/p/account", "/p/api-key",
 	"/p/topics", "/p/posts", "/settings/",
-	"/bookmarks", "/calendar", "/achievements", "/subscriptions",
+	"/bookmarks", "/calendar", "/achievements", "/subscriptions", "/gifts",
 }
 
 // inAccountArea reports whether the account bar belongs on a path.

@@ -1,0 +1,106 @@
+{{/* Gifts — points moving between members (gifts_web.go). .Balance, .Gifts,
+     .Max, .NoteMax, .To, .Sent, .Err.
+
+     One page for both directions rather than a Sent tab and a Received tab:
+     they are the same event seen from two ends, and splitting them means
+     reading two lists to answer "what happened with bob". */}}
+{{define "content"}}
+<header class="mb-3">
+    <h1 class="h3 m-0">Gifts</h1>
+    <p class="text-muted small m-0 mt-1">
+        Send points to another member. They arrive as ordinary points &mdash; there is no
+        separate gifted balance, so what you send spends like anything else.
+    </p>
+</header>
+
+{{with .Err}}
+<div class="notice notice--danger">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg><span>{{.}}</span>
+</div>
+{{end}}
+{{with .Sent}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Sent to <a href="/u/{{.}}">{{.}}</a>.</span>
+</div>
+{{end}}
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#coin"></use></svg>
+            Send points
+        </h2>
+        {{/* The balance belongs beside the form, not on another page: it is the
+             one number that decides what you can type into it. */}}
+        <div class="panel__actions"><span class="panel__action">You have {{.Balance}}</span></div>
+    </header>
+    <div class="panel__body">
+        <form class="form" method="post" action="/gifts">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__group form__group--inline">
+                <div>
+                    <label class="form__label" for="gift-to">To</label>
+                    <input class="form__input" id="gift-to" type="text" name="to" value="{{.To}}"
+                           required autocomplete="off" spellcheck="false" placeholder="username">
+                </div>
+                <div>
+                    <label class="form__label" for="gift-amount">Points</label>
+                    <input class="form__input" id="gift-amount" type="number" name="amount"
+                           min="1" max="{{.Max}}" step="1" required
+                           aria-describedby="gift-amount-help">
+                </div>
+            </div>
+            <p class="form__help mt-1 mb-0" id="gift-amount-help">
+                Up to {{.Max}} at a time. You cannot send more than you have, and you cannot send to yourself.
+            </p>
+            <div class="form__group mt-3">
+                <label class="form__label" for="gift-note">Message <span class="text-muted">(optional)</span></label>
+                <input class="form__input" id="gift-note" type="text" name="note" maxlength="{{.NoteMax}}"
+                       placeholder="What is it for?">
+            </div>
+            <div class="form__actions mt-3">
+                <button class="button button--primary" type="submit">Send</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="panelV2 mt-4">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#clock"></use></svg>
+            History
+        </h2>
+    </header>
+    <div class="panel__body">
+        {{if .Gifts}}
+        <table class="data-table">
+            <caption class="visually-hidden">Points you have sent and received</caption>
+            <thead>
+                <tr><th scope="col">Member</th><th scope="col" class="num">Points</th>
+                    <th scope="col">Message</th><th scope="col">When</th></tr>
+            </thead>
+            <tbody>
+                {{range .Gifts}}
+                <tr>
+                    <td>
+                        {{/* The direction is a word, not a colour or an arrow
+                             glyph: "to bob" and "from bob" are the whole
+                             difference between these two rows. */}}
+                        <span class="text-muted">{{if .Sent}}to{{else}}from{{end}}</span>
+                        <a href="/u/{{.Other}}">{{.Other}}</a>
+                    </td>
+                    <td class="num {{if .Sent}}text-danger{{end}}">{{if .Sent}}&minus;{{else}}+{{end}}{{.Amount}}</td>
+                    <td>{{with .Note}}{{.}}{{else}}<span class="text-muted">&mdash;</span>{{end}}</td>
+                    <td>{{.When}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        <p class="m-0 text-muted">Nothing yet. Points you send or receive show up here, both directions.</p>
+        {{end}}
+    </div>
+</section>
+{{end}}

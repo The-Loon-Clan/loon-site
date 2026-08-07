@@ -678,6 +678,11 @@ func main() {
 		os.Exit(1)
 	}
 	communityModDB = db
+	giftsDB = db
+	if err := giftsMigrate(db); err != nil {
+		logger.Error("gifts migrate", "err", err)
+		os.Exit(1)
+	}
 	undoDB = db
 	if err := undoMigrate(db); err != nil {
 		logger.Error("undo migrate", "err", err)
