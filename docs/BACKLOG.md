@@ -222,7 +222,7 @@ Two schema facts the first attempt got wrong, both worth keeping:
 
 ---
 
-## 6. Workflow: the shared working tree
+## 6. Workflow: the shared working tree — WRITTEN UP, decision open
 
 Three outages in one day, all the same shape — a change needing both `loon/core`
 and a plugin, with one half committed and the other sitting uncommitted in a
@@ -232,6 +232,19 @@ other agent's recovery and the site stopped compiling.
 `deploy.sh` now catches the symptom, and committing promptly helps. Separate
 worktrees per agent would remove the cause. This is a workflow call, not a code
 one.
+
+**Written up in `docs/SHARED-TREE.md`** with the three options and their costs.
+One thing was code and is done: `deploy.sh` now names the CAUSE as well as the
+symptom, listing any uncommitted files in the three shared checkouts before each
+successful deploy — because the build reads working trees, not commits, so those
+files are exactly what just went into the image. Advisory, never blocking.
+
+It caught a real case on its first run: `loon-plugins` had two untracked paths
+from the other agent, both baked into that image.
+
+The decision itself is open and is the user's. The recommendation is a worktree
+per agent for `loon` and `loon-plugins` only — `loon-baseline` has never been
+the site of an incident.
 
 ---
 

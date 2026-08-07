@@ -29,6 +29,40 @@ set -uo pipefail
 # of them individually once its findings are at zero -- but a deploy that fails
 # because a plugin template is missing a table caption is a deploy people learn
 # to work around.
+# The build reads loon, loon-plugins and loon-baseline as sibling checkouts
+# (docker-compose additional_contexts), so an image is built from the WORKING
+# TREE of each -- committed or not. That is the shape of every shared-tree
+# outage recorded in docs/BACKLOG.md #6: a change needing two repos, one half
+# committed and the other sitting uncommitted in a tree two agents share, and
+# then one of them recovers and the uncommitted half is gone.
+#
+# This does not stop the deploy. Uncommitted work is normal while developing,
+# and the value is knowing WHICH uncommitted files went into the image you are
+# about to run -- so "it worked on my deploy" has an explanation, and so a
+# recovery in the other tree is recognisably what broke it.
+check_siblings() {
+    command -v git >/dev/null 2>&1 || return 0
+    local any=0
+    for repo in ../loon ../loon-plugins ../loon-baseline; do
+        [[ -d "$repo/.git" ]] || continue
+        local dirty
+        dirty="$(git -C "$repo" status --porcelain 2>/dev/null)"
+        [[ -n "$dirty" ]] || continue
+        if [[ $any -eq 0 ]]; then
+            echo
+            echo "  shared checkouts with uncommitted work (baked into this image):"
+            any=1
+        fi
+        echo "     ${repo#../}"
+        echo "$dirty" | head -5 | sed 's/^/        /'
+        local n
+        n="$(echo "$dirty" | wc -l | tr -d ' ')"
+        [[ "$n" -gt 5 ]] && echo "        ... and $((n - 5)) more"
+    done
+    [[ $any -eq 1 ]] && echo "     ^ commit these where they belong, or a recovery in that tree loses them." >&2
+    return 0
+}
+
 run_audits() {
     command -v python >/dev/null 2>&1 || return 0
     echo
@@ -93,6 +127,7 @@ for ((i = 1; i <= DEADLINE; i++)); do
             echo
             echo "     ^ the site is up, but it logged the above during boot." >&2
         fi
+        check_siblings
         run_audits
         say "Deployed."
         exit 0
