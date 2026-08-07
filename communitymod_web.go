@@ -16,8 +16,14 @@ import (
 	"github.com/the-loon-clan/loon/core"
 )
 
-// Community moderation — the queue the membership votes on, as distinct from
+// Community moderation — the queue reported things land in, as distinct from
 // the staff queue in avatarmod_web.go.
+//
+// ADMIN-ONLY for now (see the routes in main.go). The voting below is built and
+// wired, and the gate is the only thing standing between this and a
+// community-driven queue: admin-curated first, community-driven second, same
+// table, same tallies, same resolution path. Reporting is open to every member
+// throughout, because a curated queue nobody can file into is an empty one.
 //
 // Two different questions, deliberately kept apart. "Has a moderator looked at
 // this?" is a staff workflow and belongs to staff. "Does this community want

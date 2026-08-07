@@ -292,9 +292,10 @@
                          moderator never sees the admin subnav, so without this
                          entry the queue they are responsible for has no door.
                          Admins match IsMod too and get both. */}}
-                    {{/* Community moderation is for every member, not staff —
-                         the whole point is that the membership decides. */}}
-                    {{if .User}}
+                    {{/* Admin-only for now. The voting is built and the gate is
+                         one line in main.go, so this becomes {{if .User}} on
+                         the day the queue goes community-driven. */}}
+                    {{if .IsAdmin}}
                     <a class="dropdown__item{{if eq .Path "/moderation"}} active{{end}}" href="/moderation"{{if eq .Path "/moderation"}} aria-current="page"{{end}}>
                         <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#users"></use></svg>Community moderation
                     </a>

@@ -706,18 +706,27 @@ func main() {
 	// exactly the judgement a moderator is for, and needing an admin for it is
 	// how a queue goes unworked (see the reports plugin, whose oldest open
 	// item was 98 days).
-	// Two queues at one prefix, gated differently on purpose.
+	// Two queues at one prefix, gated separately.
 	//
-	//   /moderation          any member — the community votes (communitymod_web.go)
-	//   /moderation/avatars  RoleMod    — has staff looked at it (avatarmod_web.go)
+	//   /moderation          RoleAdmin — the curated queue (communitymod_web.go)
+	//   /moderation/avatars  RoleMod   — has staff looked at it (avatarmod_web.go)
 	//
-	// The group takes the MEMBER gate and the staff routes carry their own,
-	// rather than the other way round: a group gated at RoleMod cannot have a
-	// member-facing route added to it later without someone noticing, and this
-	// way round the stricter gate is written where the stricter page is.
+	// /moderation is ADMIN-ONLY for now, and the voting machinery behind it is
+	// deliberately left intact. The plan is admin-curated first and
+	// community-driven second, and those are the same queue with the gate in a
+	// different place — opening it up later is this one line, not a rewrite.
+	//
+	// REPORTING stays open to every member (POST /u/:name/report-avatar, on the
+	// profile). A curated queue with no way for members to put anything in it
+	// is an empty queue.
+	//
+	// The group takes the LOOSER gate and each route carries its own, rather
+	// than the other way round: the stricter gate is then written next to the
+	// stricter page, where it is read.
 	moderation := engine.Group("/moderation", wsrv.auth.Require(core.RoleUser)...)
-	moderation.GET("", wsrv.communityModPage)
-	moderation.POST("/vote", wsrv.communityModVote)
+	adminOnly := wsrv.auth.Require(core.RoleAdmin)
+	moderation.GET("", append(adminOnly, wsrv.communityModPage)...)
+	moderation.POST("/vote", append(adminOnly, wsrv.communityModVote)...)
 	staffOnly := wsrv.auth.Require(core.RoleMod)
 	moderation.GET("/avatars", append(staffOnly, wsrv.avatarModPage)...)
 	moderation.POST("/avatars", append(staffOnly, wsrv.avatarModAction)...)

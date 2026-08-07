@@ -38,8 +38,11 @@
 {{with .Report}}
 <div class="notice {{if or (eq . "opened") (eq . "added")}}notice--success{{else}}notice--danger{{end}} mb-3">
     <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
-    <span>{{if eq . "opened"}}Reported. The <a href="/moderation">community moderation queue</a> has it now.
-          {{else if eq . "added"}}Already reported — your report was added as a vote on <a href="/moderation">the open item</a>.
+    {{/* No link to /moderation: the queue is admin-only for now, and sending
+         a member to a page that 403s them is worse than telling them nothing.
+         Staff get the link, because they can follow it. */}}
+    <span>{{if eq . "opened"}}Reported. Staff will review it{{if $.IsAdmin}} in the <a href="/moderation">moderation queue</a>{{end}}.
+          {{else if eq . "added"}}Already reported — your report was added to the open one{{if $.IsAdmin}}, in the <a href="/moderation">moderation queue</a>{{end}}.
           {{else}}{{.}}{{end}}</span>
 </div>
 {{end}}
