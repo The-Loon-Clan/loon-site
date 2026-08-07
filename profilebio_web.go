@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -63,6 +66,25 @@ func renderBio(src string) template.HTML {
 	return siteMarkdown(src)
 }
 
+// undoKindBio is the kind recorded when profile text is replaced.
+const undoKindBio = "bio.replaced"
+
+func init() {
+	registerUndo(undoKindBio, func(ctx context.Context, userID int64, payload []byte) error {
+		var p struct {
+			Previous string `json:"previous"`
+		}
+		if err := json.Unmarshal(payload, &p); err != nil {
+			return errUndoGone
+		}
+		if _, err := usersDB.ExecContext(ctx,
+			`UPDATE users SET bio = $1 WHERE id = $2`, p.Previous, userID); err != nil {
+			return fmt.Errorf("could not restore your profile text")
+		}
+		return nil
+	})
+}
+
 // settingsProfile serves GET /settings/profile.
 func (w *web) settingsProfile(c *gin.Context) {
 	u, ok := w.currentUser(c)
@@ -91,10 +113,14 @@ func (w *web) settingsProfile(c *gin.Context) {
 		"Avatar": readAvatarPath(c.Request.Context(), usersDB, u.ID),
 		// The initials fallback needs a name, and the partial takes it as a
 		// value rather than reading .User itself so it works on any page.
-		"Username":     u.Username,
-		"AvatarSaved":  c.Query("avatar") == "saved",
-		"AvatarGone":   c.Query("avatar") == "removed",
-		"AvatarErr":    c.Query("averr"),
+		"Username":    u.Username,
+		"AvatarSaved": c.Query("avatar") == "saved",
+		"AvatarGone":  c.Query("avatar") == "removed",
+		"AvatarErr":   c.Query("averr"),
+		// One token key for the page: only one destructive action can have just
+		// happened, and the notice that offers Undo is the one being rendered.
+		"UndoToken":    c.Query("undo"),
+		"Undone":       c.Query("undone"),
 		"AvatarMaxMB":  avatarMaxUpload >> 20,
 		"AvatarPixels": avatarSize,
 	})
@@ -114,11 +140,20 @@ func (w *web) settingsProfileSave(c *gin.Context) {
 	if r := []rune(bio); len(r) > bioMaxLen {
 		bio = string(r[:bioMaxLen])
 	}
+	token := ""
 	if usersDB != nil {
+		// Read the old text BEFORE overwriting it. Saving an empty editor wipes
+		// a profile with no warning and no copy of what was there, which is the
+		// same irreversibility an avatar removal has and the reason both are
+		// undoable while bookmarks and follows are not.
+		previous := readBio(c.Request.Context(), u.ID)
 		if _, err := usersDB.ExecContext(c.Request.Context(),
 			`UPDATE users SET bio = $1 WHERE id = $2`, bio, u.ID); err != nil {
 			w.log.Error("save bio", "user", u.ID, "err", err)
+		} else if previous != "" && previous != bio {
+			token = recordUndo(c.Request.Context(), u.ID, undoKindBio,
+				map[string]string{"previous": previous})
 		}
 	}
-	c.Redirect(http.StatusFound, "/settings/profile?saved=1")
+	c.Redirect(http.StatusFound, "/settings/profile?saved=1&undo="+url.QueryEscape(token))
 }

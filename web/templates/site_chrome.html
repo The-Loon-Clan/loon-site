@@ -894,6 +894,33 @@
 {{- end -}}
 {{end}}
 
+{{/* The Undo offer. Call with a dict:
+
+       {{template "undo-offer" dict "Token" .UndoToken "Next" .Path "CSRF" .CSRFToken "Text" "Avatar removed."}}
+
+     ui-patterns argues undo beats confirmation, because a confirmation dialogue
+     is answered reflexively by the third time -- it trains the click it exists
+     to prevent. This asks nothing up front and is there a second after the
+     mistake is noticed, which is when it is noticed.
+
+     Renders NOTHING without a token, so a page that had nothing to undo does
+     not offer it. An Undo button that reports "that can no longer be undone" is
+     worse than no button: it teaches people the offer is decorative. */}}
+{{define "undo-offer"}}
+{{if .Token}}
+<div class="notice notice--success undo-offer">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>{{.Text}}</span>
+    <form method="post" action="/undo" class="undo-offer__form">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <input type="hidden" name="token" value="{{.Token}}">
+        <input type="hidden" name="next" value="{{.Next}}">
+        <button class="button button--text button--sm" type="submit">Undo</button>
+    </form>
+</div>
+{{end}}
+{{end}}
+
 {{define "site-scripts"}}
     <script>
     // Double-submit CSRF: on submit, make every same-origin POST form carry the

@@ -2234,3 +2234,8 @@ a.cal-ev:hover { background: var(--surface-3); }
    by the three listing pages with wide tables; the page body must never scroll
    horizontally, so the overflow has to live somewhere and this is where. */
 .panelV2--overflow > .panel__body { overflow-x: auto; }
+
+/* The Undo offer (site_chrome.html "undo-offer"): confirmation and the way back
+   in one notice rather than two stacked. */
+.undo-offer { display: flex; align-items: center; gap: var(--space-3); }
+.undo-offer__form { margin-left: auto; }

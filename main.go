@@ -678,6 +678,11 @@ func main() {
 		os.Exit(1)
 	}
 	communityModDB = db
+	undoDB = db
+	if err := undoMigrate(db); err != nil {
+		logger.Error("undo migrate", "err", err)
+		os.Exit(1)
+	}
 	if err := communityModMigrate(db); err != nil {
 		logger.Error("community moderation migrate", "err", err)
 		os.Exit(1)
@@ -704,6 +709,10 @@ func main() {
 	// by design, and an operator who has deliberately not wired one should not
 	// have to argue with the binary about it.
 	reportContracts(ctx, c, db, logger)
+
+	// The avatar file sweep (avatarsweep_web.go) -- the only thing that deletes
+	// an avatar file, now that undo needs replaced and cleared ones to survive.
+	startAvatarSweep(ctx, db, logger)
 
 	// --- Admin dashboard. core.AdminHandler renders the plugin manifest;
 	// schedule.JobsAdminHandler renders the jobs/services table with manual

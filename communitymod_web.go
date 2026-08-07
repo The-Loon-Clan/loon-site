@@ -272,7 +272,11 @@ func resolveItem(ctx context.Context, itemID int64, resolution string, actorID i
 func applyResolution(ctx context.Context, kind string, subjectID int64) error {
 	switch kind {
 	case itemKindAvatar:
-		return clearAvatar(ctx, usersDB, subjectID)
+		// The undo token is discarded: this is a decision the community made,
+		// not a slip, and an undo offered to nobody in particular is an undo
+		// nobody can use. The subject can upload a new picture.
+		_, err := clearAvatar(ctx, usersDB, subjectID)
+		return err
 	}
 	// An unknown kind must not be silently treated as done: that would close
 	// the item and leave the thing it was about untouched.

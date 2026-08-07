@@ -725,6 +725,8 @@ func (w *web) mount(e *gin.Engine) {
 	// Reporting an avatar opens (or votes on) a community moderation item —
 	// see communitymod_web.go.
 	e.POST("/u/:name/report-avatar", w.reportAvatarPost)
+	// Reverse the last destructive thing you did (undo_web.go).
+	e.POST("/undo", w.undoPost)
 	e.GET("/u/:name/followers", w.followPage(followKindFollowers))
 	e.GET("/u/:name/following", w.followPage(followKindFollowing))
 	// Mutual follows (follows_web.go). Derived from the same table, so this is

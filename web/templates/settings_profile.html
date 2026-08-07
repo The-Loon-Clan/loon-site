@@ -11,11 +11,25 @@
     <p class="text-muted small m-0 mt-1">Anything you want on your profile. Markdown, the same as the forum.</p>
 </header>
 
+{{with .Undone}}
+<div class="notice {{if eq . "1"}}notice--success{{else}}notice--danger{{end}}">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>{{if eq . "1"}}Put back.{{else}}That can no longer be undone.{{end}}</span>
+</div>
+{{end}}
+
 {{if .Saved}}
+{{/* Two shapes for one event: with an undo token the offer replaces the plain
+     notice, so there is one message rather than a confirmation and an offer
+     stacked on top of each other. */}}
+{{if .UndoToken}}
+{{template "undo-offer" dict "Token" .UndoToken "Next" "/settings/profile" "CSRF" .CSRFToken "Text" "Saved. Your previous profile text was replaced."}}
+{{else}}
 <div class="notice notice--success">
     <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
     <span>Saved.{{with .User}} <a href="/u/{{.Username}}">View your profile</a>.{{end}}</span>
 </div>
+{{end}}
 {{end}}
 
 {{if .AvatarErr}}
@@ -31,10 +45,14 @@
 </div>
 {{end}}
 {{if .AvatarGone}}
+{{if .UndoToken}}
+{{template "undo-offer" dict "Token" .UndoToken "Next" "/settings/profile" "CSRF" .CSRFToken "Text" "Avatar removed."}}
+{{else}}
 <div class="notice notice--success">
     <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
     <span>Avatar removed.</span>
 </div>
+{{end}}
 {{end}}
 
 {{/* Avatar. A SEPARATE form from the prose below, and separate status keys:

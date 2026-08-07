@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -263,25 +264,56 @@ func setAvatar(ctx context.Context, db *sqlx.DB, userID int64, raw []byte) error
 		_ = files.Remove(ctx, name)
 		return fmt.Errorf("could not save your avatar")
 	}
-	if n := avatarBlobName(old); n != "" && n != name {
-		_ = files.Remove(ctx, n)
-	}
+	// The replaced file is NOT deleted here. Nothing deletes an avatar file
+	// directly any more -- avatarsweep_web.go owns removal, and only for files
+	// no row references and no undo record still needs. Undo has to be able to
+	// put a picture back, and a file deleted inline cannot be.
+	_ = old
 	return nil
 }
 
 // clearAvatar removes a member's avatar and the file behind it.
-func clearAvatar(ctx context.Context, db *sqlx.DB, userID int64) error {
+func clearAvatar(ctx context.Context, db *sqlx.DB, userID int64) (string, error) {
 	old := readAvatarPath(ctx, db, userID)
 	// Clearing leaves avatar_updated_at alone: there is no picture to review,
 	// and the queue predicate already requires a non-empty avatar_path.
 	if _, err := db.ExecContext(ctx,
 		`UPDATE users SET avatar_path = '' WHERE id = $1`, userID); err != nil {
-		return fmt.Errorf("could not remove your avatar")
+		return "", fmt.Errorf("could not remove your avatar")
 	}
-	if n := avatarBlobName(old); n != "" {
-		_ = avatarFiles().Remove(ctx, n)
+	if old == "" {
+		return "", nil
 	}
-	return nil
+	// The FILE stays. It is what undo restores, and avatarsweep_web.go collects
+	// it once the undo window has passed.
+	return recordUndo(ctx, userID, undoKindAvatar, map[string]string{"path": old}), nil
+}
+
+// undoKindAvatar is the kind recorded when an avatar is cleared.
+const undoKindAvatar = "avatar.cleared"
+
+func init() {
+	// Registered beside the thing it reverses, so the two cannot drift.
+	registerUndo(undoKindAvatar, func(ctx context.Context, userID int64, payload []byte) error {
+		var p struct {
+			Path string `json:"path"`
+		}
+		if err := json.Unmarshal(payload, &p); err != nil || p.Path == "" {
+			return errUndoGone
+		}
+		// Refuse rather than restore a row pointing at a file that is gone:
+		// that trades a missing avatar for a BROKEN IMAGE, which is worse
+		// because it reads as a fault rather than as a choice.
+		if name := avatarBlobName(p.Path); name == "" {
+			return errUndoGone
+		}
+		if _, err := usersDB.ExecContext(ctx,
+			`UPDATE users SET avatar_path = $1, avatar_updated_at = now() WHERE id = $2`,
+			p.Path, userID); err != nil {
+			return fmt.Errorf("could not restore your avatar")
+		}
+		return nil
+	})
 }
 
 // settingsAvatarSave serves POST /settings/avatar — upload or remove.
@@ -298,12 +330,15 @@ func (w *web) settingsAvatarSave(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	if c.PostForm("remove") != "" {
-		if err := clearAvatar(ctx, usersDB, u.ID); err != nil {
+		token, err := clearAvatar(ctx, usersDB, u.ID)
+		if err != nil {
 			w.log.Error("clear avatar", "user", u.ID, "err", err)
 			c.Redirect(http.StatusFound, "/settings/profile?averr="+url.QueryEscape(err.Error()))
 			return
 		}
-		c.Redirect(http.StatusFound, "/settings/profile?avatar=removed")
+		// The token rides in the query so the page can offer Undo. Empty when
+		// there was nothing to clear, and the template renders no offer then.
+		c.Redirect(http.StatusFound, "/settings/profile?avatar=removed&undo="+url.QueryEscape(token))
 		return
 	}
 
