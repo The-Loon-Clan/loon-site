@@ -566,13 +566,8 @@ main > article {
    it is chrome, not the page's first line, and inside <main> it inherited the
    24px page padding and read as content with a gap above and below it.
 
-   Same gutter as the nav above it so the two share an edge, and a rule below
-   to close the header off. */
-.breadcrumb-bar {
-    padding: 0 var(--gutter);
-    background: var(--panel-head-bg);
-    border-bottom: var(--panel-head-border);
-}
+   Styled together with .stat-strip below: they are the SAME row of the header,
+   the strip on home and the breadcrumb on every other page. See there. */
 
 .breadcrumbsV2 {
     all: unset;
@@ -626,11 +621,34 @@ main > article {
 /* Thin full-width band of icon + LABEL: VALUE pairs. Only render tiles you can
    populate from real data — an unpopulated slot is worse than a missing one.
    SITE-wide figures only; the viewer's own live figures are in the top nav's
-   ratio bar. Home is currently the only page that fills the slot. */
-.stat-strip {
+   ratio bar. Home is currently the only page that fills the slot.
+
+   ONE rule with .breadcrumb-bar, because they are the same row of the header:
+   the strip on home, the breadcrumb everywhere else. Separately styled they
+   drifted, and visibly — the breadcrumb came out 24px against the strip's
+   35px, so the header changed height as you navigated off home. They also drew
+   from different tokens, which on nord and midnight made them different
+   colours, and on cosmic-void and nord left the breadcrumb with no rule under
+   it while the strip had one. */
+.stat-strip,
+.breadcrumb-bar {
+    display: flex;
+    align-items: center;
+    /* The row height lives HERE rather than in each child's padding, which is
+       exactly what let the two drift. 36px clears the 24px pointer target the
+       breadcrumb links carry (WCAG 2.2 SC 2.5.8) with 6px either side. */
+    min-height: 36px;
     padding: 0 var(--gutter);
     background: var(--stat-strip-bg);
     border-bottom: var(--stat-strip-border);
+}
+
+/* Both rows' content: a flex child that may shrink, so the strip can scroll
+   sideways and a long breadcrumb can ellipsis instead of widening the page. */
+.stat-strip__items,
+.breadcrumb-bar > .breadcrumbsV2 {
+    flex: 1;
+    min-width: 0;
 }
 
 .stat-strip__items {
@@ -638,7 +656,7 @@ main > article {
     align-items: center;
     gap: 8px 28px;
     margin: 0;
-    padding: 8px 0;
+    padding: 0;
     list-style: none;
     overflow-x: auto;
     scrollbar-width: none;
