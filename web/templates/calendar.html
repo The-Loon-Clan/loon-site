@@ -24,14 +24,16 @@
 
      Guarded on the key rather than assumed: the card is a plugin widget, and a
      host running without the dailyreward plugin has no card to draw. */}}
+{{/* NO panel header. The daily-reward widget titles itself, and wrapping a
+     self-titled fragment in a titled panel printed "Daily reward" twice, one
+     above the other, and skipped from the host's h2 straight to the widget's
+     h5. The host supplies the box; the fragment supplies its own name.
+
+     That is the rule in docs/FRAGMENTS.md, and the profile already worked this
+     way -- it drops widgets into a bare card and lets them speak for
+     themselves. */}}
 {{with .DailyCard}}
 <section class="panelV2" id="daily-reward">
-    <header class="panel__header">
-        <h2 class="panel__heading">
-            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#star"></use></svg>
-            {{.Title}}
-        </h2>
-    </header>
     <div class="panel__body">{{.Fragment}}</div>
 </section>
 {{end}}
