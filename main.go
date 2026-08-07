@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -217,9 +218,36 @@ func main() {
 	// default (Redis stays nil); set REDIS_ADDR to enable both at once.
 	var redisClient *goredis.Client
 	if addr := os.Getenv("REDIS_ADDR"); addr != "" {
-		redisClient = goredis.NewClient(&goredis.Options{Addr: addr})
-		wsrv.cache = cacheredis.New(redisClient)
-		logger.Info("cache backend", "kind", "redis", "addr", addr)
+		client := goredis.NewClient(&goredis.Options{Addr: addr})
+		// PING before adopting it. Without this check the site technically
+		// stays up when Redis is gone and is unusable anyway: every cache read
+		// dials, retries five times and fails, so a page that reads four keys
+		// spent TEN SECONDS before rendering — long enough that the browser
+		// had already hung up. A degraded cache has to be fast about being
+		// degraded.
+		//
+		// One short timeout, once, at boot. Redis dying LATER is a different
+		// problem and not one a boot probe can answer; this only stops the
+		// site adopting a backend that is already unreachable.
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		err := client.Ping(ctx).Err()
+		cancel()
+		switch {
+		case err != nil:
+			// Loud, and naming the address: an operator who set REDIS_ADDR
+			// expects Redis, and silently running on an in-process cache is
+			// how a two-replica deployment starts serving two different
+			// versions of every cached page.
+			logger.Error("redis unreachable — falling back to the in-memory cache; "+
+				"pages are still cached, but per-process and not shared",
+				"addr", addr, "err", err)
+			_ = client.Close()
+			wsrv.cache = cachememory.New()
+		default:
+			redisClient = client
+			wsrv.cache = cacheredis.New(client)
+			logger.Info("cache backend", "kind", "redis", "addr", addr)
+		}
 	} else {
 		wsrv.cache = cachememory.New()
 		logger.Info("cache backend", "kind", "memory")
@@ -236,7 +264,38 @@ func main() {
 	}
 	// gin-contrib session middleware (the prod scheme) must be installed before
 	// any route that logs in or reads the user.
-	engine.Use(wsrv.auth.Session.Middleware())
+	//
+	// Store() rather than Middleware(), which panics when Redis is unreachable.
+	// That is the right default and the baseline says so — "a host must not
+	// silently serve loginless" — and it also says a host wanting explicit
+	// handling calls Store() itself. This one does.
+	//
+	// The reason is that Redis here is a CACHE that sessions happen to share.
+	// Losing it took the whole site down at boot with a stack trace: not
+	// degraded, not read-only, just gone, on a demo whose Redis is optional
+	// enough that compose can bring the app up without it. Falling back to
+	// cookie-backed sessions keeps logins working; what it costs is
+	// server-side revocation and sharing across replicas, which is worth
+	// saying loudly and is not worth an outage.
+	//
+	// Deliberately NOT silent: this is a downgrade in what the session store
+	// can promise, so it is an ERROR line naming the address that failed.
+	sessionStore, err := wsrv.auth.Session.Store()
+	if err != nil {
+		logger.Error("session store unavailable — falling back to cookie sessions; "+
+			"logins work, but sessions are no longer revocable server-side or shared across replicas",
+			"err", err)
+		fallback := wsrv.auth.Session
+		fallback.RedisAddr = "" // the empty-address branch builds a cookie store
+		if sessionStore, err = fallback.Store(); err != nil {
+			// A cookie store cannot really fail, so this is unreachable in
+			// practice — but silently serving with no session store at all
+			// would be the loginless outcome the panic exists to prevent.
+			logger.Error("cookie session store failed too", "err", err)
+			os.Exit(1)
+		}
+	}
+	engine.Use(sessions.Sessions(wsrv.auth.Session.Name, sessionStore))
 	// CSRF double-submit guard (after the session, which it reads/writes). Every
 	// state-changing POST must carry the _csrf token; templates embed it.
 	engine.Use(csrfMiddleware())

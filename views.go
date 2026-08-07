@@ -39,6 +39,12 @@ import (
 //go:embed web/templates web/static
 var embeddedFS embed.FS
 
+// sessionCookieName is loon-baseline's own default, named here because main.go
+// installs the session middleware by hand. It must not change casually: a
+// different name is a different cookie, and every signed-in visitor is signed
+// out the moment it ships.
+const sessionCookieName = "mysession"
+
 // siteFS is where templates and static assets are read from. Normally that is
 // the embedded copy, so the runtime image needs nothing but the binary (the
 // Dockerfile ships distroless — there IS no web/ directory in the container).
@@ -163,7 +169,15 @@ func newWeb(store users.Store, secret []byte, log *slog.Logger) *web {
 		// Secure defaults off (this demo serves plain HTTP), but a copied
 		// reference deployed behind TLS should set SECURE_COOKIES=1 so the
 		// session cookie isn't sent over an unencrypted request.
-		Session: session.Config{Secret: secret, RedisAddr: os.Getenv("REDIS_ADDR"), Secure: os.Getenv("SECURE_COOKIES") == "1"},
+		// Name is stated rather than left to the package default, because
+		// main.go builds the store itself (to fall back when Redis is down)
+		// and needs the cookie name to install the middleware. The value is
+		// the baseline's own default — changing it would sign every existing
+		// session out.
+		Session: session.Config{
+			Name: sessionCookieName, Secret: secret,
+			RedisAddr: os.Getenv("REDIS_ADDR"), Secure: os.Getenv("SECURE_COOKIES") == "1",
+		},
 		Resolve: func(ctx context.Context, id int64) (*core.User, webauth.Meta, bool) {
 			u, err := store.ByID(ctx, id)
 			if err != nil {
