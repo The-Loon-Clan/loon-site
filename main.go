@@ -677,6 +677,11 @@ func main() {
 		logger.Error("avatar moderation migrate", "err", err)
 		os.Exit(1)
 	}
+	communityModDB = db
+	if err := communityModMigrate(db); err != nil {
+		logger.Error("community moderation migrate", "err", err)
+		os.Exit(1)
+	}
 	if err := migrateUserDisplay(db); err != nil {
 		logger.Error("user_display migrate", "err", err)
 		os.Exit(1)
@@ -701,9 +706,21 @@ func main() {
 	// exactly the judgement a moderator is for, and needing an admin for it is
 	// how a queue goes unworked (see the reports plugin, whose oldest open
 	// item was 98 days).
-	moderation := engine.Group("/moderation", wsrv.auth.Require(core.RoleMod)...)
-	moderation.GET("/avatars", wsrv.avatarModPage)
-	moderation.POST("/avatars", wsrv.avatarModAction)
+	// Two queues at one prefix, gated differently on purpose.
+	//
+	//   /moderation          any member — the community votes (communitymod_web.go)
+	//   /moderation/avatars  RoleMod    — has staff looked at it (avatarmod_web.go)
+	//
+	// The group takes the MEMBER gate and the staff routes carry their own,
+	// rather than the other way round: a group gated at RoleMod cannot have a
+	// member-facing route added to it later without someone noticing, and this
+	// way round the stricter gate is written where the stricter page is.
+	moderation := engine.Group("/moderation", wsrv.auth.Require(core.RoleUser)...)
+	moderation.GET("", wsrv.communityModPage)
+	moderation.POST("/vote", wsrv.communityModVote)
+	staffOnly := wsrv.auth.Require(core.RoleMod)
+	moderation.GET("/avatars", append(staffOnly, wsrv.avatarModPage)...)
+	moderation.POST("/avatars", append(staffOnly, wsrv.avatarModAction)...)
 
 	admin := engine.Group("/admin", wsrv.auth.Require(core.RoleAdmin)...)
 	// Access modes + the page map (accessadmin_web.go).

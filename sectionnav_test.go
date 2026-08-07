@@ -297,6 +297,8 @@ func TestChromeLinksAreServed(t *testing.T) {
 		"/admin/settings": true, "/verify/resend": true,
 		// Staff-only, and linked from the account menu for RoleMod.
 		"/moderation/avatars": true,
+		// Member-facing: the community votes here.
+		"/moderation": true,
 		// The Newznab endpoint, linked bare from the footer as well as with a
 		// ?t=caps query.
 		"/api": true,

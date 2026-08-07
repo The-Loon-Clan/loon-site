@@ -134,7 +134,7 @@ var pageTemplates = []string{
 	"admin_access.html",
 	// Moderation is not under /admin (it gates at RoleMod) but is the same
 	// kind of page — see avatarmod_web.go.
-	"moderation_avatars.html",
+	"moderation_avatars.html", "moderation_community.html",
 	// Fixed host pages — UNIT3D's page/* and stats/index (pages_web.go).
 	"staff.html", "stats.html", "rules.html", "faq.html", "about.html",
 	"sitemap.html",
@@ -722,6 +722,9 @@ func (w *web) mount(e *gin.Engine) {
 	e.GET("/invites", w.invitesPage)
 	e.POST("/invites", w.invitesCreate)
 	e.POST("/u/:name/follow", w.followToggle)
+	// Reporting an avatar opens (or votes on) a community moderation item —
+	// see communitymod_web.go.
+	e.POST("/u/:name/report-avatar", w.reportAvatarPost)
 	e.GET("/u/:name/followers", w.followPage(followKindFollowers))
 	e.GET("/u/:name/following", w.followPage(followKindFollowing))
 	// Mutual follows (follows_web.go). Derived from the same table, so this is
@@ -820,10 +823,12 @@ func (w *web) profilePage(c *gin.Context) {
 		// UserAvatar is whoever is logged in, and on someone else's profile
 		// those are different people.
 		"SubjectAvatar": readAvatarPath(c.Request.Context(), usersDB, subject.ID),
-		"IsSelf":        isSelf,
-		"Widgets":       widgets,
-		"Role":          roleLabel(subj.Role),
-		"Private":       private,
+		// Outcome of a report POST, round-tripped through the redirect.
+		"Report":  c.Query("report"),
+		"IsSelf":  isSelf,
+		"Widgets": widgets,
+		"Role":    roleLabel(subj.Role),
+		"Private": private,
 		// Preview is NOT IsSelf: the page must render as a stranger sees it,
 		// and this is only for the banner saying so and the way back out.
 		"Preview": preview,

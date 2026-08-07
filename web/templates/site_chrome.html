@@ -292,8 +292,19 @@
                          moderator never sees the admin subnav, so without this
                          entry the queue they are responsible for has no door.
                          Admins match IsMod too and get both. */}}
+                    {{/* Community moderation is for every member, not staff —
+                         the whole point is that the membership decides. */}}
+                    {{if .User}}
+                    <a class="dropdown__item{{if eq .Path "/moderation"}} active{{end}}" href="/moderation"{{if eq .Path "/moderation"}} aria-current="page"{{end}}>
+                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#users"></use></svg>Community moderation
+                    </a>
+                    {{end}}
+                    {{/* IsMod, not IsAdmin: /moderation/avatars gates at
+                         RoleMod, and a moderator never sees the admin subnav,
+                         so without this entry the queue they are responsible
+                         for has no door. Admins match IsMod too. */}}
                     {{if .IsMod}}
-                    <a class="dropdown__item{{if hasPrefix .Path "/moderation"}} active{{end}}" href="/moderation/avatars"{{if hasPrefix .Path "/moderation"}} aria-current="page"{{end}}>
+                    <a class="dropdown__item{{if eq .Path "/moderation/avatars"}} active{{end}}" href="/moderation/avatars"{{if eq .Path "/moderation/avatars"}} aria-current="page"{{end}}>
                         <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>New avatars
                         {{if .PendingAvatars}}<span class="badge ms-auto">{{.PendingAvatars}}</span>{{end}}
                     </a>

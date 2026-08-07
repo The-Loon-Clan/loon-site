@@ -1,0 +1,132 @@
+{{/* Community moderation (communitymod_web.go). .Items, .History, .Quorum,
+     .IsStaff, .Done, .Err.
+
+     Distinct from /moderation/avatars, which is the staff queue. That one asks
+     "has somebody looked at this?"; this one asks the membership "should this
+     stay?" and counts the answers. */}}
+{{define "content"}}
+<header class="mb-3">
+    <h1 class="h3 m-0">Community moderation</h1>
+    <p class="text-muted small m-0 mt-1">
+        Things members have reported, decided by members. An item needs {{.Quorum}} votes
+        before the result counts, and a two-thirds majority to act on.
+    </p>
+</header>
+
+{{with .Err}}
+<div class="notice notice--danger">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>{{.}}</span>
+</div>
+{{end}}
+{{with .Done}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>{{if eq . "voted"}}Vote recorded.{{else if eq . "removed"}}Removed.{{else}}Kept.{{end}}</span>
+</div>
+{{end}}
+
+<nav aria-label="Queue">
+    <ul class="section-tabs mb-3">
+        <li><a class="section-tabs__link{{if not .History}} section-tabs__link--active{{end}}"
+               href="/moderation"{{if not .History}} aria-current="page"{{end}}>Open</a></li>
+        <li><a class="section-tabs__link{{if .History}} section-tabs__link--active{{end}}"
+               href="/moderation?decided=1"{{if .History}} aria-current="page"{{end}}>Decided</a></li>
+    </ul>
+</nav>
+
+<section class="panelV2">
+    <div class="panel__body">
+        {{if .Items}}
+        <ul class="avatar-queue">
+            {{range .Items}}
+            <li class="avatar-queue__item">
+                {{/* subject_ref, not the member's CURRENT avatar: the picture
+                     being voted on is the one that was reported, or somebody
+                     changes it mid-vote and half the votes are about a
+                     different image. */}}
+                <img class="avatar-queue__image" src="{{.SubjectRef}}"
+                     alt="Reported avatar for {{.Subject}}"
+                     width="128" height="128" loading="lazy" decoding="async">
+                <div class="avatar-queue__body">
+                    <a class="avatar-queue__name" href="/u/{{.Subject}}">{{.Subject}}</a>
+                    <p class="text-muted small m-0">
+                        Reported{{with .ReportedBy}} by {{.}}{{end}} · {{.Created}}
+                    </p>
+                    {{with .Reason}}<p class="small m-0 mt-1">&ldquo;{{.}}&rdquo;</p>{{end}}
+
+                    {{if $.History}}
+                    <p class="small m-0 mt-2">
+                        <strong>{{if eq .Resolution "removed"}}Removed{{else}}Kept{{end}}</strong>
+                        {{.Resolved}} ·
+                        {{/* An empty resolved_by is not missing data — it is
+                             the record that the VOTE decided it rather than a
+                             person, and saying so is the point of the column. */}}
+                        {{if .ResolvedBy}}by {{.ResolvedBy}}{{else}}by community vote{{end}}
+                        ({{.Removes}} remove / {{.Keeps}} keep)
+                    </p>
+                    {{else}}
+                    <p class="small m-0 mt-2">
+                        <strong>{{.Removes}}</strong> remove · <strong>{{.Keeps}}</strong> keep
+                        {{if .Needed}}<span class="text-muted"> — {{.Needed}} more vote{{if ne .Needed 1}}s{{end}} before this counts</span>{{end}}
+                    </p>
+
+                    {{if .IsSubject}}
+                    {{/* The person being voted on does not vote. Said out loud
+                         rather than just hiding the buttons, which reads as the
+                         page being broken. */}}
+                    <p class="text-muted small m-0 mt-2">This is your avatar. You cannot vote on it.</p>
+                    {{else}}
+                    <div class="avatar-queue__actions">
+                        <form method="post" action="/moderation/vote">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <input type="hidden" name="vote" value="keep">
+                            <button class="button {{if and .YouVoted (not .YouedRemove)}}button--filled{{else}}button--outlined{{end}}" type="submit">
+                                Keep{{if and .YouVoted (not .YouedRemove)}} ✓{{end}}
+                            </button>
+                        </form>
+                        <form method="post" action="/moderation/vote">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <input type="hidden" name="vote" value="remove">
+                            <button class="button button--danger" type="submit">
+                                Remove{{if and .YouVoted .YouedRemove}} ✓{{end}}
+                            </button>
+                        </form>
+                    </div>
+                    {{if .YouVoted}}<p class="text-muted small m-0 mt-1">You voted. Clicking the other one changes it.</p>{{end}}
+                    {{end}}
+
+                    {{if $.IsStaff}}
+                    {{/* Staff override. NOT a bigger vote — a different act,
+                         and recorded as one: these set resolved_by, where a
+                         community decision leaves it null. */}}
+                    <div class="avatar-queue__actions">
+                        <form method="post" action="/moderation/vote">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <input type="hidden" name="staff" value="keep">
+                            <button class="button button--text button--sm" type="submit">Close as staff: keep</button>
+                        </form>
+                        <form method="post" action="/moderation/vote">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <input type="hidden" name="staff" value="remove">
+                            <button class="button button--text button--sm text-danger" type="submit">Close as staff: remove</button>
+                        </form>
+                    </div>
+                    {{end}}
+                    {{end}}
+                </div>
+            </li>
+            {{end}}
+        </ul>
+        {{else}}
+        <p class="m-0 text-muted">
+            {{if .History}}Nothing has been decided yet.{{else}}Nothing reported. There is nothing for the community to decide.{{end}}
+        </p>
+        {{end}}
+    </div>
+</section>
+{{end}}

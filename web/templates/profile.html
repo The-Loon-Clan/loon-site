@@ -35,6 +35,14 @@
 </section>
 {{else}}
 {{$h := hue .Subject.Username}}
+{{with .Report}}
+<div class="notice {{if or (eq . "opened") (eq . "added")}}notice--success{{else}}notice--danger{{end}} mb-3">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>{{if eq . "opened"}}Reported. The <a href="/moderation">community moderation queue</a> has it now.
+          {{else if eq . "added"}}Already reported — your report was added as a vote on <a href="/moderation">the open item</a>.
+          {{else}}{{.}}{{end}}</span>
+</div>
+{{end}}
 {{/* <aside> first in the DOM: it is the subject of the page, so it should be
      read first and it must come first when the split stacks at 867px. */}}
 <div class="sidebar2">
@@ -43,6 +51,23 @@
             <div class="panel__body">
                 <div class="user-stat-card">
                     {{template "avatar" dict "Path" .SubjectAvatar "Name" .Subject.Username "Size" "lg" "Class" "user-stat-card__avatar" "Px" 128}}
+                    {{/* Report sits with the picture, not in a menu somewhere:
+                         the thing being reported is right there, and a control a
+                         member has to hunt for is one they give up on. Only when
+                         there IS a picture, and only for a signed-in stranger —
+                         you cannot report your own. */}}
+                    {{if and .SubjectAvatar .User (not .IsSelf)}}
+                    <details class="avatar-report">
+                        <summary class="button button--text button--sm">Report avatar</summary>
+                        <form class="avatar-report__form" method="post" action="/u/{{.Subject.Username}}/report-avatar">
+                            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                            <label class="form__label" for="report-reason">Why?</label>
+                            <input class="form__input" id="report-reason" type="text" name="reason"
+                                   maxlength="300" placeholder="What is wrong with it?">
+                            <button class="button button--danger button--sm mt-2" type="submit">Send report</button>
+                        </form>
+                    </details>
+                    {{end}}
                     <h1 class="user-stat-card__username">
                         {{/* user-tag so a username is coloured by role here the
                              same way it is in every listing and forum post. */}}

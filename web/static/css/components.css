@@ -2188,3 +2188,11 @@ a.cal-ev:hover { background: var(--surface-3); }
 .avatar-queue__body { flex: 1 1 240px; min-width: 0; }
 .avatar-queue__name { font-weight: 700; }
 .avatar-queue__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); }
+
+/* Report-avatar disclosure on a profile. A <details> rather than a modal: the
+   form is three controls, and a modal for three controls is a dependency and a
+   focus trap to maintain. */
+.avatar-report { margin-top: var(--space-2); }
+.avatar-report > summary { list-style: none; cursor: pointer; }
+.avatar-report > summary::-webkit-details-marker { display: none; }
+.avatar-report__form { margin-top: var(--space-2); text-align: left; }
