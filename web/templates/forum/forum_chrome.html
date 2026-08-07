@@ -36,6 +36,40 @@
         <article>
 {{end}}
 
+{{/* The forum's breadcrumb, overriding site_chrome.html's default for every
+     page in this set.
+
+     ONE definition covering all five forum pages, branching on the data each
+     one carries — NOT one per page. Every forum page is parsed into the SAME
+     template set (pluginTemplates), so five {{define "breadcrumbs"}} would be
+     five definitions of one name and the last parsed would silently win for
+     all of them: the thread crumb rendered on the category page, with an empty
+     title and an empty category link, because .Thread is nil there. That is the
+     same override collision base.html's admin-subnav note describes.
+
+     Branching on .Path for the two leaf pages rather than on a title, because
+     the forum's handlers do not set one. */}}
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
+    {{if eq .Path "/community/forums"}}
+    <li class="breadcrumb--active">Forums</li>
+    {{else}}
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/community/forums">Forums</a></li>
+    {{if .Thread}}
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/community/forums/category/{{.Thread.CategoryID}}">{{.Thread.CategoryName}}</a></li>
+    <li class="breadcrumb--active">{{.Thread.Title}}</li>
+    {{else if .Category}}
+    <li class="breadcrumb--active">{{.Category.Name}}</li>
+    {{else if hasPrefix .Path "/community/forums/new"}}
+    <li class="breadcrumb--active">New thread</li>
+    {{else}}
+    <li class="breadcrumb--active">Categories</li>
+    {{end}}
+    {{end}}
+</ol>
+{{end}}
+
 {{define "ffoot"}}
         </article>
     </main>

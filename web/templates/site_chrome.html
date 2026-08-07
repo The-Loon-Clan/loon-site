@@ -471,10 +471,32 @@
         </ul>
     </nav>
 
-    {{/* The contextual second bar that used to sit here is gone — it restated
-         the dropdown the reader had just used. Where you are is a breadcrumb
-         now (base.html); the account pages it uniquely carried moved into the
-         avatar menu above. See sectionnav_web.go. */}}
+    {{/* ------------------------------------------------------ breadcrumb --
+         The contextual second bar that used to sit here restated the dropdown
+         the reader had just used, so it went; the account pages it uniquely
+         carried moved into the avatar menu above (sectionnav_web.go). What
+         replaces it is where you ARE, which is what that row was being read as.
+
+         In the HEADER, not in the article, and that is the whole point of the
+         position: inside <main> it inherited the page's 24px top padding and
+         read as a first line of content with a gap above and below it. UNIT3D
+         puts its breadcrumb in the header strip for the same reason — it is
+         chrome, it belongs against the nav it continues.
+
+         Every page gets one. A page that knows more than its own title — a
+         thread inside a category, a release inside a group — overrides the
+         default with its own {{define "breadcrumbs"}}. Home is the exception:
+         it has nowhere to point back to. */}}
+    {{if ne .Path "/"}}
+    <nav class="breadcrumb-bar" aria-label="Breadcrumb">
+        {{block "breadcrumbs" .}}{{if .Title}}
+        <ol class="breadcrumbsV2">
+            <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
+            <li class="breadcrumb--active">{{.Title}}</li>
+        </ol>
+        {{end}}{{end}}
+    </nav>
+    {{end}}
 
     {{/* Stat strip — an EMPTY slot by default. Only a page that has SITE-WIDE
          figures in hand fills it, with its own {{define "stat-strip"}}; home is

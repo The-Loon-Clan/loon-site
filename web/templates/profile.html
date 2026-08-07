@@ -11,7 +11,7 @@
 
 {{define "breadcrumbs"}}
 <ol class="breadcrumbsV2">
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
     {{if .Missing}}
     <li class="breadcrumb--active">Not found</li>
     {{else}}

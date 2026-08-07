@@ -23,12 +23,6 @@
      .post__author-posts slots have no honest source here. avatar_path is a
      literal '' across this whole stack, so the initials tile is the real
      state. hue() buckets 0..7, matching the CSS's .poster--h0…h7. */}}{{template "fhead" .}}
-<ol class="breadcrumbsV2">
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/community/forums">Forums</a></li>
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/community/forums/category/{{.Thread.CategoryID}}">{{.Thread.CategoryName}}</a></li>
-    <li class="breadcrumb--active">{{.Thread.Title}}</li>
-</ol>
 
 <section class="panelV2">
     <header class="panel__header">

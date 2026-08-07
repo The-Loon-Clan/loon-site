@@ -562,34 +562,64 @@ main > article {
 }
 
 /* Breadcrumbs (UNIT3D names) — used by the deeper plugin pages. */
+/* The breadcrumb band, rendered by site-header directly under the main nav —
+   it is chrome, not the page's first line, and inside <main> it inherited the
+   24px page padding and read as content with a gap above and below it.
+
+   Same gutter as the nav above it so the two share an edge, and a rule below
+   to close the header off. */
+.breadcrumb-bar {
+    padding: 0 var(--gutter);
+    background: var(--panel-head-bg);
+    border-bottom: var(--panel-head-border);
+}
+
 .breadcrumbsV2 {
     all: unset;
     display: flex;
     align-items: center;
     list-style: none;
-    font-size: var(--fs-sm);
+    font-size: var(--fs-2xs);
     overflow-x: hidden;
     max-width: 100%;
 }
 
 .breadcrumbV2,
 .breadcrumb--active {
-    margin: 5px 0;
+    /* No vertical margin: the 24px target height on the links below already
+       sets the row, and margins on top of it made a 34px band out of a 24px
+       one. */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--muted);
 }
 
+/* A chevron, not a slash — UNIT3D's separator, and it reads as direction
+   rather than as a path fragment. Drawn in CSS rather than as another sprite
+   use: it is punctuation, and a <svg> per crumb would be markup for it. */
 .breadcrumbV2:not(:first-child)::before,
 .breadcrumb--active:not(:first-child)::before {
-    content: "/";
-    opacity: 0.5;
-    padding: 0 0.5ch;
+    content: "";
+    /* inline-block, NOT the default inline: width and height are ignored on an
+       inline box, which collapses the rotated square into a single hairline
+       and draws a vertical bar instead of a chevron. */
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    margin: 0 var(--space-3);
+    border-top: 1.5px solid currentColor;
+    border-right: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    opacity: 0.55;
 }
 
 .breadcrumb--active { color: var(--text); }
 .breadcrumb__link { color: var(--link-fg); }
+
+/* The home crumb is an icon (UNIT3D uses fa-home), so it needs a size — the
+   shared .icon sizes off font-size, and this row's is deliberately small. */
+.breadcrumb__link > .icon { width: 14px; height: 14px; }
 
 /* --------------------------------------------------------- stat strip ----- */
 

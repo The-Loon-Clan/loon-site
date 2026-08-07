@@ -17,17 +17,8 @@
          forum set's fhead, which carries the same <main id>. */}}
     <main class="main-margin py-4" id="main-content">
         <article>
-            {{/* Every page gets a breadcrumb. A page that knows more than its
-                 own title — a thread inside a category, a release inside a
-                 group — defines "breadcrumbs" and overrides this; the rest get
-                 Home / <title>, which is what the removed section bar was
-                 being read as. Home itself has nowhere to point back to. */}}
-            {{block "breadcrumbs" .}}{{if and .Title (ne .Path "/")}}
-            <ol class="breadcrumbsV2">
-                <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
-                <li class="breadcrumb--active">{{.Title}}</li>
-            </ol>
-            {{end}}{{end}}
+            {{/* The breadcrumb is rendered by site-header, not here: it is
+                 chrome and belongs against the nav. See site_chrome.html. */}}
             {{/* A <div>, not a <p>: the resend <form> inside would auto-close a
                  paragraph and orphan the trailing text. */}}
             {{if .EmailUnverified}}

@@ -13,11 +13,6 @@
      This page is /admin/* (route-gated at RoleMod), so it stays on the
      Bootstrap-subset controls the rest of the admin surface uses
      (.form-control / .form-select / .btn) rather than the .form__* family. */}}{{template "fhead" .}}
-<ol class="breadcrumbsV2">
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/community/forums">Forums</a></li>
-    <li class="breadcrumb--active">Category admin</li>
-</ol>
 
 {{if .Flash}}
 <p class="notice notice--success">
