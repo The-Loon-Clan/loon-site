@@ -85,6 +85,7 @@ var accountMenu = []sectionTab{
 		{Label: "Account", Href: "/p/account"},
 		{Label: "About you", Href: "/settings/profile"},
 		{Label: "Privacy", Href: "/settings/privacy"},
+		{Label: "Security", Href: "/settings/security"},
 		{Label: "Alerts", Href: "/settings/notifications"},
 		// A plugin page, listed here by hand rather than left to the generic
 		// tail: it configures your account, so it belongs under Settings with

@@ -1,0 +1,48 @@
+{{/* The second step of signing in (security_web.go).
+
+     Reached only with a pending user stamped in the session, which is a
+     different key from the one a real session uses -- so arriving here directly
+     bounces to /login rather than revealing that an account exists. */}}
+{{define "content"}}
+<div class="container page-narrow" style="max-width:460px">
+    <section class="panelV2">
+        <header class="panel__header">
+            <h1 class="panel__heading">
+                <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#shield"></use></svg>
+                Two-factor
+            </h1>
+        </header>
+        <div class="panel__body">
+            {{with .Err}}
+            <p class="notice notice--danger mb-3">
+                <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+                <span>{{.}}</span>
+            </p>
+            {{end}}
+            <p class="m-0 mb-3">Your password was right. Now the code from your authenticator app.</p>
+            <form class="form" method="post" action="/login/2fa">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                <div class="form__group">
+                    <label class="form__label" for="code">Code</label>
+                    {{/* autocomplete="one-time-code" is what lets a phone offer
+                         the code from the notification. inputmode numeric
+                         raises the number pad without blocking a recovery code,
+                         which has letters in it -- type=number would. */}}
+                    <input class="form__input" id="code" type="text" name="code"
+                           inputmode="numeric" autocomplete="one-time-code"
+                           autofocus required aria-describedby="code-help">
+                    <p class="form__help mt-1 mb-0" id="code-help">
+                        Lost your phone? A recovery code works here too.
+                    </p>
+                </div>
+                <button class="form__button form__button--filled justify-content-center mt-3" type="submit">
+                    <svg class="icon" aria-hidden="true"><use href="#log-in"></use></svg>Continue
+                </button>
+            </form>
+
+            <div class="section-rule mt-4 mb-3">Not you?</div>
+            <a class="button button--outlined button--block" href="/login">Start again</a>
+        </div>
+    </section>
+</div>
+{{end}}

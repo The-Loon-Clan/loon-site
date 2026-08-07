@@ -1,0 +1,166 @@
+{{/* Security (security_web.go). .Enabled, .Setup, .Secret, .URI, .Recovery,
+     .Codes, .Email, .Err, .Done. */}}
+{{define "content"}}
+<header class="mb-3">
+    <h1 class="h3 m-0">Security</h1>
+    <p class="text-muted small m-0 mt-1">A second factor, and the address that can reset your password.</p>
+</header>
+
+{{with .Err}}
+<div class="notice notice--danger">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg><span>{{.}}</span>
+</div>
+{{end}}
+{{with .Done}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>{{if eq . "enabled"}}Two-factor is on.
+          {{else if eq . "disabled"}}Two-factor is off.
+          {{else if eq . "codes"}}New recovery codes. The old ones no longer work.
+          {{else if eq . "email-sent"}}Check the new address for a confirmation link.
+          {{else if eq . "email"}}Your address has been changed.{{end}}</span>
+</div>
+{{end}}
+
+{{/* Shown ONCE, right after they are issued. Never re-shown, because they are
+     stored hashed -- the site genuinely cannot print them again, and saying so
+     is what makes somebody write them down now. */}}
+{{with .Codes}}
+<section class="panelV2 mb-4">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#lock"></use></svg>
+            Your recovery codes
+        </h2>
+    </header>
+    <div class="panel__body">
+        <p class="m-0 mb-3">
+            <strong>Save these now.</strong> They are the way back in if you lose your phone.
+            Each one works once, and this is the only time they can be shown &mdash; they are
+            stored hashed, so the site cannot print them again.
+        </p>
+        <ul class="recovery-codes">{{range .}}<li>{{.}}</li>{{end}}</ul>
+    </div>
+</section>
+{{end}}
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#shield"></use></svg>
+            Two-factor authentication
+        </h2>
+        <div class="panel__actions">
+            <span class="chip {{if .Enabled}}chip--ok{{else}}chip--warn{{end}}">{{if .Enabled}}On{{else}}Off{{end}}</span>
+        </div>
+    </header>
+    <div class="panel__body">
+        {{if .Enabled}}
+        <p class="m-0 mb-3">
+            Signing in asks for a code from your authenticator app.
+            You have <strong>{{.Recovery}}</strong> unused recovery code{{if ne .Recovery 1}}s{{end}}.
+        </p>
+        <div class="security-actions">
+            <form class="form" method="post" action="/settings/security">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                <input type="hidden" name="action" value="regenerate">
+                <label class="form__label" for="regen-code">Current code</label>
+                <input class="form__input" id="regen-code" type="text" name="code" inputmode="numeric"
+                       autocomplete="one-time-code" maxlength="6" required>
+                <button class="button button--outlined mt-2" type="submit">New recovery codes</button>
+            </form>
+            <form class="form" method="post" action="/settings/security">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                <input type="hidden" name="action" value="disable">
+                <label class="form__label" for="off-code">Current or recovery code</label>
+                <input class="form__input" id="off-code" type="text" name="code"
+                       autocomplete="one-time-code" required aria-describedby="off-help">
+                <p class="form__help mt-1 mb-0" id="off-help">
+                    Turning it off needs a code. A stolen session should not be able to remove it.
+                </p>
+                <button class="button button--danger mt-2" type="submit">Turn off</button>
+            </form>
+        </div>
+
+        {{else if .Setup}}
+        <p class="m-0 mb-3">Add this to your authenticator app, then type the code it shows.</p>
+        <div class="totp-setup">
+            <div>
+                <p class="form__label mb-1">Setup key</p>
+                <p class="totp-secret">{{.Secret}}</p>
+                <p class="text-muted small m-0">
+                    Or open <a href="{{.URI}}">this link</a> on the device with your authenticator on it.
+                </p>
+                {{/* No QR. Drawing one needs a QR encoder, and this codebase
+                     ships no external JS and would rather say so than pull a
+                     dependency into the login path for a convenience. Every
+                     authenticator app accepts a typed key. */}}
+                <p class="text-muted small m-0 mt-2">
+                    There is no QR code here &mdash; the key above is typed in by hand, which every app supports.
+                </p>
+            </div>
+            <div class="security-actions">
+                <form class="form" method="post" action="/settings/security">
+                    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                    <input type="hidden" name="action" value="confirm">
+                    <label class="form__label" for="setup-code">Code from your app</label>
+                    <input class="form__input" id="setup-code" type="text" name="code" inputmode="numeric"
+                           autocomplete="one-time-code" maxlength="6" required autofocus
+                           aria-describedby="setup-help">
+                    <p class="form__help mt-1 mb-0" id="setup-help">
+                        Nothing changes until this matches, so a mistyped key cannot lock you out.
+                    </p>
+                    <button class="button button--primary mt-2" type="submit">Turn on</button>
+                </form>
+                <form method="post" action="/settings/security">
+                    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                    <input type="hidden" name="action" value="cancel">
+                    <button class="button button--text button--sm" type="submit">Cancel setup</button>
+                </form>
+            </div>
+        </div>
+
+        {{else}}
+        <p class="m-0 mb-3">
+            An authenticator app generates a six-digit code that changes every 30 seconds.
+            Signing in then needs your password <em>and</em> that code.
+        </p>
+        <form method="post" action="/settings/security">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <input type="hidden" name="action" value="begin">
+            <button class="button button--primary" type="submit">Set up two-factor</button>
+        </form>
+        {{end}}
+    </div>
+</section>
+
+<section class="panelV2 mt-4">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#envelope"></use></svg>
+            Email address
+        </h2>
+    </header>
+    <div class="panel__body">
+        <p class="m-0 mb-3">
+            Currently <strong>{{with .Email}}{{.}}{{else}}not set{{end}}</strong>.
+            This is where a password reset goes, so a new address has to confirm before it takes effect.
+        </p>
+        <form class="form" method="post" action="/settings/security">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <input type="hidden" name="action" value="email">
+            <div class="form__group">
+                <label class="form__label" for="new-email">New address</label>
+                <input class="form__input" id="new-email" type="email" name="email" required
+                       autocomplete="email" aria-describedby="email-help">
+                <p class="form__help mt-1 mb-0" id="email-help">
+                    We send a link there. Your current address stays in place until you follow it.
+                </p>
+            </div>
+            <div class="form__actions mt-3">
+                <button class="button button--primary" type="submit">Send confirmation</button>
+            </div>
+        </form>
+    </div>
+</section>
+{{end}}

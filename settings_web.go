@@ -210,4 +210,8 @@ func (w *web) mountSettings(e *gin.Engine) {
 	// is multipart and the bio form is not, and merging them would re-post the
 	// image on every text save. See avatar_web.go.
 	e.POST("/settings/avatar", w.settingsAvatarSave)
+	// Second factor + email change (security_web.go).
+	e.GET("/settings/security", w.securityPage)
+	e.POST("/settings/security", w.securityAction)
+	e.GET("/settings/email/confirm", w.emailConfirm)
 }

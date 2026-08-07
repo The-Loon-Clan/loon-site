@@ -2373,3 +2373,34 @@ a.cal-ev:hover { background: var(--surface-3); }
    not struck through: a strike reads as "cancelled". */
 .wishlist__item--filled .wishlist__title { color: var(--muted-2); }
 .wishlist__actions { display: flex; gap: var(--space-2); margin-left: auto; }
+
+/* Security settings (settings_security.html). */
+.security-actions { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: flex-start; }
+.security-actions > form { flex: 1 1 220px; }
+.totp-setup { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: flex-start; }
+.totp-setup > * { flex: 1 1 260px; min-width: 0; }
+/* The setup key is read off the screen and typed into a phone, so it is
+   monospaced and spaced in fours -- the two things that stop a 32-character
+   base32 string being transcribed wrong. */
+.totp-secret {
+    font-family: var(--font-mono);
+    font-size: var(--fs-md);
+    letter-spacing: .04em;
+    margin: 0 0 var(--space-2);
+    padding: var(--space-3);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow-wrap: anywhere;
+}
+/* Recovery codes are meant to be printed or copied in one go, so they sit in a
+   plain grid with nothing between them to pick up on the way. */
+.recovery-codes {
+    list-style: none; margin: 0; padding: 0;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-2);
+    font-family: var(--font-mono);
+}
+.recovery-codes > li {
+    padding: var(--space-2); text-align: center;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}

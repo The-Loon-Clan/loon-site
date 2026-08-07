@@ -140,6 +140,7 @@ var pageTemplates = []string{
 	"sitemap.html",
 	// Viewer settings (settings_web.go) — UNIT3D's privacy/notification pages.
 	"settings_privacy.html", "settings_notifications.html", "settings_profile.html",
+	"settings_security.html", "login_2fa.html",
 }
 
 // sharedPartials maps a page to the partials it needs beyond the shell. Each
@@ -719,6 +720,8 @@ func (w *web) mount(e *gin.Engine) {
 	// follows, read from the tables that already hold it.
 	e.GET("/subscriptions", w.subscriptionsPage)
 	// Invite codes (invitecodes_web.go).
+	e.GET("/login/2fa", w.twoFactorPage)
+	e.POST("/login/2fa", w.twoFactorPost)
 	e.GET("/wishlist", w.wishlistPage)
 	e.POST("/wishlist", w.wishlistAdd)
 	e.POST("/wishlist/:id", w.wishlistUpdate)
@@ -1389,6 +1392,15 @@ func (w *web) loginPost(c *gin.Context) {
 	if err != nil {
 		c.Status(http.StatusUnauthorized)
 		w.render(c, "login.html", map[string]any{"Title": "Log in", "Error": "Invalid username or password."})
+		return
+	}
+	// SECOND FACTOR, between a correct password and a session. Deliberately
+	// after the login-attempt audit above: an attempt that got the password
+	// right is worth recording as a success whether or not the second step
+	// follows, because "the password is known" is the fact a reader of that log
+	// needs. See security_web.go.
+	if secretOf(c.Request.Context(), u.ID) != "" {
+		beginTOTPChallenge(c, u.ID)
 		return
 	}
 	if err := w.flow.Issue(c, u); err != nil {

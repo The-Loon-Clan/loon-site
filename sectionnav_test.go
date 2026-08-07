@@ -25,8 +25,8 @@ func TestAccountMenuEntriesAreReachable(t *testing.T) {
 	served := map[string]bool{
 		"/store/history": true, "/inbox": true, "/p/inbox": true,
 		"/p/account": true, "/settings/privacy": true, "/settings/notifications": true,
-		"/settings/profile": true,
-		"/bookmarks":        true, "/calendar": true, "/achievements": true, "/subscriptions": true,
+		"/settings/profile": true, "/settings/security": true,
+		"/bookmarks": true, "/calendar": true, "/achievements": true, "/subscriptions": true,
 		"/gifts": true, "/wishlist": true,
 		"/p/topics": true, "/p/posts": true,
 		// A plugin page named on the menu by hand rather than left to the
@@ -295,7 +295,8 @@ func TestChromeLinksAreServed(t *testing.T) {
 		"/achievements": true, "/rewards": true, "/subscriptions": true,
 		"/gifts": true, "/invites": true, "/wishlist": true,
 		"/settings/privacy": true, "/settings/notifications": true, "/settings/profile": true,
-		"/login": true, "/logout": true, "/register": true, "/forgot": true,
+		"/settings/security": true,
+		"/login":             true, "/logout": true, "/register": true, "/forgot": true,
 		"/admin/settings": true, "/verify/resend": true,
 		// Staff-only, and linked from the account menu for RoleMod.
 		"/moderation/avatars": true,
