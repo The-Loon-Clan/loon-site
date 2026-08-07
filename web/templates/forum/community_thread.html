@@ -92,7 +92,7 @@
     <aside class="torrent-card__aside">
         <div class="torrent-card__figure p-2">
             <div class="user-stat-card">
-                <span class="avatar avatar--lg user-stat-card__avatar poster--h{{$h}}"><span class="avatar__fallback">{{initials .Username}}</span></span>
+                {{template "avatar" dict "Path" .AvatarPath "Name" .Username "Size" "lg" "Class" "user-stat-card__avatar" "Px" 128}}
                 {{/* h2, not h3: the thread title above is the page's h1, and a
                      jump straight to h3 leaves a hole in the outline. This is
                      the post author, one level under the thread — which is what

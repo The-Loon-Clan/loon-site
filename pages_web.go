@@ -37,6 +37,8 @@ type staffMember struct {
 	// Since is the account's creation date — the closest honest thing this
 	// stack has to UNIT3D's "staff since", which it does not record.
 	Since string
+	// Avatar is users.avatar_path; empty renders as the initials tile.
+	Avatar string
 }
 
 // staffGroup is one role's worth of members. UNIT3D groups by its editable
@@ -67,13 +69,15 @@ func (w *web) staffGroups(ctx context.Context) ([]staffGroup, error) {
 		Username  string `db:"username"`
 		Role      int    `db:"role"`
 		CreatedAt string `db:"created_at"`
+		Avatar    string `db:"avatar_path"`
 	}
 	var rows []row
 	// Role >= RoleMod is the staff test the rest of the site uses (see
 	// chromeData's IsMod). Ordered highest-authority first so the page reads
 	// top-down like the org it describes.
 	if err := usersDB.SelectContext(ctx, &rows,
-		`SELECT username, role, to_char(created_at, 'DD Mon YYYY') AS created_at
+		`SELECT username, role, COALESCE(avatar_path, '') AS avatar_path,
+		        to_char(created_at, 'DD Mon YYYY') AS created_at
 		   FROM users WHERE role >= $1 ORDER BY role DESC, username ASC LIMIT 200`,
 		int(core.RoleMod)); err != nil {
 		return nil, err
@@ -83,7 +87,7 @@ func (w *web) staffGroups(ctx context.Context) ([]staffGroup, error) {
 		role := core.Role(r.Role)
 		byRole[role] = append(byRole[role], staffMember{
 			Username: r.Username, Role: role,
-			RoleName: roleLabel(role), Since: r.CreatedAt,
+			RoleName: roleLabel(role), Since: r.CreatedAt, Avatar: r.Avatar,
 		})
 	}
 	out := make([]staffGroup, 0, len(byRole))

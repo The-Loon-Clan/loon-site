@@ -130,6 +130,9 @@ type followList struct {
 	Username string
 	Role     any
 	Since    string
+	// Avatar is users.avatar_path, empty for a member who has not set one —
+	// which the user-card partial renders as the initials tile.
+	Avatar string
 }
 
 // followers/following read the two directions of the same edge. Capped: these
@@ -139,14 +142,16 @@ const followPageRows = 200
 
 func listFollowers(ctx context.Context, userID int64) []followList {
 	return followQuery(ctx,
-		`SELECT u.username, u.role, to_char(f.created_at, 'Mon YYYY') AS since
+		`SELECT u.username, u.role, COALESCE(u.avatar_path, '') AS avatar_path,
+		        to_char(f.created_at, 'Mon YYYY') AS since
 		   FROM user_follow f JOIN users u ON u.id = f.follower_id
 		  WHERE f.followee_id = $1 ORDER BY f.created_at DESC LIMIT $2`, userID)
 }
 
 func listFollowing(ctx context.Context, userID int64) []followList {
 	return followQuery(ctx,
-		`SELECT u.username, u.role, to_char(f.created_at, 'Mon YYYY') AS since
+		`SELECT u.username, u.role, COALESCE(u.avatar_path, '') AS avatar_path,
+		        to_char(f.created_at, 'Mon YYYY') AS since
 		   FROM user_follow f JOIN users u ON u.id = f.followee_id
 		  WHERE f.follower_id = $1 ORDER BY f.created_at DESC LIMIT $2`, userID)
 }
@@ -159,13 +164,14 @@ func followQuery(ctx context.Context, q string, userID int64) []followList {
 		Username string `db:"username"`
 		Role     int    `db:"role"`
 		Since    string `db:"since"`
+		Avatar   string `db:"avatar_path"`
 	}
 	if err := followsDB.SelectContext(ctx, &rows, q, userID, followPageRows); err != nil {
 		return nil
 	}
 	out := make([]followList, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, followList{Username: r.Username, Role: core.Role(r.Role), Since: r.Since})
+		out = append(out, followList{Username: r.Username, Role: core.Role(r.Role), Since: r.Since, Avatar: r.Avatar})
 	}
 	return out
 }
@@ -229,7 +235,7 @@ func (w *web) followPage(kind followKind) gin.HandlerFunc {
 // second person reciprocated, not when the first one started reading.
 func listFriends(ctx context.Context, userID int64) []followList {
 	return followQuery(ctx,
-		`SELECT u.username, u.role,
+		`SELECT u.username, u.role, COALESCE(u.avatar_path, '') AS avatar_path,
 		        to_char(GREATEST(mine.created_at, theirs.created_at), 'Mon YYYY') AS since
 		   FROM user_follow mine
 		   JOIN user_follow theirs

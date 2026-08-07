@@ -19,9 +19,7 @@
         {{range .Requests}}
         <li>
             <div class="list-row">
-                <span class="avatar avatar--sm avatar--round poster--h{{hue .Username}}">
-                    <span class="avatar__fallback">{{initials .Username}}</span>
-                </span>
+                {{template "avatar" dict "Path" .AvatarPath "Name" .Username "Size" "sm" "Round" true "Px" 60}}
                 <span class="list-row__body">
                     <span class="list-row__title">{{template "user-tag" (dict "Name" .Username "Role" .Role "Plain" true)}}</span>
                     <span class="list-row__meta">

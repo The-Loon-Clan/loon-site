@@ -23,7 +23,7 @@
                  follower and following lists render, so the three cannot
                  drift. */}}
             {{range .Members}}
-            {{template "user-card" (dict "Name" .Username "Role" .Role "Meta" .RoleName
+            {{template "user-card" (dict "Avatar" .Avatar "Name" .Username "Role" .Role "Meta" .RoleName
                                          "Meta2" (cond .Since (print "Member since " .Since) ""))}}
             {{end}}
         </div>

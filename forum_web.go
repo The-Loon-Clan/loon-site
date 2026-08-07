@@ -181,16 +181,17 @@ const (
 // NOTE there is no view count: the forum records replies, not views, so the
 // mockup's second metric column has no honest source and is not filled.
 type forumThreadVM struct {
-	ID         int       // forum thread id
-	Title      string    // thread title
-	URL        string    // /community/forums/thread/<id>
-	Author     string    // OP username
-	AuthorRole string    // OP role from user_display ("admin"/"mod"/"user"/…)
-	Category   string    // category name the thread sits in
-	CategoryID int       // /community/forums/category/<id>
-	Replies    int       // reply_count — the OP post is not counted
-	LastPostAt time.Time // last activity; feed {{timeAgo}}
-	Pinned     bool      // shows the PINNED badge
+	ID           int       // forum thread id
+	Title        string    // thread title
+	URL          string    // /community/forums/thread/<id>
+	Author       string    // OP username
+	AuthorRole   string    // OP role from user_display ("admin"/"mod"/"user"/…)
+	AuthorAvatar string    // OP users.avatar_path; "" -> initials tile
+	Category     string    // category name the thread sits in
+	CategoryID   int       // /community/forums/category/<id>
+	Replies      int       // reply_count — the OP post is not counted
+	LastPostAt   time.Time // last activity; feed {{timeAgo}}
+	Pinned       bool      // shows the PINNED badge
 }
 
 // forumPosterVM is one row in the top-posters panel — the truthful stand-in for
@@ -201,6 +202,7 @@ type forumPosterVM struct {
 	UserID   int    // forum user id
 	Username string // display name
 	Role     string // role from user_display
+	Avatar   string // users.avatar_path via user_display; "" -> initials tile
 	URL      string // /u/<username>
 	Posts    int    // visible post count (hidden posts excluded)
 }
@@ -231,14 +233,15 @@ func (w *web) homeForum(ctx context.Context) (homeForumVM, bool) {
 		for _, t := range ts {
 			vm.Threads = append(vm.Threads, forumThreadVM{
 				ID: t.ID, Title: t.Title,
-				URL:        "/community/forums/thread/" + strconv.Itoa(t.ID),
-				Author:     t.Username,
-				AuthorRole: t.Role,
-				Category:   t.CategoryName,
-				CategoryID: t.CategoryID,
-				Replies:    t.ReplyCount,
-				LastPostAt: t.LastPostAt,
-				Pinned:     t.Pinned,
+				URL:          "/community/forums/thread/" + strconv.Itoa(t.ID),
+				Author:       t.Username,
+				AuthorRole:   t.Role,
+				AuthorAvatar: t.AvatarPath,
+				Category:     t.CategoryName,
+				CategoryID:   t.CategoryID,
+				Replies:      t.ReplyCount,
+				LastPostAt:   t.LastPostAt,
+				Pinned:       t.Pinned,
 			})
 		}
 	}
@@ -249,7 +252,8 @@ func (w *web) homeForum(ctx context.Context) (homeForumVM, bool) {
 		for i, ct := range cs {
 			vm.Posters = append(vm.Posters, forumPosterVM{
 				Rank: i + 1, UserID: ct.UserID, Username: ct.Username,
-				Role: ct.Role, URL: "/u/" + url.PathEscape(ct.Username), Posts: ct.PostCount,
+				Role: ct.Role, Avatar: ct.AvatarPath,
+				URL: "/u/" + url.PathEscape(ct.Username), Posts: ct.PostCount,
 			})
 		}
 	}

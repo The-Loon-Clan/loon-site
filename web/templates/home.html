@@ -342,7 +342,7 @@
         {{- $h := hue .Author}}
         <li class="topic-listings__item">
             <a class="list-row" href="{{.URL}}">
-                <span class="avatar avatar--sm avatar--round poster--h{{$h}}"><span class="avatar__fallback">{{initials .Author}}</span></span>
+                {{template "avatar" dict "Path" .AuthorAvatar "Name" .Author "Size" "sm" "Round" true "Px" 60}}
                 <span class="list-row__body">
                     <span class="list-row__title">{{.Title}}</span>
                     <span class="list-row__meta">
@@ -387,7 +387,7 @@
             <li>
                 <a class="list-row" href="{{.URL}}">
                     <span class="rank-chip{{if eq .Rank 1}} rank-chip--1{{else if eq .Rank 2}} rank-chip--2{{else if eq .Rank 3}} rank-chip--3{{end}}">{{.Rank}}</span>
-                    <span class="avatar avatar--sm avatar--round poster--h{{$h}}"><span class="avatar__fallback">{{initials .Username}}</span></span>
+                    {{template "avatar" dict "Path" .Avatar "Name" .Username "Size" "sm" "Round" true "Px" 60}}
                     <span class="list-row__body">
                         <span class="list-row__title">{{template "user-tag" (dict "Name" .Username "Role" .Role "Plain" true)}}</span>
                     </span>

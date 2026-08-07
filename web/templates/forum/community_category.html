@@ -61,7 +61,7 @@
                     <tr>
                         <td>
                             <div class="data-table__name">
-                                <span class="avatar avatar--sm poster--h{{$h}}"><span class="avatar__fallback">{{initials .Username}}</span></span>
+                                {{template "avatar" dict "Path" .AvatarPath "Name" .Username "Size" "sm" "Px" 60}}
                                 <div class="data-table__name-body">
                                     <a class="data-table__title" href="/community/forums/thread/{{.ID}}">{{.Title}}</a>
                                     <div class="data-table__meta">

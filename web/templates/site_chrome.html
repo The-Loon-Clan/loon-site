@@ -691,9 +691,9 @@
      invalid, and the nested one is what a browser drops. */}}
 {{define "user-card"}}
 <a class="tile" href="/u/{{.Name}}">
-    <span class="avatar avatar--lg avatar--round poster--h{{hue .Name}}">
-        <span class="avatar__fallback">{{initials .Name}}</span>
-    </span>
+    {{/* Avatar is OPTIONAL: callers that have it pass it, callers that do not
+         get the initials tile, which is what most members have anyway. */}}
+    {{template "avatar" dict "Path" .Avatar "Name" .Name "Size" "lg" "Round" true "Px" 128}}
     <span class="tile__body">
         <span class="tile__title">{{template "user-tag" (dict "Name" .Name "Role" .Role "Plain" true)}}</span>
         {{with .Meta}}<span class="tile__meta">{{.}}</span>{{end}}
@@ -804,9 +804,7 @@
      reply the same. */}}
 {{define "comment"}}
 <article class="comment">
-    <span class="avatar avatar--sm avatar--round poster--h{{hue .Name}}">
-        <span class="avatar__fallback">{{initials .Name}}</span>
-    </span>
+    {{template "avatar" dict "Path" .Avatar "Name" .Name "Size" "sm" "Round" true "Px" 60}}
     <div class="comment__main">
         <p class="comment__meta">
             {{template "user-tag" (dict "Name" .Name "Role" .Role "Plain" .Plain)}}

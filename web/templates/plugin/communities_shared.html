@@ -62,9 +62,7 @@
 {{define "c-thread-row"}}
 <li>
     <a class="list-row" href="/c/{{.CommunitySlug}}/thread/{{.ID}}">
-        <span class="avatar avatar--sm avatar--round poster--h{{hue .Username}}">
-            <span class="avatar__fallback">{{initials .Username}}</span>
-        </span>
+        {{template "avatar" dict "Path" .AvatarPath "Name" .Username "Size" "sm" "Round" true "Px" 60}}
         <span class="list-row__body">
             <span class="list-row__title">
                 {{if .Pinned}}<span class="tag tag--warning">Pinned</span>{{end}}

@@ -59,7 +59,7 @@ paragraph. The evidence is still in the staging tables today.
 
 ---
 
-## 3. Avatars are stubbed at every layer
+## 3. Avatars are stubbed at every layer — DONE
 
 `users.avatar_path` exists as a column, nothing reads it, and loon-baseline's
 `user_display` view hardcodes `''::text AS avatar_path` — with a comment saying
@@ -67,8 +67,22 @@ it changes "when the corresponding facet packages land". So every avatar on the
 site is an initials tile, and three layers each believe another one will supply
 the picture.
 
-Gravatar-by-email-hash is a cheap real step and needs no storage decision.
-Uploads need one (local disk vs object store) and a moderation answer.
+**Resolved.** The diagnosis was half right: plugins *did* read the column (the
+forum, communities, messages and chat all select it) — the view was throwing it
+away, and `reputation_tier` with it. `migrateUserDisplay` replaces the view with
+one that reads both; `avatar_web.go` adds upload, crop, re-encode and removal,
+storing through the existing `blob.Store` mount; one `{{template "avatar"}}`
+partial serves every render site in the host and the forum set.
+
+Two things left behind it:
+
+* **Moderation.** Anyone may upload anything. There is no report path for an
+  avatar and no staff control to clear one — `clearAvatar` is wired only to the
+  member's own settings page. On a site with open registration that is the gap
+  that matters.
+* **Orphan sweep.** Files are deleted on replace and on removal, but a delete
+  that fails is only logged, and an account deleted directly in the database
+  leaves its file behind. Nothing walks `avatars/` against `users.avatar_path`.
 
 ---
 
