@@ -574,7 +574,11 @@ main > article {
     display: flex;
     align-items: center;
     list-style: none;
-    font-size: var(--fs-2xs);
+    /* One step up from the --fs-2xs this started at. 12px is the size the
+       stat-strip LABELS use, and those are shouty uppercase captions next to a
+       number; a breadcrumb is a sentence you read, and at 12px it was the
+       smallest readable text on the page for no reason. */
+    font-size: var(--fs-sm);
     overflow-x: hidden;
     max-width: 100%;
 }
@@ -607,6 +611,12 @@ main > article {
     border-right: 1.5px solid currentColor;
     transform: rotate(45deg);
     opacity: 0.55;
+    /* Aligned to the text's middle, not to its BASELINE — the default for an
+       inline-block, and it sat a 5px box ON the baseline, which pushed the
+       chevron up toward the cap line while the words either side of it read
+       centred. The crumbs themselves were never off: measured, each one centres
+       in the bar to within half a pixel. It was only this. */
+    vertical-align: middle;
 }
 
 .breadcrumb--active { color: var(--text); }
