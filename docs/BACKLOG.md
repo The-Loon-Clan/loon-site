@@ -111,7 +111,7 @@ Two things left behind it:
 
 ---
 
-## 4. Committing the audit tools
+## 4. Committing the audit tools — DONE
 
 Two sweeps live only in the session scratchpad, which was cleared once:
 
@@ -126,7 +126,34 @@ Two sweeps live only in the session scratchpad, which was cleared once:
   an empty username, a 500 on `/c/usenet`, and one bad link of MY OWN an hour
   after I shipped it.
 
-Both belong next to `shellcheck/`, and `deploy.sh` could run them.
+**Built** — `scripts/`, with a README explaining why each exists. The
+accessibility audit had ALREADY been lost by the time this was picked up and was
+rewritten from the description above; the crawler survived. `deploy.sh` runs all
+three after a successful deploy, advisory, printing one summary line each.
+
+A third was added: **`audit_css.py`**, which finds classes used in a template and
+defined in no stylesheet — the contract audit (#1) in another medium. It found
+`.button--primary` on the main action of FOURTEEN forms, defined nowhere, so
+every Save, Upload and Create rendered identically to the Cancel beside it.
+
+Fixed as a result: `.button--primary`, `.tag--danger`, `.tag--info`, `.chip--ok`,
+`.chip--warn`, `.panelV2--overflow`; `/staff` had its `<h1>` only in the EMPTY
+branch, so every real site rendered a page with no name; the shared prose editor
+gave every textarea on the site no accessible name at all.
+
+**Still open, deliberately not fixed here:**
+
+* **23 undefined CSS classes remain**, mostly structural BEM names in plugin
+  markup (`.blocks__*`, `.meta__line`, `.form__checkbox`). Each needs a design
+  decision — define it or delete it — rather than an invented rule. This is the
+  closest of the three to being gateable in CI once resolved.
+* **12 a11y findings remain**, nearly all in plugin markup: unlabelled search
+  and ticket fields (wiki, messages, tickets), `h2 -> h6` from dailyreward,
+  `h1 -> h5` from store, two `<h1>`s on `/news` and `/wiki`, and unnamed tables
+  on `/admin/jobs`. Host pages are otherwise clean.
+
+The tools are advisory on purpose, for the same reason the contract audit does
+not fail boot: a check that stops the build is a check people learn to skip.
 
 ---
 

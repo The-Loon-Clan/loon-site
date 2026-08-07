@@ -14,8 +14,17 @@
      than each growing their own — the same reason Deps.Markdown crosses the
      seam instead of being reimplemented per plugin. */}}
 {{define "prose-editor"}}
+{{/* aria-label, because this partial renders the textarea and the caller
+     renders (or forgets) the <label>. Every prose editor on the site came
+     through here unnamed -- announced as "edit text" and nothing else -- which
+     scripts/audit_a11y.py found on /settings/profile and which was equally
+     true of the forum, the wiki and communities.
+
+     Label when the caller passes one, the field name otherwise: "bio" is a
+     poor name and it is a great deal better than none. */}}
 <textarea class="form__textarea"
           name="{{.Name}}"
+          aria-label="{{with .Label}}{{.}}{{else}}{{$.Name}}{{end}}"
           {{with .Rows}}rows="{{.}}"{{else}}rows="6"{{end}}
           {{with .Placeholder}}placeholder="{{.}}"{{end}}
           {{if .Required}}required{{end}}

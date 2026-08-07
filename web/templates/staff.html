@@ -7,6 +7,14 @@
      Absent when the read failed or nobody holds a staff role. All real data —
      no mock. */}}
 {{define "content"}}
+{{/* The h1 sits OUTSIDE the branch. It used to live only in the empty state,
+     so a site with staff -- every real one -- rendered a page whose highest
+     heading was the first group's h2, and had no name at all. Found by
+     scripts/audit_a11y.py. */}}
+<header class="mb-3">
+    <h1 class="h3 m-0">Staff</h1>
+    <p class="text-muted small m-0 mt-1">Who runs this site, grouped by what they can do.</p>
+</header>
 {{if .Groups}}
 {{range .Groups}}
 <section class="panelV2">
@@ -32,7 +40,6 @@
 {{end}}
 {{else}}
 <section class="panelV2">
-    <header class="panel__header"><h1 class="panel__heading">Staff</h1></header>
     <div class="panel__body">No staff accounts yet.</div>
 </section>
 {{end}}

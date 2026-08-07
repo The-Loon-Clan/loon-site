@@ -24,6 +24,21 @@
 # tagged so `docker compose up -d` puts the previous build back.
 set -uo pipefail
 
+# The audit sweeps (scripts/README.md). ADVISORY: they report and never change
+# the exit status. Each script exits non-zero on findings, so CI can gate on one
+# of them individually once its findings are at zero -- but a deploy that fails
+# because a plugin template is missing a table caption is a deploy people learn
+# to work around.
+run_audits() {
+    command -v python >/dev/null 2>&1 || return 0
+    echo
+    echo "  audits (advisory -- see scripts/README.md)"
+    for a in audit_css audit_links audit_a11y; do
+        [[ -f "scripts/$a.py" ]] || continue
+        python "scripts/$a.py" 2>&1 | tail -1 | sed 's/^/     /'
+    done
+}
+
 cd "$(dirname "$0")"
 
 FILES=(-f docker-compose.yml)
@@ -78,6 +93,7 @@ for ((i = 1; i <= DEADLINE; i++)); do
             echo
             echo "     ^ the site is up, but it logged the above during boot." >&2
         fi
+        run_audits
         say "Deployed."
         exit 0
     fi

@@ -79,6 +79,9 @@ func (w *web) settingsProfile(c *gin.Context) {
 		// shows.
 		"Editor": w.renderEditor(map[string]any{
 			"Name": "bio", "Rows": 12, "Value": bio,
+			// Names the control for a screen reader; the visible heading above
+			// the panel is not associated with the field.
+			"Label":       "About you",
 			"Placeholder": "Say something about yourself…",
 		}),
 		"Max":   bioMaxLen,

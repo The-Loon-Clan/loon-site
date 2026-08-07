@@ -2202,3 +2202,35 @@ a.cal-ev:hover { background: var(--surface-3); }
 .contract-list__item { padding-bottom: var(--space-5); border-bottom: 1px solid var(--border); }
 .contract-list__item:last-child { border-bottom: 0; padding-bottom: 0; }
 .contract-list__symptom { margin: var(--space-2) 0 var(--space-1); font-weight: 700; }
+
+/* Variants the templates ask for by name and no rule answered.
+   Found by scripts/audit_css.py, which exists because .button--danger and
+   .text-danger went the whole life of the codebase in this state -- used
+   everywhere, defined nowhere, rendering as though the class were absent.
+
+   .button--primary is the loudest of them: fourteen templates put it on the
+   main action of a form -- Save, Upload, Create a code -- and every one of
+   those rendered as a bare .button, visually identical to Cancel beside it.
+   Aliased to --filled rather than given its own look, because --filled IS the
+   site's primary button and a second one would be a second answer. */
+.button--primary {
+    background: var(--button-filled-bg);
+    border: var(--button-filled-border);
+    color: var(--button-filled-fg);
+    box-shadow: 0 8px 20px -12px var(--primary);
+}
+
+/* .tag already has --success and --warning; these two complete the set the
+   templates were already using. */
+.tag--danger { color: var(--danger); border-color: var(--danger-soft); }
+.tag--info { color: var(--info); border-color: var(--info-soft); }
+
+/* Status chips on /admin/access and /invites: "open", "expired". Same idea as
+   .chip--accent, in the two colours those pages actually needed. */
+.chip--ok { color: var(--success); background: var(--success-soft); border-color: var(--success-soft); }
+.chip--warn { color: var(--warning); background: var(--warning-soft); border-color: var(--warning-soft); }
+
+/* A panel whose body scrolls sideways rather than pushing the page wide. Used
+   by the three listing pages with wide tables; the page body must never scroll
+   horizontally, so the overflow has to live somewhere and this is where. */
+.panelV2--overflow > .panel__body { overflow-x: auto; }
