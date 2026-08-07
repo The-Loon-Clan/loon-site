@@ -1,0 +1,112 @@
+{{/* Wishlist (wishlist_web.go). .Items, .Mine, .Open, .Cap, .TitleMax,
+     .NoteMax, .Err.
+
+     Two tabs over one list: yours, and everyone's open entries. The second is
+     the important one -- the point of a wishlist is that somebody who uploads
+     can see what people are asking for, and that half works even with nothing
+     indexed. */}}
+{{define "content"}}
+<header class="mb-3">
+    <h1 class="h3 m-0">Wishlist</h1>
+    <p class="text-muted small m-0 mt-1">
+        What you are hoping turns up. Entries are your own words &mdash; nothing here is matched
+        against the index, so an entry is filled when you say it is.
+    </p>
+</header>
+
+{{with .Err}}
+<div class="notice notice--danger">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg><span>{{.}}</span>
+</div>
+{{end}}
+
+<nav aria-label="Wishlist">
+    <ul class="section-tabs mb-3">
+        <li><a class="section-tabs__link{{if .Mine}} section-tabs__link--active{{end}}"
+               href="/wishlist"{{if .Mine}} aria-current="page"{{end}}>Yours</a></li>
+        <li><a class="section-tabs__link{{if not .Mine}} section-tabs__link--active{{end}}"
+               href="/wishlist?all=1"{{if not .Mine}} aria-current="page"{{end}}>Everyone</a></li>
+    </ul>
+</nav>
+
+{{if .Mine}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#plus"></use></svg>
+            Add something
+        </h2>
+        <div class="panel__actions"><span class="panel__action">{{.Open}} of {{.Cap}} open</span></div>
+    </header>
+    <div class="panel__body">
+        <form class="form" method="post" action="/wishlist">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__group">
+                <label class="form__label" for="wish-title">What are you looking for?</label>
+                <input class="form__input" id="wish-title" type="text" name="title"
+                       maxlength="{{.TitleMax}}" required placeholder="A title, as you would search for it">
+            </div>
+            <div class="form__group mt-3">
+                <label class="form__label" for="wish-note">Anything specific? <span class="text-muted">(optional)</span></label>
+                <input class="form__input" id="wish-note" type="text" name="note"
+                       maxlength="{{.NoteMax}}" placeholder="1080p or better, original audio…">
+            </div>
+            <div class="form__actions mt-3">
+                <button class="button button--primary" type="submit">Add to wishlist</button>
+            </div>
+        </form>
+    </div>
+</section>
+{{end}}
+
+<section class="panelV2 mt-4">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#star"></use></svg>
+            {{if .Mine}}Your entries{{else}}What people are asking for{{end}}
+        </h2>
+    </header>
+    <div class="panel__body">
+        {{if .Items}}
+        <ul class="wishlist">
+            {{range .Items}}
+            <li class="wishlist__item{{if not .IsOpen}} wishlist__item--filled{{end}}">
+                <div class="wishlist__body">
+                    <span class="wishlist__title">{{.Title}}</span>
+                    {{with .Note}}<span class="text-muted small">{{.}}</span>{{end}}
+                    <span class="text-muted small">
+                        {{if not $.Mine}}<a href="/u/{{.Owner}}">{{.Owner}}</a> &middot; {{end}}added {{.Added}}
+                        {{if not .IsOpen}}&middot; filled {{.Filled}}{{end}}
+                        {{/* Only ever shown when somebody ELSE wants the same
+                             thing, so a lone entry does not read "1 person
+                             wants this" back at the person who asked. */}}
+                        {{if gt .Wanters 1}}&middot; <strong>{{.Wanters}} people want this</strong>{{end}}
+                    </span>
+                </div>
+                {{if .IsMine}}
+                <div class="wishlist__actions">
+                    <form method="post" action="/wishlist/{{.ID}}">
+                        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                        <input type="hidden" name="all" value="{{if $.Mine}}0{{else}}1{{end}}">
+                        <input type="hidden" name="action" value="{{if .IsOpen}}fill{{else}}reopen{{end}}">
+                        <button class="button button--text button--sm" type="submit">{{if .IsOpen}}Mark filled{{else}}Reopen{{end}}</button>
+                    </form>
+                    <form method="post" action="/wishlist/{{.ID}}">
+                        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                        <input type="hidden" name="all" value="{{if $.Mine}}0{{else}}1{{end}}">
+                        <input type="hidden" name="action" value="remove">
+                        <button class="button button--text button--sm text-danger" type="submit">Remove</button>
+                    </form>
+                </div>
+                {{end}}
+            </li>
+            {{end}}
+        </ul>
+        {{else}}
+        <p class="m-0 text-muted">
+            {{if .Mine}}Nothing on your list yet.{{else}}Nobody is asking for anything at the moment.{{end}}
+        </p>
+        {{end}}
+    </div>
+</section>
+{{end}}

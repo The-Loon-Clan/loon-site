@@ -678,6 +678,11 @@ func main() {
 		os.Exit(1)
 	}
 	communityModDB = db
+	wishlistDB = db
+	if err := wishlistMigrate(db); err != nil {
+		logger.Error("wishlist migrate", "err", err)
+		os.Exit(1)
+	}
 	giftsDB = db
 	if err := giftsMigrate(db); err != nil {
 		logger.Error("gifts migrate", "err", err)

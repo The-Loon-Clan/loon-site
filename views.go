@@ -127,7 +127,7 @@ var pageTemplates = []string{
 	"home.html", "groups.html", "search.html", "browse.html", "release.html",
 	"trending.html", "bookmarks.html", "follows.html", "calendar.html",
 	"achievements.html", "forum_activity.html", "rewards.html", "subscriptions.html",
-	"invites.html", "gifts.html",
+	"invites.html", "gifts.html", "wishlist.html",
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
@@ -719,6 +719,9 @@ func (w *web) mount(e *gin.Engine) {
 	// follows, read from the tables that already hold it.
 	e.GET("/subscriptions", w.subscriptionsPage)
 	// Invite codes (invitecodes_web.go).
+	e.GET("/wishlist", w.wishlistPage)
+	e.POST("/wishlist", w.wishlistAdd)
+	e.POST("/wishlist/:id", w.wishlistUpdate)
 	e.GET("/gifts", w.giftsPage)
 	e.POST("/gifts", w.giftsSend)
 	e.GET("/invites", w.invitesPage)

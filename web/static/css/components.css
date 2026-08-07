@@ -2356,3 +2356,20 @@ a.cal-ev:hover { background: var(--surface-3); }
     opacity: .7;
 }
 .invite-tree__row--d0 > .invite-tree__branch { visibility: hidden; }
+
+/* Wishlist entries (wishlist.html). A list, not a table: an entry is a line of
+   prose with a couple of facts under it, and a table would ask each one to fill
+   four columns it does not have. */
+.wishlist { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-4); }
+.wishlist__item {
+    display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3);
+    padding-bottom: var(--space-4); border-bottom: 1px solid var(--border);
+}
+.wishlist__item:last-child { border-bottom: 0; padding-bottom: 0; }
+.wishlist__body { display: grid; gap: 2px; flex: 1 1 240px; min-width: 0; }
+.wishlist__title { font-weight: 600; }
+/* Filled entries stay on the list rather than disappearing -- the record that
+   something was wanted and turned up is worth as much as the request. Dimmed,
+   not struck through: a strike reads as "cancelled". */
+.wishlist__item--filled .wishlist__title { color: var(--muted-2); }
+.wishlist__actions { display: flex; gap: var(--space-2); margin-left: auto; }
