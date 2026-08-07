@@ -137,18 +137,27 @@ var hostNavGroups = map[string]bool{
 	"Releases": true, "Community": true, "Support": true, "Other": true,
 }
 
-// accountSection is the sections[] entry (sectionnav_web.go) that already
-// classifies the per-viewer pages. An UNGROUPED plugin page landing in it is a
-// personal page — your API key, your sign-ins, your purchases — and belongs on
+// accountPluginPages are the per-viewer PLUGIN pages — your API key, your
+// sign-ins, your purchases. An ungrouped plugin page at one of these belongs on
 // the account menu, not in the site nav's Other bucket where it sat next to
-// About and Sitemap. Reusing the section table rather than a second list of
-// paths means the two bars cannot disagree about what "Account" means.
-const accountSection = "Account"
+// About and Sitemap.
+//
+// An explicit list. It used to be derived from the section table's Account
+// prefixes, which was free while that table also drove a section bar; with the
+// bar gone the table is the account menu itself, and deriving one from the
+// other would make a page appear on the menu twice. A plugin page is personal
+// because of what it SHOWS, which no path pattern was really answering anyway.
+var accountPluginPages = map[string]bool{
+	"/p/api-key":  true,
+	"/p/sign-ins": true,
+	"/p/store":    true,
+}
 
-// accountMenuBuiltins are account-menu rows site_chrome.html writes itself. A
-// plugin page at one of these is already on the menu — with its unread count
-// and its own icon — so the generic list must not add a second, plainer copy.
-var accountMenuBuiltins = map[string]bool{"/p/inbox": true}
+// accountMenuBuiltins are account-menu rows the menu already carries by name
+// (accountMenu in sectionnav_web.go, or written into site_chrome.html) — with
+// their unread count and their own icon. The generic list must not add a
+// second, plainer copy.
+var accountMenuBuiltins = map[string]bool{"/p/inbox": true, "/p/account": true}
 
 // siteNav builds the top nav for the current viewer from the pre-sorted
 // entries: ungrouped pages become plain links; a named group with 2+ visible
@@ -171,7 +180,7 @@ func (w *web) siteNav(c *gin.Context) ([]navNode, map[string][]navItem, []navIte
 			case !e.view.AllowsUser(u):
 			case accountMenuBuiltins[e.href]:
 				// already on the account menu, written by hand
-			case sectionTitle(e.href) == accountSection:
+			case accountPluginPages[e.href]:
 				account = append(account, navItem{Href: e.href, Label: e.label})
 			default:
 				nodes = append(nodes, navNode{Label: e.label, Href: e.href})

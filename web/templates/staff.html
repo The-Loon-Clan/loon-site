@@ -7,11 +7,6 @@
      Absent when the read failed or nobody holds a staff role. All real data —
      no mock. */}}
 {{define "content"}}
-<ol class="breadcrumbsV2">
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
-    <li class="breadcrumbV2 breadcrumb--active">Staff</li>
-</ol>
-
 {{if .Groups}}
 {{range .Groups}}
 <section class="panelV2">

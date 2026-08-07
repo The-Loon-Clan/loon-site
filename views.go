@@ -897,10 +897,10 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// same as IsDonateEnabled — see donations_web.go.
 	data["DonateEnabled"] = donationsEnabled && donateToggle.Load()
 	data["Path"] = c.Request.URL.Path
-	// Contextual second bar — see sectionnav_web.go. Nil for pages with nowhere
-	// sideways to go, and for /admin/*, which has its own subnav.
-	data["SectionNav"] = sectionNav(c.Request.URL.Path)
-	data["SectionTitle"] = sectionTitle(c.Request.URL.Path)
+	// The account area, for the avatar dropdown — see sectionnav_web.go. Set
+	// unconditionally: the menu only renders for a signed-in viewer, and the
+	// template already guards on .User.
+	data["AccountNav"] = accountNav(c.Request.URL.Path)
 	// PathQuery is Path PLUS the query string: the "send me back exactly here"
 	// target for the theme switcher's hidden next field. It has to be a SECOND
 	// key rather than a richer Path, because every nav active-state comparison

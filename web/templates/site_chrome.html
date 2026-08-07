@@ -268,19 +268,31 @@
                     <a class="dropdown__item{{if eq .Path (print "/u/" .User.Username)}} active{{end}}" href="/u/{{.User.Username}}">
                         <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#user"></use></svg>My profile
                     </a>
-                    <a class="dropdown__item{{if eq .Path "/bookmarks"}} active{{end}}" href="/bookmarks">
-                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#star"></use></svg>Bookmarks
+                    {{/* The account area itself (sectionnav_web.go). These used
+                         to be reachable ONLY from the second bar under the main
+                         nav; when that bar went, they came here, which is where
+                         a reader looks for their own things anyway.
+
+                         Groups render as a labelled run rather than a nested
+                         dropdown: a dropdown inside a dropdown needs a second
+                         click to find out whether the thing you want is in it,
+                         and at this size the whole menu fits without one. */}}
+                    {{range .AccountNav}}
+                    {{- if .Items}}
+                    <span class="dropdown__group-label">{{.Label}}</span>
+                    {{range .Items}}
+                    <a class="dropdown__item dropdown__item--sub{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}{{if and (eq .Href "/p/inbox") $.Unread}} ({{$.Unread}}){{end}}</a>
+                    {{end}}
+                    {{- else}}
+                    <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>
+                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#coin"></use></svg>{{.Label}}
                     </a>
-                    <a class="dropdown__item{{if eq .Path "/p/inbox"}} active{{end}}" href="/p/inbox">
-                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#bell"></use></svg>Notifications{{if .Unread}} ({{.Unread}}){{end}}
-                    </a>
+                    {{- end}}
+                    {{end}}
                     {{/* Per-viewer plugin pages — your API key, your sign-ins,
-                         your purchases. They used to land in the site nav's
-                         Other dropdown, between About and Sitemap, which is a
-                         site-info menu and not where anyone looks for their own
-                         account. Which pages these are is decided by the
-                         sections table (sectionnav_web.go), the same one the
-                         second bar uses, so the two bars agree. */}}
+                         your purchases. Not in the list above because which of
+                         them exist depends on what is wired; they come from the
+                         view registry at runtime. */}}
                     {{template "nav-plugin-items" (dict "Items" .SiteNavAccount "Path" .Path)}}
                     {{if .IsAdmin}}
                     <a class="dropdown__item{{if eq .Path "/admin/settings"}} active{{end}}" href="/admin/settings">
@@ -459,44 +471,10 @@
         </ul>
     </nav>
 
-    {{/* ---------------------------------------------------- section bar --
-         The contextual second bar live UNIT3D sites carry: the main nav
-         answers "where can I go", this answers "what else is here". Five broad
-         dropdowns up top only work if the detail sits one level down.
-
-         Absent on pages with nowhere sideways to go (home, auth) and on
-         /admin/*, which already has its own subnav — two competing section
-         bars would be worse than one. Active is resolved in Go so the matching
-         rule lives in one place; see sectionNav. */}}
-    {{if .SectionNav}}
-    <nav class="section-nav" aria-label="{{if .SectionTitle}}{{.SectionTitle}}{{else}}Section{{end}}">
-        <ul class="section-nav__items">
-            {{if .SectionTitle}}<li class="section-nav__title">{{.SectionTitle}}</li>{{end}}
-            {{range .SectionNav}}
-            {{if .Items}}
-            {{/* A GROUP: same <details> dropdown as the main nav, so there is
-                 one dropdown behaviour on the page and the JS that closes the
-                 others already covers it. */}}
-            <li>
-                <details class="dropdown">
-                    <summary class="section-nav__link{{if .Active}} section-nav__link--active{{end}}">
-                        {{.Label}}
-                        <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
-                    </summary>
-                    <div class="dropdown__menu">
-                        {{range .Items}}
-                        <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}</a>
-                        {{end}}
-                    </div>
-                </details>
-            </li>
-            {{else}}
-            <li><a class="section-nav__link{{if .Active}} section-nav__link--active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}</a></li>
-            {{end}}
-            {{end}}
-        </ul>
-    </nav>
-    {{end}}
+    {{/* The contextual second bar that used to sit here is gone — it restated
+         the dropdown the reader had just used. Where you are is a breadcrumb
+         now (base.html); the account pages it uniquely carried moved into the
+         avatar menu above. See sectionnav_web.go. */}}
 
     {{/* Stat strip — an EMPTY slot by default. Only a page that has SITE-WIDE
          figures in hand fills it, with its own {{define "stat-strip"}}; home is

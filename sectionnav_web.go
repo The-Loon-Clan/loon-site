@@ -1,155 +1,78 @@
 package main
 
-import "strings"
-
-// Contextual section tabs — the SECOND bar live UNIT3D sites carry under the
-// main nav (Profile · Settings · Torrents · Activity … when you are in the user
-// area, a different set when you are not).
+// The account menu — the contents of the avatar dropdown in the top nav.
 //
-// The main nav answers "where can I go"; this answers "what else is here". Five
-// broad dropdowns up top only work if the detail is one level down, and until
-// now the only thing filling that slot was the admin subnav — which is exactly
-// this idea, built once for admins and never generalised.
+// This file used to build a SECOND full-width bar under the main nav, the one
+// live UNIT3D sites carry (Profile · Settings · Torrents · Activity when you
+// are in the user area, a different set when you are not). It was removed,
+// because on this site it was almost entirely a restatement of the dropdown
+// the reader had just used: four of its five sections — Releases, Community,
+// Support, Site — listed exactly the pages already inside the main nav
+// dropdown of the same name, so opening "Releases ▾" and landing on /browse
+// showed you Browse · Search · Newsgroups · Trending a second time, in a
+// second bar, one row lower. Where you are is now a breadcrumb (base.html),
+// which is what that row was being read as anyway.
 //
-// Sections are matched by PATH PREFIX rather than declared per page, so a page
-// cannot forget to say which section it is in. The cost is that the prefixes
-// have to stay in sync with the routes; the test asserts every tab here
-// resolves to a real page, which is what catches drift.
+// The ACCOUNT half was the exception and is why this file still exists: its
+// pages had no other route in. They live in the avatar dropdown now, which is
+// where a reader looks for their own things, and this is the list.
 
-// sectionTab is one tab. Active is resolved against the request path here
+// sectionTab is one entry. Active is resolved against the request path here
 // rather than in the template, so the matching rule lives in one place.
 type sectionTab struct {
 	Label  string
 	Href   string
 	Active bool
 	// Items, when non-empty, makes this a GROUP rather than a destination: it
-	// renders as a dropdown and its own Href is ignored.
+	// renders as a labelled run inside the menu and its own Href is ignored.
 	//
-	// The account area is why. UNIT3D's second bar is five dropdowns (Profile,
-	// Settings, Torrents, Activity, Bonus Points) over ~25 pages; ours was a
-	// flat row, which works at six entries and falls apart at fifteen — the
-	// bar either wraps or scrolls, and either way the thing you want is off
-	// the end. Grouping is what lets the area grow without the bar growing.
+	// UNIT3D's second bar is five dropdowns (Profile, Settings, Torrents,
+	// Activity, Bonus Points) over ~25 pages; ours was a flat row, which works
+	// at six entries and falls apart at fifteen. Grouping is what lets the area
+	// grow without the menu becoming an undifferentiated list.
 	Items []sectionTab
 }
 
-// section is a named group of tabs plus the prefixes that select it.
-type section struct {
-	Title    string
-	Prefixes []string
-	Tabs     []sectionTab
-}
-
-// sections are tried IN ORDER and the first prefix match wins, so a longer,
-// more specific prefix must come before a shorter one that would also match.
-// /store/history is under Account rather than Community for that reason: it is
-// the viewer's OWN ledger, and it is listed before the /store prefix below.
-var sections = []section{
-	{
-		Title:    "Account",
-		Prefixes: []string{"/u/", "/p/account", "/p/api-key", "/p/sign-ins", "/p/inbox", "/p/store", "/p/topics", "/p/posts", "/settings/", "/inbox", "/store/history", "/bookmarks", "/calendar", "/achievements"},
-		Tabs: []sectionTab{
-			// Grouped the way the account area actually divides: things you
-			// have DONE, things sent TO you, and things you CONFIGURE. Points
-			// stays a plain tab — one destination has nothing to group.
-			{Label: "Messages", Items: []sectionTab{
-				{Label: "Inbox", Href: "/inbox"},
-				{Label: "Notifications", Href: "/p/inbox"},
-			}},
-			{Label: "Activity", Items: []sectionTab{
-				{Label: "Achievements", Href: "/achievements"},
-				{Label: "Topics", Href: "/p/topics"},
-				{Label: "Posts", Href: "/p/posts"},
-				{Label: "Bookmarks", Href: "/bookmarks"},
-				{Label: "Calendar", Href: "/calendar"},
-			}},
-			{Label: "Points", Href: "/store/history"},
-			{Label: "Settings", Items: []sectionTab{
-				{Label: "Account", Href: "/p/account"},
-				{Label: "Privacy", Href: "/settings/privacy"},
-				{Label: "Alerts", Href: "/settings/notifications"},
-				{Label: "API key", Href: "/p/api-key"},
-				{Label: "Sign-ins", Href: "/p/sign-ins"},
-			}},
-		},
-	},
-	{
-		Title:    "Releases",
-		Prefixes: []string{"/browse", "/search", "/groups", "/release/", "/trending"},
-		Tabs: []sectionTab{
-			{Label: "Browse", Href: "/browse"},
-			{Label: "Search", Href: "/search"},
-			{Label: "Newsgroups", Href: "/groups"},
-			{Label: "Trending", Href: "/trending"},
-		},
-	},
-	{
-		Title:    "Community",
-		Prefixes: []string{"/community/forums", "/c", "/news", "/store", "/playlists"},
-		Tabs: []sectionTab{
-			{Label: "Forums", Href: "/community/forums"},
-			{Label: "Communities", Href: "/c"},
-			{Label: "News", Href: "/news"},
-			{Label: "Playlists", Href: "/playlists"},
-			{Label: "Store", Href: "/store"},
-		},
-	},
-	{
-		Title:    "Support",
-		Prefixes: []string{"/rules", "/faq", "/wiki", "/support", "/staff"},
-		Tabs: []sectionTab{
-			{Label: "Rules", Href: "/rules"},
-			{Label: "FAQ", Href: "/faq"},
-			{Label: "Wiki", Href: "/wiki"},
-			{Label: "Helpdesk", Href: "/support"},
-			{Label: "Staff", Href: "/staff"},
-		},
-	},
-	{
-		Title: "Site",
-		// /p/stats is the stats PLUGIN's site page, and it was listed under
-		// Account — so a public figures page rendered the account bar
-		// (Messages / Activity / Points / Settings) over it. It is site
-		// information, the same as the host's own /stats, and belongs here.
-		// The two pages overlap and want consolidating; until they are, the
-		// shared bar at least makes the pair visible from either one.
-		Prefixes: []string{"/stats", "/p/stats", "/about", "/sitemap"},
-		Tabs: []sectionTab{
-			{Label: "Stats", Href: "/stats"},
-			{Label: "About", Href: "/about"},
-			{Label: "Sitemap", Href: "/sitemap"},
-		},
-	},
-}
-
-// sectionNav returns the tabs for a path, with the current one marked, or nil
-// when the path belongs to no section.
+// accountMenu is what the avatar dropdown offers below "My profile", grouped
+// the way the account area actually divides: things sent TO you, things you
+// have DONE, and things you CONFIGURE. Points stays a plain entry — one
+// destination has nothing to group.
 //
-// Returns nil rather than an empty section for the home page and the auth
-// pages: a bar with one tab in it is furniture, and those pages have nowhere
-// sideways to go. /admin/* is nil too — it already has its own subnav built
-// from the view registry, and two competing section bars would be worse than
-// one.
-func sectionNav(path string) []sectionTab {
-	if strings.HasPrefix(path, "/admin") {
-		return nil
-	}
-	for _, s := range sections {
-		if !matchesSection(path, s.Prefixes) {
-			continue
-		}
-		return markActive(s.Tabs, path)
-	}
-	return nil
+// Per-viewer PLUGIN pages (your API key, your sign-ins, your purchases) are not
+// here: they come from the view registry at runtime via SiteNavAccount, since
+// which of them exist depends on what is wired.
+var accountMenu = []sectionTab{
+	{Label: "Messages", Items: []sectionTab{
+		{Label: "Inbox", Href: "/inbox"},
+		{Label: "Notifications", Href: "/p/inbox"},
+	}},
+	{Label: "Activity", Items: []sectionTab{
+		{Label: "Achievements", Href: "/achievements"},
+		{Label: "Topics", Href: "/p/topics"},
+		{Label: "Posts", Href: "/p/posts"},
+		{Label: "Bookmarks", Href: "/bookmarks"},
+		{Label: "Calendar", Href: "/calendar"},
+	}},
+	{Label: "Points", Href: "/store/history"},
+	{Label: "Settings", Items: []sectionTab{
+		{Label: "Account", Href: "/p/account"},
+		{Label: "Privacy", Href: "/settings/privacy"},
+		{Label: "Alerts", Href: "/settings/notifications"},
+	}},
 }
 
-// markActive copies the tabs and lights the one the path is on.
+// accountNav returns the menu with the page you are on marked.
+func accountNav(path string) []sectionTab {
+	return markActive(accountMenu, path)
+}
+
+// markActive copies the entries and lights the one the path is on.
 //
 // Longest matching href wins, so /store/history marks Points rather than also
-// lighting Store — a shorter prefix must not steal a deeper page. The search
-// runs across GROUP CHILDREN as well as top-level tabs, and a matched child
-// lights its parent too: a collapsed dropdown that gives no sign the current
-// page is inside it is a bar that has stopped answering "where am I".
+// lighting a shorter /store — a shorter prefix must not steal a deeper page.
+// The search runs across GROUP CHILDREN as well as top-level entries, and a
+// matched child lights its parent too: a group that gives no sign the current
+// page is inside it has stopped answering "where am I".
 func markActive(tabs []sectionTab, path string) []sectionTab {
 	out := make([]sectionTab, len(tabs))
 	copy(out, tabs)
@@ -159,7 +82,7 @@ func markActive(tabs []sectionTab, path string) []sectionTab {
 		if href == "" || len(href) <= bestLen {
 			return
 		}
-		if path == href || strings.HasPrefix(path, href+"/") {
+		if path == href || hasPathPrefix(path, href) {
 			bestTab, bestItem, bestLen = ti, ii, len(href)
 		}
 	}
@@ -174,9 +97,9 @@ func markActive(tabs []sectionTab, path string) []sectionTab {
 	}
 	out[bestTab].Active = true
 	if bestItem >= 0 {
-		// Copy the child slice before writing: the package-level `sections`
-		// is shared across every request, and marking in place would leave
-		// one reader's active tab lit for everyone else.
+		// Copy the child slice before writing: the package-level accountMenu is
+		// shared across every request, and marking in place would leave one
+		// reader's active entry lit for everyone else.
 		items := make([]sectionTab, len(out[bestTab].Items))
 		copy(items, out[bestTab].Items)
 		items[bestItem].Active = true
@@ -185,36 +108,8 @@ func markActive(tabs []sectionTab, path string) []sectionTab {
 	return out
 }
 
-// sectionTitle names the current section, for the bar's label.
-func sectionTitle(path string) string {
-	if strings.HasPrefix(path, "/admin") {
-		return ""
-	}
-	for _, s := range sections {
-		if matchesSection(path, s.Prefixes) {
-			return s.Title
-		}
-	}
-	return ""
-}
-
-// matchesSection reports whether path is in this section. An exact match or a
-// path-segment match only: a bare prefix test would put /community/forums in
-// the "/c" section, since "/community…" starts with "/c".
-func matchesSection(path string, prefixes []string) bool {
-	for _, p := range prefixes {
-		if path == p {
-			return true
-		}
-		if strings.HasSuffix(p, "/") {
-			if strings.HasPrefix(path, p) {
-				return true
-			}
-			continue
-		}
-		if strings.HasPrefix(path, p+"/") {
-			return true
-		}
-	}
-	return false
+// hasPathPrefix reports whether path sits under href as a path SEGMENT, so
+// /settings/privacy-policy is not treated as a page under /settings/privacy.
+func hasPathPrefix(path, href string) bool {
+	return len(path) > len(href) && path[:len(href)] == href && path[len(href)] == '/'
 }
