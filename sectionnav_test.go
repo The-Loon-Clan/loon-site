@@ -1,6 +1,47 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+// Which SECTION a path lands in — which none of the tab tests below pin. They
+// assert which TAB is lit, and a page with no tab of its own lights nothing
+// wherever it lands, so a plugin page filed under the wrong section looks
+// exactly like one filed correctly. /p/stats sat in Account for that reason:
+// public site figures under a bar of Messages, Activity, Points and Settings,
+// with nothing failing to say so.
+func TestSectionNavPutsAPathInTheRightSection(t *testing.T) {
+	sectionFor := func(path string) string {
+		if strings.HasPrefix(path, "/admin") {
+			return ""
+		}
+		for _, s := range sections {
+			if matchesSection(path, s.Prefixes) {
+				return s.Title
+			}
+		}
+		return ""
+	}
+	for _, tc := range []struct{ path, want string }{
+		{"/stats", "Site"},   // the host's stats page
+		{"/p/stats", "Site"}, // the stats PLUGIN's, which is also public
+		{"/sitemap", "Site"},
+		{"/p/account", "Account"},
+		{"/p/topics", "Account"},
+		{"/achievements", "Account"},
+		// The pair a naive prefix order gets backwards: the viewer's own ledger
+		// is Account, the shop it draws on is Community.
+		{"/store/history", "Account"},
+		{"/store", "Community"},
+		{"/browse", "Releases"},
+		{"/support", "Support"},
+	} {
+		if got := sectionFor(tc.path); got != tc.want {
+			t.Errorf("%s is in section %q, want %q", tc.path, got, tc.want)
+		}
+	}
+}
 
 // Section tabs are matched by PATH PREFIX rather than declared per page, which
 // means the prefixes and hrefs here can drift from the routes without anything
