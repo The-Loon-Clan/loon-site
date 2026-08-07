@@ -185,7 +185,7 @@ not fail boot: a check that stops the build is a check people learn to skip.
 
 ---
 
-## 5. Demo-data honesty
+## 5. Demo-data honesty — DONE
 
 Achievements looked dead but were merely unseeded. Ranks was the same earlier;
 so were store items and the flair shop. On a site whose PURPOSE is showing what
@@ -195,6 +195,30 @@ and both read as "this feature does not work".
 Worth a deliberate pass over every wired plugin asking "does this show life on
 first boot?", in the shape `forumSeed`/`achievementsSeed` already use: seed only
 when the table is empty, so an operator's own data is never touched.
+
+**Done** — `demoseed_web.go`. The pass found a clean line to draw, and drawing
+it was the actual work:
+
+* **Seeded** — the rank ladder (six groups across all three kinds), the points
+  shop (three items, every one resolving through a reward type the store plugin
+  really implements, against ranks that really exist), and two news posts. All
+  of it is content an OPERATOR curates; an empty ranks table is not "no data
+  yet", it is a feature nobody has set up.
+* **Deliberately not seeded** — `usenet.nzbs`, playlists, bookmarks, grabs,
+  tickets, DMs. Releases are the one thing the site is about, and inventing them
+  makes every figure, listing and stat a fabrication. The rest either point at
+  releases or are records of people talking to each other, and fabricating a
+  support conversation puts words in a member's mouth.
+
+The seeded news posts say outright that this is a demonstration and that the
+index is empty because no news server is configured — a seeded announcement
+written as though it were real is the same dishonesty from the other side.
+
+Two schema facts the first attempt got wrong, both worth keeping:
+`ranks.groups.color` is a Bootstrap NAME (the template renders
+`class="badge bg-{{.Color}}"`, so a hex string produces no colour at all), and
+`duration_days` is NOT NULL with `CHECK (>= 1)` — there is no way to say
+"permanent", and the admin form clamps anything lower to 30.
 
 ---
 

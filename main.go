@@ -803,6 +803,13 @@ func main() {
 		achievementsSeed(db, logger)
 	}
 
+	// The rest of the demo seed (demoseed_web.go). Here for the same reason
+	// achievementsSeed is: ranks.groups and store.items are PLUGIN tables,
+	// created by their own migrations during Boot, so nothing could be
+	// inserted into them any earlier. Each seeder checks its own table is
+	// empty, so this runs once and never fights an operator's own data.
+	demoSeed(db, logger)
+
 	// Calendar sources. Registered AFTER the capability lookups above because
 	// each source closes over one of them; a source whose dependency is absent
 	// contributes nothing and the grid simply has fewer chips on it, which is
