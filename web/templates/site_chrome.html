@@ -466,10 +466,29 @@
             </li>
             {{end}}
             {{if .HasPoints}}
-            <li class="stat-strip__item stat-strip__item--end">
+            <li class="stat-strip__item{{if not .CanClaimDaily}} stat-strip__item--end{{end}}">
                 <svg class="icon stat-strip__icon" aria-hidden="true"><use href="#coin"></use></svg>
                 <span class="stat-strip__label">Points</span>
                 <span class="stat-strip__value">{{.Points}}</span>
+            </li>
+            {{end}}
+            {{/* Daily reward — the tracker convention some sites call "show up".
+                 Present ONLY while today's claim is still available, so its
+                 absence is the signal that you already took it; a permanently
+                 visible control would say nothing.
+
+                 The once-per-day rule and the streak belong to the dailyreward
+                 plugin — the host only asks whether a claim is on offer
+                 (dailyreward.StatusExtension) and links to the card that takes
+                 it. The claim itself is a captcha-gated POST over there, which
+                 is exactly the kind of thing a stat strip should not try to
+                 inline. */}}
+            {{if .CanClaimDaily}}
+            <li class="stat-strip__item stat-strip__item--end">
+                <a class="stat-strip__claim" href="/#daily-reward" title="Claim today's reward{{if .DailyStreak}} — {{.DailyStreak}} day streak{{end}}">
+                    <svg class="icon" aria-hidden="true"><use href="#star"></use></svg>
+                    <span>Claim{{if .DailyReward}} {{.DailyReward}}{{end}}</span>
+                </a>
             </li>
             {{end}}
         </ul>

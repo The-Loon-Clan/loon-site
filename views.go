@@ -31,6 +31,7 @@ import (
 	"github.com/the-loon-clan/loon-baseline/users"
 	"github.com/the-loon-clan/loon-baseline/webauth"
 
+	"github.com/the-loon-clan/loon-plugins/dailyreward"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 )
 
@@ -87,6 +88,9 @@ type web struct {
 	catalogSink   pluginapi.CatalogSink   // scraper write side (filled after Boot)
 	catalogCovers pluginapi.CatalogCovers // release↔cover store (filled after Boot)
 	rt            *core.Runtime           // plugin runtime, for the /admin/plugins page
+	// dailyStatus answers "may this member claim today?" for the stat strip's
+	// compact button. nil when the plugin is absent, which renders no button.
+	dailyStatus dailyreward.StatusFunc
 
 	// View-system lookup tables, filled by wireViews after Boot.
 	adminNav       []navItem            // admin subnav: Settings + plugin pages + host pages
@@ -897,6 +901,18 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// against an ABSENT key is an execute error, not a false. A forum page
 	// without them would render unthemed — exactly the drift this function
 	// exists to prevent.
+	// Daily reward: only ever set when a claim is actually available, so the
+	// chrome shows the button by its PRESENCE rather than having to reason
+	// about state. A nil seam (plugin absent) leaves all three keys unset.
+	if w.dailyStatus != nil {
+		if u, ok := w.auth.Current(c); ok && u != nil {
+			if st, err := w.dailyStatus(c.Request.Context(), u.ID); err == nil && !st.Claimed {
+				data["CanClaimDaily"] = true
+				data["DailyStreak"] = st.Streak
+				data["DailyReward"] = st.Reward
+			}
+		}
+	}
 	data["Theme"] = currentTheme(c) // themeOption: .Key .Label .Href
 	data["Themes"] = siteThemes     // the allowlist itself, in menu order
 	return data

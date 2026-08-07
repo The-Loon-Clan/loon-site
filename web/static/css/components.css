@@ -1820,3 +1820,28 @@ a.dash-tile:hover {
     text-decoration: none;
 }
 .article-preview__read-more:hover { color: var(--link-hover-fg); text-decoration: none; }
+
+/* The daily-reward claim in the stat strip. Present only while the claim is
+   available (site_chrome.html), so it reads as an offer rather than a status —
+   which is why it is styled as a control and not as another stat tile. */
+.stat-strip__claim {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 24px;
+    padding: 2px var(--space-3);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-pill);
+    color: var(--primary-tint);
+    font-size: var(--fs-2xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.stat-strip__claim:hover {
+    background: var(--primary);
+    color: var(--primary-fg);
+    text-decoration: none;
+}

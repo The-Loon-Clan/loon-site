@@ -55,7 +55,7 @@ import (
 	// ones are named imports because the host injects their deps via SetDeps.
 	"github.com/the-loon-clan/loon-plugins/backups"
 	_ "github.com/the-loon-clan/loon-plugins/catalog"
-	_ "github.com/the-loon-clan/loon-plugins/dailyreward"
+	"github.com/the-loon-clan/loon-plugins/dailyreward"
 	// forum is imported (and its init runs) via forum_web.go's SetDeps wiring.
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	_ "github.com/the-loon-clan/loon-plugins/pointstore"
@@ -609,6 +609,14 @@ func main() {
 	if v, ok := c.Lookup(pluginapi.UsenetNewznabName); ok {
 		wsrv.usenetAPI, _ = v.(pluginapi.UsenetNewznab)
 	}
+	// Daily reward: the plugin owns the once-per-day rule and the streak; the
+	// host only asks whether a claim is available, so the stat strip can offer
+	// a compact button and hide it once taken. Absent extension = no button,
+	// which is what a host without the plugin should get.
+	if v, ok := c.Lookup(dailyreward.StatusExtension); ok {
+		wsrv.dailyStatus, _ = v.(dailyreward.StatusFunc)
+	}
+
 	// Catalog plugin: its service also implements the sink + cover store the
 	// scraper writes to and the release page reads.
 	if v, ok := c.Lookup(pluginapi.CatalogName); ok {
