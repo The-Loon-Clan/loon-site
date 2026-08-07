@@ -1464,3 +1464,39 @@ func TestRewardsTabAndPageAgree(t *testing.T) {
 		t.Error("home still renders the rewards card, so it is in two places")
 	}
 }
+
+// "View public profile" turns the owner into a stranger for one render, so the
+// privacy setting can be checked by the person it protects — they are the one
+// account it never hides anything from, so without this "is my profile actually
+// private?" has no answer short of a second account.
+//
+// The link is what makes it usable in both directions, and it is the half that
+// breaks quietly: rendered from .IsSelf it would vanish the moment preview
+// turned .IsSelf off, stranding the owner in a view with no way back.
+func TestProfilePreviewLinkSurvivesItsOwnEffect(t *testing.T) {
+	b, err := fs.ReadFile(siteFS, "web/templates/profile.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+
+	// The control must live INSIDE the .CanPreview block. Checked that way
+	// round rather than by walking back from the link, because the link's own
+	// href carries a {{if not .Preview}} and a naive scan finds that instead.
+	if !strings.Contains(src, "preview=1") {
+		t.Fatal("profile.html has no ?preview=1 link")
+	}
+	open := strings.Index(src, "{{if .CanPreview}}")
+	if open < 0 {
+		t.Fatal("profile.html has no {{if .CanPreview}} block — guarded by .IsSelf " +
+			"instead, the link disappears in preview mode with no way back")
+	}
+	end := strings.Index(src[open:], "{{end}}")
+	if end < 0 || !strings.Contains(src[open:open+end], "preview=1") {
+		t.Error("the ?preview=1 link is not inside the .CanPreview block")
+	}
+	// And the page must say it is in preview, or a stripped page reads as a bug.
+	if !strings.Contains(src, "{{if .Preview}}") {
+		t.Error("nothing renders on .Preview, so preview mode is silent")
+	}
+}

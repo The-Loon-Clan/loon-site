@@ -760,6 +760,25 @@ func (w *web) profilePage(c *gin.Context) {
 	// a privacy feature.
 	isSelf := viewer != nil && viewer.ID == subject.ID
 	isStaff := viewer != nil && viewer.AtLeast(core.RoleMod)
+
+	// ?preview=1 — "view public profile". The owner sees their own page as
+	// another member sees it: owner-only controls drop, and the privacy setting
+	// applies to them the way it applies to everyone else.
+	//
+	// Worth having because the privacy setting is otherwise unverifiable by the
+	// person it protects: they are the one account it never hides anything
+	// from, so "is my profile actually private?" has no answer without either
+	// a second account or trust. EMP ships the same thing on its user page,
+	// labelled Preview.
+	//
+	// Applied to isSelf and isStaff BOTH: a moderator previewing their own page
+	// would otherwise keep seeing everything through the staff exemption and
+	// conclude the setting does nothing.
+	preview := isSelf && c.Query("preview") == "1"
+	if preview {
+		isSelf, isStaff = false, false
+	}
+
 	private := !isSelf && !isStaff && isPrivateProfile(c.Request.Context(), subject.ID)
 	data := map[string]any{
 		"Title":   subject.Username,
@@ -768,6 +787,12 @@ func (w *web) profilePage(c *gin.Context) {
 		"Widgets": widgets,
 		"Role":    roleLabel(subj.Role),
 		"Private": private,
+		// Preview is NOT IsSelf: the page must render as a stranger sees it,
+		// and this is only for the banner saying so and the way back out.
+		"Preview": preview,
+		// The owner, for the "view public profile" link — set even while
+		// previewing, since that is when the way back matters.
+		"CanPreview": viewer != nil && viewer.ID == subject.ID,
 	}
 	if private {
 		// Stop before every read below. Skipping the render is not enough —

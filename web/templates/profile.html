@@ -119,12 +119,31 @@
                         <svg class="icon" aria-hidden="true"><use href="#settings"></use></svg>Edit account
                     </a>
                     {{end}}
+                    {{/* View public profile. Rendered from .CanPreview rather
+                         than .IsSelf, because previewing deliberately turns
+                         IsSelf off — the link has to survive its own effect or
+                         there is no way back. */}}
+                    {{if .CanPreview}}
+                    <a class="button button--outlined button--block mt-2" href="/u/{{.Subject.Username}}{{if not .Preview}}?preview=1{{end}}">
+                        <svg class="icon" aria-hidden="true"><use href="#eye"></use></svg>
+                        {{if .Preview}}Back to my view{{else}}View public profile{{end}}
+                    </a>
+                    {{end}}
                 </div>
             </div>
         </section>
     </aside>
 
     <div>
+        {{/* Say so, loudly. Without it the owner sees a page missing their own
+             controls and figures and reads it as breakage rather than as the
+             answer to the question they asked. */}}
+        {{if .Preview}}
+        <div class="notice notice--info">
+            <svg class="icon notice__icon" aria-hidden="true"><use href="#eye"></use></svg>
+            <span>This is your profile as another member sees it. {{if .Private}}Your profile is private, so they see the identity card and nothing else.{{end}}</span>
+        </div>
+        {{end}}
         {{if .Private}}
         {{/* A private profile renders its identity card and nothing else. The
              handler stops before fetching any of it, so there is nothing here
