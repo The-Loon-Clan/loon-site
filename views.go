@@ -134,7 +134,7 @@ var pageTemplates = []string{
 	"staff.html", "stats.html", "rules.html", "faq.html", "about.html",
 	"sitemap.html",
 	// Viewer settings (settings_web.go) — UNIT3D's privacy/notification pages.
-	"settings_privacy.html", "settings_notifications.html",
+	"settings_privacy.html", "settings_notifications.html", "settings_profile.html",
 }
 
 // sharedPartials maps a page to the partials it needs beyond the shell. Each
@@ -825,6 +825,13 @@ func (w *web) profilePage(c *gin.Context) {
 	// stored under those names is silently overwritten on the way out — the
 	// profile would show your own balance on someone else's page.
 	ctx := c.Request.Context()
+	// The subject's own words, rendered from markdown at READ time — see
+	// profilebio_web.go. AFTER the privacy gate above on purpose: a private
+	// profile shows its identity card and nothing else, and the text a member
+	// wrote about themselves is exactly what that setting is for.
+	if bio := renderBio(readBio(ctx, subject.ID)); bio != "" {
+		data["Bio"] = bio
+	}
 	if w.points != nil {
 		if bal, err := w.points.Balance(ctx, subject.ID); err == nil {
 			data["SubjectPoints"], data["HasSubjectPoints"] = bal, true

@@ -74,47 +74,70 @@
                          flag rather than the value, so a real 0 still renders:
                          "0 points" and "points unavailable" are different
                          claims. */}}
-                    {{if or .HasSubjectPoints .HasSubjectPosts}}
-                    <div class="stat-grid stat-grid--2">
-                        {{if .HasSubjectPoints}}
-                        <div class="stat-tile">
-                            <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#coin"></use></svg>
-                            <span class="stat-tile__label">Points</span>
-                            <span class="stat-tile__value">{{.SubjectPoints}}</span>
-                        </div>
-                        {{end}}
-                        {{if .HasSubjectPosts}}
-                        <div class="stat-tile">
-                            <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#comment"></use></svg>
-                            <span class="stat-tile__label">Posts</span>
-                            <span class="stat-tile__value">{{.SubjectPosts}}</span>
-                        </div>
-                        {{end}}
-                    </div>
-                    {{end}}
+                </div>
+            </div>
+        </section>
 
-                    {{if .IsSelf}}
-                    {{/* Viewer-only tiles: your unread count and your spendable
-                         invite balance. Someone else's invites are not your
-                         business, so the handler only sets them for IsSelf. */}}
-                    {{if or .HasUnread .HasInvites}}
-                    <div class="stat-grid stat-grid--2">
-                        {{if .HasUnread}}
-                        <div class="stat-tile">
-                            <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#bell"></use></svg>
-                            <span class="stat-tile__label">Unread</span>
-                            <span class="stat-tile__value">{{.Unread}}</span>
-                        </div>
-                        {{end}}
-                        {{if .HasInvites}}
-                        <div class="stat-tile">
-                            <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#plus"></use></svg>
-                            <span class="stat-tile__label">Invites</span>
-                            <span class="stat-tile__value">{{.Invites}}</span>
-                        </div>
-                        {{end}}
-                    </div>
+        {{/* ONE box shape, repeated — the EMP pattern. Every fact about a
+             member is a `label: value` row in a panel of the same width, so the
+             column reads as a list rather than as a collage.
+
+             It replaced three treatments on one page: bordered plugin cards, a
+             panelV2 with a header, and eight stat-tiles spread over three
+             two-column grids at two different sizes. The same KIND of thing —
+             a labelled number — was drawn three ways depending on which block
+             it happened to land in.
+
+             Each row still guards on its Has* flag: an unreachable capability
+             drops the row rather than showing a zero nobody measured. */}}
+        {{if or .HasSubjectPoints .HasSubjectPosts .HasSubjectFollows .HasSubjectBookmarks .HasSubjectLastSeen}}
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
+                    Stats
+                </h2>
+            </header>
+            <div class="panel__body">
+                <dl class="key-value">
+                    {{if .HasSubjectPoints}}<div class="key-value__group"><dt>Points</dt><dd>{{.SubjectPoints}}</dd></div>{{end}}
+                    {{if .HasSubjectPosts}}<div class="key-value__group"><dt>Posts</dt><dd>{{.SubjectPosts}}</dd></div>{{end}}
+                    {{if .HasSubjectFollows}}
+                    <div class="key-value__group"><dt>Followers</dt><dd><a href="/u/{{$.Subject.Username}}/followers">{{.SubjectFollowers}}</a></dd></div>
+                    <div class="key-value__group"><dt>Following</dt><dd><a href="/u/{{$.Subject.Username}}/following">{{.SubjectFollowing}}</a></dd></div>
                     {{end}}
+                    {{if .HasSubjectBookmarks}}<div class="key-value__group"><dt>Bookmarks</dt><dd>{{.SubjectBookmarks}}</dd></div>{{end}}
+                    {{if .HasSubjectLastSeen}}<div class="key-value__group"><dt>Last seen</dt><dd>{{timeAgo .SubjectLastSeen}}</dd></div>{{end}}
+                </dl>
+            </div>
+        </section>
+        {{end}}
+
+        {{/* Yours alone, so it is its own box rather than rows mixed in with
+             the subject's — on someone else's profile these simply are not
+             there, and a reader should not have to work out which figures are
+             about them. */}}
+        {{if and .IsSelf (or .HasUnread .HasInvites)}}
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#user"></use></svg>
+                    Yours
+                </h2>
+            </header>
+            <div class="panel__body">
+                <dl class="key-value">
+                    {{if .HasUnread}}<div class="key-value__group"><dt>Unread</dt><dd>{{.Unread}}</dd></div>{{end}}
+                    {{if .HasInvites}}<div class="key-value__group"><dt>Invites</dt><dd>{{.Invites}}</dd></div>{{end}}
+                </dl>
+            </div>
+        </section>
+        {{end}}
+
+        {{if .IsSelf}}
+        <section class="panelV2">
+            <div class="panel__body">
+                <div class="user-stat-card">
                     <a class="button button--outlined button--block" href="/p/account">
                         <svg class="icon" aria-hidden="true"><use href="#settings"></use></svg>Edit account
                     </a>
@@ -159,9 +182,10 @@
         {{/* Each fragment ships its own <div class="card-body"> + heading, so the
              wrapper stays a Bootstrap-subset .card (padding collapses to 0 when
              the fragment brings a card-body, and holds when it does not). */}}
-        <div class="grid grid--2">
-            {{range .Widgets}}<div class="card mb-0">{{.Fragment}}</div>{{end}}
-        </div>
+        {{/* Stacked, not a two-column grid: an odd number of widgets left a
+             visible hole, and these are the same kind of box as everything else
+             in this column now. One width, one rhythm. */}}
+        {{range .Widgets}}<div class="card mb-0">{{.Fragment}}</div>{{end}}
         {{end}}
 
         {{/* ── MOCKED PANELS ────────────────────────────────────────────
@@ -213,15 +237,57 @@
 
              Each tile still guards on its Has* key: an unreachable table shows
              an em dash rather than a zero nobody measured. */}}
+        {{/* The member's own words — markdown they wrote, rendered by the
+             site's pipeline (profilebio_web.go). First in the column, because
+             on a profile it is the only thing nobody else could have written;
+             everything below it is a figure the site computed.
+
+             Absent when empty rather than an empty panel: a profile with
+             nothing written is a profile with nothing written, not a profile
+             with a blank box on it. */}}
+        {{with .Bio}}
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#user"></use></svg>
+                    About
+                </h2>
+                {{if $.IsSelf}}
+                <div class="panel__actions"><a class="panel__action" href="/settings/profile">Edit</a></div>
+                {{end}}
+            </header>
+            <div class="panel__body prose">{{.}}</div>
+        </section>
+        {{end}}
+
+        {{/* Nothing written and it is YOUR profile: an invitation, once, rather
+             than a permanently empty panel. Other people's blank profiles say
+             nothing at all. */}}
+        {{if and .IsSelf (not .Bio)}}
+        <section class="panelV2">
+            <div class="panel__body">
+                <p class="text-muted m-0">Your profile has no text yet. <a href="/settings/profile">Write something</a>.</p>
+            </div>
+        </section>
+        {{end}}
+
+        {{/* Community is the FOLLOW control and nothing else now. Its four
+             tiles — followers, following, bookmarks, last seen — became rows in
+             the sidebar's Stats box, where every other figure about this member
+             already lives. Two places showing the same numbers in two different
+             shapes is most of what made this page feel scattered.
+
+             Rendered only when there is a control to draw: a panel headed
+             "Community" containing nothing is furniture. */}}
+        {{if $.CanFollow}}
         <section class="panelV2">
             <header class="panel__header">
                 <h2 class="panel__heading">
                     <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>
                     Community
                 </h2>
-                {{if $.CanFollow}}
                 <div class="panel__actions">
-                    <form method="post" action="/u/{{.Username}}/follow" style="display:contents">
+                    <form method="post" action="/u/{{$.Subject.Username}}/follow" style="display:contents">
                         <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
                         <button class="button button--outlined button--sm" type="submit"
                                 aria-pressed="{{if $.Following}}true{{else}}false{{end}}">
@@ -229,39 +295,9 @@
                         </button>
                     </form>
                 </div>
-                {{end}}
             </header>
-            <div class="panel__body">
-                <div class="stat-grid stat-grid--2">
-                    {{/* Both counts link to their list — a number with no way
-                         to see what it counts is a dead end.
-
-                         $.Subject.Username, not .Username: dot here is the PAGE
-                         data, which carries the subject under .Subject and has
-                         no Username of its own. A missing map key renders as
-                         empty rather than erroring, so this built "/u//followers"
-                         and 404'd — with the tile still looking entirely
-                         normal. Every other value in this panel already reaches
-                         through $, which is what made the odd one out invisible. */}}
-                    <a class="stat-tile" href="/u/{{$.Subject.Username}}/followers">
-                        <span class="stat-tile__label">Followers</span>
-                        <span class="stat-tile__value">{{if $.HasSubjectFollows}}{{$.SubjectFollowers}}{{else}}—{{end}}</span>
-                    </a>
-                    <a class="stat-tile" href="/u/{{$.Subject.Username}}/following">
-                        <span class="stat-tile__label">Following</span>
-                        <span class="stat-tile__value">{{if $.HasSubjectFollows}}{{$.SubjectFollowing}}{{else}}—{{end}}</span>
-                    </a>
-                    <div class="stat-tile">
-                        <span class="stat-tile__label">Bookmarks</span>
-                        <span class="stat-tile__value">{{if $.HasSubjectBookmarks}}{{$.SubjectBookmarks}}{{else}}—{{end}}</span>
-                    </div>
-                    <div class="stat-tile">
-                        <span class="stat-tile__label">Last seen</span>
-                        <span class="stat-tile__value">{{if $.HasSubjectLastSeen}}{{timeAgo $.SubjectLastSeen}}{{else}}—{{end}}</span>
-                    </div>
-                </div>
-            </div>
         </section>
+        {{end}}
         {{end}}{{/* .Private */}}
     </div>
 </div>

@@ -1,0 +1,44 @@
+{{/* About you — the profile's free-text block. Data from profilebio_web.go:
+     .Bio (raw markdown), .Editor (the site's prose editor, pre-rendered),
+     .Max, .Saved.
+
+     The editor comes from the host's shared partial rather than a bare
+     <textarea>, so this field gets the same toolbar and the same markdown as
+     the forum and the wiki. */}}
+{{define "content"}}
+<header>
+    <h1 class="h3 m-0">About you</h1>
+    <p class="text-muted small m-0 mt-1">Anything you want on your profile. Markdown, the same as the forum.</p>
+</header>
+
+{{if .Saved}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Saved.{{with .User}} <a href="/u/{{.Username}}">View your profile</a>.{{end}}</span>
+</div>
+{{end}}
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#user"></use></svg>
+            Your profile text
+        </h2>
+    </header>
+    <div class="panel__body">
+        <form class="form" method="post" action="/settings/profile">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            {{/* The shared editor renders its own <textarea name="bio">. */}}
+            {{.Editor}}
+            <p class="text-muted small m-0 mt-2">Up to {{.Max}} characters. Leave it empty to show nothing.</p>
+            <div class="form__actions mt-3">
+                <button class="button button--primary" type="submit">Save</button>
+                {{/* Guarded: the handler login-gates this page, but a template
+                     must still render for a logged-out dot — an execute error
+                     truncates the page and still returns 200. */}}
+                {{with .User}}<a class="button button--outlined" href="/u/{{.Username}}">Cancel</a>{{end}}
+            </div>
+        </form>
+    </div>
+</section>
+{{end}}

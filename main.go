@@ -199,6 +199,12 @@ func main() {
 		os.Exit(1)
 	}
 	forumSeed(db, logger)
+	// The profile's free-text block (profilebio_web.go). A users column, so it
+	// migrates with the other host-owned users work rather than in a plugin.
+	if err := migrateProfileBio(db); err != nil {
+		logger.Error("profile bio migrate", "err", err)
+		os.Exit(1)
+	}
 	wsrv := newWeb(userStore, sessionSecret, logger)
 	wsrv.loginLog = loginLog
 	wsrv.ipSalt = string(sessionSecret) // demo salt; a real host uses a dedicated ip_salt secret

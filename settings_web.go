@@ -201,4 +201,9 @@ func (w *web) mountSettings(e *gin.Engine) {
 	e.POST("/settings/privacy", w.settingsPrivacySave)
 	e.GET("/settings/notifications", w.settingsNotifications)
 	e.POST("/settings/notifications", w.settingsNotificationsSave)
+	// The profile's free-text block (profilebio_web.go). A host page rather
+	// than part of the account plugin's form: the text is rendered by this
+	// site's markdown pipeline, so the editor belongs where that lives.
+	e.GET("/settings/profile", w.settingsProfile)
+	e.POST("/settings/profile", w.settingsProfileSave)
 }

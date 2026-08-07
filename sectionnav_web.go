@@ -80,6 +80,7 @@ var accountMenu = []sectionTab{
 	// /store/history two tab rows.
 	{Label: "Settings", Items: []sectionTab{
 		{Label: "Account", Href: "/p/account"},
+		{Label: "About you", Href: "/settings/profile"},
 		{Label: "Privacy", Href: "/settings/privacy"},
 		{Label: "Alerts", Href: "/settings/notifications"},
 		// A plugin page, listed here by hand rather than left to the generic

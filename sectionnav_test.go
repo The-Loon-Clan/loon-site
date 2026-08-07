@@ -25,6 +25,7 @@ func TestAccountMenuEntriesAreReachable(t *testing.T) {
 	served := map[string]bool{
 		"/store/history": true, "/inbox": true, "/p/inbox": true,
 		"/p/account": true, "/settings/privacy": true, "/settings/notifications": true,
+		"/settings/profile": true,
 		"/bookmarks": true, "/calendar": true, "/achievements": true,
 		"/p/topics": true, "/p/posts": true,
 		// A plugin page named on the menu by hand rather than left to the
@@ -291,7 +292,7 @@ func TestChromeLinksAreServed(t *testing.T) {
 		"/inbox": true, "/p/inbox": true, "/p/account": true, "/p/api-key": true,
 		"/p/topics": true, "/p/posts": true, "/bookmarks": true, "/calendar": true,
 		"/achievements": true, "/rewards": true,
-		"/settings/privacy": true, "/settings/notifications": true,
+		"/settings/privacy": true, "/settings/notifications": true, "/settings/profile": true,
 		"/login": true, "/logout": true, "/register": true, "/forgot": true,
 		"/admin/settings": true, "/verify/resend": true,
 		// The Newznab endpoint, linked bare from the footer as well as with a
