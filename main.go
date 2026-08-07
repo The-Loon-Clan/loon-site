@@ -108,6 +108,7 @@ func main() {
 	userStore := users.NewPGStore(db.DB)
 	// Host-owned reads for /staff and /stats — see usersDB in pages_web.go.
 	usersDB = db
+	subscriptionsDB = db // /subscriptions reads communities + bookmarks
 	if err := userStore.Migrate(context.Background()); err != nil {
 		logger.Error("users migrate", "err", err)
 		os.Exit(1)

@@ -72,6 +72,7 @@ var accountMenu = []sectionTab{
 		{Label: "Topics", Href: "/p/topics"},
 		{Label: "Posts", Href: "/p/posts"},
 		{Label: "Bookmarks", Href: "/bookmarks"},
+		{Label: "Subscriptions", Href: "/subscriptions"},
 		{Label: "Calendar", Href: "/calendar"},
 	}},
 	// No Points entry. The ledger lives in the points area with its own strip
@@ -111,7 +112,7 @@ func accountNav(path string) []sectionTab {
 var accountAreaPrefixes = []string{
 	"/u/", "/inbox", "/p/inbox", "/p/account", "/p/api-key",
 	"/p/topics", "/p/posts", "/settings/",
-	"/bookmarks", "/calendar", "/achievements",
+	"/bookmarks", "/calendar", "/achievements", "/subscriptions",
 }
 
 // inAccountArea reports whether the account bar belongs on a path.

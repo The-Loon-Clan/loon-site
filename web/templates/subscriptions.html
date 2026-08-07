@@ -1,0 +1,80 @@
+{{/* Subscriptions — everything the viewer has chosen to keep up with. Data
+     from subscriptions_web.go: .Communities, .Bookmarks, .MoreMarks, .Empty.
+
+     One row shape for both kinds, because they are the same KIND of thing to a
+     reader — a title, what it is, and when they started following it. The
+     sections differ in their heading and nothing else. */}}
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
+    <li class="breadcrumb--active">Subscriptions</li>
+</ol>
+{{end}}
+
+{{define "content"}}
+<header>
+    <h1 class="h3 m-0">Subscriptions</h1>
+    <p class="text-muted small m-0 mt-1">Everything you are keeping up with.</p>
+</header>
+
+{{if .Empty}}
+<section class="panelV2">
+    <div class="panel__body">
+        <div class="empty">
+            You are not following anything yet. Join a <a href="/c">community</a>
+            or bookmark a release from <a href="/browse">browse</a>.
+        </div>
+    </div>
+</section>
+{{else}}
+
+{{if .Communities}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>
+            Communities
+        </h2>
+        <div class="panel__actions"><span class="panel__grouping">{{len .Communities}}</span></div>
+    </header>
+    <div class="panel__body">
+        <ul class="activity-list">
+            {{range .Communities}}{{template "subscription-row" .}}{{end}}
+        </ul>
+    </div>
+</section>
+{{end}}
+
+{{if .Bookmarks}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#star"></use></svg>
+            Bookmarked releases
+        </h2>
+        <div class="panel__actions"><a class="panel__action" href="/bookmarks">All bookmarks</a></div>
+    </header>
+    <div class="panel__body">
+        <ul class="activity-list">
+            {{range .Bookmarks}}{{template "subscription-row" .}}{{end}}
+        </ul>
+        {{if .MoreMarks}}
+        <p class="text-muted small m-0 mt-3">Showing the most recent few — <a href="/bookmarks">see them all</a>.</p>
+        {{end}}
+    </div>
+</section>
+{{end}}
+
+{{end}}
+{{end}}
+
+{{/* One row. Dot is a subscriptionRow: Title, Href, Sub, Since. */}}
+{{define "subscription-row"}}
+<li class="activity-row">
+    <a class="activity-row__title" href="{{.Href}}">{{.Title}}</a>
+    <p class="activity-row__meta">
+        {{with .Sub}}<span class="chip">{{.}}</span>{{end}}
+        <span>since {{.Since}}</span>
+    </p>
+</li>
+{{end}}

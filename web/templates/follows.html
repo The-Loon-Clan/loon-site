@@ -1,5 +1,9 @@
-{{/* Followers / Following for one member. Data: .Subject (username),
-     .Following (bool — which direction this page shows), .People, .Missing.
+{{/* Followers / Following / Friends for one member. Data: .Subject (username),
+     .Kind ("followers" | "following" | "friends"), .People, .Missing.
+
+     Kind is a string, not the bool this carried when there were two lists:
+     two directions take a bool, three take a lie. */}}
+{{/* Data: .Subject (username), .Kind, .People, .Missing.
 
      One template for both directions, matching the one handler: they differ
      only in the heading and which side of the edge was read, and two copies is
@@ -14,7 +18,7 @@
     <li class="breadcrumb--active">Not found</li>
     {{else}}
     <li class="breadcrumbV2"><a class="breadcrumb__link" href="/u/{{.Subject}}">{{.Subject}}</a></li>
-    <li class="breadcrumb--active">{{if .Following}}Following{{else}}Followers{{end}}</li>
+    <li class="breadcrumb--active">{{.Title}}</li>
     {{end}}
 </ol>
 {{end}}
@@ -31,9 +35,11 @@
 </section>
 {{else}}
 <header>
-    <h1 class="h3 m-0">{{if .Following}}Following{{else}}Followers{{end}}</h1>
+    <h1 class="h3 m-0">{{.Title}}</h1>
     <p class="text-muted small m-0 mt-1">
-        {{if .Following}}Members {{.Subject}} follows.{{else}}Members following {{.Subject}}.{{end}}
+        {{if eq .Kind "following"}}Members {{.Subject}} follows.
+        {{- else if eq .Kind "friends"}}Members {{.Subject}} follows who follow back.
+        {{- else}}Members following {{.Subject}}.{{end}}
     </p>
 </header>
 
@@ -41,8 +47,10 @@
      with no way back to the following list is a dead end. */}}
 <nav aria-label="Follow lists">
     <ul class="pill-row">
-        <li><a class="pill{{if not .Following}} pill--active{{end}}" href="/u/{{.Subject}}/followers"{{if not .Following}} aria-current="page"{{end}}>Followers</a></li>
-        <li><a class="pill{{if .Following}} pill--active{{end}}" href="/u/{{.Subject}}/following"{{if .Following}} aria-current="page"{{end}}>Following</a></li>
+        {{$k := .Kind}}{{$s := .Subject}}
+        <li><a class="pill{{if eq $k "followers"}} pill--active{{end}}" href="/u/{{$s}}/followers"{{if eq $k "followers"}} aria-current="page"{{end}}>Followers</a></li>
+        <li><a class="pill{{if eq $k "following"}} pill--active{{end}}" href="/u/{{$s}}/following"{{if eq $k "following"}} aria-current="page"{{end}}>Following</a></li>
+        <li><a class="pill{{if eq $k "friends"}} pill--active{{end}}" href="/u/{{$s}}/friends"{{if eq $k "friends"}} aria-current="page"{{end}}>Friends</a></li>
     </ul>
 </nav>
 
@@ -50,7 +58,7 @@
     <header class="panel__header">
         <h2 class="panel__heading">
             <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>
-            {{if .Following}}Following{{else}}Followers{{end}}
+            {{.Title}}
         </h2>
         {{if .People}}<div class="panel__actions"><span class="panel__grouping">{{len .People}}</span></div>{{end}}
     </header>
@@ -63,7 +71,9 @@
         </div>
         {{else}}
         <div class="empty">
-            {{if .Following}}{{.Subject}} isn't following anyone yet.{{else}}Nobody is following {{.Subject}} yet.{{end}}
+            {{if eq .Kind "following"}}{{.Subject}} isn't following anyone yet.
+            {{- else if eq .Kind "friends"}}Nobody {{.Subject}} follows follows back yet.
+            {{- else}}Nobody is following {{.Subject}} yet.{{end}}
         </div>
         {{end}}
     </div>

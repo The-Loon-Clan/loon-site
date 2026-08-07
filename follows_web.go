@@ -175,7 +175,17 @@ func followQuery(ctx context.Context, q string, userID int64) []followList {
 // One handler for both directions: the pages differ only in which side of the
 // edge they read and what the heading says, and two near-identical handlers is
 // how the two drift.
-func (w *web) followPage(following bool) gin.HandlerFunc {
+// followKind is which of the three lists a request wants. A named kind rather
+// than the bool this started as: two lists take a bool, three take a lie.
+type followKind string
+
+const (
+	followKindFollowers followKind = "followers"
+	followKindFollowing followKind = "following"
+	followKindFriends   followKind = "friends"
+)
+
+func (w *web) followPage(kind followKind) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 		name := c.Param("name")
@@ -185,16 +195,48 @@ func (w *web) followPage(following bool) gin.HandlerFunc {
 			w.render(c, "follows.html", map[string]any{"Title": "Not found", "Missing": true, "People": []followList{}})
 			return
 		}
-		people := listFollowers(ctx, subject.ID)
-		title := "Followers"
-		if following {
+		people, title := listFollowers(ctx, subject.ID), "Followers"
+		switch kind {
+		case followKindFollowing:
 			people, title = listFollowing(ctx, subject.ID), "Following"
+		case followKindFriends:
+			people, title = listFriends(ctx, subject.ID), "Friends"
 		}
 		w.render(c, "follows.html", map[string]any{
-			"Title":     title,
-			"Subject":   subject.Username,
-			"Following": following,
-			"People":    people,
+			"Title":   title,
+			"Subject": subject.Username,
+			"Kind":    string(kind),
+			"People":  people,
 		})
 	}
+}
+
+// listFriends returns MUTUAL follows: people this member follows who follow
+// back.
+//
+// ui-patterns separates Follow from Friend, and the difference is not
+// cosmetic. Follow is one-way and needs nobody's permission — it is a reading
+// choice. Friend is reciprocal, and a site that has both can say things it
+// otherwise cannot: "people you both know", "only friends may message me".
+//
+// Derived from user_follow rather than stored. A `friends` table would be a
+// second source of truth for a fact user_follow already answers, and the two
+// drift the first time a follow is removed without the friendship being
+// cleaned up. The self-join costs one index lookup per row on a table that
+// already has both directions indexed.
+//
+// `since` is the LATER of the two follows — the friendship began when the
+// second person reciprocated, not when the first one started reading.
+func listFriends(ctx context.Context, userID int64) []followList {
+	return followQuery(ctx,
+		`SELECT u.username, u.role,
+		        to_char(GREATEST(mine.created_at, theirs.created_at), 'Mon YYYY') AS since
+		   FROM user_follow mine
+		   JOIN user_follow theirs
+		     ON theirs.follower_id = mine.followee_id
+		    AND theirs.followee_id = mine.follower_id
+		   JOIN users u ON u.id = mine.followee_id
+		  WHERE mine.follower_id = $1
+		  ORDER BY GREATEST(mine.created_at, theirs.created_at) DESC
+		  LIMIT $2`, userID)
 }
