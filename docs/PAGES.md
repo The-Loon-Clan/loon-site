@@ -27,6 +27,7 @@ Two rules explain most of the layout:
 | `/release/:id`, `/nzb/:id` | `UsenetIndex.ReleaseByID`; the NZB route WRITES `release_grab` |
 | `/trending` | **`release_grab`** — see below |
 | `/bookmarks` | **`release_bookmark`** — see below |
+| `/calendar` | **event sources** — see below |
 | `/groups` | `UsenetIndex.Groups` |
 | `/u/:name` | users table + `SlotUserWidget` cards from plugins |
 | `/stats` | usenet + catalog + forum counts |
@@ -76,6 +77,30 @@ resolved back through `UsenetIndex.ReleaseByID`.
 
 Nothing ingests or requests anything: the signal is a side effect of serving
 downloads, which is why it needed no new collection path and no plugin.
+
+### `/calendar` is a component, not a page about attendance
+
+`calendar_web.go` owns the grid; it owns no data. Everything on it arrives
+through a registered source:
+
+    type calSource struct {
+        Name string
+        Fn   func(ctx, userID int64, from, to time.Time) []calEvent
+    }
+
+Two are wired today — daily-reward claims (via the `dailyreward.status`
+extension) and followed releases (`release_bookmark` + `ReleaseByID`). Adding
+subscription expiries or temporary-boost windows is a `calSource` in
+`main.go`'s wiring and NO change to the page, the template or the CSS.
+
+Events carry a range (`Start`/`End`), not a point, so a week-long boost is one
+event over seven cells rather than seven events. The shared `{{template
+"calendar"}}` partial lives in `site_chrome.html` — both parse sets — so a
+plugin fragment can render the same grid without shipping its own.
+
+Attendance is DERIVED, not stored per day: the plugin keeps one row per member
+(last claim + streak length), so the calendar draws the run that is still live
+and claims nothing about earlier ones.
 
 ---
 

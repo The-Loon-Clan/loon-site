@@ -647,6 +647,74 @@
 </a>
 {{end}}
 
+{{/* ------------------------------------------------------------ calendar --
+     One month grid. Dot is a calMonth (calendar_web.go).
+
+     A real <table>: a calendar IS a grid of days indexed by weekday, and the
+     column headers are what let a screen reader say "Wednesday 12" instead of
+     reading a wall of loose numbers. Faking it with divs would mean rebuilding
+     that relationship by hand in ARIA.
+
+     The partial is here rather than in calendar.html so it is in BOTH parse
+     sets — the per-page set and the gin set plugins render through — which is
+     what lets a plugin fragment draw a calendar later without shipping its own
+     grid. Same reason user-card and fpagination live here. */}}
+{{define "calendar"}}
+<div class="cal">
+    <div class="cal__head">
+        <a class="cal__nav" href="?m={{.Prev}}" rel="prev" aria-label="Previous month">
+            <svg class="icon" aria-hidden="true"><use href="#chevron-left"></use></svg>
+        </a>
+        <h3 class="cal__title">{{.Title}}</h3>
+        <a class="cal__nav" href="?m={{.Next}}" rel="next" aria-label="Next month">
+            <svg class="icon" aria-hidden="true"><use href="#chevron-right"></use></svg>
+        </a>
+    </div>
+    <table class="cal__grid">
+        <caption class="visually-hidden">{{.Title}}</caption>
+        <thead>
+            <tr>{{range .Weekdays}}<th scope="col" abbr="{{.}}">{{.}}</th>{{end}}</tr>
+        </thead>
+        <tbody>
+            {{range .Weeks}}
+            <tr>
+                {{range .}}
+                <td class="cal__day{{if .Outside}} cal__day--outside{{end}}{{if .Today}} cal__day--today{{end}}">
+                    <span class="cal__daynum">
+                        {{.Day}}{{if .Today}}<span class="visually-hidden"> (today)</span>{{end}}
+                    </span>
+                    {{if .Events}}
+                    <ul class="cal__events">
+                        {{/* Cap the visible chips: a day with twenty saved
+                             releases must not make its row twenty deep and
+                             leave the rest of the month a sliver. */}}
+                        {{$shown := .Events}}{{$extra := 0}}
+                        {{if gt (len .Events) 3}}
+                            {{$shown = slice .Events 0 3}}{{$extra = add (len .Events) -3}}
+                        {{end}}
+                        {{range $shown}}
+                        <li>
+                            {{if .Href}}<a class="cal-ev cal-ev--{{.Kind}}" href="{{.Href}}" title="{{.Label}}">
+                            {{else}}<span class="cal-ev cal-ev--{{.Kind}}" title="{{.Label}}">{{end}}
+                                {{with .Icon}}<svg class="icon" aria-hidden="true"><use href="#{{.}}"></use></svg>{{end}}
+                                <span class="cal-ev__label">{{.Label}}</span>
+                            {{if .Href}}</a>{{else}}</span>{{end}}
+                        </li>
+                        {{end}}
+                        {{/* "more" is a .cal-ev__label so the narrow-screen rule that hides chip
+                             labels shrinks this to "+12" too, instead of wrapping it. */}}
+                        {{if $extra}}<li><span class="cal-ev cal-ev--more">+{{$extra}}<span class="cal-ev__label">&nbsp;more</span></span></li>{{end}}
+                    </ul>
+                    {{end}}
+                </td>
+                {{end}}
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
 {{/* ------------------------------------------------------------- comment --
      One person's message: avatar, who, when, body. UNIT3D's `comment` partial,
      which it reuses for torrent and article comments.

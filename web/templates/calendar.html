@@ -1,0 +1,47 @@
+{{/* The member's calendar. Data: .Calendar (a calMonth), .ThisMonth.
+
+     The page is deliberately thin — it picks a month and prints a grid. All of
+     the layout is the shared "calendar" partial in site_chrome.html, and every
+     event on it comes from a registered source rather than from here, so
+     putting subscription expiries or boost windows on this page is a source in
+     calendar_web.go and no change to this file at all. */}}
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
+    <li class="breadcrumb--active">Calendar</li>
+</ol>
+{{end}}
+
+{{define "content"}}
+<header>
+    <h1 class="h3 m-0">Calendar</h1>
+    <p class="text-muted small m-0 mt-1">Your claims and the releases you follow, by day.</p>
+</header>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#calendar"></use></svg>
+            {{.Calendar.Title}}
+        </h2>
+        <div class="panel__actions">
+            {{/* "Today" only when it would go somewhere — a link back to the
+                 month already on screen is a control that does nothing. */}}
+            {{if ne .Calendar.Key .ThisMonth}}
+            <a class="pill" href="/calendar">Today</a>
+            {{end}}
+            <span class="panel__grouping">{{.Calendar.Count}} event{{if ne .Calendar.Count 1}}s{{end}}</span>
+        </div>
+    </header>
+    <div class="panel__body">
+        {{template "calendar" .Calendar}}
+
+        {{/* The key earns its place: the chips are colour-coded and icon-led,
+             and colour alone is not a legend. */}}
+        <ul class="cal-key">
+            <li><span class="cal-ev cal-ev--claim"><svg class="icon" aria-hidden="true"><use href="#star"></use></svg><span class="cal-ev__label">Daily reward claimed</span></span></li>
+            <li><span class="cal-ev cal-ev--release"><svg class="icon" aria-hidden="true"><use href="#download"></use></svg><span class="cal-ev__label">Followed release posted</span></span></li>
+        </ul>
+    </div>
+</section>
+{{end}}

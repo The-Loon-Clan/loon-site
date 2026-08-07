@@ -626,6 +626,15 @@ func main() {
 			wsrv.catalogCovers, _ = cat.(pluginapi.CatalogCovers)
 		}
 	}
+	// Calendar sources. Registered AFTER the capability lookups above because
+	// each source closes over one of them; a source whose dependency is absent
+	// contributes nothing and the grid simply has fewer chips on it, which is
+	// the whole reason the page reads a slice instead of naming its sources.
+	wsrv.calSources = []calSource{
+		wsrv.calAttendance(),
+		wsrv.calBookmarks(),
+	}
+
 	// Newznab / Torznab API (Sonarr/Radarr/Prowlarr consume these).
 	engine.GET("/api", wsrv.newznabAPI)
 	engine.GET("/rss", wsrv.newznabAPI)

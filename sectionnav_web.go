@@ -38,12 +38,13 @@ type section struct {
 var sections = []section{
 	{
 		Title:    "Account",
-		Prefixes: []string{"/u/", "/p/account", "/p/api-key", "/p/sign-ins", "/p/inbox", "/p/store", "/p/stats", "/settings/", "/inbox", "/store/history", "/bookmarks"},
+		Prefixes: []string{"/u/", "/p/account", "/p/api-key", "/p/sign-ins", "/p/inbox", "/p/store", "/p/stats", "/settings/", "/inbox", "/store/history", "/bookmarks", "/calendar"},
 		Tabs: []sectionTab{
 			{Label: "Inbox", Href: "/inbox"},
 			{Label: "Notifications", Href: "/p/inbox"},
 			{Label: "Points", Href: "/store/history"},
 			{Label: "Bookmarks", Href: "/bookmarks"},
+			{Label: "Calendar", Href: "/calendar"},
 			{Label: "Account", Href: "/p/account"},
 			{Label: "Privacy", Href: "/settings/privacy"},
 			{Label: "Alerts", Href: "/settings/notifications"},

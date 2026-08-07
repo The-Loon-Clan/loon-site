@@ -1845,3 +1845,141 @@ a.dash-tile:hover {
     color: var(--primary-fg);
     text-decoration: none;
 }
+
+/* ── calendar ───────────────────────────────────────────────────────────────
+   The month grid rendered by the shared "calendar" partial (site_chrome.html).
+
+   Sized so the grid never scrolls sideways: `table-layout: fixed` makes the
+   seven columns exactly 1/7th regardless of what a chip contains, and the chip
+   labels clip. Without it one long release title sets a column's width and the
+   whole table overflows its panel — the failure the QA sweep looks for. */
+.cal__head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+}
+.cal__title {
+    margin: 0;
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    min-width: 11ch;          /* "September 2026" and "May 2026" do not shift the arrows */
+    text-align: center;
+}
+.cal__nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* 2.25rem square: a month arrow is a primary control on a touch screen and
+       was the exact shape the a11y sweep kept flagging elsewhere. */
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    background: var(--surface-2);
+}
+.cal__nav:hover { color: var(--text); border-color: var(--border-strong); }
+
+.cal__grid {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 3px;
+}
+.cal__grid th {
+    padding: var(--space-2) 0;
+    font-size: var(--fs-3xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    text-align: center;
+}
+.cal__day {
+    height: 5.25rem;
+    vertical-align: top;
+    padding: var(--space-3);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+/* Padding days are context, not content: dimmed and flat so the eye reads the
+   month as a shape rather than counting six rows of equal-looking boxes. */
+.cal__day--outside { background: transparent; border-color: transparent; }
+.cal__day--outside .cal__daynum { opacity: 0.35; }
+/* --accent-soft, not --accent-tint: the tint is a FOREGROUND token ("primary
+   readable as text on dark") and filling a cell with it paints a solid block
+   that swallows its own date number. Soft is the translucent one. */
+.cal__day--today { border-color: var(--accent); background: var(--accent-soft); }
+
+.cal__daynum {
+    display: block;
+    font-size: var(--fs-2xs);
+    font-weight: 600;
+    line-height: 1;
+    color: var(--text-muted);
+    text-align: right;
+}
+.cal__day--today .cal__daynum { color: var(--accent-tint); }
+
+.cal__events {
+    list-style: none;
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cal-ev {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    padding: 1px var(--space-2);
+    font-size: var(--fs-3xs);
+    line-height: 1.5;
+    border-radius: var(--radius-sm);
+    background: var(--chip-bg);
+    color: var(--chip-fg);
+}
+a.cal-ev:hover { background: var(--surface-3); }
+.cal-ev .icon { width: 0.75rem; height: 0.75rem; flex: none; }
+/* The label clips rather than wraps — a two-line chip pushes the rest of the
+   day out of a fixed-height cell. The full text is on the title attribute. */
+.cal-ev__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cal-ev--claim   { background: var(--warning-soft); color: var(--warning); }
+.cal-ev--release { background: var(--info-soft);    color: var(--info); }
+.cal-ev--expiry  { background: var(--danger-soft);  color: var(--danger); }
+.cal-ev--boost   { background: var(--success-soft); color: var(--success); }
+.cal-ev--more    { color: var(--text-muted); background: transparent; }
+
+/* Legend. Its chips are samples, not controls, so they size to their text. */
+.cal-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    list-style: none;
+    margin: var(--space-5) 0 0;
+    padding: var(--space-4) 0 0;
+    border-top: 1px solid var(--border);
+}
+.cal-key .cal-ev { font-size: var(--fs-2xs); }
+.cal-key .cal-ev__label { overflow: visible; }
+
+/* Narrow screens: seven columns cannot also carry readable labels, so the
+   chips collapse to their icons and the day cell shortens. The icon plus the
+   title attribute still says what happened; the legend supplies the key. */
+@media (max-width: 48rem) {
+    .cal__day { height: 3.5rem; padding: var(--space-2); }
+    .cal-ev__label { display: none; }
+    .cal-key .cal-ev__label { display: inline; }
+    .cal-ev { justify-content: center; padding: 1px; }
+}

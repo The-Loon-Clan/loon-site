@@ -88,6 +88,11 @@ type web struct {
 	catalogSink   pluginapi.CatalogSink   // scraper write side (filled after Boot)
 	catalogCovers pluginapi.CatalogCovers // release↔cover store (filled after Boot)
 	rt            *core.Runtime           // plugin runtime, for the /admin/plugins page
+	// calSources contribute dated events to /calendar. A slice rather than a
+	// field per source: the page's whole point is that adding a kind of event
+	// does not touch the page.
+	calSources []calSource
+
 	// dailyStatus answers "may this member claim today?" for the stat strip's
 	// compact button. nil when the plugin is absent, which renders no button.
 	dailyStatus dailyreward.StatusFunc
@@ -108,7 +113,7 @@ type web struct {
 // it unreachable — templates_test.go fails on that mismatch in either direction.
 var pageTemplates = []string{
 	"home.html", "groups.html", "search.html", "browse.html", "release.html",
-	"trending.html", "bookmarks.html", "follows.html",
+	"trending.html", "bookmarks.html", "follows.html", "calendar.html",
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
@@ -667,6 +672,9 @@ func (w *web) mount(e *gin.Engine) {
 	// WRITES, so it is POST — a GET that mutates is one prefetching browser
 	// away from bookmarking somebody's whole history for them.
 	e.GET("/bookmarks", w.bookmarksPage)
+	// Calendar (calendar_web.go) — the member's own dated things, so it is
+	// login-gated inside the handler like /bookmarks rather than by role.
+	e.GET("/calendar", w.calendarPage)
 	e.POST("/u/:name/follow", w.followToggle)
 	e.GET("/u/:name/followers", w.followPage(false))
 	e.GET("/u/:name/following", w.followPage(true))
