@@ -2196,3 +2196,9 @@ a.cal-ev:hover { background: var(--surface-3); }
 .avatar-report > summary { list-style: none; cursor: pointer; }
 .avatar-report > summary::-webkit-details-marker { display: none; }
 .avatar-report__form { margin-top: var(--space-2); text-align: left; }
+
+/* Contract audit findings (admin_contracts.html). */
+.contract-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-5); }
+.contract-list__item { padding-bottom: var(--space-5); border-bottom: 1px solid var(--border); }
+.contract-list__item:last-child { border-bottom: 0; padding-bottom: 0; }
+.contract-list__symptom { margin: var(--space-2) 0 var(--space-1); font-weight: 700; }

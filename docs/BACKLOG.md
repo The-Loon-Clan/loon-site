@@ -28,14 +28,39 @@ INERT, never an error … so a half-configured site degrades rather than failing
 to boot". The cost of that correctness lands on the host, which has no way to
 discover what it has not wired.
 
-**Worth building:** a boot-time report of declared-but-unfilled contracts. The
-pieces exist — `core.ExtensionNames()`, `rewards.StockSources()`, the
-`PayoutKind` list — so this is assembly, not invention. One log line, or a panel
-on `/admin/plugins`, reading:
+**Built** — `contracts_web.go`, `/admin/contracts`, plus a WARN per finding at
+boot. Two more instances turned up after this item was written, both in the
+identity view: `user_display` stubbed `avatar_path` AND `reputation_tier` to
+constants, so both were real, host-populated, and discarded on the way out to
+every plugin. Six total.
 
-    declared but unfilled: rewards.metrics.uploads.created, rewards.payout.medal
+It is DATA-DRIVEN rather than a list of the six: it reads the payout kinds
+enabled rewards actually promise, the metrics enabled achievements actually
+count, and the columns the identity view actually exposes, then checks the
+other half is present. A hardcoded list goes stale the day somebody adds the
+seventh.
 
-Four debugging sessions would have been four glances.
+It reports and does not fail boot. Most of these seams are legitimately
+optional, and an operator who has deliberately not wired one should not have to
+argue with the binary.
+
+Verified by reintroducing each failure and watching it come back — a stubbed
+view column, an achievement on an uncounted metric, a reward promising a
+handler-less payout kind.
+
+Not covered, and worth knowing:
+
+* **The plugin side.** A plugin joining `users` instead of `user_display` is
+  static analysis, not a runtime check. That instance would still get through.
+* **Process gates.** A plugin skipping itself because `Process` does not match
+  is invisible from outside — it registers nothing and claims nothing.
+* **Scope is the page.** `/admin/contracts` lists what it checks even when it
+  finds nothing, because "no findings" from an audit whose scope nobody can see
+  is indistinguishable from an audit that checks nothing.
+* **CSS classes are the same bug.** `.button--danger` and `.text-danger` were
+  used across three plugins' templates and defined in no stylesheet, so every
+  destructive button rendered like a safe one. A sweep for classes referenced
+  in templates but never defined is the same audit in another medium.
 
 ---
 

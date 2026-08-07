@@ -299,6 +299,8 @@ func TestChromeLinksAreServed(t *testing.T) {
 		"/moderation/avatars": true,
 		// Member-facing: the community votes here.
 		"/moderation": true,
+		// Admin-only, linked from the admin subnav.
+		"/admin/contracts": true,
 		// The Newznab endpoint, linked bare from the footer as well as with a
 		// ?t=caps query.
 		"/api": true,

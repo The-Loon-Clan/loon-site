@@ -131,7 +131,7 @@ var pageTemplates = []string{
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
-	"admin_access.html",
+	"admin_access.html", "admin_contracts.html",
 	// Moderation is not under /admin (it gates at RoleMod) but is the same
 	// kind of page — see avatarmod_web.go.
 	"moderation_avatars.html", "moderation_community.html",

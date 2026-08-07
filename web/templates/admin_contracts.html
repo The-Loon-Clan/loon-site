@@ -1,0 +1,66 @@
+{{/* Contract audit (contracts_web.go). .Findings, .Checks.
+
+     Re-run live on each view rather than showing what boot found, so a
+     finding fixed by a restart disappears on refresh instead of persisting
+     until somebody notices the log is stale. */}}
+{{define "content"}}
+<header class="mb-3">
+    <h1 class="h3 m-0">Contracts</h1>
+    <p class="text-muted small m-0 mt-1">
+        Seams with two halves, checked for the half that is missing. Every one of these
+        fails silently by nature &mdash; the symptom is a feature that does nothing, not an error.
+    </p>
+</header>
+
+{{if .Findings}}
+<div class="notice notice--danger">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>{{len .Findings}} unfilled contract{{if ne (len .Findings) 1}}s{{end}}. Each one is a feature that appears to work and does not.</span>
+</div>
+
+<section class="panelV2">
+    <div class="panel__body">
+        <ul class="contract-list">
+            {{range .Findings}}
+            <li class="contract-list__item">
+                <span class="tag tag--info">{{.Area}}</span>
+                {{/* The SYMPTOM leads, not the mechanism. An operator recognises
+                     "achievements never progress" and does not recognise
+                     "extension rewards.metrics.login is not registered" —
+                     and the first is what sent them here. */}}
+                <p class="contract-list__symptom">{{.Symptom}}</p>
+                <p class="text-muted small m-0">{{.Detail}}</p>
+                <p class="small m-0 mt-1"><strong>Fix:</strong> {{.Fix}}</p>
+            </li>
+            {{end}}
+        </ul>
+    </div>
+</section>
+{{else}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Nothing unfilled.</span>
+</div>
+{{end}}
+
+{{/* Listed whether or not anything was found. "No findings" from an audit
+     whose scope nobody can see is indistinguishable from an audit that checks
+     nothing, and that is exactly the failure this page exists to stop. */}}
+<section class="panelV2 mt-4">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#check"></use></svg>
+            What is checked
+        </h2>
+    </header>
+    <div class="panel__body">
+        <ul class="m-0">
+            {{range .Checks}}<li class="small">{{.}}</li>{{end}}
+        </ul>
+        <p class="text-muted small m-0 mt-3">
+            This list is the audit's whole scope. A seam that is not on it is not being watched
+            &mdash; see docs/BACKLOG.md for the ones that have bitten before.
+        </p>
+    </div>
+</section>
+{{end}}

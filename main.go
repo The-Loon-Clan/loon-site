@@ -687,11 +687,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	contractsDB, contractsCore = db, c
+
 	rt, err := core.Boot(ctx, c)
 	if err != nil {
 		logger.Error("core.Boot", "err", err)
 		os.Exit(1)
 	}
+
+	// The contract audit (contracts_web.go), AFTER Boot — extensions are
+	// registered during each plugin's Provision, so before Boot every one of
+	// them is legitimately absent and the audit would report the whole site as
+	// broken.
+	//
+	// It reports and does not stop the site. Most of these seams are optional
+	// by design, and an operator who has deliberately not wired one should not
+	// have to argue with the binary about it.
+	reportContracts(ctx, c, db, logger)
 
 	// --- Admin dashboard. core.AdminHandler renders the plugin manifest;
 	// schedule.JobsAdminHandler renders the jobs/services table with manual
@@ -733,6 +745,7 @@ func main() {
 
 	admin := engine.Group("/admin", wsrv.auth.Require(core.RoleAdmin)...)
 	// Access modes + the page map (accessadmin_web.go).
+	admin.GET("/contracts", wsrv.adminContracts)
 	admin.GET("/access", wsrv.adminAccess)
 	admin.POST("/access", wsrv.adminAccessSave)
 	admin.GET("/plugins", wsrv.adminPlugins)
