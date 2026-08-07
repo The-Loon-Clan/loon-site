@@ -152,6 +152,11 @@ func (w *web) sitePagePlain(page, title string) gin.HandlerFunc {
 // mountSitePages wires the fixed pages. Called from wireViews so they land
 // alongside the plugin site pages rather than in main's route soup.
 func (w *web) mountSitePages(e *gin.Engine) {
+	// robots.txt is GENERATED from the browsing mode (access_web.go), never a
+	// static file: a members-only site that still invites crawlers is not
+	// members-only, and a stale allow rule is how a private catalogue ends up
+	// in a public index.
+	e.GET("/robots.txt", w.robotsTxt)
 	e.GET("/staff", w.staffPage)
 	e.GET("/stats", w.statsPage)
 	e.GET("/rules", w.sitePagePlain("rules.html", "Rules"))

@@ -127,9 +127,11 @@ var pageTemplates = []string{
 	"home.html", "groups.html", "search.html", "browse.html", "release.html",
 	"trending.html", "bookmarks.html", "follows.html", "calendar.html",
 	"achievements.html", "forum_activity.html", "rewards.html", "subscriptions.html",
+	"invites.html",
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
+	"admin_access.html",
 	// Fixed host pages — UNIT3D's page/* and stats/index (pages_web.go).
 	"staff.html", "stats.html", "rules.html", "faq.html", "about.html",
 	"sitemap.html",
@@ -709,6 +711,9 @@ func (w *web) mount(e *gin.Engine) {
 	// Subscriptions (subscriptions_web.go) — one list of everything the viewer
 	// follows, read from the tables that already hold it.
 	e.GET("/subscriptions", w.subscriptionsPage)
+	// Invite codes (invitecodes_web.go).
+	e.GET("/invites", w.invitesPage)
+	e.POST("/invites", w.invitesCreate)
 	e.POST("/u/:name/follow", w.followToggle)
 	e.GET("/u/:name/followers", w.followPage(followKindFollowers))
 	e.GET("/u/:name/following", w.followPage(followKindFollowing))
@@ -1356,22 +1361,63 @@ func (w *web) loginPost(c *gin.Context) {
 }
 
 func (w *web) registerPage(c *gin.Context) {
-	w.render(c, "register.html", map[string]any{"Title": "Register"})
+	// The mode reaches the template rather than the handler refusing outright:
+	// a closed site should SAY it is closed, not 404 the page a visitor was
+	// invited to by a link. "Registration is closed" is information; a dead
+	// link is a puzzle.
+	w.render(c, "register.html", map[string]any{
+		"Title":   "Register",
+		"RegMode": registrationMode(),
+	})
 }
 
 func (w *web) registerPost(c *gin.Context) {
 	name := strings.TrimSpace(c.PostForm("username"))
 	email := strings.TrimSpace(c.PostForm("email"))
+	// Enforced HERE as well as in the template, because the template only
+	// hides the form. A closed site whose POST still works is open to anyone
+	// who kept the page open, or who has ever used curl.
+	switch registrationMode() {
+	case RegClosed:
+		c.Status(http.StatusForbidden)
+		w.render(c, "register.html", map[string]any{
+			"Title": "Register", "RegMode": RegClosed,
+		})
+		return
+	case RegInvite:
+		if !inviteCodeValid(c.Request.Context(), strings.TrimSpace(c.PostForm("invite"))) {
+			c.Status(http.StatusForbidden)
+			w.render(c, "register.html", map[string]any{
+				"Title": "Register", "RegMode": RegInvite,
+				"Error": "That invite code is not valid.", "Username": name, "Email": email,
+			})
+			return
+		}
+	}
 	if err := w.captcha.Verify(c.Request.Context(), c.PostForm(captcha.FormField), c.ClientIP()); err != nil {
 		c.Status(http.StatusBadRequest)
 		w.render(c, "register.html", map[string]any{"Title": "Register", "Error": "Please complete the captcha and try again.", "Username": name, "Email": email})
 		return
 	}
+	invite := strings.TrimSpace(c.PostForm("invite"))
 	u, err := w.flow.Register(c.Request.Context(), name, email, c.PostForm("password"))
 	if err != nil {
 		c.Status(http.StatusBadRequest)
-		w.render(c, "register.html", map[string]any{"Title": "Register", "Error": err.Error(), "Username": name, "Email": email})
+		w.render(c, "register.html", map[string]any{"Title": "Register", "Error": err.Error(), "Username": name, "Email": email, "RegMode": registrationMode()})
 		return
+	}
+	// Consume the code now the account exists. Redeem, not just validate: a
+	// gate that checks without consuming lets one code make any number of
+	// accounts, which is the whole thing invite-only is trying to stop.
+	//
+	// After Register on purpose. Redeeming first would burn the code when
+	// registration then fails on a taken username — the visitor loses an invite
+	// they were given and has nothing to show for it.
+	if registrationMode() == RegInvite && !redeemInviteCode(c.Request.Context(), invite, u.ID) {
+		// The account exists and the code did not stick — a race with another
+		// registration on the same code. Say so rather than leaving them signed
+		// in via a gate that did not open.
+		w.log.Warn("invite not redeemed after register", "user", u.ID)
 	}
 	if err := w.flow.Issue(c, u); err != nil {
 		w.log.Error("session issue", "err", err)

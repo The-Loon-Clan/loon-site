@@ -1,4 +1,14 @@
 {{define "content"}}
+{{if eq .RegMode "closed"}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#lock"></use></svg>Registration is closed</h1>
+    </header>
+    <div class="panel__body">
+        <p class="m-0">This site is not accepting new accounts at the moment. If you already have one, <a href="/login">sign in</a>.</p>
+    </div>
+</section>
+{{else}}
 {{/* Same centred auth column as login.html — see the note there about the
      max-width. Username/Email are echoed back on a failed POST so a captcha or
      validation error doesn't wipe what was typed. */}}
@@ -44,4 +54,5 @@
         </div>
     </section>
 </div>
+{{end}}
 {{end}}

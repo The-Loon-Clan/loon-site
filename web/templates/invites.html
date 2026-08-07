@@ -1,0 +1,87 @@
+{{/* Invites — the codes this member has issued, and the control to issue one.
+     Data from invitecodes_web.go: .Balance, .Codes, .RegMode, .Err. */}}
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
+    <li class="breadcrumb--active">Invites</li>
+</ol>
+{{end}}
+
+{{define "content"}}
+<header>
+    <h1 class="h3 m-0">Invites</h1>
+    <p class="text-muted small m-0 mt-1">Codes you have issued, and what became of them.</p>
+</header>
+
+{{with .Err}}
+<div class="notice notice--warning">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg><span>{{.}}</span>
+</div>
+{{end}}
+
+{{/* Said out loud rather than left to be inferred: a member holding invites on
+     an open site is reasonably puzzled about what they are for. */}}
+{{if ne .RegMode "invite"}}
+<div class="notice notice--info">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>
+        {{if eq .RegMode "open"}}Registration is open right now, so anyone can join without a code. Your invites keep until that changes.
+        {{else}}Registration is closed right now, so codes cannot be redeemed until staff reopen it.{{end}}
+    </span>
+</div>
+{{end}}
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#plus"></use></svg>You have {{.Balance}}
+        </h2>
+        {{if .Balance}}
+        <div class="panel__actions">
+            <form method="post" action="/invites" style="display:contents">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                <button class="button button--primary button--sm" type="submit">Create a code</button>
+            </form>
+        </div>
+        {{end}}
+    </header>
+    <div class="panel__body">
+        {{if .Balance}}
+        <p class="text-muted small m-0">Each code works once and expires after two weeks.</p>
+        {{else}}
+        <div class="empty">No invites left. You can buy more in the <a href="/store">points store</a>.</div>
+        {{end}}
+    </div>
+</section>
+
+{{if .Codes}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#tag"></use></svg>Your codes
+        </h2>
+        <div class="panel__actions"><span class="panel__grouping">{{len .Codes}}</span></div>
+    </header>
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <caption class="visually-hidden">Invite codes you have issued</caption>
+            <thead><tr><th>Code</th><th>Status</th><th>Issued</th><th>Expires</th></tr></thead>
+            <tbody>
+                {{range .Codes}}
+                <tr>
+                    <td><code>{{.Code}}</code></td>
+                    <td>
+                        {{if .Spent}}<span class="chip chip--ok">Used by {{.UsedBy}}</span>
+                        {{else if .Expired}}<span class="chip">Expired</span>
+                        {{else}}<span class="chip chip--warn">Unused</span>{{end}}
+                    </td>
+                    <td class="data-table__nowrap">{{.Created}}</td>
+                    <td class="data-table__nowrap">{{.Expires}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}
+{{end}}

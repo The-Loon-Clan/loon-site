@@ -200,6 +200,15 @@ func main() {
 		os.Exit(1)
 	}
 	forumSeed(db, logger)
+	// Site access modes + invite codes (access_web.go, invitecodes_web.go).
+	if err := inviteCodesMigrate(db); err != nil {
+		logger.Error("invite codes migrate", "err", err)
+		os.Exit(1)
+	}
+	inviteCodesDB = db
+	if err := loadAccessSettings(context.Background(), db); err != nil {
+		logger.Error("load access settings", "err", err)
+	}
 	// The profile's free-text block (profilebio_web.go). A users column, so it
 	// migrates with the other host-owned users work rather than in a plugin.
 	if err := migrateProfileBio(db); err != nil {
@@ -317,6 +326,10 @@ func main() {
 			strings.HasPrefix(p, "/api") || strings.HasPrefix(p, "/rss") ||
 			p == "/login" || p == "/logout" || p == "/healthz"
 	}))
+	// Members-only browsing (access_web.go). After the session middleware,
+	// because it has to know who you are, and after maintenance so a site in
+	// maintenance says so rather than bouncing you to a login you cannot use.
+	engine.Use(wsrv.requireLoginMiddleware())
 	wsrv.mount(engine)
 
 	// Hand loon the session policy through the baseline's core.Auth adapter.
@@ -668,6 +681,9 @@ func main() {
 	// for a consistent look, using loon's data (rt.Plugins, schedule snapshots).
 	wsrv.rt = rt
 	admin := engine.Group("/admin", wsrv.auth.Require(core.RoleAdmin)...)
+	// Access modes + the page map (accessadmin_web.go).
+	admin.GET("/access", wsrv.adminAccess)
+	admin.POST("/access", wsrv.adminAccessSave)
 	admin.GET("/plugins", wsrv.adminPlugins)
 	admin.GET("/jobs", wsrv.adminJobs)
 	admin.POST("/jobs/control", wsrv.adminJobsControl)

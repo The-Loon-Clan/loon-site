@@ -1,0 +1,112 @@
+{{/* Admin → Access. Data from accessadmin_web.go: .Registration, .Browsing,
+     .Pages ([]pageAccess), .Saved, .Err.
+
+     The map below is DERIVED from the same predicates the middleware uses, so
+     it cannot describe a gate the site does not have. That matters more than it
+     sounds: stale access documentation is worse than none, because it is read
+     as an assurance. */}}
+{{define "content"}}
+{{template "admin-subnav" .}}
+
+<header class="mt-3">
+    <h1 class="h3 m-0">Access</h1>
+    <p class="text-muted small m-0 mt-1">Who may read this site, and who may join it.</p>
+</header>
+
+{{if .Saved}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Saved. The change is live now — no restart needed.</span>
+</div>
+{{end}}
+{{with .Err}}
+<div class="notice notice--warning">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg><span>{{.}}</span>
+</div>
+{{end}}
+
+<form method="post" action="/admin/access">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    <div class="grid grid--2">
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#user"></use></svg>Registration
+                </h2>
+            </header>
+            <div class="panel__body">
+                <dl class="key-value">
+                    <div class="key-value__group">
+                        <dt><label for="reg-open"><input type="radio" id="reg-open" name="registration" value="open" {{if eq .Registration "open"}}checked{{end}}> Open</label></dt>
+                        <dd class="text-muted">Anyone may create an account.</dd>
+                    </div>
+                    <div class="key-value__group">
+                        <dt><label for="reg-invite"><input type="radio" id="reg-invite" name="registration" value="invite" {{if eq .Registration "invite"}}checked{{end}}> Invite only</label></dt>
+                        <dd class="text-muted">An invite code from a member is required.</dd>
+                    </div>
+                    <div class="key-value__group">
+                        <dt><label for="reg-closed"><input type="radio" id="reg-closed" name="registration" value="closed" {{if eq .Registration "closed"}}checked{{end}}> Closed</label></dt>
+                        <dd class="text-muted">Nobody may register. Staff create accounts.</dd>
+                    </div>
+                </dl>
+            </div>
+        </section>
+
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#eye"></use></svg>Browsing
+                </h2>
+            </header>
+            <div class="panel__body">
+                <dl class="key-value">
+                    <div class="key-value__group">
+                        <dt><label for="br-public"><input type="radio" id="br-public" name="browsing" value="public" {{if eq .Browsing "public"}}checked{{end}}> Public</label></dt>
+                        <dd class="text-muted">Anyone may read the site. Search engines and AI crawlers may index it.</dd>
+                    </div>
+                    <div class="key-value__group">
+                        <dt><label for="br-members"><input type="radio" id="br-members" name="browsing" value="members" {{if eq .Browsing "members"}}checked{{end}}> Members only</label></dt>
+                        <dd class="text-muted">Everything but the doors needs an account, and robots.txt disallows everything.</dd>
+                    </div>
+                </dl>
+                <p class="text-muted small m-0 mt-3">
+                    These are separate questions. A public catalogue with closed registration is
+                    an ordinary setup, and so is a dark site anyone may apply to.
+                </p>
+            </div>
+        </section>
+    </div>
+    <div class="form__actions mt-3"><button class="button button--primary" type="submit">Save</button></div>
+</form>
+
+<section class="panelV2 mt-3">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#globe"></use></svg>Pages
+        </h2>
+        {{with .Pages}}<div class="panel__actions"><span class="panel__grouping">{{len .}}</span></div>{{end}}
+    </header>
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <caption class="visually-hidden">Every page and the access it has under the current settings</caption>
+            <thead>
+                <tr><th>Page</th><th>Path</th><th>Anonymous visitor</th><th>Why</th></tr>
+            </thead>
+            <tbody>
+                {{range .Pages}}
+                <tr>
+                    <td class="data-table__title">{{.Label}}</td>
+                    <td><code>{{.Path}}</code></td>
+                    <td>
+                        {{if eq .Access "public"}}<span class="chip chip--ok">Can read</span>
+                        {{else if eq .Access "members"}}<span class="chip">Sent to sign in</span>
+                        {{else}}<span class="chip chip--warn">Staff only</span>{{end}}
+                    </td>
+                    <td class="text-muted small">{{.Note}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}
