@@ -167,6 +167,7 @@ func (w *web) invitesPage(c *gin.Context) {
 		return
 	}
 	balance, _ := inviteBalance(c.Request.Context(), u.ID)
+	tree := inviteTree(c.Request.Context(), usersDB, u.ID)
 	w.render(c, "invites.html", map[string]any{
 		"Title":   "Invites",
 		"Balance": balance,
@@ -175,6 +176,10 @@ func (w *web) invitesPage(c *gin.Context) {
 		// reasonably confused about what they are for.
 		"RegMode": registrationMode(),
 		"Err":     c.Query("err"),
+		// The chain below this member (invitetree_web.go). Read from the same
+		// created_by/used_by columns the codes already carry.
+		"Tree":   tree,
+		"Totals": summariseTree(tree),
 	})
 }
 

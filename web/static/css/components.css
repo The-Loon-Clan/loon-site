@@ -2324,3 +2324,35 @@ a.cal-ev:hover { background: var(--surface-3); }
    browser's, which is tight enough that two rules read as one paragraph. */
 .rule-list { margin: 0; padding-left: var(--space-6); display: grid; gap: var(--space-2); }
 .rule-list > li { padding-left: var(--space-1); }
+
+/* The invite tree (invites.html). Depth is a custom property on the row rather
+   than nested <ul>s with margins, because the query returns a flat, path-
+   ordered list -- rebuilding real nesting in the template would mean tracking
+   depth transitions by hand for a display that indents either way. */
+.invite-tree { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.invite-tree__row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 24px;   /* WCAG 2.2 SC 2.5.8: the username in here is a link */
+}
+/* One class per generation rather than an inline --depth custom property.
+   TestEveryReferencedTokenResolves checks that every var() in a stylesheet
+   resolves to a real token, and a component-local variable set inline from a
+   template is invisible to it -- so it read as a missing token. Explicit
+   classes are also what audit_css.py can verify. Capped at inviteTreeDepth. */
+.invite-tree__row--d0 { padding-left: 0; }
+.invite-tree__row--d1 { padding-left: var(--space-6); }
+.invite-tree__row--d2 { padding-left: calc(var(--space-6) * 2); }
+.invite-tree__row--d3 { padding-left: calc(var(--space-6) * 3); }
+.invite-tree__row--d4 { padding-left: calc(var(--space-6) * 4); }
+/* The elbow, drawn rather than typed: a literal "└" in the markup is read out
+   as a character by a screen reader on every single row. */
+.invite-tree__row > .invite-tree__branch {
+    width: 10px; height: 10px; flex: none;
+    border-left: 1px solid var(--border-strong);
+    border-bottom: 1px solid var(--border-strong);
+    border-bottom-left-radius: 3px;
+    opacity: .7;
+}
+.invite-tree__row--d0 > .invite-tree__branch { visibility: hidden; }

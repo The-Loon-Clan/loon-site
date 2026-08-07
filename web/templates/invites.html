@@ -84,4 +84,48 @@
     </div>
 </section>
 {{end}}
+
+{{/* The invite tree (invitetree_web.go). A READ of created_by/used_by, which
+     every code has carried since the day codes were added — no table behind
+     this, just the question those columns were recorded for.
+
+     Rendered as a nested <ul>, not a table with an indent column: the nesting
+     IS the information, and a screen reader announces list depth for free
+     where an indent made of padding announces nothing at all. */}}
+<section class="panelV2 mt-4">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>
+            Who you brought in
+        </h2>
+        {{with .Totals}}{{if .People}}
+        <div class="panel__actions">
+            <span class="panel__action">{{.People}} member{{if ne .People 1}}s{{end}} · {{.Generations}} generation{{if ne .Generations 1}}s{{end}}</span>
+        </div>
+        {{end}}{{end}}
+    </header>
+    <div class="panel__body">
+        {{if .Tree}}
+        <ul class="invite-tree">
+            {{range .Tree}}
+            <li class="invite-tree__row invite-tree__row--d{{.Indent}}">
+                <span class="invite-tree__branch" aria-hidden="true"></span>
+                {{template "user-tag" (dict "Name" .Username "Role" .Role)}}
+                <span class="text-muted small">joined {{.Joined}}</span>
+                {{/* The number that makes a tree worth reading: one account
+                     that brought thirty is a different fact from thirty that
+                     brought one each. */}}
+                {{if .Invited}}<span class="chip chip--accent">invited {{.Invited}}</span>{{end}}
+            </li>
+            {{end}}
+        </ul>
+        {{else}}
+        <p class="m-0 text-muted">
+            Nobody yet. When somebody signs up with a code you issued, they appear here &mdash;
+            and so does anybody <em>they</em> go on to invite.
+        </p>
+        {{end}}
+    </div>
+</section>
+
 {{end}}
