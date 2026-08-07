@@ -52,7 +52,57 @@
 {{define "breadcrumbs"}}
 <ol class="breadcrumbsV2">
     <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
-    {{if eq .Path "/community/forums"}}
+    {{/* PATH FIRST, before anything touches .Thread.
+
+         This set is shared: the forum renders through it and so does the
+         communities plugin, and BOTH set a .Thread. They are different types.
+         A community thread has no CategoryID, so the forum branch below
+         evaluated .Thread.CategoryID on it, failed at EXECUTE time, and
+         aborted the document — 200, a header, and nothing after it. Every
+         community thread page was blank and the link crawler could not see it,
+         because it only walks pages something links to and there were no
+         communities to link one.
+
+         So each family gets its own arm and neither reads the other's data. */}}
+    {{/* "/c" EXACTLY, or "/c/" -- not hasPrefix "/c", which also matches
+         /community/forums and put "Communities" on every forum page. */}}
+    {{if or (eq .Path "/c") (hasPrefix .Path "/c/")}}
+    {{if eq .Path "/c"}}
+    <li class="breadcrumb--active">Communities</li>
+    {{else}}
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/c">Communities</a></li>
+    {{if eq .Path "/c/new"}}
+    <li class="breadcrumb--active">New community</li>
+    {{else}}
+    {{/* The community is the active crumb on its own page and a link below it,
+         the same rule the section above follows. */}}
+    {{with .Community}}
+    {{if eq $.Path (print "/c/" .Slug)}}
+    <li class="breadcrumb--active">{{.Name}}</li>
+    {{else}}
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/c/{{.Slug}}">{{.Name}}</a></li>
+    {{end}}
+    {{end}}
+    {{/* .Thread.Title, not .Title: the communities plugin sets Title to
+         "Forums" on every one of its pages, so using it here would label each
+         crumb with the wrong section. Inside this arm .Thread is a community
+         thread, so reading its field is safe -- which it is NOT in the forum
+         arm below, where .Thread is a different type entirely. */}}
+    {{with .Thread}}<li class="breadcrumb--active">{{.Title}}</li>{{end}}
+    {{end}}
+    {{end}}
+    {{else if hasPrefix .Path "/playlists"}}
+    {{if eq .Path "/playlists"}}
+    <li class="breadcrumb--active">Playlists</li>
+    {{else}}
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/playlists">Playlists</a></li>
+    {{with .Title}}<li class="breadcrumb--active">{{.}}</li>{{end}}
+    {{end}}
+    {{else if hasPrefix .Path "/donate"}}
+    <li class="breadcrumb--active">Donate</li>
+    {{else if hasPrefix .Path "/admin/donate"}}
+    <li class="breadcrumb--active">Donations</li>
+    {{else if eq .Path "/community/forums"}}
     <li class="breadcrumb--active">Forums</li>
     {{else}}
     <li class="breadcrumbV2"><a class="breadcrumb__link" href="/community/forums">Forums</a></li>
@@ -63,8 +113,14 @@
     <li class="breadcrumb--active">{{.Category.Name}}</li>
     {{else if hasPrefix .Path "/community/forums/new"}}
     <li class="breadcrumb--active">New thread</li>
-    {{else}}
+    {{else if hasPrefix .Path "/community/forums"}}
     <li class="breadcrumb--active">Categories</li>
+    {{else}}
+    {{/* Not a forum page at all. This arm used to be unreachable-by-accident
+         rather than by design: every plugin page rendering through this set
+         fell into "Categories", so /playlists and /c both claimed to be inside
+         the forum. */}}
+    {{with .Title}}<li class="breadcrumb--active">{{.}}</li>{{end}}
     {{end}}
     {{end}}
 </ol>

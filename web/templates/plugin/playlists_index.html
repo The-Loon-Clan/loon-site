@@ -7,11 +7,6 @@
        Total int · Pagination any · Error string */}}
 {{template "fhead" .}}
 
-<ol class="breadcrumbsV2">
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
-    <li class="breadcrumbV2 breadcrumb--active">Playlists</li>
-</ol>
-
 {{if .Error}}<div class="notice notice--danger">{{.Error}}</div>{{end}}
 
 <section class="panelV2">

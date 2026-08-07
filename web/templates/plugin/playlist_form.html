@@ -9,12 +9,6 @@
      alone, so an existing link keeps working. */}}
 {{template "fhead" .}}
 
-<ol class="breadcrumbsV2">
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/playlists">Playlists</a></li>
-    <li class="breadcrumbV2 breadcrumb--active">{{if .Playlist}}Edit{{else}}New{{end}}</li>
-</ol>
-
 {{if .Error}}<div class="notice notice--danger">{{.Error}}</div>{{end}}
 
 <section class="panelV2">

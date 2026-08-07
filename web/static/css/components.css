@@ -2239,3 +2239,88 @@ a.cal-ev:hover { background: var(--surface-3); }
    in one notice rather than two stacked. */
 .undo-offer { display: flex; align-items: center; gap: var(--space-3); }
 .undo-offer__form { margin-left: auto; }
+
+/* ── classes the templates asked for and nothing answered ──────────────────
+   Found by scripts/audit_css.py. Each of these was written by somebody who
+   expected it to do something, and did nothing at all -- the element rendered
+   as though the class were absent, which is why none of them looked broken
+   enough to chase.
+
+   Deliberately minimal. The job is to make each class mean what its name and
+   its markup already claim, not to redesign the components around them. */
+
+/* The calendar's block root. Every child (.cal__head, .cal__grid, .cal__day…)
+   was defined and the block itself was not, so the grid had no containing
+   context of its own -- it inherited whatever panel it was dropped into. */
+.cal { display: block; width: 100%; }
+
+/* A numeric table column. Right-aligned, because a column of figures read
+   ragged-left cannot be compared down its own length, and tabular figures so
+   the digits line up between rows rather than drifting with their widths. */
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* The action cell of a data table: buttons kept on one line and pushed to the
+   trailing edge, away from the content they act on. */
+.data-table__actions { display: flex; gap: var(--space-2); justify-content: flex-end; white-space: nowrap; }
+
+/* A form living inside a table cell or beside another control. Without this it
+   is a block element and each one drops onto its own line, which is what put
+   Approve and Deny on separate rows of the join-request queue. */
+.inline-form { display: inline-block; margin: 0; }
+
+/* The inline variants of the form component: label and control on one line
+   rather than stacked, for the short single-field forms in plugin admin
+   panels. Wraps rather than overflowing on a narrow screen. */
+.form--inline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); }
+.form__group--inline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.form__group--inline .form__label { margin-bottom: 0; }
+
+/* Checkboxes. 18px with a 24px hit area via the label spacing beside it --
+   the browser default is around 13px, which is under half the WCAG 2.2 SC
+   2.5.8 minimum target and genuinely hard to hit on a phone. accent-color
+   makes the checked state follow the theme instead of staying system blue. */
+.form__checkbox {
+    width: 18px; height: 18px;
+    margin: 0 var(--space-2) 0 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex: none;
+}
+
+/* Secondary text on a list row: the message under a join request, the excerpt
+   under a title. Muted and clipped to one line so a long body cannot push the
+   row's controls off the end. */
+.list-row__text {
+    color: var(--muted-2);
+    font-size: var(--fs-xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+/* A line of metadata under a title -- author, date, counts. The items are
+   separated by spacing rather than by punctuation in the markup, so a template
+   can add or drop one without leaving a stray bullet behind. */
+.meta__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-3);
+    margin: var(--space-1) 0 0;
+    font-size: var(--fs-xs);
+    color: var(--muted-2);
+}
+.meta__item { display: inline-flex; align-items: center; gap: var(--space-1); }
+/* The separator lives in CSS for the reason above: it appears BETWEEN items
+   and never before the first, whatever the template chose to render. */
+.meta__item:not(:first-child)::before { content: "·"; margin-right: var(--space-1); opacity: .6; }
+
+/* "Page 2 of 7" beside the pager. Muted, because it orients rather than
+   invites -- it is the one thing in a pagination strip that is not a target. */
+.pagination__status { font-size: var(--fs-xs); color: var(--muted-2); align-self: center; }
+
+/* A community's numbered rules. An <ol> with the site's spacing rather than the
+   browser's, which is tight enough that two rules read as one paragraph. */
+.rule-list { margin: 0; padding-left: var(--space-6); display: grid; gap: var(--space-2); }
+.rule-list > li { padding-left: var(--space-1); }

@@ -42,6 +42,22 @@ RUNTIME = {
     "pw-meter--strong",
     # Toggled by the dropdown and Bootstrap tab shims in site_chrome.html.
     "active", "show", "fade",
+
+    # UNIT3D PARITY MARKERS, not styling hooks. UNIT3D renders each home-page
+    # block as <section class="panelV2 blocks__<name>">, and these carry the
+    # same names so a panel here is identifiable as the block it corresponds
+    # to. They are deliberately unstyled -- panelV2 does the looking -- and
+    # templates_test.go asserts them by name to check the home page renders the
+    # blocks the host ordered.
+    "blocks__featured", "blocks__latest-releases", "blocks__latest-topics",
+    "blocks__no-releases", "blocks__popular", "blocks__top-groups",
+    "blocks__top-posters", "blocks__widget",
+
+    # The same convention on /achievements, though nothing asserts these: they
+    # document which UNIT3D panel each section mirrors. Kept for consistency
+    # with the blocks above -- deleting three names to satisfy a linter written
+    # in this repo would be the tail wagging the dog.
+    "achievements__unlocked", "achievements__pending", "achievement__statistics",
 }
 
 

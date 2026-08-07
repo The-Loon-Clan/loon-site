@@ -2,12 +2,6 @@
      Form: POST /c/:slug/submit  title body */}}
 {{template "fhead" .}}
 
-<ol class="breadcrumbsV2">
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/c">Communities</a></li>
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/c/{{.Community.Slug}}">{{.Community.Name}}</a></li>
-    <li class="breadcrumbV2 breadcrumb--active">New thread</li>
-</ol>
-
 {{template "c-flash" .Flash}}
 
 <section class="panelV2">

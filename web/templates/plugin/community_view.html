@@ -3,12 +3,6 @@
      MyRequest, PendingCount, Flash, SidebarHTML, DescriptionHTML */}}
 {{template "fhead" .}}
 
-<ol class="breadcrumbsV2">
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/c">Communities</a></li>
-    <li class="breadcrumbV2 breadcrumb--active">{{.Community.Name}}</li>
-</ol>
-
 {{template "c-flash" .Flash}}
 {{template "c-header" .Community}}
 

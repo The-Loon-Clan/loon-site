@@ -6,12 +6,6 @@
      remove it; hiding it would make a playlist quietly shrink. */}}
 {{template "fhead" .}}
 
-<ol class="breadcrumbsV2">
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/">Home</a></li>
-    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/playlists">Playlists</a></li>
-    <li class="breadcrumbV2 breadcrumb--active">{{.Playlist.Name}}</li>
-</ol>
-
 {{if .Saved}}<div class="notice notice--success">Saved.</div>{{end}}
 
 <section class="panelV2">
