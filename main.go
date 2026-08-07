@@ -668,6 +668,16 @@ func main() {
 	// Beat this instance's presence every 15s (kind "all" — single-process demo).
 	go heartbeat.StartReporter(ctx, hbStore, heartbeat.HostID("all"), "all", "loon-demo", 15*time.Second)
 
+	// user_display is the plugin-facing identity contract, and the baseline
+	// builds it with avatar_path and reputation_tier stubbed to constants until
+	// a host fills them in (see migrateUserDisplay). Replaced HERE, after every
+	// migration that adds those columns has run, and before Boot, so the first
+	// plugin query already sees the real view.
+	if err := migrateUserDisplay(db); err != nil {
+		logger.Error("user_display migrate", "err", err)
+		os.Exit(1)
+	}
+
 	rt, err := core.Boot(ctx, c)
 	if err != nil {
 		logger.Error("core.Boot", "err", err)

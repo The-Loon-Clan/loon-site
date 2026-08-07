@@ -42,11 +42,7 @@
         <section class="panelV2">
             <div class="panel__body">
                 <div class="user-stat-card">
-                    {{/* No avatar exists anywhere in this stack (core.User has no
-                         image field), so the initials tile is the real state. */}}
-                    <span class="avatar avatar--lg user-stat-card__avatar poster--h{{$h}}">
-                        <span class="avatar__fallback">{{initials .Subject.Username}}</span>
-                    </span>
+                    {{template "avatar" dict "Path" .SubjectAvatar "Name" .Subject.Username "Size" "lg" "Class" "user-stat-card__avatar" "Px" 128}}
                     <h1 class="user-stat-card__username">
                         {{/* user-tag so a username is coloured by role here the
                              same way it is in every listing and forum post. */}}

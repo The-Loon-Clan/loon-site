@@ -101,6 +101,7 @@
 <symbol id="user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></symbol>
 <symbol id="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="10.5" width="17" height="10.5" rx="2"/><path d="M7.5 10.5V7a4.5 4.5 0 0 1 9 0v3.5"/></symbol>
 <symbol id="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></symbol>
 <symbol id="send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2.5 11 13"/><path d="m21.5 2.5-6.7 19-3.8-8.5-8.5-3.8z"/></symbol>
 <symbol id="store" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 1.5-5h15L21 9"/><path d="M4.5 9v11h15V9"/><path d="M3 9h18"/><path d="M9.5 20v-6h5v6"/></symbol>
 <symbol id="folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
@@ -254,11 +255,11 @@
             </ul>
             <details class="dropdown dropdown--end">
                 <summary class="top-nav__user-toggle">
-                    {{/* No avatar image exists in this stack (core.User has no
-                         image field), so the initials tile is the real state,
-                         not a placeholder. hue() buckets 0..7, matching the
-                         poster--h0..h7 stops the stylesheet defines. */}}
-                    <span class="avatar avatar--sm poster--h{{hue .User.Username}}"><span class="avatar__fallback">{{initials .User.Username}}</span></span>
+                    {{/* .UserAvatar comes from chromeData, so the menu shows
+                         the avatar on every page without each handler passing
+                         it. Empty for a member who has not uploaded one, which
+                         the partial renders as the initials tile. */}}
+                    {{template "avatar" dict "Path" .UserAvatar "Name" .User.Username "Size" "sm" "Px" 60}}
                     <span class="top-nav__user-names">
                         <span class="top-nav__username">{{.User.Username}}</span>
                         <span class="top-nav__rank">{{roleName .User.Role}}</span>
@@ -838,6 +839,41 @@
      system documents (the arrows are inert without it), the tab shim that
      makes plugin-rendered Bootstrap tab strips actually switch panes, and the
      strength meter and reveal toggle on any new-password field. */}}
+{{/* One avatar, everywhere. Call with a dict:
+
+       {{template "avatar" dict "Path" .AvatarPath "Name" .Username "Size" "sm" "Round" true}}
+
+     Path is users.avatar_path (empty for most members); Name is what the
+     initials tile falls back to. Size is "" | "sm" | "lg", Round adds the
+     circle.
+
+     The fallback is NOT a placeholder for a missing image — it is the normal
+     state for an account that has not uploaded one, which is most of them, and
+     it is deliberately identifiable: hue() buckets the name into one of the
+     eight poster--h0..h7 stops, so the same person is the same colour on every
+     page.
+
+     alt="" throughout, because every call site puts the member's name in text
+     immediately beside it. An alt of the username there would make a screen
+     reader read the name twice for one link.
+
+     Name goes through str because dict values arrive as interface{}, and hue
+     and initials are typed to string — the mismatch is an EXECUTE-time error,
+     which truncates the page mid-document and still returns 200. Same reason
+     the cond helper takes any (views.go). */}}
+{{define "avatar"}}
+{{- $cls := "avatar" -}}
+{{- with .Size}}{{$cls = printf "%s avatar--%s" $cls .}}{{end -}}
+{{- if .Round}}{{$cls = printf "%s avatar--round" $cls}}{{end -}}
+{{- with .Class}}{{$cls = printf "%s %s" $cls .}}{{end -}}
+{{- if .Path -}}
+<img class="{{$cls}}" src="{{.Path}}" alt="" loading="lazy" decoding="async" width="{{.Px}}" height="{{.Px}}">
+{{- else -}}
+{{- $name := str .Name -}}
+<span class="{{$cls}} poster--h{{hue $name}}"><span class="avatar__fallback">{{initials $name}}</span></span>
+{{- end -}}
+{{end}}
+
 {{define "site-scripts"}}
     <script>
     // Double-submit CSRF: on submit, make every same-origin POST form carry the

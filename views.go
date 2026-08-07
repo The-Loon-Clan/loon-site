@@ -813,10 +813,14 @@ func (w *web) profilePage(c *gin.Context) {
 	data := map[string]any{
 		"Title":   subject.Username,
 		"Subject": subj,
-		"IsSelf":  isSelf,
-		"Widgets": widgets,
-		"Role":    roleLabel(subj.Role),
-		"Private": private,
+		// The subject's avatar, which is not the viewer's — chromeData's
+		// UserAvatar is whoever is logged in, and on someone else's profile
+		// those are different people.
+		"SubjectAvatar": readAvatarPath(c.Request.Context(), usersDB, subject.ID),
+		"IsSelf":        isSelf,
+		"Widgets":       widgets,
+		"Role":          roleLabel(subj.Role),
+		"Private":       private,
 		// Preview is NOT IsSelf: the page must render as a stranger sees it,
 		// and this is only for the banner saying so and the way back out.
 		"Preview": preview,
@@ -931,6 +935,10 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 		// to, and the account's creation date for "member since".
 		data["RoleLabel"] = roleName(u.Role)
 		data["MemberSince"] = u.CreatedAt
+		// The account menu's avatar, on every page. One indexed lookup by id
+		// — core.User carries no image field, and threading it through every
+		// handler instead would mean every new page remembering to.
+		data["UserAvatar"] = readAvatarPath(c.Request.Context(), usersDB, u.ID)
 		// HasPoints/HasUnread exist because a template cannot tell an ABSENT
 		// map key from a zero one: {{if .Points}} hid the tile both when the
 		// points service was unwired AND for a user whose balance is genuinely

@@ -19,6 +19,8 @@ require (
 	github.com/the-loon-clan/loon v0.0.0-00010101000000-000000000000
 	github.com/the-loon-clan/loon-baseline v0.0.0-00010101000000-000000000000
 	github.com/the-loon-clan/loon-plugins v0.0.0-00010101000000-000000000000
+	github.com/yuin/goldmark v1.8.5
+	golang.org/x/image v0.44.0
 	golang.org/x/net v0.51.0
 )
 
@@ -53,12 +55,10 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
-	github.com/yuin/goldmark v1.8.5 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/arch v0.22.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/image v0.44.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect

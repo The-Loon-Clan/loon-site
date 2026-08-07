@@ -206,4 +206,8 @@ func (w *web) mountSettings(e *gin.Engine) {
 	// site's markdown pipeline, so the editor belongs where that lives.
 	e.GET("/settings/profile", w.settingsProfile)
 	e.POST("/settings/profile", w.settingsProfileSave)
+	// Its own route rather than a mode flag on the one above: the avatar form
+	// is multipart and the bio form is not, and merging them would re-post the
+	// image on every text save. See avatar_web.go.
+	e.POST("/settings/avatar", w.settingsAvatarSave)
 }

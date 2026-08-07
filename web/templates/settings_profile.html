@@ -18,6 +18,72 @@
 </div>
 {{end}}
 
+{{if .AvatarErr}}
+<div class="notice notice--danger">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>{{.AvatarErr}}</span>
+</div>
+{{end}}
+{{if .AvatarSaved}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Avatar updated.</span>
+</div>
+{{end}}
+{{if .AvatarGone}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Avatar removed.</span>
+</div>
+{{end}}
+
+{{/* Avatar. A SEPARATE form from the prose below, and separate status keys:
+     one form would re-post the image on every text save, and "Remove" would
+     have to be told apart from "Save" by a hidden field. */}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#image"></use></svg>
+            Your avatar
+        </h2>
+    </header>
+    <div class="panel__body">
+        <div class="avatar-setting">
+            {{/* The current state, at the size the profile shows it. Shown
+                 whether or not one is set, because the initials tile IS what
+                 other members see and this page should not imply otherwise. */}}
+            {{template "avatar" dict "Path" .Avatar "Name" .Username "Size" "lg" "Px" 128}}
+            <div class="avatar-setting__body">
+                <form class="form" method="post" action="/settings/avatar" enctype="multipart/form-data">
+                    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                    <div class="form__group">
+                        <label class="form__label" for="avatar">Choose an image</label>
+                        <input class="form__input" id="avatar" type="file" name="avatar"
+                               accept="image/jpeg,image/png,image/gif,image/webp"
+                               aria-describedby="avatar-help">
+                        <p class="form__help mt-1 mb-0" id="avatar-help">
+                            JPEG, PNG, GIF or WebP, up to {{.AvatarMaxMB}} MB. It is cropped to a
+                            square and stored at {{.AvatarPixels}}&times;{{.AvatarPixels}}.
+                        </p>
+                    </div>
+                    <div class="form__actions">
+                        <button class="button button--primary" type="submit">Upload</button>
+                    </div>
+                </form>
+                {{if .Avatar}}
+                {{/* Its own form so it is a POST, not a link — a GET that
+                     deletes is one crawler away from deleting itself. */}}
+                <form method="post" action="/settings/avatar" class="mt-2">
+                    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                    <input type="hidden" name="remove" value="1">
+                    <button class="button button--outlined" type="submit">Remove avatar</button>
+                </form>
+                {{end}}
+            </div>
+        </div>
+    </div>
+</section>
+
 <section class="panelV2">
     <header class="panel__header">
         <h2 class="panel__heading">

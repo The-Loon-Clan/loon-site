@@ -81,8 +81,19 @@ func (w *web) settingsProfile(c *gin.Context) {
 			"Name": "bio", "Rows": 12, "Value": bio,
 			"Placeholder": "Say something about yourself…",
 		}),
-		"Max":    bioMaxLen,
-		"Saved":  c.Query("saved") == "1",
+		"Max":   bioMaxLen,
+		"Saved": c.Query("saved") == "1",
+		// The avatar half of this page (avatar_web.go). Its own status keys so
+		// saving text does not report "avatar saved", and vice versa.
+		"Avatar": readAvatarPath(c.Request.Context(), usersDB, u.ID),
+		// The initials fallback needs a name, and the partial takes it as a
+		// value rather than reading .User itself so it works on any page.
+		"Username":     u.Username,
+		"AvatarSaved":  c.Query("avatar") == "saved",
+		"AvatarGone":   c.Query("avatar") == "removed",
+		"AvatarErr":    c.Query("averr"),
+		"AvatarMaxMB":  avatarMaxUpload >> 20,
+		"AvatarPixels": avatarSize,
 	})
 }
 

@@ -2141,3 +2141,11 @@ a.cal-ev:hover { background: var(--surface-3); }
 .pw-meter--fair   .pw-meter__text,
 .pw-meter--good   .pw-meter__text,
 .pw-meter--strong .pw-meter__text { color: currentColor; }
+
+/* Avatar settings row (settings_profile.html): the current avatar beside the
+   controls that change it, so the effect of the form is visible from the form.
+   Wraps on narrow screens rather than shrinking the preview — a 30px preview
+   of a 256px image tells you nothing about how it was cropped. */
+.avatar-setting { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: flex-start; }
+.avatar-setting__body { flex: 1 1 260px; min-width: 0; }
+.avatar-setting .form__actions { margin-top: var(--space-3); }
