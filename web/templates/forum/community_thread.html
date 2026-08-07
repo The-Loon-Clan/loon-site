@@ -93,7 +93,11 @@
         <div class="torrent-card__figure p-2">
             <div class="user-stat-card">
                 <span class="avatar avatar--lg user-stat-card__avatar poster--h{{$h}}"><span class="avatar__fallback">{{initials .Username}}</span></span>
-                <h3 class="user-stat-card__username">{{template "user-tag" (dict "Name" .Username "Role" .UserRole "Icon" true)}}</h3>
+                {{/* h2, not h3: the thread title above is the page's h1, and a
+                     jump straight to h3 leaves a hole in the outline. This is
+                     the post author, one level under the thread — which is what
+                     h2 says. The SIZE is the class's job, not the level's. */}}
+                <h2 class="user-stat-card__username">{{template "user-tag" (dict "Name" .Username "Role" .UserRole "Icon" true)}}</h2>
                 {{if .UserRole}}<span class="user-stat-card__rank">{{.UserRole}}</span>{{end}}
                 {{/* reputation_tier is a constant 0 in this host's user_display
                      view, so this badge stays hidden until a host fills it. */}}

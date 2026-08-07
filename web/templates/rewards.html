@@ -18,14 +18,20 @@
 <div class="container mt-4 page-narrow">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h5 class="mb-0" style="font-weight:600;">Rewards</h5>
+        {{/* h1, not the h5 the store's own pages use. Every page needs exactly
+             one h1 and this page's heading is it; matching the neighbours'
+             SIZE is a class, not a level. */}}
+        <h1 class="h5 mb-0" style="font-weight:600;">Rewards</h1>
         {{if .HasPoints}}<span class="badge bg-warning text-dark" style="font-size:0.82rem;">{{.Points}} pts</span>{{end}}
     </div>
 
     <ul class="nav tabs mb-3">
         <li class="nav-item"><a class="nav-link" href="/store">Store</a></li>
         <li class="nav-item"><a class="nav-link" href="/store/history">History</a></li>
-        <li class="nav-item"><a class="nav-link active" href="/rewards">Rewards</a></li>
+        {{/* aria-current alongside the active class — the class is what a
+             sighted reader sees, and without the attribute the strip reads as
+             three identical links with nothing saying which one you are on. */}}
+        <li class="nav-item"><a class="nav-link active" href="/rewards" aria-current="page">Rewards</a></li>
     </ul>
 
     {{if .Unavailable}}

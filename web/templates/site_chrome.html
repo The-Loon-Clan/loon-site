@@ -266,14 +266,14 @@
                     <span class="visually-hidden">Account menu</span>
                 </summary>
                 <div class="dropdown__menu">
-                    <a class="dropdown__item{{if eq .Path (print "/u/" .User.Username)}} active{{end}}" href="/u/{{.User.Username}}">
+                    <a class="dropdown__item{{if eq .Path (print "/u/" .User.Username)}} active{{end}}" href="/u/{{.User.Username}}"{{if eq .Path (print "/u/" .User.Username)}} aria-current="page"{{end}}>
                         <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#user"></use></svg>My profile
                     </a>
                     {{/* Notifications keeps its place here because the count is
                          the reason to look: the bell beside this menu carries
                          the same badge, and a number you can see from any page
                          is worth a row. */}}
-                    <a class="dropdown__item{{if eq .Path "/p/inbox"}} active{{end}}" href="/p/inbox">
+                    <a class="dropdown__item{{if eq .Path "/p/inbox"}} active{{end}}" href="/p/inbox"{{if eq .Path "/p/inbox"}} aria-current="page"{{end}}>
                         <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#bell"></use></svg>Notifications{{if .Unread}} ({{.Unread}}){{end}}
                     </a>
                     {{/* The rest of the account area is NOT here any more. It is
@@ -287,7 +287,7 @@
                          answers that at runtime, and the bar cannot. */}}
                     {{template "nav-plugin-items" (dict "Items" .SiteNavAccount "Path" .Path)}}
                     {{if .IsAdmin}}
-                    <a class="dropdown__item{{if eq .Path "/admin/settings"}} active{{end}}" href="/admin/settings">
+                    <a class="dropdown__item{{if eq .Path "/admin/settings"}} active{{end}}" href="/admin/settings"{{if eq .Path "/admin/settings"}} aria-current="page"{{end}}>
                         <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#settings"></use></svg>Site settings
                     </a>
                     {{end}}
@@ -362,10 +362,10 @@
                         <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                     </summary>
                     <div class="dropdown__menu">
-                        <a class="dropdown__item{{if eq $p "/browse"}} active{{end}}" href="/browse"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#browse"></use></svg>Browse</a>
-                        <a class="dropdown__item{{if eq $p "/search"}} active{{end}}" href="/search"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#search"></use></svg>Search</a>
-                        <a class="dropdown__item{{if eq $p "/groups"}} active{{end}}" href="/groups"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#groups"></use></svg>Newsgroups</a>
-                        <a class="dropdown__item{{if eq $p "/trending"}} active{{end}}" href="/trending"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#database"></use></svg>Trending</a>
+                        <a class="dropdown__item{{if eq $p "/browse"}} active{{end}}" href="/browse"{{if eq $p "/browse"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#browse"></use></svg>Browse</a>
+                        <a class="dropdown__item{{if eq $p "/search"}} active{{end}}" href="/search"{{if eq $p "/search"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#search"></use></svg>Search</a>
+                        <a class="dropdown__item{{if eq $p "/groups"}} active{{end}}" href="/groups"{{if eq $p "/groups"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#groups"></use></svg>Newsgroups</a>
+                        <a class="dropdown__item{{if eq $p "/trending"}} active{{end}}" href="/trending"{{if eq $p "/trending"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#database"></use></svg>Trending</a>
                         <a class="dropdown__item" href="/api"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#code"></use></svg>Newznab API</a>
                         {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Releases") "Path" $p)}}
                     </div>
@@ -381,11 +381,11 @@
                         <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                     </summary>
                     <div class="dropdown__menu">
-                        <a class="dropdown__item{{if hasPrefix $p "/community/forums"}} active{{end}}" href="/community/forums"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#forums"></use></svg>Forums</a>
-                        <a class="dropdown__item{{if or (eq $p "/c") (hasPrefix $p "/c/")}} active{{end}}" href="/c"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#users"></use></svg>Communities</a>
-                        <a class="dropdown__item{{if hasPrefix $p "/news"}} active{{end}}" href="/news"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#rss"></use></svg>News</a>
-                        <a class="dropdown__item{{if hasPrefix $p "/playlists"}} active{{end}}" href="/playlists"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#music"></use></svg>Playlists</a>
-                        <a class="dropdown__item{{if hasPrefix $p "/store"}} active{{end}}" href="/store"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#store"></use></svg>Points store</a>
+                        <a class="dropdown__item{{if hasPrefix $p "/community/forums"}} active{{end}}" href="/community/forums"{{if hasPrefix $p "/community/forums"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#forums"></use></svg>Forums</a>
+                        <a class="dropdown__item{{if or (eq $p "/c") (hasPrefix $p "/c/")}} active{{end}}" href="/c"{{if or (eq $p "/c") (hasPrefix $p "/c/")}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#users"></use></svg>Communities</a>
+                        <a class="dropdown__item{{if hasPrefix $p "/news"}} active{{end}}" href="/news"{{if hasPrefix $p "/news"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#rss"></use></svg>News</a>
+                        <a class="dropdown__item{{if hasPrefix $p "/playlists"}} active{{end}}" href="/playlists"{{if hasPrefix $p "/playlists"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#music"></use></svg>Playlists</a>
+                        <a class="dropdown__item{{if hasPrefix $p "/store"}} active{{end}}" href="/store"{{if hasPrefix $p "/store"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#store"></use></svg>Points store</a>
                         {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Community") "Path" $p)}}
                     </div>
                 </details>
@@ -400,11 +400,11 @@
                         <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                     </summary>
                     <div class="dropdown__menu dropdown__menu--end">
-                        <a class="dropdown__item{{if eq $p "/rules"}} active{{end}}" href="/rules"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Rules</a>
-                        <a class="dropdown__item{{if eq $p "/faq"}} active{{end}}" href="/faq"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#info"></use></svg>FAQ</a>
-                        <a class="dropdown__item{{if hasPrefix $p "/wiki"}} active{{end}}" href="/wiki"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#book"></use></svg>Wiki</a>
-                        <a class="dropdown__item{{if hasPrefix $p "/support"}} active{{end}}" href="/support"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#comment"></use></svg>Helpdesk</a>
-                        <a class="dropdown__item{{if eq $p "/staff"}} active{{end}}" href="/staff"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Staff</a>
+                        <a class="dropdown__item{{if eq $p "/rules"}} active{{end}}" href="/rules"{{if eq $p "/rules"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Rules</a>
+                        <a class="dropdown__item{{if eq $p "/faq"}} active{{end}}" href="/faq"{{if eq $p "/faq"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#info"></use></svg>FAQ</a>
+                        <a class="dropdown__item{{if hasPrefix $p "/wiki"}} active{{end}}" href="/wiki"{{if hasPrefix $p "/wiki"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#book"></use></svg>Wiki</a>
+                        <a class="dropdown__item{{if hasPrefix $p "/support"}} active{{end}}" href="/support"{{if hasPrefix $p "/support"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#comment"></use></svg>Helpdesk</a>
+                        <a class="dropdown__item{{if eq $p "/staff"}} active{{end}}" href="/staff"{{if eq $p "/staff"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Staff</a>
                         {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Support") "Path" $p)}}
                     </div>
                 </details>
@@ -424,11 +424,11 @@
                         <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                     </summary>
                     <div class="dropdown__menu dropdown__menu--end">
-                        <a class="dropdown__item{{if eq $p "/stats"}} active{{end}}" href="/stats"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#database"></use></svg>Stats</a>
-                        <a class="dropdown__item{{if eq $p "/about"}} active{{end}}" href="/about"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#logo"></use></svg>About</a>
-                        <a class="dropdown__item{{if eq $p "/sitemap"}} active{{end}}" href="/sitemap"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#globe"></use></svg>Sitemap</a>
+                        <a class="dropdown__item{{if eq $p "/stats"}} active{{end}}" href="/stats"{{if eq $p "/stats"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#database"></use></svg>Stats</a>
+                        <a class="dropdown__item{{if eq $p "/about"}} active{{end}}" href="/about"{{if eq $p "/about"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#logo"></use></svg>About</a>
+                        <a class="dropdown__item{{if eq $p "/sitemap"}} active{{end}}" href="/sitemap"{{if eq $p "/sitemap"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#globe"></use></svg>Sitemap</a>
                         {{range .SiteNav}}{{if not .Children}}
-                        <a class="dropdown__item{{if eq $p .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>
+                        <a class="dropdown__item{{if eq $p .Href}} active{{end}}" href="{{.Href}}"{{if eq $p .Href}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>
                         {{end}}{{end}}
                         {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Other") "Path" $p)}}
                     </div>
@@ -447,7 +447,7 @@
                             <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                         </summary>
                         <div class="dropdown__menu dropdown__menu--end">
-                            {{range .Children}}<a class="dropdown__item{{if eq $p .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>{{end}}
+                            {{range .Children}}<a class="dropdown__item{{if eq $p .Href}} active{{end}}" href="{{.Href}}"{{if eq $p .Href}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>{{end}}
                         </div>
                     </details>
                 </li>
@@ -826,7 +826,7 @@
      about half its entries. */}}
 {{define "nav-plugin-items"}}
 {{$p := .Path}}
-{{range .Items}}<a class="dropdown__item{{if eq $p .Href}} active{{end}}" href="{{.Href}}"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>
+{{range .Items}}<a class="dropdown__item{{if eq $p .Href}} active{{end}}" href="{{.Href}}"{{if eq $p .Href}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>
 {{end}}
 {{end}}
 

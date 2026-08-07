@@ -92,6 +92,15 @@
      nothing else — no hero banner, no quick-link tiles, no genre pills, no
      .sidebar2 split. Each arm hands the block its OWN .Data as dot. */}}
 {{define "content"}}
+{{/* Every page needs exactly one h1, and home had none: it is a stack of
+     panels, each already an h2, with no heading naming the page itself. So the
+     document outline began at level 2 and a screen reader's heading list
+     opened with "Featured releases" — a section, not a page.
+
+     Visually hidden rather than drawn, because the branding in the header
+     already says this to a sighted reader and a second title under it would be
+     a heading nobody asked for. */}}
+<h1 class="visually-hidden">loon demo indexer — the latest Usenet releases</h1>
 {{- range .Blocks}}
     {{- if eq .Name "widgets"}}{{template "block-widgets" .Data}}
     {{- else if eq .Name "featured"}}{{template "block-featured" .Data}}
@@ -251,6 +260,7 @@
     </header>
     <div class="data-table-wrapper">
         <table class="data-table">
+<caption class="visually-hidden">Latest releases</caption>
             <thead>
                 <tr>
                     <th>Release</th>
