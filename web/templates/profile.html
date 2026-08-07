@@ -234,12 +234,20 @@
             <div class="panel__body">
                 <div class="stat-grid stat-grid--2">
                     {{/* Both counts link to their list — a number with no way
-                         to see what it counts is a dead end. */}}
-                    <a class="stat-tile" href="/u/{{.Username}}/followers">
+                         to see what it counts is a dead end.
+
+                         $.Subject.Username, not .Username: dot here is the PAGE
+                         data, which carries the subject under .Subject and has
+                         no Username of its own. A missing map key renders as
+                         empty rather than erroring, so this built "/u//followers"
+                         and 404'd — with the tile still looking entirely
+                         normal. Every other value in this panel already reaches
+                         through $, which is what made the odd one out invisible. */}}
+                    <a class="stat-tile" href="/u/{{$.Subject.Username}}/followers">
                         <span class="stat-tile__label">Followers</span>
                         <span class="stat-tile__value">{{if $.HasSubjectFollows}}{{$.SubjectFollowers}}{{else}}—{{end}}</span>
                     </a>
-                    <a class="stat-tile" href="/u/{{.Username}}/following">
+                    <a class="stat-tile" href="/u/{{$.Subject.Username}}/following">
                         <span class="stat-tile__label">Following</span>
                         <span class="stat-tile__value">{{if $.HasSubjectFollows}}{{$.SubjectFollowing}}{{else}}—{{end}}</span>
                     </a>

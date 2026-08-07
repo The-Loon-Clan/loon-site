@@ -44,7 +44,10 @@
         <ul class="activity-list">
             {{range .Rows}}
             <li class="activity-row">
-                <a class="activity-row__title" href="/community/forums/threads/{{.ThreadID}}">{{.Title}}</a>
+                {{/* thread/, singular — the route the forum plugin registers
+                     (pub.GET("/thread/:id")) and the spelling every other
+                     template uses. Plural 404'd every row on both pages. */}}
+                <a class="activity-row__title" href="/community/forums/thread/{{.ThreadID}}">{{.Title}}</a>
                 {{/* The excerpt is raw post source, so it goes through
                      {{excerpt}} — which strips markup block-aware — and never
                      through {{prose}}: a rendered paragraph inside a one-line
