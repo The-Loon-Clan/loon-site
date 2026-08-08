@@ -16,7 +16,7 @@ func TestCreditsFollowTheRegisteredSources(t *testing.T) {
 	prev := sourceCredits()
 	t.Cleanup(func() { activeCredits.Store(prev) })
 
-	setSourceCredits([]string{"tv", "book"})
+	setSourceCredits([]string{"tvmaze", "openlibrary"})
 	got := creditNames(sourceCredits())
 	if got != "TVmaze,Open Library" {
 		t.Errorf("credits = %q, want TVmaze,Open Library", got)
@@ -28,11 +28,35 @@ func TestCreditsFollowTheRegisteredSources(t *testing.T) {
 		t.Errorf("%d credits with no sources registered", n)
 	}
 
-	// A domain with no credit entry (a source added later) must not panic or
+	// A provider with no credit entry (a source added later) must not panic or
 	// invent one.
-	setSourceCredits([]string{"music", "games"})
+	setSourceCredits([]string{"musicbrainz", "igdb"})
 	if n := len(sourceCredits()); n != 0 {
-		t.Errorf("%d credits for domains with no attribution defined", n)
+		t.Errorf("%d credits for providers with no attribution defined", n)
+	}
+}
+
+// The bug that made these credits provider-keyed instead of domain-keyed: two
+// providers serve the "movie" domain — TMDB with a key, Wikipedia without — so
+// a domain-keyed lookup credited TMDB for data Wikipedia supplied. Naming the
+// wrong source is a false statement about provenance, which is worse than
+// saying nothing.
+func TestTheMovieDomainCreditsWhicheverProviderRan(t *testing.T) {
+	prev := sourceCredits()
+	t.Cleanup(func() { activeCredits.Store(prev) })
+
+	setSourceCredits([]string{"tvmaze", "wikipedia"})
+	got := creditNames(sourceCredits())
+	if got != "TVmaze,Wikipedia" {
+		t.Errorf("keyless host credits %q, want TVmaze,Wikipedia", got)
+	}
+	if strings.Contains(got, "TMDB") {
+		t.Error("credited TMDB on a host that never registered it")
+	}
+
+	setSourceCredits([]string{"tmdb", "tmdb"})
+	if got := creditNames(sourceCredits()); got != "TMDB" {
+		t.Errorf("keyed host credits %q, want TMDB alone", got)
 	}
 }
 
@@ -42,10 +66,9 @@ func TestTMDBIsCreditedOnce(t *testing.T) {
 	prev := sourceCredits()
 	t.Cleanup(func() { activeCredits.Store(prev) })
 
-	setSourceCredits([]string{"movie", "tv"})
-	// With TMDB serving both domains the map yields TMDB for movie and TVmaze
-	// for tv; the duplicate guard is on NAME, so this checks the shape rather
-	// than the specific pair.
+	// TMDB registers once per domain off ONE key, so the provider key arrives
+	// twice and must collapse to a single credit.
+	setSourceCredits([]string{"tmdb", "tmdb"})
 	names := sourceCredits()
 	seen := map[string]bool{}
 	for _, c := range names {
@@ -58,16 +81,16 @@ func TestTMDBIsCreditedOnce(t *testing.T) {
 
 // The wording providers specify is not ours to paraphrase.
 func TestRequiredWordingIsPresent(t *testing.T) {
-	tv := creditsByDomain["tv"]
+	tv := creditsByProvider["tvmaze"]
 	if !strings.Contains(tv.Text, "TVmaze") || !strings.Contains(tv.Text, "CC BY-SA") {
 		t.Errorf("TVmaze credit %q must name TVmaze and its licence", tv.Text)
 	}
 	// TMDB asks specifically that the site not imply endorsement.
-	movie := creditsByDomain["movie"]
+	movie := creditsByProvider["tmdb"]
 	if !strings.Contains(movie.Text, "not endorsed or certified by TMDB") {
 		t.Errorf("TMDB credit %q is missing the required disclaimer", movie.Text)
 	}
-	for domain, c := range creditsByDomain {
+	for domain, c := range creditsByProvider {
 		if c.Name == "" || c.URL == "" || c.Text == "" {
 			t.Errorf("credit for %q is incomplete: %+v", domain, c)
 		}

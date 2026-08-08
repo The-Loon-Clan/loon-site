@@ -25,35 +25,47 @@ type sourceCredit struct {
 	Text string
 }
 
-// creditsByDomain maps a registered source's domain key to its attribution.
-// Keyed by domain because that is what catalog.Registry exposes after
-// registration, and it is the same thing the scraper routes on.
-var creditsByDomain = map[string]sourceCredit{
-	"tv": {
+// creditsByProvider maps a PROVIDER key to its attribution.
+//
+// Keyed by provider, not by domain, and that distinction has teeth: two
+// different providers can serve one domain. "movie" is TMDB when a key is set
+// and Wikipedia when it is not, so a domain-keyed credit thanked TMDB for
+// Wikipedia's data — an attribution naming the wrong source is worse than
+// none, since it is a false statement about provenance rather than a missing
+// one. main.go names the provider as it registers it.
+var creditsByProvider = map[string]sourceCredit{
+	"tvmaze": {
 		Name: "TVmaze",
 		URL:  "https://www.tvmaze.com",
 		// The licence names the condition: credit TVmaze as the source. It is
 		// also ShareAlike, which matters if this data is ever redistributed.
 		Text: "TV data from TVmaze, CC BY-SA 4.0",
 	},
-	"movie": {
+	"tmdb": {
 		Name: "TMDB",
 		URL:  "https://www.themoviedb.org",
 		// TMDB's required disclaimer, near enough verbatim: the point is that
 		// the site must not imply endorsement.
 		Text: "This product uses the TMDB API but is not endorsed or certified by TMDB",
 	},
-	"book": {
+	"wikipedia": {
+		Name: "Wikipedia",
+		URL:  "https://en.wikipedia.org",
+		// Also CC BY-SA, like TVmaze, and for the same reason it is named
+		// rather than thanked vaguely: the licence asks for the source.
+		Text: "Film data from Wikipedia, CC BY-SA",
+	},
+	"openlibrary": {
 		Name: "Open Library",
 		URL:  "https://openlibrary.org",
 		Text: "Book data from Open Library, an Internet Archive project",
 	},
-	"anime": {
+	"anidb": {
 		Name: "AniDB",
 		URL:  "https://anidb.net",
 		Text: "Anime data from AniDB",
 	},
-	"xxx": {
+	"theporndb": {
 		Name: "ThePornDB",
 		URL:  "https://theporndb.net",
 		Text: "Data from ThePornDB",
@@ -66,17 +78,17 @@ var activeCredits atomic.Value // []sourceCredit
 
 func init() { activeCredits.Store([]sourceCredit{}) }
 
-// setSourceCredits records which providers are live. domains comes from the
-// registry after every source has registered.
+// setSourceCredits records which providers are live. main.go passes a provider
+// key for each source it registers.
 //
-// The TMDB credit covers both of its instances (movie and tv register
-// separately off one key), so the map is keyed by domain and duplicates are
-// dropped — otherwise a TMDB-enabled host would thank it twice.
-func setSourceCredits(domains []string) {
+// Duplicates are dropped because TMDB registers TWICE off one key (movie and tv
+// are separate sources), and a host would otherwise thank it twice in the
+// footer.
+func setSourceCredits(providers []string) {
 	seen := map[string]bool{}
 	out := []sourceCredit{}
-	for _, d := range domains {
-		c, ok := creditsByDomain[d]
+	for _, d := range providers {
+		c, ok := creditsByProvider[d]
 		if !ok || seen[c.Name] {
 			continue
 		}

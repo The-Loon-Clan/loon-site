@@ -76,6 +76,7 @@ import (
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/theporndb"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/tmdb"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/tvmaze"
+	"github.com/the-loon-clan/loon-plugins/scraper/sources/wikipedia"
 	"github.com/the-loon-clan/loon-plugins/stats"
 	_ "github.com/the-loon-clan/loon-plugins/usenet"
 
@@ -601,51 +602,60 @@ func main() {
 	// its single Domain().Key, and the scraper routes Newznab 2xxx → "movie"
 	// and 5xxx → "tv" as separate domains, so each needs its own instance.
 	reg := catalog.NewRegistry()
-	if src := theporndb.New(os.Getenv("TPDB_API_KEY"), ""); src != nil {
-		_ = reg.RegisterSource(src)
+	// providers records WHICH provider filled each slot, for the footer's
+	// attribution. Domain alone cannot answer it — "movie" is TMDB with a key
+	// and Wikipedia without — and crediting the wrong source is a false claim
+	// about provenance rather than a missing one. See credits_web.go.
+	var providers []string
+	add := func(name string, src catalog.MetadataSource) bool {
+		if src == nil {
+			return false
+		}
+		if err := reg.RegisterSource(src); err != nil {
+			logger.Error("register catalog source", "provider", name, "err", err)
+			return false
+		}
+		providers = append(providers, name)
+		return true
 	}
-	// TMDB when a key is set; TVmaze for tv when it is not.
+
+	add("theporndb", theporndb.New(os.Getenv("TPDB_API_KEY"), ""))
+
+	// TMDB when a key is set; the keyless pair when it is not.
 	//
-	// They serve the SAME domain key ("tv") and catalog.Registry refuses a
-	// duplicate — and RegisterSource's error is discarded here, so registering
-	// both would silently drop one and which one would depend on call order.
-	// The choice is therefore made explicitly rather than left to that.
+	// TMDB serves BOTH "movie" and "tv", and catalog.Registry refuses a
+	// duplicate domain — so registering the fallbacks alongside it would
+	// silently drop one and which one would depend on call order. The choice is
+	// therefore made explicitly.
 	//
-	// TMDB wins where available: it carries backdrops and a far larger
-	// non-English catalogue. TVmaze is the keyless fallback so a host with no
-	// credentials still gets series posters, summaries and air dates instead of
-	// blank cards. There is no keyless MOVIE source — see
-	// docs/METADATA-SOURCES.md.
+	// TMDB wins where available: backdrops, structured genres, and a far larger
+	// non-English catalogue. Without it, TVmaze covers television and Wikipedia
+	// covers film, so a host with no credentials at all still gets posters,
+	// summaries and dates across the two biggest categories on the index
+	// instead of blank cards — see docs/METADATA-SOURCES.md.
 	tmdbOn := false
 	for _, kind := range []tmdb.Kind{tmdb.KindMovie, tmdb.KindTV} {
-		if src := tmdb.New(os.Getenv("TMDB_API_KEY"), kind, ""); src != nil {
-			if err := reg.RegisterSource(src); err != nil {
-				logger.Error("register tmdb source", "kind", kind, "err", err)
-				continue
-			}
+		if add("tmdb", tmdb.New(os.Getenv("TMDB_API_KEY"), kind, "")) {
 			tmdbOn = true
 		}
 	}
 	if !tmdbOn {
-		if err := reg.RegisterSource(tvmaze.New("")); err != nil {
-			logger.Error("register tvmaze source", "err", err)
-		}
+		add("tvmaze", tvmaze.New(""))
+		add("wikipedia", wikipedia.New(""))
 	}
-	_ = reg.RegisterSource(anidb.New(os.Getenv("ANIDB_CLIENT"), nil))
+	add("anidb", anidb.New(os.Getenv("ANIDB_CLIENT"), nil))
 	// Open Library needs no credential, so it registers unconditionally and is
 	// the one source a fresh checkout actually exercises — every other source
 	// here is idle until an operator goes and gets a key, which meant the
 	// enrichment path had no way to be tested at all without one.
-	_ = reg.RegisterSource(openlibrary.New(""))
-	var sourceDomains []string
+	add("openlibrary", openlibrary.New(""))
+
 	for _, s := range reg.Sources() {
 		logger.Info("catalog source registered", "domain", s.Domain().Key, "priority", s.Domain().Priority)
-		sourceDomains = append(sourceDomains, s.Domain().Key)
 	}
-	// Credit them in the footer. A licence condition for TVmaze (CC BY-SA 4.0)
-	// and TMDB (its required disclaimer), and built from what actually
-	// registered — see credits_web.go.
-	setSourceCredits(sourceDomains)
+	// Credit them in the footer. A licence condition for TVmaze and Wikipedia
+	// (both CC BY-SA) and for TMDB (its required disclaimer).
+	setSourceCredits(providers)
 	if err := c.Register(catalog.RegistryExtension, reg); err != nil {
 		logger.Error("register catalog registry", "err", err)
 		os.Exit(1)
