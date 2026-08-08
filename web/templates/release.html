@@ -67,7 +67,16 @@
                     </a>
                 </div>
             </header>
-            <div class="panel__body panel__body--flush">
+            {{/* The show's background art, behind the metadata block. Scraped
+                 alongside the poster and stored locally (covercache_web.go);
+                 absent for most releases, which is why it is a modifier class
+                 rather than a slot that renders empty.
+
+                 An inline style because the URL is per-release — there is no
+                 stylesheet that can know it. It is the ONLY dynamic value here;
+                 everything about how the backdrop looks lives in the CSS. */}}
+            <div class="panel__body panel__body--flush{{if $.Backdrop}} meta--backdropped{{end}}"
+                 {{if $.Backdrop}}style="--backdrop: url('{{$.Backdrop}}')"{{end}}>
                 <div class="meta">
                     <div class="meta__poster-link">
                         {{if .Cover}}

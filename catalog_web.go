@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/the-loon-clan/loon/catalog"
@@ -78,6 +79,41 @@ func (w *web) linkCover(ctx context.Context, releaseID int64, coverURL string) e
 		return nil
 	}
 	return w.catalogCovers.SetReleaseCover(ctx, releaseID, resolved)
+}
+
+// releaseArt returns the wide art for a release: the banner and the background
+// a source stored alongside the poster (TVmaze carries both).
+//
+// Joined on the COVER URL, which needs explaining. release_cover holds
+// (release_id, cover_url) and catalog_entry holds the entry; nothing links
+// them, because the scraper writes both from the same match and never needed
+// to. The cover URL is that shared value — identical in both rows by
+// construction, including after the download rewrites it — so it is the join.
+//
+// It behaves correctly where a naive id link would not: a season of episodes
+// shares one poster, so every episode resolves to its series' banner, which is
+// the answer a release page wants. The cost is that a release whose poster
+// happens to equal another entry's would borrow its art; providers serve
+// per-title images, so that means "the same title", which is the same answer
+// again.
+//
+// A missing row, an unmatched release or an entry with no wide art are all the
+// same empty result — the page renders without a backdrop, which is the normal
+// case for most of the catalogue.
+func (w *web) releaseArt(ctx context.Context, coverURL string) (banner, background string) {
+	if coverURL == "" || usersDB == nil {
+		return "", ""
+	}
+	var b, bg sql.NullString
+	err := usersDB.QueryRowContext(ctx,
+		`SELECT fields->>'banner_url', fields->>'background_url'
+		   FROM catalog.catalog_entry
+		  WHERE cover_url = $1 AND fields IS NOT NULL
+		  ORDER BY updated_at DESC LIMIT 1`, coverURL).Scan(&b, &bg)
+	if err != nil {
+		return "", ""
+	}
+	return b.String, bg.String
 }
 
 // ── cover art for a whole page of releases ──────────────────────────

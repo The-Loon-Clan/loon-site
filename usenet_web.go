@@ -142,12 +142,20 @@ func (w *web) releasePage(c *gin.Context) {
 		return
 	}
 	vm := toReleaseVM(d)
+	data := map[string]any{"Title": d.Title, "Release": vm}
 	if w.catalogCovers != nil {
 		if url, has, _ := w.catalogCovers.ReleaseCover(c.Request.Context(), id); has {
 			vm.Cover = url
+			data["Release"] = vm
+			// The wide art a source stored beside the poster. Only the
+			// background is used: it is the one shape this page has room for,
+			// behind the header. The banner is carried for a listing row,
+			// which is a separate change.
+			if _, bg := w.releaseArt(c.Request.Context(), url); bg != "" {
+				data["Backdrop"] = bg
+			}
 		}
 	}
-	data := map[string]any{"Title": d.Title, "Release": vm}
 	// Bookmarked is set ONLY for a signed-in viewer, so the button is absent
 	// rather than rendered in a false "not saved" state for anonymous readers.
 	if u, okUser := w.currentUser(c); okUser && u != nil {
