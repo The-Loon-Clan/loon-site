@@ -1,0 +1,102 @@
+{{/* Admin → Cover art. Data from coversadmin_web.go: .Modes ([]modeVM with
+     Value/Label/Current), .Current, .Saved, .Err.
+
+     The modes are listed least-local first, so the column reads as a spectrum
+     from "never store anything" to "store everything" rather than as an
+     unordered set of four names. */}}
+{{define "content"}}
+{{template "admin-subnav" .}}
+
+<header class="mt-3">
+    <h1 class="h3 m-0">Cover art</h1>
+    <p class="text-muted small m-0 mt-1">
+        Where scraped artwork comes from when a release is matched.
+    </p>
+</header>
+
+{{if .Saved}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Saved. It applies to the next cover matched — no restart needed.</span>
+</div>
+{{end}}
+{{with .Err}}
+<div class="notice notice--warning">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg><span>{{.}}</span>
+</div>
+{{end}}
+
+<form method="post" action="/admin/covers" class="mt-3">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    <section class="panelV2">
+        <header class="panel__header">
+            <h2 class="panel__heading">
+                <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#image"></use></svg>Source
+            </h2>
+        </header>
+        <div class="panel__body">
+            <dl class="key-value">
+                {{range .Modes}}
+                <div class="key-value__group">
+                    <dt>
+                        <label for="mode-{{.Value}}">
+                            <input type="radio" id="mode-{{.Value}}" name="mode" value="{{.Value}}"
+                                   {{if .Current}}checked{{end}}>
+                            {{.Label}}
+                        </label>
+                    </dt>
+                    <dd class="text-muted small">
+                        {{/* Said once, here, rather than in four template
+                             branches: each mode's trade-off is the reason to
+                             pick it, and a radio list with no consequences
+                             attached is a quiz. */}}
+                        {{if eq .Value "remote"}}
+                            Nothing is downloaded. Visitors' browsers fetch each image from the
+                            provider, so the site stores nothing and the provider sees your
+                            visitors.
+                        {{else if eq .Value "remote_local"}}
+                            Hotlink while the provider's URL still answers, and store a copy
+                            once it stops. Guards against link rot without keeping a full
+                            local set.
+                        {{else if eq .Value "local_remote"}}
+                            Download and serve from here, keeping the provider's URL only when
+                            a download fails. Recommended: local art, and never a blank cover.
+                        {{else if eq .Value "local"}}
+                            Download only. If a download fails the release gets no cover — the
+                            one mode where no visitor request ever reaches the provider.
+                        {{end}}
+                    </dd>
+                </div>
+                {{end}}
+            </dl>
+        </div>
+    </section>
+
+    <div class="mt-3">
+        <button class="form__button form__button--filled" type="submit">
+            <svg class="icon" aria-hidden="true"><use href="#check"></use></svg>Save
+        </button>
+    </div>
+</form>
+
+<section class="panelV2 mt-4">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#info"></use></svg>Notes
+        </h2>
+    </header>
+    <div class="panel__body">
+        <p class="m-0 small text-muted">
+            Downloaded art is written under the mounted upload volume and served from
+            this site. Existing covers are converted in the background when the mode
+            allows it; switching to a remote mode leaves art already stored in place
+            rather than discarding it.
+        </p>
+        <p class="m-0 mt-2 small text-muted">
+            Providers differ on what they prefer. Open Library asks that public pages
+            point at their own host, while TMDB and TVmaze make no such request — worth
+            a look at the terms of any provider added later.
+        </p>
+    </div>
+</section>
+{{end}}

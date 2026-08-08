@@ -59,7 +59,14 @@ func (w *web) linkCover(ctx context.Context, releaseID int64, coverURL string) e
 	if w.catalogCovers == nil {
 		return nil
 	}
-	return w.catalogCovers.SetReleaseCover(ctx, releaseID, w.covers.localize(ctx, coverURL))
+	resolved := w.covers.localize(ctx, coverURL)
+	if resolved == "" {
+		// Strict-local mode with a failed download. Storing "" would replace a
+		// cover the release may already have with a blank one, so leave the row
+		// alone and let a later match try again.
+		return nil
+	}
+	return w.catalogCovers.SetReleaseCover(ctx, releaseID, resolved)
 }
 
 // ── cover art for a whole page of releases ──────────────────────────

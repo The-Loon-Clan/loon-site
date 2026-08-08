@@ -54,6 +54,8 @@ func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup
 		// Moderation is not an /admin route (it gates at RoleMod), but an
 		// admin looking for the queue looks here first.
 		navItem{Href: "/moderation/avatars", Label: "New avatars"},
+		navItem{Href: "/admin/access", Label: "Access"},
+		navItem{Href: "/admin/covers", Label: "Cover art"},
 		navItem{Href: "/admin/contracts", Label: "Contracts"},
 		navItem{Href: "/admin/jobs", Label: "Jobs"},
 		navItem{Href: "/admin/plugins", Label: "Plugins"})

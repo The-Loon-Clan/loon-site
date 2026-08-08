@@ -83,21 +83,39 @@ func newCoverCache() *coverCache {
 	}
 }
 
-// localize returns a URL on THIS site for remote, downloading it on first
-// sight. On any failure it returns remote unchanged — a hotlinked cover beats
-// no cover, and the caller cannot tell the difference apart from the host.
+// localize resolves a provider's cover URL to whatever the operator's cover
+// mode says should be stored — see covermode_web.go. It returns "" only when
+// the mode is strictly local and the download failed; every other path yields
+// a usable URL.
 func (c *coverCache) localize(ctx context.Context, remote string) string {
 	if c == nil || remote == "" {
 		return remote
 	}
-	// Already ours (a re-run over a release that was cached earlier), or not
-	// something we can fetch.
+	// Already ours (a re-run over a release cached earlier). Returned in every
+	// mode, including remote-only: re-hotlinking art we already hold would
+	// discard a local copy and start asking the provider for it again.
 	if strings.HasPrefix(remote, c.prefix) {
 		return remote
 	}
 	u, err := url.Parse(remote)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		// Not something this can fetch, so there is nothing to decide.
 		return remote
+	}
+
+	switch coverMode() {
+	case CoverRemote:
+		return remote
+	case CoverRemoteLocal:
+		// Hotlink, but only a URL that actually answers. Link rot is the one
+		// failure hotlinking cannot see on its own — nothing re-checks a stored
+		// URL, and the break surfaces as a missing image later.
+		if c.reachable(ctx, remote) {
+			return remote
+		}
+		// Unreachable: fall through and try to store a copy. Usually futile
+		// (a 404 does not become a download) but free to attempt, and it
+		// rescues the case where HEAD is refused while GET works.
 	}
 
 	name := coverName(remote)
@@ -115,7 +133,7 @@ func (c *coverCache) localize(ctx context.Context, remote string) string {
 	if running {
 		f.done.Wait()
 		if f.err != nil {
-			return remote
+			return onCoverFailure(remote)
 		}
 		return f.url
 	}
@@ -129,9 +147,44 @@ func (c *coverCache) localize(ctx context.Context, remote string) string {
 	c.mu.Unlock()
 
 	if err != nil {
-		return remote
+		return onCoverFailure(remote)
 	}
 	return local
+}
+
+// onCoverFailure answers what to store when a download fails.
+//
+// Strict-local means it: no cover rather than a third-party request from a
+// visitor's browser, which is the entire guarantee that mode exists to make.
+// Every other mode keeps the remote URL, because a hotlinked cover beats a
+// blank one.
+func onCoverFailure(remote string) string {
+	if coverMode() == CoverLocal {
+		return ""
+	}
+	return remote
+}
+
+// reachable reports whether a remote URL answers, for CoverRemoteLocal.
+//
+// HEAD, not GET: the question is only "does this still exist", and pulling the
+// image body to answer it would download exactly what this mode is trying to
+// avoid downloading. A server that refuses HEAD reads as unreachable, which is
+// the safe direction — the caller then tries a real fetch and stores a local
+// copy instead of a URL it could not confirm.
+func (c *coverCache) reachable(ctx context.Context, remote string) bool {
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, remote, nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("User-Agent", "loon-demo-site/1.0 (+cover check)")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<10))
+	return resp.StatusCode == http.StatusOK
 }
 
 // fetch downloads one image and stores it, returning the local URL.

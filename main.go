@@ -216,6 +216,12 @@ func main() {
 	if err := loadAccessSettings(context.Background(), db); err != nil {
 		logger.Error("load access settings", "err", err)
 	}
+	// Where cover art comes from — see covermode_web.go. Loaded before the
+	// scraper can run, so the first matched cover already obeys the setting.
+	if err := loadCoverMode(context.Background(), db); err != nil {
+		logger.Error("load cover mode", "err", err)
+	}
+	logger.Info("cover art", "mode", coverMode(), "meaning", coverModeLabel(coverMode()))
 	// The profile's free-text block (profilebio_web.go). A users column, so it
 	// migrates with the other host-owned users work rather than in a plugin.
 	if err := migrateProfileBio(db); err != nil {
@@ -806,6 +812,9 @@ func main() {
 	admin.GET("/contracts", wsrv.adminContracts)
 	admin.GET("/access", wsrv.adminAccess)
 	admin.POST("/access", wsrv.adminAccessSave)
+	// Where cover art comes from (coversadmin_web.go + covermode_web.go).
+	admin.GET("/covers", wsrv.adminCovers)
+	admin.POST("/covers", wsrv.adminCoversSave)
 	admin.GET("/plugins", wsrv.adminPlugins)
 	admin.GET("/jobs", wsrv.adminJobs)
 	admin.POST("/jobs/control", wsrv.adminJobsControl)
