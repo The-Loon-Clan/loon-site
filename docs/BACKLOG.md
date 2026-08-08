@@ -104,8 +104,20 @@ That is exactly the shape the junk rows had.
 
 Two corrections to the note above:
 
-* The staging tables are **empty now** — the evidence it counted on is gone.
-  That is why it is pinned as a test instead.
+* The staging tables were empty when this was written, and **they are not any
+  more**: 4,674,261 staged articles came back with the database (see below).
+  The pinned tests stay -- they are cheap and they fail loudly if somebody
+  changes the parser -- but the original evidence is available again, so the
+  mechanism can now be confirmed against real rows rather than synthesised ones.
+
+  Worth recording why they were empty, because the note above was wrong about
+  it. They were not lost to some earlier cleanup: a `docker compose down` run
+  on 7 Aug at 20:05 recreated the database, because the `db` service had no
+  NAMED volume and postgres's own anonymous one was orphaned by that command.
+  56,331 releases, the 4.6M staged articles and the configured NNTP server went
+  with it, and the absence was then written up here an hour later as a
+  discovered fact. Recovered from the orphaned volume; `db` now has a named
+  volume so the same command cannot do it again.
 * **The par fix did not repair this.** It changed which subjects are split
   apart, not which ones collide; a `.partNN.par2` volume still parses to the
   same base and the same `fileNum` 0 as its `.rar` siblings. New splits stopping

@@ -1,6 +1,18 @@
 services:
   db:
     image: postgres:16-alpine
+    volumes:
+      # The DATABASE needs a named volume for the same reason /data does, and
+      # not having one cost a real index: postgres declares its own VOLUME, so
+      # compose gave it an ANONYMOUS one, and `docker compose down` orphaned
+      # that and the next `up` initialised an empty cluster. 56,331 releases,
+      # 4.6M staged articles and the configured NNTP server went with it.
+      #
+      # Anonymous is the trap: the data looks persistent across `up`/`restart`
+      # and vanishes on the one command nobody thinks of as destructive. Named,
+      # it survives `down` and only `down -v` removes it -- which is a flag you
+      # have to mean.
+      - dbdata:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: demo
       POSTGRES_PASSWORD: demo
@@ -80,3 +92,9 @@ volumes:
   # Named rather than a bind mount: the uploads belong to the deployment, not
   # to the checkout, and a bind mount would put user content inside the repo.
   uploads:
+  # An explicit name, not the compose-generated one. It holds an index that was
+  # crawled over days and cannot be regenerated without re-crawling, so it
+  # should be recognisable in `docker volume ls` and hard to delete by accident
+  # while clearing up a project prefix.
+  dbdata:
+    name: loon_demo_db
