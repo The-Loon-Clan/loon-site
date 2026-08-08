@@ -60,6 +60,11 @@ import (
 	// forum is imported (and its init runs) via forum_web.go's SetDeps wiring.
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	_ "github.com/the-loon-clan/loon-plugins/pointstore"
+	// events owns scheduled windows — the WHEN other plugins hang behaviour on.
+	// Lifted out of rewards, which now GATES on it: rewards links its admin page
+	// at /admin/p/events, and without this import that link 404s. Self-contained
+	// (Storage + Scheduler, no SetDeps), so the import is the wiring.
+	_ "github.com/the-loon-clan/loon-plugins/events"
 	// ranks + rewards draw their UI through loon's VIEW system
 	// (core.RegisterView), not gin templates, so they need no host templates and
 	// no SetDeps — a blank import is the whole wiring.
