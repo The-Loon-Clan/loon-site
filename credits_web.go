@@ -1,6 +1,11 @@
 package main
 
-import "sync/atomic"
+import (
+	"reflect"
+	"sync/atomic"
+
+	"github.com/the-loon-clan/loon/catalog"
+)
 
 // Attribution for the metadata sources actually in use.
 //
@@ -102,4 +107,28 @@ func setSourceCredits(providers []string) {
 func sourceCredits() []sourceCredit {
 	c, _ := activeCredits.Load().([]sourceCredit)
 	return c
+}
+
+// isNilSource reports whether a MetadataSource is absent, including the case a
+// plain `== nil` misses.
+//
+// Every keyed source constructor returns a nil *Source when its credential is
+// unset — that is the "not configured" signal the whole registration block is
+// built on. Assigned to an interface, a nil pointer produces a NON-nil
+// interface carrying a nil value, so the obvious check passes it through and
+// the registry dereferences it. It panicked this site at boot, and the symptom
+// was a restart loop rather than an error anyone could read.
+//
+// reflect because there is no other way: the concrete types differ per source
+// and the interface has already erased them by the time it arrives here.
+func isNilSource(s catalog.MetadataSource) bool {
+	if s == nil {
+		return true
+	}
+	v := reflect.ValueOf(s)
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Interface, reflect.Map, reflect.Slice, reflect.Func:
+		return v.IsNil()
+	}
+	return false
 }

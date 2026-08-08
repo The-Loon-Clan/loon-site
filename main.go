@@ -608,7 +608,15 @@ func main() {
 	// about provenance rather than a missing one. See credits_web.go.
 	var providers []string
 	add := func(name string, src catalog.MetadataSource) bool {
-		if src == nil {
+		// isNilSource, not src == nil. The keyed constructors return a nil
+		// *Source when their credential is unset, and a nil POINTER stored in
+		// an INTERFACE is not a nil interface — so `src == nil` is false, the
+		// source registers, and the registry calls Domain() on nil. That
+		// panicked the whole process at boot: the site came up, served nothing,
+		// and restart-looped. The previous code checked each constructor's
+		// concrete result before it ever became an interface, which is why the
+		// trap only appeared when the checks moved in here.
+		if isNilSource(src) {
 			return false
 		}
 		if err := reg.RegisterSource(src); err != nil {

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"os"
+
+	"github.com/the-loon-clan/loon/catalog"
 	"strings"
 	"testing"
 )
@@ -125,3 +128,44 @@ func creditNames(cs []sourceCredit) string {
 	}
 	return strings.Join(out, ",")
 }
+
+// The bug that panicked the site at boot.
+//
+// Every keyed source constructor returns a nil *Source when its credential is
+// unset. Assigned to an interface that nil POINTER becomes a NON-nil
+// interface, so `src == nil` passed it through, the registry called Domain() on
+// it, and the process segfaulted into a restart loop — the site up, serving
+// nothing, with no readable error.
+func TestNilSourceIsDetectedThroughTheInterface(t *testing.T) {
+	// A typed nil, exactly as tmdb.New("") returns when the key is unset.
+	var typedNil *stubSource
+	if typedNil == nil { // true on the CONCRETE type ...
+		var asInterface catalog.MetadataSource = typedNil
+		if asInterface == nil { // ... and false through the interface.
+			t.Fatal("a typed nil compared equal to nil as an interface — " +
+				"the premise of this test is gone, re-read isNilSource")
+		}
+		if !isNilSource(asInterface) {
+			t.Error("isNilSource missed a nil pointer in an interface — this is the " +
+				"boot panic: the registry will call Domain() on it")
+		}
+	}
+	if !isNilSource(nil) {
+		t.Error("isNilSource(nil) = false")
+	}
+	if isNilSource(&stubSource{}) {
+		t.Error("isNilSource rejected a real source")
+	}
+}
+
+// stubSource is a minimal MetadataSource; only its nil-ness is under test.
+type stubSource struct{}
+
+func (s *stubSource) Domain() catalog.DomainInfo { return catalog.DomainInfo{Key: "stub"} }
+func (s *stubSource) TitleIndex(context.Context) (map[string]int64, error) {
+	return map[string]int64{}, nil
+}
+func (s *stubSource) Fetch(context.Context, int64) (catalog.CatalogEntry, error) {
+	return catalog.CatalogEntry{}, nil
+}
+func (s *stubSource) Normalize(raw string) string { return raw }
