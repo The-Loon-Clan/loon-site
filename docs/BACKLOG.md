@@ -72,7 +72,7 @@ Not covered, and worth knowing:
 
 ---
 
-## 2. The rar-split root cause — FOUND
+## 2. The rar-split root cause — FOUND, and the guess below was wrong
 
 New splits stopped after the par fix (`6914cc5`, `de55b40`) and the 419
 historical rows were deleted, so nothing is currently wrong. But the mechanism
@@ -90,8 +90,19 @@ single-file form `fileNum` is always 0 — so 42 volumes numbering their segment
 **Why it still matters:** if it recurs there is nothing to start from but this
 paragraph. The evidence is still in the staging tables today.
 
-**Found**, and it is the collision `parseSubject` already documents, reached by
-a second route. Confirmed by test, not inferred —
+**Superseded by `docs/SUBJECT-PARSING.md`**, which measures this against ~10M
+real staged articles rather than reasoning about it. The short version: the
+mechanism below is real but is NOT what was doing the damage. The posts that
+produced the junk releases carry TWO counters, and the parser reads the FILE
+counter as the segment counter — 98.1% loss across 32,777 articles. A second and
+larger problem turned up beside it: 1.7M obfuscated posts sharing
+`base_subject = 'payload'`.
+
+The paragraph below is kept because it is a correct description of a real (if
+minor) collision, and because the difference between it and the measurement is
+the point — it was written from reasoning, and reasoning got the cause wrong.
+
+Confirmed by test, not inferred —
 `loon-plugins/usenet/subject_rarsplit_test.go` (`ae87468`).
 
 A multi-volume post with no `[i/j]` file counter shares ONE base subject across
