@@ -10,10 +10,18 @@ source is silent rather than broken.
 
 ## The landscape
 
+> **Attribution is a licence condition, not a courtesy.** TVmaze publishes under
+> CC BY-SA 4.0 (credit required, ShareAlike if redistributed) and TMDB requires
+> a specific "not endorsed or certified" disclaimer. The footer carries the
+> credits for whichever sources actually registered — see `credits_web.go`.
+> Check this before adding a provider: several forbid commercial use outright.
+
 | domain | site | key needed | images | notes |
 |---|---|---|---|---|
 | movie / tv | [TMDB](https://www.themoviedb.org) | **yes**, free signup | posters + backdrops | the IMDb-equivalent with an API you may actually use; IMDb itself has no free public API |
-| **tv** | [TVmaze](https://www.tvmaze.com/api) | **no** | poster (medium + original) | purpose-built for television: summary, premiere/end dates, genres, network, rating, IMDb + TVDB ids in ONE call. **20 calls / 10s per IP** |
+| **tv** | [TVmaze](https://www.tvmaze.com/api) | **no** | poster, **banner, background, typography** | purpose-built for television: summary, premiere/end dates, genres, network, rating, IMDb + TVDB ids in ONE call. **CC BY-SA 4.0** — commercial use allowed, credit required. **20 calls / 10s per IP**. `/shows?page=N` is a sync endpoint, so bulk mirroring is contemplated |
+| anime | [AniList](https://anilist.co) | **no** | cover + **banner** | GraphQL, verified keyless. Richer than AniDB for art and carries a banner image; a candidate if AniDB's client registration is unwanted |
+| tv/movie art | [fanart.tv](https://fanart.tv) | yes (personal) | banners, clearart, backdrops, logos | the artwork specialist — but **no commercial use without written consent**, so it suits a private deployment only |
 | movie | [Wikipedia REST](https://en.wikipedia.org/api/rest_v1/) | **no** | poster via Commons | `/page/summary/{title}` gives an extract + `originalimage`; its `description` field ("2017 film by…") is a usable type filter. Needs a search step first, and disambiguation is the risk |
 | movie | iTunes Search | no | — | **does not work.** `media=movie` returns `resultCount: 0` for every query tried; Apple appears to have withdrawn movie search. Verified 8 Aug 2026, do not re-attempt without re-checking |
 | **books** | [Open Library](https://openlibrary.org) | **no** | covers | Internet Archive project; open catalogue, no signup |
