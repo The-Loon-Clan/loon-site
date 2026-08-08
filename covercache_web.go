@@ -42,6 +42,16 @@ import (
 // gets its cover, hotlinked, rather than no cover at all. A partial local cache
 // is strictly better than an empty one.
 
+// artFields are the CatalogEntry.Fields keys that hold an image URL.
+//
+// CoverURL is the poster and has its own field on the entry; a source may also
+// return the wide shapes a release page wants and those arrive in Fields —
+// TVmaze carries a banner and a background alongside its poster. Listed here so
+// the download path covers them all: a deployment that stored its posters
+// locally while hotlinking its banners would have half a privacy guarantee and
+// half a defence against link rot, which is neither.
+var artFields = []string{"banner_url", "background_url"}
+
 const (
 	// coverDir is the subdirectory under uploadRoot. Mounted (uploads:/data)
 	// and already served under uploadURL — see wiki_web.go for the pairing.

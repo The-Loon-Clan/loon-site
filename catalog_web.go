@@ -29,6 +29,17 @@ func (l lazySink) Upsert(ctx context.Context, e catalog.CatalogEntry) error {
 	// — on failure this returns the remote URL unchanged, and a hotlinked cover
 	// beats no cover.
 	e.CoverURL = l.w.covers.localize(ctx, e.CoverURL)
+	// The wide art too. A source that carries a banner and a background (TVmaze
+	// does) would otherwise have those hotlinked while its poster was local —
+	// half a privacy guarantee, and half a defence against link rot, which is
+	// neither.
+	for _, key := range artFields {
+		if u, ok := e.Fields[key].(string); ok && u != "" {
+			if got := l.w.covers.localize(ctx, u); got != "" {
+				e.Fields[key] = got
+			}
+		}
+	}
 	return l.w.catalogSink.Upsert(ctx, e)
 }
 
