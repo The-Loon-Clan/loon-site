@@ -14,6 +14,15 @@ is what a reader would otherwise carry forward.
 > this parser shipped two regressions, so it should be a deliberate decision
 > made against these numbers.
 
+> **Reviewed 8 Aug — two corrections, both mine.** (1) §2's headline example
+> was misattributed: the Superboys articles carry **no `yEnc` at all** — they
+> are shape **D**, and §7's fix as originally written would not have touched
+> them. (2) Shape A is **71,414** articles, not 32,777 — the first regex
+> missed the leading-counter forms. The corrected fix, its full validation
+> (zero counter-examples, zero introduced collisions over 7M subjects), and
+> the deploy steps it must ship with are in
+> [SUBJECT-PARSING-REVIEW.md](SUBJECT-PARSING-REVIEW.md).
+
 ---
 
 ## 1. The headline
@@ -68,6 +77,13 @@ Across the index: **32,777 articles in this shape, 103 posts, collapsing onto
 563 keys.**
 
 ### What it produces
+
+**Correction (8 Aug): this table is real damage but the wrong bug.** Every
+Superboys article is `[Title] (06/23) - "file.part04.rar" (0683/1621)` — no
+`yEnc` — so these releases are shape **D** (§4), not shape A. Shape A's own
+product is the same *kind* of wreck (volumes colliding onto interleaved
+fragments); the concrete exhibits below just come from D. Kept here because
+the download-test list in §6 is built from them.
 
 `[Superboys.of.Malegaon.2025]` became **four separate releases**, each claiming
 a different size, each containing 1 file and 1,621 segments:
@@ -130,9 +146,17 @@ to stage them and let them destroy each other.
 
 ## 4. Bug D — a counter with no `yEnc` marker
 
-13,101 articles, **81% real loss**. Small, and the same family as A: a counter
-the parser reads as segments when it is something else. Worth fixing in the same
-change; not worth its own.
+13,101 articles, **81% real loss** — and (corrected 8 Aug) **this is the bug
+that made the Superboys releases**, not A. Two sub-shapes:
+
+* **Two counters, no `yEnc`** (~9.4k articles): `[Title] (06/23) -
+  "file.part04.rar" (0683/1621)`. The segment counter parses correctly (the
+  parser takes the last); the file counter goes unread, so every volume
+  collides per segment index. Fixable by the same idea as A with a different
+  anchor: **first counter = file, last = segment, when ≥2 are present**.
+* **One counter, no `yEnc`** (~3k articles): `"Adobe_...part3.rar" [RELEASE]
+  (5/20)`. There is no file counter to read; fixing this means deriving file
+  identity from `.partNNN`, a different and riskier change. Stays broken.
 
 ---
 
@@ -182,10 +206,15 @@ problem is downstream of subject parsing and none of the above is the cause.
 
 ## 7. The fix, and what it risks
 
-**A and D:** when a subject carries a counter both before and after `yEnc`, the
+**A:** when a subject carries a counter both before and after `yEnc`, the
 one **after** is the segment counter and the one **before** is the file counter.
 That is a narrowing of the existing rule, not a reversal — the current preference
 stays correct for subjects with only one counter.
+
+**D (two-counter half, corrected 8 Aug):** the `yEnc`-anchored rule above does
+NOT reach D — D has no `yEnc`. The composed rule that covers both, its
+validation, and the staging DELETE it must ship with are in
+[SUBJECT-PARSING-REVIEW.md](SUBJECT-PARSING-REVIEW.md).
 
 **B:** a separate decision, and not a parser change. Either add `payload` and
 friends to the junk rules, or key obfuscated posts on the trailing token.
