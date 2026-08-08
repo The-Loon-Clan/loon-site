@@ -288,31 +288,33 @@
                          of them exist depends on what is wired; the registry
                          answers that at runtime, and the bar cannot. */}}
                     {{template "nav-plugin-items" (dict "Items" .SiteNavAccount "Path" .Path)}}
-                    {{/* IsMod, not IsAdmin: /moderation gates at RoleMod, and a
-                         moderator never sees the admin subnav, so without this
-                         entry the queue they are responsible for has no door.
-                         Admins match IsMod too and get both. */}}
-                    {{/* Admin-only for now. The voting is built and the gate is
-                         one line in main.go, so this becomes {{if .User}} on
-                         the day the queue goes community-driven. */}}
+                    {{/* ONE staff door, never a list of queues.
+                         See docs/NAVIGATION.md.
+
+                         This menu is the viewer's own things — their profile,
+                         their messages, their settings. Work queues are not
+                         theirs, they are the site's, and listing them here put
+                         "New avatars" in a member-facing menu beside "My
+                         profile". Worse, it split the staff area in two: some
+                         tools in the dropdown, the rest behind the admin
+                         subnav, so neither place answered "where is everything
+                         I can do".
+
+                         So: one entry, and the queues live behind it. A
+                         moderator still needs a door — /admin/* gates at
+                         RoleAdmin, so pointing them there would be a 403 — and
+                         gets sent to the one queue they can actually reach.
+                         The pending badge comes with them, since an unread
+                         count with no door is just an accusation. */}}
                     {{if .IsAdmin}}
-                    <a class="dropdown__item{{if eq .Path "/moderation"}} active{{end}}" href="/moderation"{{if eq .Path "/moderation"}} aria-current="page"{{end}}>
-                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#users"></use></svg>Community moderation
-                    </a>
-                    {{end}}
-                    {{/* IsMod, not IsAdmin: /moderation/avatars gates at
-                         RoleMod, and a moderator never sees the admin subnav,
-                         so without this entry the queue they are responsible
-                         for has no door. Admins match IsMod too. */}}
-                    {{if .IsMod}}
-                    <a class="dropdown__item{{if eq .Path "/moderation/avatars"}} active{{end}}" href="/moderation/avatars"{{if eq .Path "/moderation/avatars"}} aria-current="page"{{end}}>
-                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>New avatars
+                    <a class="dropdown__item{{if hasPrefix .Path "/admin"}} active{{end}}" href="/admin"{{if hasPrefix .Path "/admin"}} aria-current="page"{{end}}>
+                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#settings"></use></svg>Admin
                         {{if .PendingAvatars}}<span class="badge ms-auto">{{.PendingAvatars}}</span>{{end}}
                     </a>
-                    {{end}}
-                    {{if .IsAdmin}}
-                    <a class="dropdown__item{{if eq .Path "/admin/settings"}} active{{end}}" href="/admin/settings"{{if eq .Path "/admin/settings"}} aria-current="page"{{end}}>
-                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#settings"></use></svg>Site settings
+                    {{else if .IsMod}}
+                    <a class="dropdown__item{{if hasPrefix .Path "/moderation"}} active{{end}}" href="/moderation/avatars"{{if hasPrefix .Path "/moderation"}} aria-current="page"{{end}}>
+                        <svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Moderation
+                        {{if .PendingAvatars}}<span class="badge ms-auto">{{.PendingAvatars}}</span>{{end}}
                     </a>
                     {{end}}
                     <span class="dropdown__divider"></span>
