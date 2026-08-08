@@ -176,6 +176,16 @@ Worth as much as the bugs, because a fix must not disturb any of it:
 
 ## 6. Releases to download and check
 
+**Executed 8 Aug — the mechanism is confirmed end-to-end.** Eight expected-
+broken fragments (six Superboys, two Diplomat.2025) and both controls were run
+through a real newsreader. All eight broken produced **no usable content**;
+both controls completed and unpacked cleanly. Detail that matters: two of the
+eight reported "Completed" but their output was **par2 files only, no data** —
+a par-only job has nothing to verify, so post-processing sails through. The
+per-file key forensics behind that (why par-heavy key windows survive the
+collisions) are in [SUBJECT-PARSING-REVIEW.md](SUBJECT-PARSING-REVIEW.md).
+A "Completed" status is not a healthy release; check the output.
+
 Both broken sets and a control. The expectation is stated so a result either
 confirms or refutes it.
 

@@ -231,6 +231,37 @@ a per-file `st:N` flow test through the existing completeness harnesses). The
 Ratatouille/par pins stay green and stay as they are; their comments (and the
 parser's own comment, quoted in them) need the scope correction above.
 
+## The download test came back — 10/10 as predicted, with one twist
+
+Run by the operator on 8 Aug through a real newsreader: eight expected-broken
+fragments, two controls.
+
+| outcome | count | detail |
+|---|---:|---|
+| broken, failed loudly | 6 | "RAR files failed to verify", "Repair failed, not
+enough repair blocks (2882–3027 short)", "Post-processing was aborted" |
+| broken, **"Completed" but par-only** | 2 | frags 56262 and 59628: output was
+par2 files with **no data content** |
+| controls, completed and unpacked | 2 | 78767 and 69619 |
+
+The par-only twist is mechanically exact, and the staged rows prove it. The
+Superboys post is 23 files: `part01–09.rar` at **1,621 segments each**,
+`part10.rar` at 508, an sfv, and **ten par2 volumes at 151–156 segments
+each** (~9.7 GB data — the "10 GB" claim was honest about the post, wrong
+about the fragment). Under today's parse all 23 files share the `0:s` key
+space — but keys 1–156 are contested by *all* twenty-three files, while keys
+509–1,621 can only ever hold rar-volume data. A build that fires just after
+the par2 burst holds whole, intact par files in the low keys and rar shrapnel
+above; the newsreader demultiplexes by yEnc name, keeps the small complete
+pars, finds nothing to verify, and reports **Completed**. A "Completed"
+status on these fragments is not a recovered release — it is the emptiest
+possible one.
+
+This also independently re-confirms per-file counter semantics for this post:
+each rar volume's segment numbers span its own 1..1,621 (truncated at the
+staging window's tail), and the par2 totals vary per file — exactly the
+structure the composed rule stages correctly.
+
 ## How this was verified
 
 Three layers, because the last parser change shipped two regressions and this
