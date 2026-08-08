@@ -1077,10 +1077,16 @@ func (s catalogLogSink) Upsert(_ context.Context, e catalog.CatalogEntry) error 
 }
 
 // demoBackupOpener returns the backups plugin's OpenEntry seam, writing each
-// backup entry to a temp dir. A real host would stream into a tar/dated dir or
-// an object store.
+// backup entry under the mounted data directory. A real host would stream into
+// a tar/dated dir or an object store.
+//
+// Under uploadRoot, not os.TempDir(): only /data is a volume, so a backup
+// written anywhere else lives in the container layer and is discarded by the
+// next `up --build` — silently, and precisely when someone reaches for it. The
+// demo is a demonstration, and one that quietly throws its backups away
+// demonstrates the wrong thing.
 func demoBackupOpener(log *slog.Logger) func(context.Context, string) (io.WriteCloser, error) {
-	dir := filepath.Join(os.TempDir(), "loon-demo-backups")
+	dir := filepath.Join(uploadRoot, "backups")
 	return func(_ context.Context, name string) (io.WriteCloser, error) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return nil, err

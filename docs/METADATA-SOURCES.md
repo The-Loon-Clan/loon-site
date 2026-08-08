@@ -78,6 +78,47 @@ docker compose up -d --build app
 Covers land via the scraper's Catalog Match job and are read back per release
 (`catalog_web.go`).
 
+## Where the images live — nowhere, on purpose
+
+**No cover image is ever written to disk.** A match stores the provider's image
+URL in `release_cover.cover_url` and the page renders it; the visitor's browser
+fetches from `image.tmdb.org`, `static.tvmaze.com` or `covers.openlibrary.org`.
+
+So there is no image directory to mount, and adding one would be the wrong fix
+for a problem that does not exist yet. Recorded because "are we mounting the
+folder?" is the right question to ask of anything that scrapes — this site has
+already lost an index and every upload to exactly that oversight — and the
+answer needs to be findable rather than re-derived.
+
+What IS written to disk, and where:
+
+| written by | path | mounted? |
+|---|---|---|
+| avatars, wiki images, community banners (`blob.NewLocal`) | `/data` | **yes** — `uploads:/data` |
+| backups plugin (`demoBackupOpener`) | `/data/backups` | **yes**, since this note |
+| everything else | — | nothing else writes |
+
+`uploadRoot` is the relative path `"data"`, and the runtime image sets no
+`WORKDIR`, so it resolves to `/data` and meets the mount. That coupling is
+silent — a `WORKDIR /app` added to the final stage would move every upload into
+the container layer without a single error — so it is asserted in
+`TestUploadRootMatchesTheMount`.
+
+### If covers are ever cached locally
+
+Two reasons it might be worth doing, neither urgent:
+
+* **Link rot.** A provider removing or re-pathing an image breaks it permanently
+  and silently; nothing re-checks a stored URL.
+* **Visitor privacy.** Every browse page currently tells three third-party CDNs
+  which releases a visitor is looking at.
+
+If that day comes: write under `uploadRoot` (already mounted, already served),
+reuse `blob.NewLocal` the way avatars do, and check each provider's terms first
+— Open Library in particular asks that public pages point at
+`covers.openlibrary.org`, so caching there is a deliberate departure rather than
+an optimisation.
+
 ## Constraints these APIs impose
 
 Both keyless sources ask for something in return, and both asks are honoured in
