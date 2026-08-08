@@ -61,8 +61,17 @@ services:
       # plugin fails to boot rather than silently running pg.
       #   USENET_STAGING=redis docker compose up --build -d
       USENET_STAGING: "${USENET_STAGING:-pg}"
-      # Metadata-source credentials (optional — set on the host to enable a source):
-      #   TPDB_API_KEY = ThePornDB bearer token (xxx)   ANIDB_CLIENT = registered AniDB client name (anime)
+      # Metadata-source credentials (optional — set on the host to enable a source).
+      # Every source main.go reads must be listed here: an unlisted variable is
+      # simply absent inside the container, so the source registers as "not
+      # configured" no matter what the operator sets. TMDB_API_KEY was read by
+      # main.go and missing from this list, which is why cover art for movies
+      # and TV could never appear.
+      #   TMDB_API_KEY  = themoviedb.org v3 key  (movie + tv posters/backdrops)
+      #   TPDB_API_KEY  = ThePornDB bearer token (xxx)
+      #   ANIDB_CLIENT  = registered AniDB client name (anime)
+      # Open Library (books) needs no credential and is always on.
+      TMDB_API_KEY: "${TMDB_API_KEY:-}"
       TPDB_API_KEY: "${TPDB_API_KEY:-}"
       ANIDB_CLIENT: "${ANIDB_CLIENT:-}"
       # Cloudflare Turnstile (optional). Unset = captcha disabled. Cloudflare's

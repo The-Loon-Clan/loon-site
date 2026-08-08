@@ -72,6 +72,7 @@ import (
 	"github.com/the-loon-clan/loon-plugins/rewards"
 	"github.com/the-loon-clan/loon-plugins/scraper"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/anidb"
+	"github.com/the-loon-clan/loon-plugins/scraper/sources/openlibrary"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/theporndb"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/tmdb"
 	"github.com/the-loon-clan/loon-plugins/stats"
@@ -602,6 +603,11 @@ func main() {
 		}
 	}
 	_ = reg.RegisterSource(anidb.New(os.Getenv("ANIDB_CLIENT"), nil))
+	// Open Library needs no credential, so it registers unconditionally and is
+	// the one source a fresh checkout actually exercises — every other source
+	// here is idle until an operator goes and gets a key, which meant the
+	// enrichment path had no way to be tested at all without one.
+	_ = reg.RegisterSource(openlibrary.New(""))
 	for _, s := range reg.Sources() {
 		logger.Info("catalog source registered", "domain", s.Domain().Key, "priority", s.Domain().Priority)
 	}
