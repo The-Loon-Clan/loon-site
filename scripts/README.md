@@ -1,15 +1,16 @@
 # Audit scripts
 
-Three sweeps that check the things nothing else does — the failures that return
+Four sweeps that check the things nothing else does — the failures that return
 200, render, and look fine.
 
 ```sh
-python scripts/audit_css.py     # static: no running site needed
-python scripts/audit_links.py   # needs the site up
-python scripts/audit_a11y.py    # needs the site up
+python scripts/audit_css.py           # static: no running site needed
+python scripts/audit_capabilities.py  # static
+python scripts/audit_links.py         # needs the site up
+python scripts/audit_a11y.py          # needs the site up
 ```
 
-`deploy.sh` runs all three after a successful deploy and prints what they find.
+`deploy.sh` runs all four after a successful deploy and prints what they find.
 It does **not** fail the deploy on findings — see *Advisory, not blocking* below.
 
 Standard library only. A tool that needs `pip install` before it can tell you
@@ -24,6 +25,7 @@ Every one of them looks for a failure that **produces no error**:
 | `audit_css.py` | classes used in a template, defined in no stylesheet | A missing class has no effect and raises nothing. The element renders as though the class were absent, which is indistinguishable from being styled to look plain. |
 | `audit_links.py` | 404s, 5xx, and **200s whose HTML stops before `</footer>`** | A template that fails at execute time aborts mid-document and still returns 200. The page just looks short. |
 | `audit_a11y.py` | unnamed controls, missing/duplicate `h1`, heading skips, unlabelled navs, missing `aria-current` | All of it renders perfectly for a sighted mouse user. |
+| `audit_capabilities.py` | a capability a wired plugin asks for that no wired plugin provides | Consumers look these up optionally and degrade quietly, which is correct. Nothing anywhere reports the absence. |
 
 They have earned their place:
 
@@ -37,6 +39,16 @@ They have earned their place:
   username, a 500 on `/c/usenet`, and a broken link written an hour earlier.
 * `audit_a11y.py` found 2 pages with no `h1`, nav strips marking the current
   item to sighted readers only, and unnamed tables.
+* `audit_capabilities.py` was written after the seventh instance of one bug: the
+  `events` plugin was split out of `rewards`, rewards kept consuming
+  `events.scheduled` through an optional lookup, and this host never imported
+  the new plugin — so rewards ran without event gating and the only thing that
+  noticed was the link crawler seeing a 404 on the admin page.
+
+  It is **static** because the runtime registry cannot answer the question. It
+  can tell you a name is absent; it cannot tell you whether anybody wanted it,
+  and "absent and unwanted" is the normal case for most capabilities. The
+  missing half lives in source.
 
 ## Advisory, not blocking
 
@@ -45,7 +57,8 @@ stops the build is a check people learn to skip. Each script exits non-zero when
 it finds something, so **CI can gate on any one of them once its findings are at
 zero** — but `deploy.sh` only reports.
 
-`audit_css.py` is the closest to gateable: its remaining findings are structural
+`audit_css.py` and `audit_capabilities.py` are both at zero and are the two
+ready to gate on. `audit_css.py` is the closest of the rest: its remaining findings are structural
 BEM names in plugin markup rather than typos.
 
 ## Known false-positive shapes

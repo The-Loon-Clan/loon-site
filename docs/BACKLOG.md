@@ -52,6 +52,14 @@ Not covered, and worth knowing:
 
 * **The plugin side.** A plugin joining `users` instead of `user_display` is
   static analysis, not a runtime check. That instance would still get through.
+* **Capabilities — now covered, by a different tool.** A seventh instance turned
+  up: `events` was split out of `rewards`, rewards kept consuming
+  `events.scheduled` through an optional lookup, and this host never imported
+  the new plugin, so rewards ran without event gating. `contracts_web.go` could
+  not have caught it — the registry knows a name is absent but not whether
+  anybody wanted it, and "absent and unwanted" is the normal case. That half of
+  the question lives in source, so `scripts/audit_capabilities.py` answers it
+  statically: consumed by a wired plugin + provided only by an unwired one.
 * **Process gates.** A plugin skipping itself because `Process` does not match
   is invisible from outside — it registers nothing and claims nothing.
 * **Scope is the page.** `/admin/contracts` lists what it checks even when it

@@ -67,7 +67,7 @@ run_audits() {
     command -v python >/dev/null 2>&1 || return 0
     echo
     echo "  audits (advisory -- see scripts/README.md)"
-    for a in audit_css audit_links audit_a11y; do
+    for a in audit_css audit_capabilities audit_links audit_a11y; do
         [[ -f "scripts/$a.py" ]] || continue
         python "scripts/$a.py" 2>&1 | tail -1 | sed 's/^/     /'
     done
