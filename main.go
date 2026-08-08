@@ -75,6 +75,7 @@ import (
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/openlibrary"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/theporndb"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/tmdb"
+	"github.com/the-loon-clan/loon-plugins/scraper/sources/tvmaze"
 	"github.com/the-loon-clan/loon-plugins/stats"
 	_ "github.com/the-loon-clan/loon-plugins/usenet"
 
@@ -597,9 +598,31 @@ func main() {
 	if src := theporndb.New(os.Getenv("TPDB_API_KEY"), ""); src != nil {
 		_ = reg.RegisterSource(src)
 	}
+	// TMDB when a key is set; TVmaze for tv when it is not.
+	//
+	// They serve the SAME domain key ("tv") and catalog.Registry refuses a
+	// duplicate — and RegisterSource's error is discarded here, so registering
+	// both would silently drop one and which one would depend on call order.
+	// The choice is therefore made explicitly rather than left to that.
+	//
+	// TMDB wins where available: it carries backdrops and a far larger
+	// non-English catalogue. TVmaze is the keyless fallback so a host with no
+	// credentials still gets series posters, summaries and air dates instead of
+	// blank cards. There is no keyless MOVIE source — see
+	// docs/METADATA-SOURCES.md.
+	tmdbOn := false
 	for _, kind := range []tmdb.Kind{tmdb.KindMovie, tmdb.KindTV} {
 		if src := tmdb.New(os.Getenv("TMDB_API_KEY"), kind, ""); src != nil {
-			_ = reg.RegisterSource(src)
+			if err := reg.RegisterSource(src); err != nil {
+				logger.Error("register tmdb source", "kind", kind, "err", err)
+				continue
+			}
+			tmdbOn = true
+		}
+	}
+	if !tmdbOn {
+		if err := reg.RegisterSource(tvmaze.New("")); err != nil {
+			logger.Error("register tvmaze source", "err", err)
 		}
 	}
 	_ = reg.RegisterSource(anidb.New(os.Getenv("ANIDB_CLIENT"), nil))

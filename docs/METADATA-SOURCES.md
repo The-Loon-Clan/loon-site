@@ -13,6 +13,9 @@ source is silent rather than broken.
 | domain | site | key needed | images | notes |
 |---|---|---|---|---|
 | movie / tv | [TMDB](https://www.themoviedb.org) | **yes**, free signup | posters + backdrops | the IMDb-equivalent with an API you may actually use; IMDb itself has no free public API |
+| **tv** | [TVmaze](https://www.tvmaze.com/api) | **no** | poster (medium + original) | purpose-built for television: summary, premiere/end dates, genres, network, rating, IMDb + TVDB ids in ONE call. **20 calls / 10s per IP** |
+| movie | [Wikipedia REST](https://en.wikipedia.org/api/rest_v1/) | **no** | poster via Commons | `/page/summary/{title}` gives an extract + `originalimage`; its `description` field ("2017 film by…") is a usable type filter. Needs a search step first, and disambiguation is the risk |
+| movie | iTunes Search | no | — | **does not work.** `media=movie` returns `resultCount: 0` for every query tried; Apple appears to have withdrawn movie search. Verified 8 Aug 2026, do not re-attempt without re-checking |
 | **books** | [Open Library](https://openlibrary.org) | **no** | covers | Internet Archive project; open catalogue, no signup |
 | books | [Google Books](https://developers.google.com/books) | optional | thumbnails | higher quota with a key |
 | **audio** | [MusicBrainz](https://musicbrainz.org) + [Cover Art Archive](https://coverartarchive.org) | **no** | covers via CAA | requires a real User-Agent; **1 req/sec per IP**, enforced by blocking |
@@ -31,11 +34,22 @@ and a size, but not a poster.
 ## What is wired here
 
 ```
-TMDB_API_KEY  → movie + tv     (posters/backdrops)   ← get one to enable video art
+TMDB_API_KEY  → movie + tv     (posters/backdrops)   ← get one for MOVIE art
 TPDB_API_KEY  → xxx
 ANIDB_CLIENT  → anime
 (none)        → books via Open Library                ← always on
+(none)        → tv    via TVmaze                      ← when TMDB_API_KEY is unset
 ```
+
+TMDB and TVmaze both serve the `tv` domain, and the registry refuses a duplicate
+domain key — so `main.go` picks ONE explicitly rather than registering both and
+letting call order decide. TMDB wins when its key is present (backdrops, a much
+larger non-English catalogue); TVmaze is the fallback, so a host with no
+credentials at all still gets series posters, summaries and air dates.
+
+**Movies are the gap.** There is no keyless movie source wired. Wikipedia is the
+credible option and is listed above; it needs a search step and a disambiguation
+policy, which is why it was not built blind.
 
 **Open Library is registered unconditionally** because it needs no credential.
 That matters beyond books: every other source is idle on a fresh checkout, so
