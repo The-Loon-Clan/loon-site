@@ -1002,7 +1002,20 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// Nil off the account area, which is the template's guard. The avatar menu
 	// no longer lists these; landing on the profile is what brings them up,
 	// the way UNIT3D's user area works.
-	data["AccountBar"] = accountBar(c.Request.URL.Path)
+	// Gated on the VIEWER, not just the path: every entry is the viewer's own
+	// page, and a profile is a public page sitting at an account-area path. See
+	// accountBar — judging by path alone showed anonymous visitors a personal
+	// account menu (Security, API key) on every member's profile.
+	{
+		viewer, _ := w.currentUser(c)
+		own := false
+		if viewer != nil {
+			if name := profileNameFromPath(c.Request.URL.Path); name != "" {
+				own = strings.EqualFold(name, viewer.Username)
+			}
+		}
+		data["AccountBar"] = accountBar(c.Request.URL.Path, viewer != nil, own)
+	}
 	// PathQuery is Path PLUS the query string: the "send me back exactly here"
 	// target for the theme switcher's hidden next field. It has to be a SECOND
 	// key rather than a richer Path, because every nav active-state comparison

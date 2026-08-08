@@ -218,12 +218,13 @@ func TestAccountMenuMatchesWholeSegments(t *testing.T) {
 // back, and absent on an account page every entry it carries is unreachable,
 // because the avatar menu no longer lists them.
 func TestAccountBarScope(t *testing.T) {
+	// Signed in, and on /u/ it is your own profile — the case the bar is for.
 	for _, p := range []string{
 		"/u/alice", "/achievements", "/calendar", "/bookmarks", "/inbox",
 		"/p/inbox", "/p/topics", "/p/posts", "/p/account", "/p/api-key",
 		"/settings/privacy", "/settings/notifications",
 	} {
-		if accountBar(p) == nil {
+		if accountBar(p, true, true) == nil {
 			t.Errorf("%s is in the account area but gets no bar", p)
 		}
 	}
@@ -231,8 +232,62 @@ func TestAccountBarScope(t *testing.T) {
 		"/", "/browse", "/search", "/community/forums", "/store", "/stats",
 		"/about", "/login", "/admin/settings", "/p/stats", "/p/store",
 	} {
-		if tabs := accountBar(p); tabs != nil {
+		if tabs := accountBar(p, true, true); tabs != nil {
 			t.Errorf("%s got an account bar (%d entries) — that is the site-wide second bar again", p, len(tabs))
+		}
+	}
+}
+
+// The bar is the VIEWER's own navigation, so it needs a viewer. Reported as
+// "the public profile view is broken": every entry — Inbox, Privacy, Security,
+// API key — was rendered to anonymous visitors on every member's profile,
+// because the bar was chosen by path alone. Nothing leaked (the links are
+// viewer-relative and all bounce to /login), but a stranger was shown a menu of
+// someone else's settings.
+func TestAccountBarNeedsAViewer(t *testing.T) {
+	for _, p := range []string{
+		"/u/alice", "/achievements", "/inbox", "/settings/privacy", "/p/api-key",
+	} {
+		if tabs := accountBar(p, false, false); tabs != nil {
+			t.Errorf("signed OUT on %s got %d account entries — a personal menu shown to a stranger", p, len(tabs))
+		}
+	}
+}
+
+// Someone else's profile is not your account area. The /u/ prefix earns its
+// place as the area's landing page only on the way to your OWN profile; on
+// another member's it is a menu about you attached to a page about them.
+func TestAccountBarOnlyOnYourOwnProfile(t *testing.T) {
+	if tabs := accountBar("/u/bob", true, false); tabs != nil {
+		t.Errorf("viewing another member's profile got %d account entries", len(tabs))
+	}
+	if accountBar("/u/alice", true, true) == nil {
+		t.Error("your own profile must still carry the bar — it is the area's landing page")
+	}
+	// The children of someone else's profile behave the same way.
+	if tabs := accountBar("/u/bob/followers", true, false); tabs != nil {
+		t.Errorf("another member's followers page got %d account entries", len(tabs))
+	}
+}
+
+// profileNameFromPath is what decides "own profile", so its edges are pinned:
+// a non-profile path yields nothing, and the children of a profile still
+// resolve to the profile's owner.
+func TestProfileNameFromPath(t *testing.T) {
+	cases := map[string]string{
+		"/u/alice":           "alice",
+		"/u/alice/followers": "alice",
+		"/u/alice/following": "alice",
+		"/u/bob/friends":     "bob",
+		"/u/":                "",
+		"/u":                 "",
+		"/inbox":             "",
+		"/":                  "",
+		"/browse":            "",
+	}
+	for path, want := range cases {
+		if got := profileNameFromPath(path); got != want {
+			t.Errorf("profileNameFromPath(%q) = %q, want %q", path, got, want)
 		}
 	}
 }
@@ -243,7 +298,7 @@ func TestAccountBarScope(t *testing.T) {
 // exactly what happened when the account bar first went in.
 func TestPointsPagesGetOneStripNotTwo(t *testing.T) {
 	for _, p := range []string{"/store", "/store/history", "/rewards"} {
-		if tabs := accountBar(p); tabs != nil {
+		if tabs := accountBar(p, true, true); tabs != nil {
 			t.Errorf("%s gets the account bar AND the store strip — two tab rows on one page", p)
 		}
 	}

@@ -38,6 +38,8 @@ package main
 // pages had no other route in. They live in the avatar dropdown now, which is
 // where a reader looks for their own things, and this is the list.
 
+import "strings"
+
 // sectionTab is one entry. Active is resolved against the request path here
 // rather than in the template, so the matching rule lives in one place.
 type sectionTab struct {
@@ -136,11 +138,57 @@ func inAccountArea(path string) bool {
 // accountBar returns the bar's entries for a path, or nil when the path is not
 // in the account area. Nil is the template's guard — no bar rather than an
 // empty one.
-func accountBar(path string) []sectionTab {
-	if !inAccountArea(path) {
+//
+// Path alone is not enough, and /u/ is why. Every entry here is the VIEWER's
+// own — /inbox, /settings/security, /p/api-key — so the bar only means
+// anything to a signed-in member looking at their own area. A profile is a
+// PUBLIC page at an account-area path, and judging by path alone put a
+// personal account menu, API key and Security included, in front of anonymous
+// visitors on every member's profile. Nothing leaked (the links are
+// viewer-relative and every one of them bounces to /login), but a stranger was
+// shown a menu of someone else's settings, which reads as the site being
+// broken — and is how it was reported.
+//
+// signedIn gates the whole bar; own narrows the profile case further. Both are
+// parameters rather than a *gin.Context so the rule stays testable as a pure
+// function, which is what TestAccountBarScope relies on.
+func accountBar(path string, signedIn, ownProfile bool) []sectionTab {
+	if !signedIn || !inAccountArea(path) {
 		return nil
 	}
+	// Someone else's profile is not your account area. The prefix earns its
+	// place as "the area's landing page" only on the way to your OWN profile;
+	// on another member's it is a menu about you, attached to a page about
+	// them.
+	//
+	// Detected with profileNameFromPath rather than hasPathPrefix: that helper
+	// matches whole segments, so it does NOT match "/u/bob" against "/u/" —
+	// which is exactly why inAccountArea carries its own raw-prefix branch for
+	// trailing-slash entries. Reusing the parser keeps one rule for "is this a
+	// profile, and whose".
+	if name := profileNameFromPath(path); name != "" {
+		if !ownProfile {
+			return nil
+		}
+	}
 	return accountNav(path)
+}
+
+// profileNameFromPath pulls the username out of /u/<name> and its children
+// (/u/<name>/followers, /following, /friends), or "" when the path is not a
+// profile. Deriving it from the PATH rather than from gin's :name param keeps
+// accountBar's rule usable from chromeData, which runs for every page and has
+// no route params of its own.
+func profileNameFromPath(path string) string {
+	const p = "/u/"
+	if len(path) <= len(p) || path[:len(p)] != p {
+		return ""
+	}
+	rest := path[len(p):]
+	if i := strings.IndexByte(rest, '/'); i >= 0 {
+		rest = rest[:i]
+	}
+	return rest
 }
 
 // markActive copies the entries and lights the one the path is on.
