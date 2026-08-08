@@ -111,6 +111,18 @@
                         {{if .Category}}<li class="meta-chip"><span class="meta-chip__name">Category</span><span class="meta-chip__value">{{.Category}}</span></li>{{end}}
                         <li class="meta-chip"><span class="meta-chip__name">Files</span><span class="meta-chip__value">{{len .Files}}</span></li>
                     </ul>
+
+                    {{/* Outbound links to the databases this release matched.
+                         $ because ExternalLinks is page data, not part of the
+                         Release the surrounding block scopes to. rel=noopener
+                         on every one: they are third-party destinations. */}}
+                    {{if $.ExternalLinks}}
+                    <ul class="meta__links" aria-label="Look up on other databases">
+                        {{range $.ExternalLinks}}
+                        <li><a class="dblink" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Label}}</a></li>
+                        {{end}}
+                    </ul>
+                    {{end}}
                 </div>
             </div>
         </section>

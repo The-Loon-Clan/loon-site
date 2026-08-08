@@ -1139,7 +1139,7 @@ a.stat-tile:hover {
 .meta {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas: "poster title" "poster ids" "poster description" "poster chips";
+    grid-template-areas: "poster title" "poster ids" "poster description" "poster chips" "poster links";
     align-content: start;
     gap: 10px 24px;
     padding: var(--panel-body-padding);
@@ -1239,6 +1239,42 @@ a.stat-tile:hover {
 
 .meta-chip__name { font-size: var(--fs-3xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--meta-chip-name-fg); }
 .meta-chip__value { font-size: var(--fs-sm); color: var(--meta-chip-value-fg); }
+
+/* Links out to IMDb, TheTVDB, AniDB and friends.
+
+   Deliberately quieter than .button: these are references, not the thing the
+   page wants you to do. The download button stays the only strong call to
+   action, and a row of ten filled buttons would out-shout it. */
+.meta__links {
+    grid-area: links;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dblink {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.dblink:hover,
+.dblink:focus-visible {
+    border-color: var(--primary);
+    color: var(--primary-tint);
+    text-decoration: none;
+}
 
 @media only screen and (max-width: 620px) {
     .meta {

@@ -154,6 +154,10 @@ func (w *web) releasePage(c *gin.Context) {
 			if _, bg := w.releaseArt(c.Request.Context(), url); bg != "" {
 				data["Backdrop"] = bg
 			}
+			// Links out to the databases this release was matched against.
+			if links := w.releaseExternals(c.Request.Context(), url); len(links) > 0 {
+				data["ExternalLinks"] = links
+			}
 		}
 	}
 	// Bookmarked is set ONLY for a signed-in viewer, so the button is absent
