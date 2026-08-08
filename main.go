@@ -1005,6 +1005,10 @@ func main() {
 			stop()
 		}
 	}()
+	// Pull down the art of releases matched before local caching existed. Slow
+	// on purpose and cancelled with the process — see backfillCovers.
+	go wsrv.backfillCovers(ctx, 2*time.Second, logger)
+
 	logger.Info("loon demo site up",
 		"url", "http://localhost:8090/",
 		"login", "alice/alice (admin) or bob/bob")

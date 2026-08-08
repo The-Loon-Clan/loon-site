@@ -6,12 +6,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lib/pq"
 
 	"github.com/the-loon-clan/loon/blob"
 )
@@ -172,6 +175,80 @@ func (c *coverCache) fetch(ctx context.Context, remote, name string) (string, er
 		return "", fmt.Errorf("cover is not a usable image (%s): %w", mime, err)
 	}
 	return c.files.Save(ctx, path.Join(coverDir, name+ext), data)
+}
+
+// backfillCovers pulls down the art of releases matched BEFORE local caching
+// existed, whose stored URL still points at a provider.
+//
+// It is needed because nothing else will reach them. Covers are localised on
+// WRITE, and the scraper's match job only walks recent releases — so a release
+// matched last week keeps its remote URL forever, and "download everything
+// locally" would have meant "download whatever happens to be matched next".
+//
+// Deliberately slow. There is no deadline here: the images have survived as
+// hotlinks this long, and a burst against a free CDN to fix a cosmetic
+// inconsistency would be a worse citizen than the hotlinking it replaces. One
+// image per tick, and the run simply ends when the context does.
+func (w *web) backfillCovers(ctx context.Context, every time.Duration, log *slog.Logger) {
+	if w.catalogCovers == nil || w.covers == nil {
+		return
+	}
+	tick := time.NewTicker(every)
+	defer tick.Stop()
+
+	// skip holds ids this run could not convert, so one dead URL cannot stall
+	// the walk on the same row forever. Per-run and local: a fresh boot retries
+	// them, which is right — the usual reason is a transient provider error.
+	skip := []int64{}
+	var done, failed int
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+		}
+		id, remote, ok := nextRemoteCover(ctx, skip)
+		if !ok {
+			if done > 0 || failed > 0 {
+				log.Info("cover backfill complete", "localised", done, "left_remote", failed)
+			}
+			return // nothing left that can be converted
+		}
+		local := w.covers.localize(ctx, remote)
+		if local == remote {
+			failed++
+			skip = append(skip, id)
+			continue
+		}
+		if err := w.catalogCovers.SetReleaseCover(ctx, id, local); err != nil {
+			log.Warn("cover backfill store", "release", id, "err", err)
+			failed++
+			skip = append(skip, id)
+			continue
+		}
+		done++
+	}
+}
+
+// nextRemoteCover finds one release whose cover is still remote, ignoring ids
+// this run has already failed on.
+//
+// The catalog plugin owns this table and the host reads it directly, because
+// the capability exposes no "list by shape" call — and adding one to a shared
+// plugin for what is a one-time migration is the larger change.
+func nextRemoteCover(ctx context.Context, skip []int64) (int64, string, bool) {
+	var (
+		id     int64
+		remote string
+	)
+	err := usersDB.QueryRowContext(ctx,
+		`SELECT release_id, cover_url FROM catalog.release_cover
+		  WHERE cover_url NOT LIKE '/uploads/%' AND NOT (release_id = ANY($1))
+		  ORDER BY release_id LIMIT 1`, pq.Array(skip)).Scan(&id, &remote)
+	if err != nil {
+		return 0, "", false
+	}
+	return id, remote, true
 }
 
 // coverName is the stable on-disk name for a remote URL: the hash of the URL,

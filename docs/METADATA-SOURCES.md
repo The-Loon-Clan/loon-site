@@ -78,23 +78,33 @@ docker compose up -d --build app
 Covers land via the scraper's Catalog Match job and are read back per release
 (`catalog_web.go`).
 
-## Where the images live — nowhere, on purpose
+## Where the images live
 
-**No cover image is ever written to disk.** A match stores the provider's image
-URL in `release_cover.cover_url` and the page renders it; the visitor's browser
-fetches from `image.tmdb.org`, `static.tvmaze.com` or `covers.openlibrary.org`.
+**Downloaded, under `/data/covers`, and served from this site.** A match hands
+back a URL on the provider's CDN; `covercache_web.go` fetches it once, writes it
+to the mounted volume, and stores a `/uploads/covers/…` URL instead. Measured
+after the first run: 148 covers, 126 files (episodes of one series share a
+poster, and names are the URL's hash, so they store once), 56.5 MB.
 
-So there is no image directory to mount, and adding one would be the wrong fix
-for a problem that does not exist yet. Recorded because "are we mounting the
-folder?" is the right question to ask of anything that scrapes — this site has
-already lost an index and every upload to exactly that oversight — and the
-answer needs to be findable rather than re-derived.
+Hotlinking was the original design and three things were wrong with it: **link
+rot** (a provider re-pathing an image breaks it permanently, and nothing
+re-checks a stored URL), **visitor privacy** (every browse page told three
+third-party CDNs which releases each visitor was reading, from the visitor's own
+IP), and **their bandwidth** — a popular listing became a burst against a free
+service that never agreed to serve it.
+
+Failure is always a fallback to the remote URL, never a blank: a hotlinked cover
+beats no cover. Covers matched before this existed are converted by
+`backfillCovers`, one every two seconds from boot until none are left — the
+match job only walks recent releases, so nothing else would ever have reached
+them.
 
 What IS written to disk, and where:
 
 | written by | path | mounted? |
 |---|---|---|
 | avatars, wiki images, community banners (`blob.NewLocal`) | `/data` | **yes** — `uploads:/data` |
+| **scraped cover art** (`covercache_web.go`) | `/data/covers` | **yes** |
 | backups plugin (`demoBackupOpener`) | `/data/backups` | **yes**, since this note |
 | everything else | — | nothing else writes |
 
@@ -104,20 +114,13 @@ silent — a `WORKDIR /app` added to the final stage would move every upload int
 the container layer without a single error — so it is asserted in
 `TestUploadRootMatchesTheMount`.
 
-### If covers are ever cached locally
+### One provider to keep in mind
 
-Two reasons it might be worth doing, neither urgent:
-
-* **Link rot.** A provider removing or re-pathing an image breaks it permanently
-  and silently; nothing re-checks a stored URL.
-* **Visitor privacy.** Every browse page currently tells three third-party CDNs
-  which releases a visitor is looking at.
-
-If that day comes: write under `uploadRoot` (already mounted, already served),
-reuse `blob.NewLocal` the way avatars do, and check each provider's terms first
-— Open Library in particular asks that public pages point at
-`covers.openlibrary.org`, so caching there is a deliberate departure rather than
-an optimisation.
+Open Library asks that public pages point at `covers.openlibrary.org`. Caching
+its covers is therefore a deliberate departure from what they request, taken
+because the same download also serves their stated concern — "please, do not
+crawl our cover API" — by fetching each image exactly once instead of once per
+visitor. Worth revisiting if they object; TMDB and TVmaze have no such request.
 
 ## Constraints these APIs impose
 
