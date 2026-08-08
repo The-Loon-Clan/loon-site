@@ -43,6 +43,16 @@
     background: var(--panel-head-bg);
     color: var(--panel-head-fg);
     border-bottom: var(--panel-head-border);
+    /* Every panel header is the same height, whatever it carries.
+       --panel-head-padding-block is 0 in each theme and the CHILDREN supply the
+       vertical space, so a header's height depended on what was in it: a
+       heading alone measured ~32px, one with a button ~40px. Two panels side by
+       side — the release panel and the Details aside — then had headers of
+       different heights and their top edges did not line up.
+       Sized for the tallest child (a button: 9px padding twice, borders, and a
+       --fs-base line) plus the heading's own block padding, so nothing is
+       cropped and align-items keeps a short heading centred. */
+    min-height: var(--panel-head-min-height);
 }
 
 .panel__heading {
@@ -84,7 +94,14 @@
     align-items: center;
     gap: 14px;
     margin: 0;
-    padding: 0;
+    /* The same block padding the heading carries. The header itself sets
+       --panel-head-padding-block to 0 in every theme and leaves the gutter to
+       its children, so actions with padding:0 sat flush against the header's
+       top and bottom edges while the text beside them was comfortably inset —
+       the buttons read as though they had been dropped in rather than laid
+       out. Inline stays 0: the header's own inline padding is the gutter, and
+       adding more would pull the buttons off the panel's right edge. */
+    padding: var(--panel-heading-padding-block) 0;
     list-style: none;
     color: var(--panel-action-fg);
 }
@@ -1126,6 +1143,44 @@ a.stat-tile:hover {
     align-content: start;
     gap: 10px 24px;
     padding: var(--panel-body-padding);
+}
+
+/* The show's background art behind the release metadata.
+   Present only when a source supplied one — most releases have none, so this is
+   a modifier rather than a default with an empty image.
+
+   The art is decoration, and the text over it has to stay readable on both
+   themes and on whatever colours the image happens to contain. So it is set on
+   a ::before at low opacity with a gradient masking it out towards the text
+   side, rather than as a background-image on the block itself: the panel keeps
+   its own background colour underneath, which is what the contrast was measured
+   against. aria-hidden is unnecessary — a ::before carries no accessible name. */
+.meta--backdropped {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+}
+
+.meta--backdropped::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image: var(--backdrop);
+    background-size: cover;
+    background-position: center 20%;
+    opacity: 0.14;
+    /* Fade out towards the left, where the poster and title sit. The image is
+       widescreen and the text is not, so an even wash put the busiest part of
+       the art directly under the title. */
+    -webkit-mask-image: linear-gradient(to left, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 72%);
+    mask-image: linear-gradient(to left, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 72%);
+}
+
+/* Readability is not negotiable, and a decorative image is the first thing to
+   go when a reader has asked for less. */
+@media (prefers-reduced-motion: reduce) {
+    .meta--backdropped::before { opacity: 0.08; }
 }
 
 .meta__poster-link { grid-area: poster; }

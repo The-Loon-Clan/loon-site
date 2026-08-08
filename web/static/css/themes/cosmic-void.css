@@ -125,6 +125,13 @@
     /* Density. Dense: UNIT3D's panel head is 7px tall padding, ours keeps the
        uppercase heading legible at 8px block / 12px inline. */
     --panel-head-padding-block: 0;
+    /* Every panel header is this tall whatever it carries, so panels
+       sitting side by side line up. The children supply the vertical
+       gutter (the padding above is 0), which made a header's height
+       depend on its contents: a heading alone against a heading with a
+       button differed by ~8px and the two panels' top edges did not
+       meet. Sized for a button plus the heading's block padding. */
+    --panel-head-min-height: 56px;
     --panel-head-padding-inline: var(--space-6);
     --panel-heading-padding-block: var(--space-4);
     --panel-heading-font-size: var(--fs-lg);

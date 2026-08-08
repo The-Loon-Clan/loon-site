@@ -844,6 +844,18 @@ func TestThemeFilesDeclareIdenticalTokenSets(t *testing.T) {
 // and checks it is declared by tokens.css or by EACH theme. Same silent-failure
 // mode as the parity test, approached from the consumer side: it catches a rule
 // that reads a token no theme ever defined.
+// setAtRenderTime lists custom properties a TEMPLATE supplies per request, so
+// no stylesheet can declare them and their absence here is correct rather than
+// a gap. Every entry carries its reason — an exception list without them is
+// where findings go to die (scripts/README.md makes the same argument for
+// audit_css.py's RUNTIME set).
+var setAtRenderTime = map[string]bool{
+	// release.html sets --backdrop to the show's background art, which is a
+	// different image for every release. A theme cannot know it, and a default
+	// would be an image chosen for all releases at once.
+	"--backdrop": true,
+}
+
 func TestEveryReferencedTokenResolves(t *testing.T) {
 	consumers := []string{
 		"web/static/css/layout.css",
@@ -877,7 +889,7 @@ func TestEveryReferencedTokenResolves(t *testing.T) {
 		}
 		themed := cssDeclaredTokens(string(b))
 		for _, r := range refs {
-			if structural[r.name] || themed[r.name] {
+			if structural[r.name] || themed[r.name] || setAtRenderTime[r.name] {
 				continue
 			}
 			t.Errorf("%s references %s, declared neither by tokens.css nor by theme %q",
