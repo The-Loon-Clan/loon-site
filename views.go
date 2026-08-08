@@ -94,6 +94,10 @@ type web struct {
 	catalog       pluginapi.Catalog       // taxonomy + names for /browse (filled after Boot)
 	catalogSink   pluginapi.CatalogSink   // scraper write side (filled after Boot)
 	catalogCovers pluginapi.CatalogCovers // release↔cover store (filled after Boot)
+	// covers downloads scraped art to local storage so the site serves it
+	// instead of hotlinking a provider CDN — see covercache_web.go. Built at
+	// construction, not after Boot: it depends on nothing but the upload volume.
+	covers *coverCache
 	rt            *core.Runtime           // plugin runtime, for the /admin/plugins page
 	// achievements answers where a member stands on every earnable badge.
 	// nil when the rewards plugin is absent, which renders the page's
@@ -158,10 +162,11 @@ var sharedPartials = map[string][]string{
 
 func newWeb(store users.Store, secret []byte, log *slog.Logger) *web {
 	w := &web{
-		store: store,
-		flow:  authflow.Flow{Users: store, Hasher: password.Hasher{}, DefaultRole: core.RoleUser, MinPasswordLen: minPasswordLen},
-		log:   log,
-		tmpls: map[string]*template.Template{},
+		store:  store,
+		flow:   authflow.Flow{Users: store, Hasher: password.Hasher{}, DefaultRole: core.RoleUser, MinPasswordLen: minPasswordLen},
+		log:    log,
+		tmpls:  map[string]*template.Template{},
+		covers: newCoverCache(),
 	}
 	// Session + current-user middleware from the baseline — the exact prod
 	// scheme (gin-contrib/sessions "mysession" cookie, login_at expiry). Resolve

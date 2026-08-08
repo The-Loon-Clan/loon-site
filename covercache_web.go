@@ -1,0 +1,188 @@
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"path"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/the-loon-clan/loon/blob"
+)
+
+// Cover art, downloaded and served from here rather than hotlinked.
+//
+// The scraper matches a release to a metadata entry and gets back a cover URL
+// on the provider's CDN — image.tmdb.org, static.tvmaze.com,
+// covers.openlibrary.org. Storing that URL is one line and costs nothing, and
+// it was what the site did. Three things are wrong with it:
+//
+//   - LINK ROT. A provider that re-paths or removes an image breaks it
+//     permanently and silently. Nothing re-checks a stored URL, so the failure
+//     surfaces as a broken image on a page nobody is looking at.
+//   - VISITOR PRIVACY. Every browse page told three third-party CDNs which
+//     releases each visitor was reading, from the visitor's own IP.
+//   - THEIR BANDWIDTH, OUR TRAFFIC. A popular listing page turns into a burst
+//     of requests against a free service that never agreed to serve them.
+//
+// So covers are fetched ONCE, stored under the mounted upload volume, and
+// served from this site. The provider is asked for each image a single time no
+// matter how many visitors see it.
+//
+// The remote URL is kept as the fallback: if a download fails the release still
+// gets its cover, hotlinked, rather than no cover at all. A partial local cache
+// is strictly better than an empty one.
+
+const (
+	// coverDir is the subdirectory under uploadRoot. Mounted (uploads:/data)
+	// and already served under uploadURL — see wiki_web.go for the pairing.
+	coverDir = "covers"
+	// maxCoverBytes bounds one download. Posters run 50-400 KB; 8 MB is far
+	// above anything legitimate and stops a hostile or broken endpoint from
+	// filling the volume. io.LimitReader enforces it during the read, so the
+	// bound holds whatever Content-Length claimed.
+	maxCoverBytes = 8 << 20
+	coverTimeout  = 30 * time.Second
+)
+
+// coverCache downloads cover art to local storage.
+type coverCache struct {
+	files  blob.Store
+	http   *http.Client
+	prefix string // public URL prefix the blob store reports under
+
+	// inflight collapses concurrent requests for the SAME url. The match job
+	// runs over a page of releases at a time and a season's worth of episodes
+	// share one poster, so without this a single image is fetched a dozen times
+	// in parallel — the exact burst this cache exists to prevent.
+	mu       sync.Mutex
+	inflight map[string]*coverFetch
+}
+
+type coverFetch struct {
+	done sync.WaitGroup
+	url  string
+	err  error
+}
+
+func newCoverCache() *coverCache {
+	return &coverCache{
+		files:    blob.NewLocal(uploadRoot, uploadURL),
+		http:     &http.Client{Timeout: coverTimeout},
+		prefix:   uploadURL,
+		inflight: map[string]*coverFetch{},
+	}
+}
+
+// localize returns a URL on THIS site for remote, downloading it on first
+// sight. On any failure it returns remote unchanged — a hotlinked cover beats
+// no cover, and the caller cannot tell the difference apart from the host.
+func (c *coverCache) localize(ctx context.Context, remote string) string {
+	if c == nil || remote == "" {
+		return remote
+	}
+	// Already ours (a re-run over a release that was cached earlier), or not
+	// something we can fetch.
+	if strings.HasPrefix(remote, c.prefix) {
+		return remote
+	}
+	u, err := url.Parse(remote)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return remote
+	}
+
+	name := coverName(remote)
+
+	// One fetch per URL, however many callers ask at once.
+	c.mu.Lock()
+	f, running := c.inflight[remote]
+	if !running {
+		f = &coverFetch{}
+		f.done.Add(1)
+		c.inflight[remote] = f
+	}
+	c.mu.Unlock()
+
+	if running {
+		f.done.Wait()
+		if f.err != nil {
+			return remote
+		}
+		return f.url
+	}
+
+	local, err := c.fetch(ctx, remote, name)
+	f.url, f.err = local, err
+	f.done.Done()
+
+	c.mu.Lock()
+	delete(c.inflight, remote)
+	c.mu.Unlock()
+
+	if err != nil {
+		return remote
+	}
+	return local
+}
+
+// fetch downloads one image and stores it, returning the local URL.
+func (c *coverCache) fetch(ctx context.Context, remote, name string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, remote, nil)
+	if err != nil {
+		return "", err
+	}
+	// Identify ourselves for the same reason the sources do: a free service
+	// blocks anonymous floods, and being identifiable is what lets them ask us
+	// to stop instead.
+	req.Header.Set("User-Agent", "loon-demo-site/1.0 (+cover cache)")
+	req.Header.Set("Accept", "image/*")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("cover fetch: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("cover fetch: status %d", resp.StatusCode)
+	}
+	// +1 so a file exactly at the cap is detected as over it rather than
+	// silently truncated into a corrupt image.
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxCoverBytes+1))
+	if err != nil {
+		return "", fmt.Errorf("cover read: %w", err)
+	}
+	if len(data) > maxCoverBytes {
+		return "", fmt.Errorf("cover too large (> %d bytes)", maxCoverBytes)
+	}
+	if len(data) == 0 {
+		return "", fmt.Errorf("cover empty")
+	}
+	// Sniff the CONTENT, never trust the URL's extension or the declared
+	// Content-Type: this writes a file the site then serves, and a provider
+	// answering an HTML error page with a .jpg path would otherwise be stored
+	// and served as an image.
+	mime, ext, err := blob.SniffImage(data)
+	if err != nil {
+		return "", fmt.Errorf("cover is not a usable image (%s): %w", mime, err)
+	}
+	return c.files.Save(ctx, path.Join(coverDir, name+ext), data)
+}
+
+// coverName is the stable on-disk name for a remote URL: the hash of the URL,
+// so the same image downloads once and re-running a match is idempotent.
+//
+// Hashed rather than derived from the remote path because provider paths
+// collide by design — TVmaze serves every poster from
+// "…/original_untouched/<n>/<n>.jpg" and TMDB's are bare ids, so two providers
+// meet in the same filename sooner than is comfortable. The URL is the
+// identity.
+func coverName(remote string) string {
+	sum := sha256.Sum256([]byte(remote))
+	return hex.EncodeToString(sum[:12])
+}

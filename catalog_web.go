@@ -24,6 +24,11 @@ func (l lazySink) Upsert(ctx context.Context, e catalog.CatalogEntry) error {
 	if l.w.catalogSink == nil {
 		return nil
 	}
+	// Pull the art down before storing the entry, so the catalogue holds a URL
+	// on this site rather than one on the provider's CDN. See covercache_web.go
+	// — on failure this returns the remote URL unchanged, and a hotlinked cover
+	// beats no cover.
+	e.CoverURL = l.w.covers.localize(ctx, e.CoverURL)
 	return l.w.catalogSink.Upsert(ctx, e)
 }
 
@@ -44,11 +49,17 @@ func (w *web) catalogCandidates(ctx context.Context) ([]scraper.Candidate, error
 }
 
 // linkCover records a matched cover for a release (read back on the release page).
+//
+// The image is downloaded and re-pointed at this site first — see
+// covercache_web.go for why hotlinking was not good enough. Same call as the
+// sink above, and it is cheap to repeat: the second caller for a URL waits on
+// the first rather than fetching again, and a URL already stored locally is
+// returned untouched.
 func (w *web) linkCover(ctx context.Context, releaseID int64, coverURL string) error {
 	if w.catalogCovers == nil {
 		return nil
 	}
-	return w.catalogCovers.SetReleaseCover(ctx, releaseID, coverURL)
+	return w.catalogCovers.SetReleaseCover(ctx, releaseID, w.covers.localize(ctx, coverURL))
 }
 
 // ── cover art for a whole page of releases ──────────────────────────
