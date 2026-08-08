@@ -353,7 +353,13 @@ func TestChromeLinksAreServed(t *testing.T) {
 		"/settings/security": true,
 		"/login":             true, "/logout": true, "/register": true, "/forgot": true,
 		"/admin/settings": true, "/verify/resend": true,
-		// Staff-only, and linked from the account menu for RoleMod.
+		// The admin dashboard: the account dropdown's single staff door for an
+		// admin, and the landing page whose subnav names every queue and tool.
+		// See docs/NAVIGATION.md.
+		"/admin": true,
+		// The dropdown's staff door for a MODERATOR, who cannot be sent to
+		// /admin (it gates at RoleAdmin) and so lands on the one queue they can
+		// reach.
 		"/moderation/avatars": true,
 		// Member-facing: the community votes here.
 		"/moderation": true,
