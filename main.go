@@ -637,9 +637,15 @@ func main() {
 	// here is idle until an operator goes and gets a key, which meant the
 	// enrichment path had no way to be tested at all without one.
 	_ = reg.RegisterSource(openlibrary.New(""))
+	var sourceDomains []string
 	for _, s := range reg.Sources() {
 		logger.Info("catalog source registered", "domain", s.Domain().Key, "priority", s.Domain().Priority)
+		sourceDomains = append(sourceDomains, s.Domain().Key)
 	}
+	// Credit them in the footer. A licence condition for TVmaze (CC BY-SA 4.0)
+	// and TMDB (its required disclaimer), and built from what actually
+	// registered — see credits_web.go.
+	setSourceCredits(sourceDomains)
 	if err := c.Register(catalog.RegistryExtension, reg); err != nil {
 		logger.Error("register catalog registry", "err", err)
 		os.Exit(1)

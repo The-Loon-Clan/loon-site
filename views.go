@@ -1002,6 +1002,11 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// donationsEnabled is the env flag; donateToggle is the admin switch. Both,
 	// same as IsDonateEnabled — see donations_web.go.
 	data["DonateEnabled"] = donationsEnabled && donateToggle.Load()
+	// Metadata-source attribution. A licence condition for TVmaze and TMDB, not
+	// decoration — see credits_web.go. Empty until a source registers, so a
+	// deployment with none credits nobody rather than claiming a provenance it
+	// does not have.
+	data["SourceCredits"] = sourceCredits()
 	data["Path"] = c.Request.URL.Path
 	// The account area as a BAR, beside the breadcrumb — see sectionnav_web.go.
 	// Nil off the account area, which is the template's guard. The avatar menu

@@ -589,6 +589,17 @@
                     <span class="top-nav__wordmark">loon<span>indexer</span></span>
                 </div>
                 <p class="footer__tagline">A demonstration Usenet indexer built on the loon framework: NNTP crawling, a Newznab API and a plugin ecosystem, with the last few days of Usenet indexed.</p>
+                {{/* Metadata-source attribution. A CONDITION of use, not a
+                     courtesy: TVmaze publishes under CC BY-SA 4.0, which asks
+                     to be credited as the source, and TMDB requires its own
+                     disclaimer. Built from the sources that actually
+                     registered (credits_web.go), so a deployment never thanks
+                     a provider whose data it does not carry. */}}
+                {{with .SourceCredits}}
+                <p class="footer__tagline text-muted small">
+                    {{range $i, $c := .}}{{if $i}} · {{end}}<a href="{{$c.URL}}" rel="noopener">{{$c.Text}}</a>{{end}}
+                </p>
+                {{end}}
             </section>
 
             <section class="footer__section">
