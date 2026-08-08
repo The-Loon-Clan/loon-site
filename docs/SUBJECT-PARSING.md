@@ -9,10 +9,11 @@ Everything here is from production rows. The earlier analysis in
 **wrong about the mechanism** — worth stating plainly, because the wrong version
 is what a reader would otherwise carry forward.
 
-> **Nothing is fixed yet.** This is the evidence and the case. The fix changes
-> staging for every multi-volume post on a live indexer, and the last change to
-> this parser shipped two regressions, so it should be a deliberate decision
-> made against these numbers.
+> **Fixed 8 Aug 2026** — loon-plugins `b6cedb6`, deployed with the paired
+> staging DELETE (89,521 + 9,403 rows) and manual removal of the 11 fragment
+> releases. This document remains the evidence the fix was decided against;
+> the review and deploy record are in
+> [SUBJECT-PARSING-REVIEW.md](SUBJECT-PARSING-REVIEW.md).
 
 > **Reviewed 8 Aug — two corrections, both mine.** (1) §2's headline example
 > was misattributed: the Superboys articles carry **no `yEnc` at all** — they

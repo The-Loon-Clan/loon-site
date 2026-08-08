@@ -15,6 +15,19 @@ runs, counts move; every claim below names its own snapshot).
 **The rule is right, the prose was wrong twice, and the change must not ship
 alone.**
 
+> **Shipped 8 Aug 2026.** loon-plugins `b6cedb6` implements the composed rule
+> (Appendix); the shipped function was re-diffed against the validated
+> candidate over all 6,989,483 subjects at **zero differences**, and the full
+> plugin test suite passes with the two pins rewritten and six new fixture
+> families added. Deploy followed this document's checklist: new binary
+> first, then the two DELETEs (**89,521** yEnc-arm rows — grown from 73,304
+> while the old binary kept staging — and **9,403** no-yEnc rows, zero
+> stranded siblings both times), then manual deletion of the **11** fragment
+> releases (six Superboys, five Diplomat), which the operator had first
+> verified against a real newsreader: none contained usable data. The
+> optional group-reset re-crawl was NOT run; the affected historical posts
+> index correctly only if the backfill re-reaches them.
+
 1. The §7 rule — *counters on both sides of `yEnc`: after is the segment
    counter, before is the file counter* — is confirmed with **zero
    counter-examples** in the entire index, by three independent methods.
