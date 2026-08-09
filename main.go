@@ -59,7 +59,6 @@ import (
 	"github.com/the-loon-clan/loon-plugins/dailyreward"
 	_ "github.com/the-loon-clan/loon-plugins/hitrun"
 	_ "github.com/the-loon-clan/loon-plugins/perks"
-	_ "github.com/the-loon-clan/loon-plugins/seedlock"
 
 	// forum is imported (and its init runs) via forum_web.go's SetDeps wiring.
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
@@ -621,6 +620,10 @@ func main() {
 	// Perks wallet seams (hitrun_web.go). The plugin registers its own tracker
 	// multiplier, so this is only the page a member spends a token on.
 	wirePerksPlugin(wsrv)
+
+	// Seed-lock claims page (hitrun_web.go). The plugin installs its own
+	// announce guard; this is the page its refusal message points at.
+	wireSeedLockPlugin(wsrv)
 
 	// Tracker plugin seams (tracker_web.go). Always wired, even when the
 	// tracker is off: SetDeps runs before Boot and the plugin decides for

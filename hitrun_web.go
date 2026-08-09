@@ -14,6 +14,7 @@ import (
 
 	"github.com/the-loon-clan/loon-plugins/hitrun"
 	"github.com/the-loon-clan/loon-plugins/perks"
+	"github.com/the-loon-clan/loon-plugins/seedlock"
 	"github.com/the-loon-clan/loon/core"
 )
 
@@ -226,4 +227,18 @@ func wirePerksPlugin(w *web) {
 func seedLockEnabled() bool {
 	v := os.Getenv("LOON_DEMO_SEEDLOCK")
 	return v == "1" || v == "true" || v == "yes"
+}
+
+// wireSeedLockPlugin installs the claims page's seams.
+//
+// Not optional in practice: the refusal a torrent client shows tells members to
+// "clear the lock on the site", so a host that arms the rule without this sends
+// them looking for a page that does not exist.
+func wireSeedLockPlugin(w *web) {
+	seedlock.SetDeps(seedlock.Deps{
+		RenderPage: func(gc *gin.Context, title string, body template.HTML) {
+			w.render(gc, "site_page.html", map[string]any{"Title": title, "Fragment": body})
+		},
+		CSRFToken: csrfToken,
+	})
 }
