@@ -71,6 +71,20 @@ var externalSites = []struct {
 	{"anidb", "AniDB", func(_, id string) string {
 		return "https://anidb.net/anime/" + url.PathEscape(id)
 	}},
+	{"letterboxd", "Letterboxd", func(_, id string) string {
+		// The /tmdb/ route, because the id here IS a TMDB id — see
+		// buildExternalLinks. letterboxd.com/film/<number>/ 404s; that route
+		// wants the slug, which Wikidata does not carry.
+		return "https://letterboxd.com/tmdb/" + url.PathEscape(id) + "/"
+	}},
+	{"rottentomatoes", "Rotten Tomatoes", func(_, id string) string {
+		// Wikidata stores this WITH its section prefix ("m/matrix"), so the
+		// path is the id — do not escape the slash out of it.
+		return "https://www.rottentomatoes.com/" + id
+	}},
+	{"metacritic", "Metacritic", func(_, id string) string {
+		return "https://www.metacritic.com/" + id
+	}},
 	{"wikidata", "Wikidata", func(_, id string) string {
 		return "https://www.wikidata.org/wiki/" + url.PathEscape(id)
 	}},
@@ -139,6 +153,20 @@ func (w *web) releaseExternals(ctx context.Context, coverURL string) []externalL
 // buildExternalLinks turns a namespace→id map into ordered buttons. Split from
 // the query so the ordering and URL shapes are testable without a database.
 func buildExternalLinks(kind string, ids map[string]string) []externalLink {
+	// Letterboxd is DERIVED, not stored. Wikidata's Letterboxd property is a
+	// bare number that its /film/ route rejects, but /tmdb/<id>/ resolves for
+	// every film — so the button is built from the TMDB id when there is one.
+	// Films only: Letterboxd does not catalogue television.
+	if kind == "movie" && ids["letterboxd"] == "" && ids["tmdb"] != "" {
+		// Copy first: callers own the map they passed, and silently growing it
+		// would surprise anyone who reads it afterwards.
+		copied := make(map[string]string, len(ids)+1)
+		for k, v := range ids {
+			copied[k] = v
+		}
+		copied["letterboxd"] = ids["tmdb"]
+		ids = copied
+	}
 	out := make([]externalLink, 0, len(ids))
 	for _, site := range externalSites {
 		id, ok := ids[site.Namespace]
