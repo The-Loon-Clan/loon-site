@@ -2,10 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
+	"github.com/lib/pq"
+
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/tvmaze"
+	"github.com/the-loon-clan/loon-plugins/scraper/sources/wikipedia"
 	"github.com/the-loon-clan/loon/catalog"
 )
 
@@ -31,10 +35,62 @@ import (
 // request; the limit here is politeness to the database, not to a provider.
 const localLinkBatch = 5000
 
-// localLinkCursorKey is this sweep's own position. Its own, not shared with
-// the match sweep: they cover the same table at different speeds, and one
-// cursor would make each skip whatever the other had just passed.
-const localLinkCursorKey = "catalog_local_link_cursor"
+// linkSpec is one kind of release this pass knows how to place: which
+// top-level category it reads, which catalog kind it looks the release up in,
+// its own sweep position, and how a release name reduces to the entry title.
+//
+// Two of them rather than one generic pass, because the reduction differs. A
+// series name is what survives after the season/episode marker; a film name is
+// what survives after the year — and the ENTRY side differs too, since
+// Wikipedia disambiguates film articles and TVmaze does not.
+type linkSpec struct {
+	topCat    int
+	kind      string
+	cursorKey string
+	// keys returns the entry titles that would satisfy this release, already
+	// normalised, most specific first. More than one because Wikipedia titles
+	// carry a qualifier — see movieKeys.
+	keys func(releaseTitle string) []string
+}
+
+func linkSpecs() []linkSpec {
+	return []linkSpec{
+		{topCat: 5, kind: "tv", cursorKey: "catalog_local_link_cursor", keys: seriesKeys},
+		{topCat: 2, kind: "movie", cursorKey: "catalog_local_link_movie_cursor", keys: movieKeys},
+	}
+}
+
+// seriesKeys reduces a TV release name to its series.
+func seriesKeys(releaseTitle string) []string {
+	norm := catalog.DefaultNormalize(tvmaze.ParseReleaseName(releaseTitle).Title)
+	if norm == "" {
+		return nil
+	}
+	return []string{norm}
+}
+
+// movieKeys reduces a film release name to the ways Wikipedia might have
+// titled its article.
+//
+// Wikipedia disambiguates: 321 of the 1,029 film entries here are stored as
+// "Aquaman (film)" or "Dhoom Dhaam (2025 film)" rather than the bare name, so
+// a release parsing to "aquaman" matches none of them on equality alone.
+//
+// The forms are ENUMERATED and matched exactly rather than approached with a
+// prefix or a LIKE, because "the crow" is a prefix of "the crow salvation" —
+// a different film, and a wrong poster is worse than no poster.
+func movieKeys(releaseTitle string) []string {
+	q := wikipedia.ParseReleaseName(releaseTitle)
+	norm := catalog.DefaultNormalize(q.Title)
+	if norm == "" {
+		return nil
+	}
+	keys := []string{norm, norm + " film"}
+	if q.Year > 0 {
+		keys = append(keys, fmt.Sprintf("%s %d film", norm, q.Year))
+	}
+	return keys
+}
 
 // linkFromCatalog gives cover art to releases whose SERIES is already known,
 // and returns how many it linked.
@@ -45,11 +101,33 @@ const localLinkCursorKey = "catalog_local_link_cursor"
 // episode identity plus packaging — and that reduction is the source's own
 // ParseReleaseName, not a second guess at it: matching on anything else would
 // hand a release the poster of a show it merely resembles.
+// linkFromCatalog runs every spec and returns how many releases it placed.
 func (w *web) linkFromCatalog(ctx context.Context) (int, error) {
+	total := 0
+	for _, spec := range linkSpecs() {
+		n, err := w.linkOneKind(ctx, spec)
+		total += n
+		if err != nil {
+			return total, err
+		}
+	}
+	return total, nil
+}
+
+// linkOneKind gives cover art to releases of one kind whose title is already
+// known, and returns how many it linked.
+//
+// The join is on the normalised title, which is what catalog_entry already
+// indexes (norm_title, written by DefaultNormalize). The release side has to be
+// reduced to the same thing, and that reduction is the SOURCE's own
+// ParseReleaseName rather than a second guess at it: the entry on the other
+// side was created from that function's output, so a separate reduction would
+// drift, and the failure mode is a release wearing another title's poster.
+func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 	if usersDB == nil || w.catalogCovers == nil {
 		return 0, nil
 	}
-	cursor, err := w.sweepCursor(ctx, localLinkCursorKey)
+	cursor, err := w.sweepCursor(ctx, spec.cursorKey)
 	if err != nil {
 		return 0, err
 	}
@@ -64,10 +142,10 @@ func (w *web) linkFromCatalog(ctx context.Context) (int, error) {
 		   FROM usenet.nzbs n
 		   LEFT JOIN catalog.release_cover rc ON rc.release_id = n.id
 		  WHERE rc.release_id IS NULL
-		    AND n.category_id / 1000 = 5
-		    AND n.id < $1::bigint
+		    AND n.category_id / 1000 = $1
+		    AND n.id < $2::bigint
 		  ORDER BY n.id DESC
-		  LIMIT $2`, cursor, localLinkBatch)
+		  LIMIT $3`, spec.topCat, cursor, localLinkBatch)
 	if err != nil {
 		return 0, err
 	}
@@ -92,12 +170,12 @@ func (w *web) linkFromCatalog(ctx context.Context) (int, error) {
 	// Advance before doing the work, and wrap on a short page — the releases
 	// this pass cannot link are exactly the ones that would otherwise hold the
 	// window forever. The wrap brings them round again later, which is what
-	// picks them up once the match job has learned their series.
+	// picks them up once the match job has learned their title.
 	var lowest int64
 	if len(pending) > 0 {
 		lowest = pending[len(pending)-1].id
 	}
-	if err := w.setSweepCursor(ctx, localLinkCursorKey,
+	if err := w.setSweepCursor(ctx, spec.cursorKey,
 		nextCandidateCursor(len(pending), localLinkBatch, lowest)); err != nil {
 		return 0, err
 	}
@@ -107,22 +185,17 @@ func (w *web) linkFromCatalog(ctx context.Context) (int, error) {
 		if ctx.Err() != nil {
 			return linked, ctx.Err()
 		}
-		series := tvmaze.ParseReleaseName(c.title).Title
-		if series == "" {
-			continue
-		}
-		norm := catalog.DefaultNormalize(series)
-		if norm == "" {
+		keys := spec.keys(c.title)
+		if len(keys) == 0 {
 			continue
 		}
 		var coverURL string
-		// kind='tv' because a film and a series can share a name, and the
-		// release is already categorised as television by the caller's filter.
-		// Newest entry wins, matching releaseArt's tie-break.
+		// Exact match on any acceptable form — never a prefix. Newest entry
+		// wins, matching releaseArt's tie-break.
 		err := usersDB.QueryRowContext(ctx,
 			`SELECT cover_url FROM catalog.catalog_entry
-			  WHERE kind = 'tv' AND norm_title = $1 AND cover_url <> ''
-			  ORDER BY updated_at DESC LIMIT 1`, norm).Scan(&coverURL)
+			  WHERE kind = $1 AND norm_title = ANY($2) AND cover_url <> ''
+			  ORDER BY updated_at DESC LIMIT 1`, spec.kind, pq.Array(keys)).Scan(&coverURL)
 		if err != nil || coverURL == "" {
 			continue
 		}
