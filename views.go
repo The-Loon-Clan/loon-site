@@ -907,6 +907,26 @@ func (w *web) profilePage(c *gin.Context) {
 	if t, ok := lastSeenAt(ctx, usersDB, subject.ID); ok {
 		data["SubjectLastSeen"], data["HasSubjectLastSeen"] = t, true
 	}
+	// The subject's tracker standing, which is public on a private tracker for
+	// the reason ratio exists at all: it is the thing members are accountable
+	// to each other for.
+	//
+	// SubjectTracker*, not TrackerUp — chromeData sets the VIEWER's figures
+	// under those names on every page, so an unprefixed key here would be
+	// overwritten on the way out and every profile would show your OWN ratio.
+	// The same trap the Subject prefixes above exist for.
+	//
+	// Reached only after the private gate, so a member who has hidden their
+	// profile hides this with it.
+	if tt, ok := readTrackerTotals(ctx, usersDB, subject.ID); ok {
+		data["HasSubjectTracker"] = true
+		data["SubjectTrackerUp"] = humanBytes(tt.Uploaded)
+		data["SubjectTrackerDown"] = humanBytes(tt.Downloaded)
+		data["SubjectTrackerRatio"] = tt.RatioLabel()
+		data["SubjectTrackerSeeding"] = tt.Seeding
+		data["SubjectTrackerLeeching"] = tt.Leeching
+		data["SubjectTrackerSnatched"] = tt.Snatched
+	}
 	// The follow button is for a signed-in viewer looking at SOMEONE ELSE.
 	if viewer != nil && viewer.ID != subject.ID {
 		data["CanFollow"] = true
@@ -983,6 +1003,23 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 				data["Points"] = bal
 				data["HasPoints"] = true
 			}
+		}
+		// The tracker's ratio bar, in the slot UNIT3D puts it in. Guarded on
+		// HasTracker for the same reason as HasPoints just above: a template
+		// cannot tell an absent key from a zero one, and "0.00" is a real
+		// standing that a member who has announced should see.
+		//
+		// Absent entirely when the tracker is off, so a host running without it
+		// renders exactly the chrome it did before and pays for no query — the
+		// gate is inside readTrackerTotals rather than here, so every caller
+		// gets it rather than each one remembering.
+		if tt, ok := readTrackerTotals(c.Request.Context(), usersDB, u.ID); ok {
+			data["HasTracker"] = true
+			data["TrackerUp"] = humanBytes(tt.Uploaded)
+			data["TrackerDown"] = humanBytes(tt.Downloaded)
+			data["TrackerRatio"] = tt.RatioLabel()
+			data["TrackerSeeding"] = tt.Seeding
+			data["TrackerLeeching"] = tt.Leeching
 		}
 		// unverified-email banner: look up the full record (core.User omits the flag)
 		if w.store != nil {

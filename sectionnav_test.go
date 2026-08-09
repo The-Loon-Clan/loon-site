@@ -371,6 +371,12 @@ func TestChromeLinksAreServed(t *testing.T) {
 		// Rendered only while .DonateEnabled, which is the env flag AND the
 		// admin toggle — but when it renders, it has to resolve.
 		"/help/donate": true,
+		// The tracker plugin's own index, linked from the top bar's ratio
+		// figures. Served by the plugin rather than the host, and mounted only
+		// when LOON_DEMO_TRACKER is set — which is exactly the condition under
+		// which the figures render at all (chromeData -> readTrackerTotals), so
+		// the link and the route appear and disappear together.
+		"/tracker": true,
 	}
 	// Skip anything with template syntax in it (/u/{{...}}), a query or a
 	// fragment — those are not paths this list can speak about.

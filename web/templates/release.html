@@ -182,6 +182,33 @@
                 </dl>
             </div>
         </section>
+        {{/* The swarm, present only when this release also exists as a torrent
+             on the tracker AND the tracker is switched on. $ because the
+             surrounding scope is .Release and the swarm is not part of it —
+             a release knows nothing about torrents, which is the point.
+
+             A release with no torrent renders NO panel rather than a panel of
+             zeroes: "0 seeders" says the torrent is dead, which is a different
+             and much worse claim than "there is no torrent". */}}
+        {{with $.Swarm}}
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>Tracker</h2>
+            </header>
+            <div class="panel__body panel__body--flush">
+                <dl class="key-value">
+                    <div class="key-value__group"><dt>Seeders</dt><dd>{{.Seeders}}</dd></div>
+                    <div class="key-value__group"><dt>Leechers</dt><dd>{{.Leechers}}</dd></div>
+                    <div class="key-value__group"><dt>Snatches</dt><dd>{{.Snatches}}</dd></div>
+                </dl>
+            </div>
+            <div class="panel__body">
+                <a class="button button--sm" href="/tracker/download/{{.InfoHash}}">
+                    <svg class="icon" aria-hidden="true"><use href="#download"></use></svg>Download torrent
+                </a>
+            </div>
+        </section>
+        {{end}}
     </aside>
 </div>
 {{end}}{{end}}

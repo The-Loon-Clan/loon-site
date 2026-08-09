@@ -145,6 +145,39 @@
         </section>
         {{end}}
 
+        {{/* Tracker standing. Its own panel rather than rows in Stats, because
+             it is one connected story — a ratio only means anything beside the
+             two figures it comes from — and because Stats is guarded on its own
+             list of Has* keys that a tracker row would have to be added to.
+
+             Absent unless the tracker is on AND this member has announced, so a
+             site without one, or a member who has never used it, sees the
+             profile exactly as it was.
+
+             These are the SUBJECT's figures. See views.go for why the keys are
+             prefixed: chromeData writes the viewer's own standing under the
+             unprefixed names on every page. */}}
+        {{if .HasSubjectTracker}}
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#shield"></use></svg>
+                    Tracker
+                </h2>
+            </header>
+            <div class="panel__body">
+                <dl class="key-value">
+                    <div class="key-value__group"><dt>Uploaded</dt><dd>{{.SubjectTrackerUp}}</dd></div>
+                    <div class="key-value__group"><dt>Downloaded</dt><dd>{{.SubjectTrackerDown}}</dd></div>
+                    <div class="key-value__group"><dt>Ratio</dt><dd>{{.SubjectTrackerRatio}}</dd></div>
+                    <div class="key-value__group"><dt>Seeding</dt><dd>{{.SubjectTrackerSeeding}}</dd></div>
+                    <div class="key-value__group"><dt>Leeching</dt><dd>{{.SubjectTrackerLeeching}}</dd></div>
+                    <div class="key-value__group"><dt>Snatched</dt><dd>{{.SubjectTrackerSnatched}}</dd></div>
+                </dl>
+            </div>
+        </section>
+        {{end}}
+
         {{/* Yours alone, so it is its own box rather than rows mixed in with
              the subject's — on someone else's profile these simply are not
              there, and a reader should not have to work out which figures are

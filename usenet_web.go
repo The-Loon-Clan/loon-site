@@ -160,6 +160,13 @@ func (w *web) releasePage(c *gin.Context) {
 			}
 		}
 	}
+	// The swarm, when this release also exists as a torrent on the tracker.
+	// Absent for a release that has none — which is nearly all of them — so the
+	// page shows a swarm or says nothing, never "0 seeders", which reads as a
+	// dead torrent rather than no torrent.
+	if sw, okSwarm := readTrackerSwarm(c.Request.Context(), usersDB, id); okSwarm {
+		data["Swarm"] = sw
+	}
 	// Bookmarked is set ONLY for a signed-in viewer, so the button is absent
 	// rather than rendered in a false "not saved" state for anonymous readers.
 	if u, okUser := w.currentUser(c); okUser && u != nil {
