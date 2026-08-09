@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"math"
+	"strconv"
 	"time"
 
 	"github.com/the-loon-clan/loon/catalog"
@@ -44,20 +46,108 @@ func (l lazySink) Upsert(ctx context.Context, e catalog.CatalogEntry) error {
 	return l.w.catalogSink.Upsert(ctx, e)
 }
 
-// catalogCandidates yields recent releases for the scraper's Catalog Match job.
+// candidateCursorKey remembers how far down the index the match sweep has got.
+const candidateCursorKey = "catalog_match_cursor"
+
+// candidateBatch is how many releases one Catalog Match run considers.
+//
+// Sized against the throttle rather than the database. A batch is mostly cache
+// hits — 87,768 TV releases share 6,797 series — so 1,000 releases costs a few
+// hundred lookups at 600ms, a handful of minutes per hourly run. Raising it
+// mainly lengthens one run; it does not cover the index faster than the
+// sources will answer.
+const candidateBatch = 1000
+
+// catalogCandidates yields releases for the scraper's Catalog Match job.
+//
+// This used to be Browse(ctx, "", 200) — the newest 200 releases, every run,
+// forever. It re-asked the same questions each hour and never looked below
+// that window, which is why 739 of 116,493 releases had cover art: 0.63%.
+// Everything built on catalog data (posters, backdrops, the external-database
+// buttons) inherited that ceiling.
+//
+// So: releases with no cover yet, walking DOWN a cursor through the whole
+// index and wrapping at the bottom.
+//
+// The cursor is the part that matters. "Releases with no cover" alone looks
+// sufficient and is not: a release that CANNOT be matched never gets a cover,
+// so it qualifies again on the next run, and the sweep jams against the first
+// batch of unmatchable titles and never reaches the rest of the index. The
+// cursor steps past them; the wrap brings them round again later, which is
+// what retries a title that failed only because a source was down.
 func (w *web) catalogCandidates(ctx context.Context) ([]scraper.Candidate, error) {
-	if w.usenet == nil {
+	if usersDB == nil {
 		return nil, nil
 	}
-	rs, err := w.usenet.Browse(ctx, "", 200)
+	cursor, err := w.candidateCursor(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]scraper.Candidate, 0, len(rs))
-	for _, r := range rs {
-		out = append(out, scraper.Candidate{ID: r.ID, Title: r.Title, Category: r.CategoryID})
+	rows, err := usersDB.QueryContext(ctx,
+		`SELECT n.id, n.title, n.category_id
+		   FROM usenet.nzbs n
+		   LEFT JOIN catalog.release_cover rc ON rc.release_id = n.id
+		  WHERE rc.release_id IS NULL AND n.id < $1
+		  ORDER BY n.id DESC
+		  LIMIT $2`, cursor, candidateBatch)
+	if err != nil {
+		return nil, err
 	}
+	defer rows.Close()
+
+	out := make([]scraper.Candidate, 0, candidateBatch)
+	var lowest int64
+	for rows.Next() {
+		var c scraper.Candidate
+		if err := rows.Scan(&c.ID, &c.Title, &c.Category); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+		lowest = c.ID
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	_ = w.setCandidateCursor(ctx, nextCandidateCursor(len(out), candidateBatch, lowest))
 	return out, nil
+}
+
+// nextCandidateCursor decides where the next sweep starts.
+//
+// A full page means there is more below: carry on from the lowest id seen. A
+// short page means the bottom of the index, so wrap to 0 — the next run starts
+// at the newest again and picks up whatever arrived meanwhile, and brings the
+// unmatchable titles round for another try.
+func nextCandidateCursor(returned, batch int, lowest int64) int64 {
+	if returned < batch {
+		return 0
+	}
+	return lowest
+}
+
+// candidateCursor reads the sweep position. Zero — unset, or just wrapped —
+// means "start at the top", expressed as an id above any real one.
+func (w *web) candidateCursor(ctx context.Context) (int64, error) {
+	var v sql.NullString
+	err := usersDB.QueryRowContext(ctx,
+		`SELECT value FROM site_settings WHERE key = $1`, candidateCursorKey).Scan(&v)
+	if err != nil && err != sql.ErrNoRows {
+		return 0, err
+	}
+	n, _ := strconv.ParseInt(v.String, 10, 64)
+	if n <= 0 {
+		return math.MaxInt64, nil
+	}
+	return n, nil
+}
+
+func (w *web) setCandidateCursor(ctx context.Context, id int64) error {
+	_, err := usersDB.ExecContext(ctx,
+		`INSERT INTO site_settings (key, value) VALUES ($1, $2)
+		 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+		candidateCursorKey, strconv.FormatInt(id, 10))
+	return err
 }
 
 // linkCover records a matched cover for a release (read back on the release page).
