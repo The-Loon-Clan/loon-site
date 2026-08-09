@@ -51,12 +51,25 @@ const candidateCursorKey = "catalog_match_cursor"
 
 // candidateBatch is how many releases one Catalog Match run considers.
 //
-// Sized against the throttle rather than the database. A batch is mostly cache
-// hits — 87,768 TV releases share 6,797 series — so 1,000 releases costs a few
-// hundred lookups at 600ms, a handful of minutes per hourly run. Raising it
-// mainly lengthens one run; it does not cover the index faster than the
-// sources will answer.
-const candidateBatch = 1000
+// Timed rather than guessed, and the timing overturned the obvious answer. A
+// run of 1,000 took over 55 minutes against an hourly interval, which looks
+// like an argument for a SMALLER batch — until you read ServiceLoop: it runs
+// the tick to completion and THEN sleeps the interval. Runs cannot overlap,
+// and the 60 minutes is idle time between them.
+//
+// So the sleep is a fixed cost amortised over whatever the batch is:
+//
+//	1,000 →  ~55m work + 60m idle = 1,000 per 115m  ≈  8.7/min
+//	3,000 → ~165m work + 60m idle = 3,000 per 225m  ≈ 13.3/min
+//
+// The REQUEST rate is identical either way — the sources' own throttles set
+// that — so a larger batch is not less polite, just less idle.
+//
+// Not larger still: the cursor advances when candidates are fetched, so a
+// process restart skips a batch until the sweep wraps, and a very long run
+// makes that skip proportionally worse. 3,000 takes most of the gain and
+// keeps that window survivable.
+const candidateBatch = 3000
 
 // catalogCandidates yields releases for the scraper's Catalog Match job.
 //
