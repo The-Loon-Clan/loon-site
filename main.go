@@ -57,6 +57,7 @@ import (
 	"github.com/the-loon-clan/loon-plugins/backups"
 	_ "github.com/the-loon-clan/loon-plugins/catalog"
 	"github.com/the-loon-clan/loon-plugins/dailyreward"
+	_ "github.com/the-loon-clan/loon-plugins/hitrun"
 	// forum is imported (and its init runs) via forum_web.go's SetDeps wiring.
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	_ "github.com/the-loon-clan/loon-plugins/pointstore"
@@ -347,6 +348,12 @@ func main() {
 	// because it has to know who you are, and after maintenance so a site in
 	// maintenance says so rather than bouncing you to a login you cannot use.
 	engine.Use(wsrv.requireLoginMiddleware())
+	// Hit-and-run enforcement (hitrun_web.go). Installed HERE, before the
+	// plugins mount, because gin applies middleware to routes registered after
+	// it — and the tracker's download route is registered during core.Boot,
+	// further down. It matches one path prefix and lets everything else past
+	// untouched.
+	engine.Use(enforceHitRunBlock(wsrv))
 	wsrv.mount(engine)
 
 	// Hand loon the session policy through the baseline's core.Auth adapter.
@@ -485,6 +492,11 @@ func main() {
 				"enabled":  trackerEnabled(),
 				"site_url": trackerSiteURL(),
 			},
+			// Hit-and-run rules over the tracker's accounting. Built from the
+			// SAME struct the host's blocking middleware reads, so the job that
+			// warns a member and the page that stops them downloading cannot
+			// disagree about the limit — see hitrun_web.go.
+			"hitrun": hitRunConfig(),
 		}),
 		// prefFiltered enforces per-kind notification preferences at the ONE
 		// entry point every plugin's Notify goes through — see settings_web.go.
@@ -583,6 +595,11 @@ func main() {
 		logger.Error("messages wiring", "err", err)
 		os.Exit(1)
 	}
+
+	// Hit-and-run seams (hitrun_web.go). Messages only: the plugin detects,
+	// the host punishes, and the punishing half is the middleware installed
+	// further down.
+	wireHitRunPlugin(c, logger)
 
 	// Tracker plugin seams (tracker_web.go). Always wired, even when the
 	// tracker is off: SetDeps runs before Boot and the plugin decides for
