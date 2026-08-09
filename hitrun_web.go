@@ -216,3 +216,14 @@ func wirePerksPlugin(w *web) {
 		CSRFToken: csrfToken,
 	})
 }
+
+// seedLockEnabled reports whether the operator asked for the one-host rule.
+//
+// Its own flag rather than riding on the tracker's: a site may well want a
+// tracker without telling members which machine they may seed from, and the
+// failure mode here — somebody locked out of their own torrent — deserves to be
+// switched on deliberately.
+func seedLockEnabled() bool {
+	v := os.Getenv("LOON_DEMO_SEEDLOCK")
+	return v == "1" || v == "true" || v == "yes"
+}

@@ -58,6 +58,8 @@ import (
 	_ "github.com/the-loon-clan/loon-plugins/catalog"
 	"github.com/the-loon-clan/loon-plugins/dailyreward"
 	_ "github.com/the-loon-clan/loon-plugins/hitrun"
+	_ "github.com/the-loon-clan/loon-plugins/perks"
+	_ "github.com/the-loon-clan/loon-plugins/seedlock"
 
 	// forum is imported (and its init runs) via forum_web.go's SetDeps wiring.
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
@@ -503,6 +505,15 @@ func main() {
 			// warns a member and the page that stops them downloading cannot
 			// disagree about the limit — see hitrun_web.go.
 			"hitrun": hitRunConfig(),
+			// One host per torrent per member. OFF by default like the rest of
+			// the rules that can refuse somebody something, and it needs Redis
+			// — a claim has to be shared across the web and api processes,
+			// which both serve announce.
+			"seedlock": map[string]any{
+				"enabled":      seedLockEnabled(),
+				"lock_minutes": 30,
+				"identify_by":  "ip",
+			},
 		}),
 		// prefFiltered enforces per-kind notification preferences at the ONE
 		// entry point every plugin's Notify goes through — see settings_web.go.

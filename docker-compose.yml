@@ -77,6 +77,12 @@ services:
       # freeze every warning already on the record in place forever.
       #   LOON_DEMO_TRACKER=1 LOON_DEMO_HITRUN=1 docker compose up --build -d
       LOON_DEMO_HITRUN: "${LOON_DEMO_HITRUN:-}"
+      # One host per torrent per member — the anti-cheat for a member seeding
+      # the same torrent from several machines and being credited by all of
+      # them. OFF by default, and it needs REDIS_ADDR: a claim must be shared
+      # across the web and api processes, which both serve announce.
+      #   LOON_DEMO_TRACKER=1 LOON_DEMO_SEEDLOCK=1 docker compose up --build -d
+      LOON_DEMO_SEEDLOCK: "${LOON_DEMO_SEEDLOCK:-}"
       # Metadata-source credentials (optional — set on the host to enable a source).
       # Every source main.go reads must be listed here: an unlisted variable is
       # simply absent inside the container, so the source registers as "not
