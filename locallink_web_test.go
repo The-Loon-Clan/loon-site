@@ -139,11 +139,60 @@ func TestLinkSpecsHaveDistinctCursors(t *testing.T) {
 	seen := map[string]string{}
 	for _, s := range linkSpecs() {
 		if prev, clash := seen[s.cursorKey]; clash {
-			t.Errorf("%s and %s share cursor key %q", prev, s.kind, s.cursorKey)
+			t.Errorf("%s and %s share cursor key %q", prev, s.catWhere, s.cursorKey)
 		}
-		seen[s.cursorKey] = s.kind
-		if s.keys == nil || s.kind == "" || s.topCat == 0 {
+		seen[s.cursorKey] = s.catWhere
+		if s.keys == nil || len(s.kinds) == 0 || s.catWhere == "" {
 			t.Errorf("spec %+v is incomplete", s)
 		}
 	}
+}
+
+// Anime is parsed by the FANSUB convention, not the scene one. TVmaze's
+// reduction expects "Show.S01E02" and would hand back the group tag for
+// "[Erai-raws] Ragna Crimson - 04", so anime needs its own key builder.
+func TestAnimeKeysUseTheFansubParser(t *testing.T) {
+	for _, tc := range []struct{ release, want string }{
+		{"[Erai-raws] Ragna Crimson - 04 [1080p][HEVC][2CDF803A]", "ragna crimson"},
+		{"[ArAn - Kuraki-Subs] UFO Robo Grendizer - 67 [BD 1080p]", "ufo robo grendizer"},
+		{"Crayon Shin-chan - 0059 - Hindi+Tamil+Telugu dub [ATTKC]", "crayon shin chan"},
+	} {
+		got := animeKeys(tc.release)
+		if len(got) != 1 || got[0] != tc.want {
+			t.Errorf("animeKeys(%q) = %v, want [%q]", tc.release, got, tc.want)
+		}
+	}
+}
+
+// Anime accepts entries of EITHER kind. AniList files a show under "anime" and
+// TVmaze files the same show under "tv"; both are correct answers for the
+// release, and refusing one would throw away the coverage anime already has.
+func TestAnimeAcceptsBothKinds(t *testing.T) {
+	var anime *linkSpec
+	for i := range linkSpecs() {
+		if s := linkSpecs()[i]; s.catWhere == "n.category_id = 5070" {
+			anime = &s
+		}
+	}
+	if anime == nil {
+		t.Fatal("no spec covers category 5070")
+	}
+	got := map[string]bool{}
+	for _, k := range anime.kinds {
+		got[k] = true
+	}
+	if !got["anime"] || !got["tv"] {
+		t.Errorf("anime kinds = %v, want both anime and tv", anime.kinds)
+	}
+}
+
+// The TV spec must NOT also claim anime, or the two sweeps walk the same rows
+// with different parsers and different cursors.
+func TestTelevisionSpecExcludesAnime(t *testing.T) {
+	for _, s := range linkSpecs() {
+		if s.catWhere == "n.category_id / 1000 = 5 AND n.category_id <> 5070" {
+			return
+		}
+	}
+	t.Error("the television spec does not exclude 5070")
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/lib/pq"
 
+	"github.com/the-loon-clan/loon-plugins/scraper/sources/anilist"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/tvmaze"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/wikipedia"
 	"github.com/the-loon-clan/loon/catalog"
@@ -44,8 +45,13 @@ const localLinkBatch = 5000
 // what survives after the year — and the ENTRY side differs too, since
 // Wikipedia disambiguates film articles and TVmaze does not.
 type linkSpec struct {
-	topCat    int
-	kind      string
+	// catWhere is a SQL predicate on n.category_id. A constant in this file,
+	// never user input, which is why it is interpolated.
+	catWhere string
+	// kinds are the catalog kinds an entry may have. Anime accepts BOTH its
+	// own and "tv": AniList files a show under anime, TVmaze files the same
+	// show under tv, and either is a correct answer for the release.
+	kinds     []string
 	cursorKey string
 	// keys returns the entry titles that would satisfy this release, already
 	// normalised, most specific first. More than one because Wikipedia titles
@@ -55,9 +61,38 @@ type linkSpec struct {
 
 func linkSpecs() []linkSpec {
 	return []linkSpec{
-		{topCat: 5, kind: "tv", cursorKey: "catalog_local_link_cursor", keys: seriesKeys},
-		{topCat: 2, kind: "movie", cursorKey: "catalog_local_link_movie_cursor", keys: movieKeys},
+		// Television EXCEPT anime, which has its own naming and its own source.
+		{
+			catWhere:  "n.category_id / 1000 = 5 AND n.category_id <> 5070",
+			kinds:     []string{"tv"},
+			cursorKey: "catalog_local_link_cursor",
+			keys:      seriesKeys,
+		},
+		// Anime, parsed by the fansub convention rather than the scene one:
+		// "[Erai-raws] Ragna Crimson - 04" defeats a season/episode parser
+		// entirely, and TVmaze's reduction would hand back the group tag.
+		{
+			catWhere:  "n.category_id = 5070",
+			kinds:     []string{"anime", "tv"},
+			cursorKey: "catalog_local_link_anime_cursor",
+			keys:      animeKeys,
+		},
+		{
+			catWhere:  "n.category_id / 1000 = 2",
+			kinds:     []string{"movie"},
+			cursorKey: "catalog_local_link_movie_cursor",
+			keys:      movieKeys,
+		},
 	}
+}
+
+// animeKeys reduces an anime release name to its series.
+func animeKeys(releaseTitle string) []string {
+	norm := catalog.DefaultNormalize(anilist.ParseReleaseName(releaseTitle).Title)
+	if norm == "" {
+		return nil
+	}
+	return []string{norm}
 }
 
 // seriesKeys reduces a TV release name to its series.
@@ -131,21 +166,21 @@ func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	// The cursor is not optional. "Uncovered" alone re-selects the same newest
+	// rows every pass, and a release with no catalog entry is uncovered
+	// forever — so the unmatchable ones pile up at the top of the window and
+	// eventually fill it, at which point the pass runs every minute and links
+	// nothing while matchable releases sit below it. Same trap as
+	// catalogCandidates; same fix.
 	rows, err := usersDB.QueryContext(ctx,
-		// The cursor is not optional. "Uncovered" alone re-selects the same
-		// newest rows every pass, and a release with no catalog entry is
-		// uncovered forever — so the unmatchable ones pile up at the top of the
-		// window and eventually fill it, at which point the pass runs every
-		// minute and links nothing while matchable releases sit below it. Same
-		// trap as catalogCandidates; same fix.
 		`SELECT n.id, n.title
 		   FROM usenet.nzbs n
 		   LEFT JOIN catalog.release_cover rc ON rc.release_id = n.id
 		  WHERE rc.release_id IS NULL
-		    AND n.category_id / 1000 = $1
-		    AND n.id < $2::bigint
+		    AND `+spec.catWhere+`
+		    AND n.id < $1::bigint
 		  ORDER BY n.id DESC
-		  LIMIT $3`, spec.topCat, cursor, localLinkBatch)
+		  LIMIT $2`, cursor, localLinkBatch)
 	if err != nil {
 		return 0, err
 	}
@@ -194,8 +229,8 @@ func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 		// wins, matching releaseArt's tie-break.
 		err := usersDB.QueryRowContext(ctx,
 			`SELECT cover_url FROM catalog.catalog_entry
-			  WHERE kind = $1 AND norm_title = ANY($2) AND cover_url <> ''
-			  ORDER BY updated_at DESC LIMIT 1`, spec.kind, pq.Array(keys)).Scan(&coverURL)
+			  WHERE kind = ANY($1) AND norm_title = ANY($2) AND cover_url <> ''
+			  ORDER BY updated_at DESC LIMIT 1`, pq.Array(spec.kinds), pq.Array(keys)).Scan(&coverURL)
 		if err != nil || coverURL == "" {
 			continue
 		}
