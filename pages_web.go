@@ -141,6 +141,18 @@ func (w *web) statsPage(c *gin.Context) {
 			data["ForumPosts"] = posts
 		}
 	}
+	// The tracker, when there is one and it holds something. Absent otherwise,
+	// so a site without it reads exactly as it did rather than advertising a
+	// tracker with nothing on it.
+	if ts, ok := readTrackerSiteStats(ctx, usersDB); ok {
+		data["HasTrackerStats"] = true
+		data["TrackerTorrents"] = ts.Torrents
+		data["TrackerSeeders"] = ts.Seeders
+		data["TrackerLeechers"] = ts.Leechers
+		data["TrackerPeers"] = ts.Peers
+		data["TrackerSnatches"] = ts.Snatches
+		data["TrackerUploaded"] = humanBytes(ts.Uploaded)
+	}
 	w.render(c, "stats.html", data)
 }
 

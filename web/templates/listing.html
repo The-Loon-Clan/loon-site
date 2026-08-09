@@ -41,11 +41,26 @@
             </span>
             <div class="data-table__name-body">
                 <a class="data-table__title" href="/release/{{.ID}}">{{.Title}}</a>
-                {{if or .Tags .Group}}
+                {{if or .Tags .Group .HasSwarm}}
                 <div class="data-table__meta">
                     {{if .Resolution}}<span class="tag tag--res">{{.Resolution}}</span>{{end}}
                     {{if .Source}}<span class="tag tag--source">{{.Source}}</span>{{end}}
                     {{range .Tags}}{{if and (ne . $row.Resolution) (ne . $row.Source)}}<span class="tag tag--codec">{{.}}</span>{{end}}{{end}}
+                    {{/* The swarm, for a release that is also a torrent here.
+                         A tag beside the others rather than a COLUMN: this row
+                         is shared by five tables (browse, search, home,
+                         bookmarks, trending) and a new cell would have to be
+                         added to five headers, where one missed <th> silently
+                         misaligns a whole table.
+
+                         Guarded on HasSwarm, never on the counts: 0 seeders is
+                         a real figure and means a dead torrent, which must not
+                         look the same as a release that has no torrent. */}}
+                    {{if .HasSwarm}}
+                    <span class="tag tag--seed" title="{{.Seeders}} seeding, {{.Leechers}} leeching">
+                        <svg class="icon icon--sm" aria-hidden="true"><use href="#users"></use></svg>{{.Seeders}}/{{.Leechers}}
+                    </span>
+                    {{end}}
                     {{if .Group}}<span>{{.Group}}</span>{{end}}
                 </div>
                 {{end}}

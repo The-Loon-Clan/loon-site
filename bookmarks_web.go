@@ -140,7 +140,7 @@ func (w *web) bookmarksPage(c *gin.Context) {
 			rows = append(rows, toSearchRows([]pluginapi.Release{detail.Release})[0])
 		}
 		w.attachCovers(ctx, rows)
-		rows = attachGrabs(ctx, rows)
+		rows = attachSwarm(ctx, attachGrabs(ctx, rows))
 	}
 	data["Results"] = rows
 	w.render(c, "bookmarks.html", data)

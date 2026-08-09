@@ -280,6 +280,12 @@
 .tag--source { color: var(--info-tint); }
 .tag--codec { color: var(--text); }
 .tag--cat { color: var(--text); background: var(--surface-3); }
+/* The tracker swarm on a listing row ("12/3"). Success-coloured because a
+   seeded torrent is the good state and the eye should find it while scanning a
+   table; a swarm with no seeders still renders, in the same tag, because "0/3"
+   is the information — a dead torrent is worth seeing, not worth hiding. */
+.tag--seed { color: var(--success); border-color: var(--success-soft); }
+.tag--seed .icon { margin-right: 0.25em; }
 
 /* A tag rendered as a link is a tap target and needs the 24px minimum; a plain
    <span class="tag"> is only a label, so it keeps its compact 22px box. */

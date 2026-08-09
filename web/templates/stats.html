@@ -9,6 +9,9 @@
      Keys: .Stats siteStatsVM (Releases Groups RetentionDays Categories)
            .TopGroups · .Categories · .Members/.HasMembers
            .ForumThreads/.ForumPosts/.HasForum
+           .HasTrackerStats + .TrackerTorrents/Peers/Seeders/Leechers/
+           Snatches/Uploaded — present only when the tracker plugin is on
+           AND holds a torrent, so peers and ratios DO exist here after all
      Every one optional — a missing capability drops its panel rather than
      showing a zero. All real; nothing here is mocked. */}}
 {{define "content"}}
@@ -70,6 +73,55 @@
         </div>
     </div>
 </section>
+
+{{/* The tracker, when one is switched on AND holds a torrent. A site without
+     it renders nothing here rather than a row of zeroes, which would read as a
+     tracker nobody uses instead of a tracker that does not exist. */}}
+{{if .HasTrackerStats}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#shield"></use></svg>
+            Tracker
+        </h2>
+        <div class="panel__actions"><a class="panel__action" href="/tracker">Browse torrents</a></div>
+    </header>
+    <div class="panel__body">
+        <div class="stat-grid stat-grid--2">
+            <div class="stat-tile">
+                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#database"></use></svg>
+                <span class="stat-tile__label">Torrents</span>
+                <span class="stat-tile__value">{{.TrackerTorrents}}</span>
+            </div>
+            <div class="stat-tile">
+                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#users"></use></svg>
+                <span class="stat-tile__label">Peers</span>
+                <span class="stat-tile__value">{{.TrackerPeers}}</span>
+            </div>
+            <div class="stat-tile">
+                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#chevron-up"></use></svg>
+                <span class="stat-tile__label">Seeders</span>
+                <span class="stat-tile__value">{{.TrackerSeeders}}</span>
+            </div>
+            <div class="stat-tile">
+                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#chevron-down"></use></svg>
+                <span class="stat-tile__label">Leechers</span>
+                <span class="stat-tile__value">{{.TrackerLeechers}}</span>
+            </div>
+            <div class="stat-tile">
+                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#download"></use></svg>
+                <span class="stat-tile__label">Snatches</span>
+                <span class="stat-tile__value">{{.TrackerSnatches}}</span>
+            </div>
+            <div class="stat-tile">
+                <svg class="icon stat-tile__icon" aria-hidden="true"><use href="#server"></use></svg>
+                <span class="stat-tile__label">Uploaded</span>
+                <span class="stat-tile__value">{{.TrackerUploaded}}</span>
+            </div>
+        </div>
+    </div>
+</section>
+{{end}}
 
 {{if .TopGroups}}
 <section class="panelV2">

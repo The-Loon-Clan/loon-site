@@ -273,6 +273,14 @@ type searchRow struct {
 	// call attachGrabs populate it, and the templates guard on it so an
 	// unmeasured row renders no figure rather than a false 0.
 	Grabs int
+	// The tracker swarm, for rows on a listing that also exist as torrents.
+	// HasSwarm is what the template guards on, for the same reason Grabs needs
+	// care and more so: 0 seeders is a REAL and meaningful figure (a dead
+	// torrent), so it cannot double as "this release has no torrent". Only the
+	// pages that call attachSwarm populate any of this.
+	HasSwarm bool
+	Seeders  int
+	Leechers int
 }
 
 // attachGrabs fills Grabs for a page of rows in ONE query. Rows with no
@@ -292,6 +300,34 @@ func attachGrabs(ctx context.Context, rows []searchRow) []searchRow {
 	}
 	for i := range rows {
 		rows[i].Grabs = counts[rows[i].ID]
+	}
+	return rows
+}
+
+// attachSwarm fills in the tracker figures for a listing, in one query.
+//
+// Paired with attachGrabs at every call site rather than folded into it: they
+// answer different questions from different plugins, and a host running the
+// indexer without the tracker should keep grabs and get nothing here. Returns
+// rows untouched when the tracker is off, so callers need no gate of their own.
+func attachSwarm(ctx context.Context, rows []searchRow) []searchRow {
+	if len(rows) == 0 {
+		return rows
+	}
+	ids := make([]int64, 0, len(rows))
+	for _, r := range rows {
+		ids = append(ids, r.ID)
+	}
+	swarms := swarmCounts(ctx, usersDB, ids)
+	if swarms == nil {
+		return rows
+	}
+	for i := range rows {
+		if s, ok := swarms[rows[i].ID]; ok {
+			rows[i].HasSwarm = true
+			rows[i].Seeders = s.Seeders
+			rows[i].Leechers = s.Leechers
+		}
 	}
 	return rows
 }

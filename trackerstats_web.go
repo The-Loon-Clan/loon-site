@@ -104,12 +104,113 @@ func readTrackerTotals(ctx context.Context, db *sqlx.DB, userID int64) (trackerT
 	return t, true
 }
 
+// trackerSiteStats is the whole tracker at a glance, for /stats.
+type trackerSiteStats struct {
+	Torrents int
+	Seeders  int
+	Leechers int
+	Peers    int
+	Snatches int
+	Uploaded int64
+}
+
+// readTrackerSiteStats totals the tracker across every torrent.
+//
+// Seeders/leechers come from the denormalised counters the announce path
+// maintains, which is what the tracker's own listing shows — reading them from
+// user_stats instead would give a second, slightly different answer to the same
+// question, and two numbers for one fact is how a stats page loses its
+// credibility.
+//
+// ok=false when the tracker is off or holds nothing, so /stats renders no
+// section rather than a table of zeroes claiming a dead tracker.
+func readTrackerSiteStats(ctx context.Context, db *sqlx.DB) (trackerSiteStats, bool) {
+	var s trackerSiteStats
+	if !trackerEnabled() || db == nil {
+		return s, false
+	}
+	err := db.QueryRowContext(ctx, `
+		SELECT count(*),
+		       coalesce(sum(seeders), 0),
+		       coalesce(sum(leechers), 0),
+		       coalesce(sum(snatches), 0)
+		  FROM tracker.torrents`).
+		Scan(&s.Torrents, &s.Seeders, &s.Leechers, &s.Snatches)
+	if err != nil || s.Torrents == 0 {
+		return trackerSiteStats{}, false
+	}
+	s.Peers = s.Seeders + s.Leechers
+	// Total uploaded is the members' side of the ledger and lives in user_stats.
+	// Best-effort: the torrent figures above are the section's substance, and
+	// losing one row of it is not a reason to drop the rest.
+	_ = db.QueryRowContext(ctx,
+		`SELECT coalesce(sum(uploaded), 0) FROM tracker.user_stats`).Scan(&s.Uploaded)
+	return s, true
+}
+
 // trackerSwarm is one release's presence on the tracker.
 type trackerSwarm struct {
 	InfoHash string
 	Seeders  int
 	Leechers int
 	Snatches int
+}
+
+// swarmCounts is readTrackerSwarm for a whole listing — one query for the page
+// rather than one per row.
+//
+// Modelled on grabCounts, including the parts that matter: ids are deduplicated
+// before the IN clause (a listing can carry the same release twice), and any
+// problem returns nil so the caller leaves every row untouched rather than
+// asserting an empty swarm on all of them.
+//
+// A release absent from the map has no torrent. That is most of them, which is
+// why the map holds only what exists rather than a zero for every id asked.
+func swarmCounts(ctx context.Context, db *sqlx.DB, releaseIDs []int64) map[int64]trackerSwarm {
+	if !trackerEnabled() || db == nil || len(releaseIDs) == 0 {
+		return nil
+	}
+	seen := make(map[int64]bool, len(releaseIDs))
+	ids := make([]int64, 0, len(releaseIDs))
+	for _, id := range releaseIDs {
+		if id > 0 && !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	// DISTINCT ON keeps one torrent per release — the newest — matching what
+	// readTrackerSwarm shows on the release page itself. Two torrents for one
+	// release is unusual but permitted by the schema, and a listing that
+	// silently doubled a row would be worse than picking the same one twice.
+	q, args, err := sqlx.In(`
+		SELECT DISTINCT ON (nzb_id) nzb_id, info_hash, seeders, leechers, snatches
+		  FROM tracker.torrents
+		 WHERE nzb_id IN (?)
+		 ORDER BY nzb_id, added_at DESC`, ids)
+	if err != nil {
+		return nil
+	}
+	var rows []struct {
+		NzbID    int64  `db:"nzb_id"`
+		InfoHash string `db:"info_hash"`
+		Seeders  int    `db:"seeders"`
+		Leechers int    `db:"leechers"`
+		Snatches int    `db:"snatches"`
+	}
+	if err := db.SelectContext(ctx, &rows, db.Rebind(q), args...); err != nil {
+		return nil
+	}
+	out := make(map[int64]trackerSwarm, len(rows))
+	for _, r := range rows {
+		out[r.NzbID] = trackerSwarm{
+			InfoHash: r.InfoHash, Seeders: r.Seeders,
+			Leechers: r.Leechers, Snatches: r.Snatches,
+		}
+	}
+	return out
 }
 
 // readTrackerSwarm reports whether a RELEASE has a torrent on this tracker, and

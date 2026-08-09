@@ -1248,7 +1248,7 @@ func (w *web) home(c *gin.Context) {
 		rows, hit := w.homeReleases(ctx)
 		c.Header("X-Cache", map[bool]string{true: "hit", false: "miss"}[hit])
 		if len(rows) > 0 {
-			content[blockLatestReleases] = attachGrabs(ctx, capRows(rows, homeTableRows))
+			content[blockLatestReleases] = attachSwarm(ctx, attachGrabs(ctx, capRows(rows, homeTableRows)))
 			content[blockFeatured] = featuredRows(rows, homeFeatured)
 		}
 		// Most-grabbed this week — UNIT3D's trending, now that grabs are
@@ -1349,7 +1349,7 @@ func (w *web) browse(c *gin.Context) {
 			f := parseFilter(c)
 			rows := toSearchRows(res)
 			w.attachCovers(ctx, rows) // one lookup for the page, not one per row
-			rows = attachGrabs(ctx, rows)
+			rows = attachSwarm(ctx, attachGrabs(ctx, rows))
 			// Facets from the UNFILTERED set; ?cat= rides along on every facet
 			// link so filtering never drops the category you are browsing.
 			data["Facets"] = buildFacets(rows, f, "/browse", keepParams(c, "cat"))
@@ -1410,7 +1410,7 @@ func (w *web) search(c *gin.Context) {
 			ctx := c.Request.Context()
 			rows := toSearchRows(res)
 			w.attachCovers(ctx, rows) // one lookup for the page
-			rows = attachGrabs(ctx, rows)
+			rows = attachSwarm(ctx, attachGrabs(ctx, rows))
 			// Facets come from the UNFILTERED set so every value offered
 			// matches something; the results are what is left after applying.
 			data["Facets"] = buildFacets(rows, f, "/search", keepParams(c, "q"))
