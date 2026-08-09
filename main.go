@@ -1041,6 +1041,10 @@ func main() {
 	// Pull down the art of releases matched before local caching existed. Slow
 	// on purpose and cancelled with the process — see backfillCovers.
 	go wsrv.backfillCovers(ctx, 2*time.Second, logger)
+	// Give cover art to releases whose SERIES is already in the catalog. Costs
+	// no API call, so it is not paced by anyone's rate limit — see
+	// linkFromCatalog for why this runs ahead of the scraper's match job.
+	go wsrv.runLocalLinks(ctx, time.Minute, logger)
 
 	logger.Info("loon demo site up",
 		"url", "http://localhost:8090/",
