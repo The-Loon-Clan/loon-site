@@ -599,7 +599,7 @@ func main() {
 	// Hit-and-run seams (hitrun_web.go). Messages only: the plugin detects,
 	// the host punishes, and the punishing half is the middleware installed
 	// further down.
-	wireHitRunPlugin(c, logger)
+	wireHitRunPlugin(c, wsrv, logger)
 
 	// Tracker plugin seams (tracker_web.go). Always wired, even when the
 	// tracker is off: SetDeps runs before Boot and the plugin decides for

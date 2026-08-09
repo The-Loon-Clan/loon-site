@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -33,8 +35,17 @@ const hitRunBlockPrefix = "/tracker/download"
 //
 // Everything here is a message to a member. The plugin never disables anything
 // itself — see enforceHitRunBlock below for the half that does.
-func wireHitRunPlugin(c *core.Core, logger *slog.Logger) {
-	hitrun.SetDeps(hitrun.Notifier{
+func wireHitRunPlugin(c *core.Core, w *web, logger *slog.Logger) {
+	hitrun.SetDeps(hitrun.Deps{
+		// The member page at /hitrun. Without this seam the plugin declines to
+		// mount it, which is right: a member told their downloads are disabled,
+		// with nowhere to see why, is the worst version of this feature.
+		RenderPage: func(gc *gin.Context, title string, body template.HTML) {
+			w.render(gc, "site_page.html", map[string]any{"Title": title, "Fragment": body})
+		},
+		// Adapted, like the tracker's: the host helper takes `any` because
+		// templates call it, and the plugin asks for a time.Time.
+		RelativeTime: func(t time.Time) string { return relativeTime(t) },
 		// The courtesy notice, and the only message that can still change the
 		// outcome — so it says what to do, not just what happened.
 		Prewarn: func(ctx context.Context, userID int64, torrent, reason string) {
