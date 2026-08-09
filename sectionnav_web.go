@@ -98,9 +98,50 @@ var accountMenu = []sectionTab{
 	}},
 }
 
+// trackerAccountGroup is the member's own tracker standing: what they owe, what
+// they hold, and where they are seeding from.
+//
+// Built at call time rather than declared with the rest of accountMenu, because
+// which of these pages EXIST depends on what the operator switched on. A static
+// entry would be a dead link on a site with no tracker — and these three are
+// exactly the pages a member is sent to by an error message, so a 404 here
+// lands on somebody already confused.
+//
+// It follows the dropdown rule this site set for itself: the account menu
+// carries the viewer's own things. All three are that — your seeding debts,
+// your tokens, your locks — and none is a queue, a tool or a staff list.
+func trackerAccountGroup() (sectionTab, bool) {
+	if !trackerEnabled() {
+		// No tracker, no tracker pages. The plugins may still be compiled in,
+		// but a member has nothing to seed and nothing to owe.
+		return sectionTab{}, false
+	}
+	items := []sectionTab{
+		// Both mount whenever the host wired their render seams, independently
+		// of whether the RULES are enabled: hit-and-run still shows what you
+		// have seeded, and the wallet still shows tokens you hold.
+		{Label: "Seeding requirements", Href: "/hitrun"},
+		{Label: "Perks", Href: "/perks"},
+	}
+	// The lock page only exists when the rule is armed — the plugin mounts it
+	// inside that branch — so listing it otherwise would be the dead link this
+	// function exists to avoid.
+	if seedLockEnabled() {
+		items = append(items, sectionTab{Label: "Seeding locks", Href: "/seedlock"})
+	}
+	return sectionTab{Label: "Tracker", Items: items}, true
+}
+
 // accountNav returns the account entries with the page you are on marked.
 func accountNav(path string) []sectionTab {
-	return markActive(accountMenu, path)
+	menu := accountMenu
+	if g, ok := trackerAccountGroup(); ok {
+		// Copied before appending: accountMenu is a package-level slice shared
+		// by every request, and appending to it in place would grow the menu by
+		// one group per page load.
+		menu = append(append([]sectionTab{}, accountMenu...), g)
+	}
+	return markActive(menu, path)
 }
 
 // accountAreaPrefixes select the pages the account BAR covers — the second row
@@ -118,6 +159,8 @@ var accountAreaPrefixes = []string{
 	"/u/", "/inbox", "/p/inbox", "/p/account", "/p/api-key",
 	"/p/topics", "/p/posts", "/settings/",
 	"/bookmarks", "/calendar", "/achievements", "/subscriptions", "/gifts", "/wishlist",
+	// The member's own tracker standing — see trackerAccountGroup.
+	"/hitrun", "/perks", "/seedlock",
 }
 
 // inAccountArea reports whether the account bar belongs on a path.

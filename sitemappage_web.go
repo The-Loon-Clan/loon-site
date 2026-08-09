@@ -89,6 +89,19 @@ func (w *web) sitemapPage(c *gin.Context) {
 	groups := make([]sitemapGroup, len(sitemapGroups))
 	copy(groups, sitemapGroups)
 
+	// The member's own tracker standing, appended only when the tracker is on.
+	//
+	// Gated for the same reason the account menu gates it, and it matters more
+	// here: a sitemap is a promise that a page is there, and this is the page a
+	// site links to from an error message a member has just hit.
+	if g, ok := trackerAccountGroup(); ok {
+		links := make([]sitemapLink, 0, len(g.Items))
+		for _, it := range g.Items {
+			links = append(links, sitemapLink{Href: it.Href, Label: it.Label})
+		}
+		groups = append(groups, sitemapGroup{Title: "Your tracker standing", Links: links})
+	}
+
 	// Plugin pages, appended as their own group. Read from the registry rather
 	// than listed above because a host with a different plugin set has a
 	// different sitemap, and a hardcoded list would promise pages it does not
