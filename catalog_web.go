@@ -79,7 +79,7 @@ func (w *web) catalogCandidates(ctx context.Context) ([]scraper.Candidate, error
 	if usersDB == nil {
 		return nil, nil
 	}
-	cursor, err := w.candidateCursor(ctx)
+	cursor, err := w.sweepCursor(ctx, candidateCursorKey)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (w *web) catalogCandidates(ctx context.Context) ([]scraper.Candidate, error
 		return nil, err
 	}
 
-	_ = w.setCandidateCursor(ctx, nextCandidateCursor(len(out), candidateBatch, lowest))
+	_ = w.setSweepCursor(ctx, candidateCursorKey, nextCandidateCursor(len(out), candidateBatch, lowest))
 	return out, nil
 }
 
@@ -130,12 +130,17 @@ func nextCandidateCursor(returned, batch int, lowest int64) int64 {
 	return lowest
 }
 
-// candidateCursor reads the sweep position. Zero — unset, or just wrapped —
+// sweepCursor reads a named sweep's position. Zero — unset, or just wrapped —
 // means "start at the top", expressed as an id above any real one.
-func (w *web) candidateCursor(ctx context.Context) (int64, error) {
+//
+// Shared by every descending sweep over nzbs (the match candidates here, the
+// local catalog links in locallink_web.go). One implementation because they
+// need identical wrap behaviour, and because a second copy is where the two
+// would quietly stop agreeing.
+func (w *web) sweepCursor(ctx context.Context, key string) (int64, error) {
 	var v sql.NullString
 	err := usersDB.QueryRowContext(ctx,
-		`SELECT value FROM site_settings WHERE key = $1`, candidateCursorKey).Scan(&v)
+		`SELECT value FROM site_settings WHERE key = $1`, key).Scan(&v)
 	if err != nil && err != sql.ErrNoRows {
 		return 0, err
 	}
@@ -146,11 +151,11 @@ func (w *web) candidateCursor(ctx context.Context) (int64, error) {
 	return n, nil
 }
 
-func (w *web) setCandidateCursor(ctx context.Context, id int64) error {
+func (w *web) setSweepCursor(ctx context.Context, key string, id int64) error {
 	_, err := usersDB.ExecContext(ctx,
 		`INSERT INTO site_settings (key, value) VALUES ($1, $2)
 		 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-		candidateCursorKey, strconv.FormatInt(id, 10))
+		key, strconv.FormatInt(id, 10))
 	return err
 }
 

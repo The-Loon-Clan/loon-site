@@ -31,6 +31,11 @@ import (
 // request; the limit here is politeness to the database, not to a provider.
 const localLinkBatch = 5000
 
+// localLinkCursorKey is this sweep's own position. Its own, not shared with
+// the match sweep: they cover the same table at different speeds, and one
+// cursor would make each skip whatever the other had just passed.
+const localLinkCursorKey = "catalog_local_link_cursor"
+
 // linkFromCatalog gives cover art to releases whose SERIES is already known,
 // and returns how many it linked.
 //
@@ -44,14 +49,25 @@ func (w *web) linkFromCatalog(ctx context.Context) (int, error) {
 	if usersDB == nil || w.catalogCovers == nil {
 		return 0, nil
 	}
+	cursor, err := w.sweepCursor(ctx, localLinkCursorKey)
+	if err != nil {
+		return 0, err
+	}
 	rows, err := usersDB.QueryContext(ctx,
+		// The cursor is not optional. "Uncovered" alone re-selects the same
+		// newest rows every pass, and a release with no catalog entry is
+		// uncovered forever — so the unmatchable ones pile up at the top of the
+		// window and eventually fill it, at which point the pass runs every
+		// minute and links nothing while matchable releases sit below it. Same
+		// trap as catalogCandidates; same fix.
 		`SELECT n.id, n.title
 		   FROM usenet.nzbs n
 		   LEFT JOIN catalog.release_cover rc ON rc.release_id = n.id
 		  WHERE rc.release_id IS NULL
 		    AND n.category_id / 1000 = 5
+		    AND n.id < $1::bigint
 		  ORDER BY n.id DESC
-		  LIMIT $1`, localLinkBatch)
+		  LIMIT $2`, cursor, localLinkBatch)
 	if err != nil {
 		return 0, err
 	}
@@ -70,6 +86,19 @@ func (w *web) linkFromCatalog(ctx context.Context) (int, error) {
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+
+	// Advance before doing the work, and wrap on a short page — the releases
+	// this pass cannot link are exactly the ones that would otherwise hold the
+	// window forever. The wrap brings them round again later, which is what
+	// picks them up once the match job has learned their series.
+	var lowest int64
+	if len(pending) > 0 {
+		lowest = pending[len(pending)-1].id
+	}
+	if err := w.setSweepCursor(ctx, localLinkCursorKey,
+		nextCandidateCursor(len(pending), localLinkBatch, lowest)); err != nil {
 		return 0, err
 	}
 
