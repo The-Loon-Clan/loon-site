@@ -65,6 +65,13 @@ var creditsByProvider = map[string]sourceCredit{
 		URL:  "https://openlibrary.org",
 		Text: "Book data from Open Library, an Internet Archive project",
 	},
+	"anilist": {
+		Name: "AniList",
+		URL:  "https://anilist.co",
+		// No licence demands this wording; it is a plain credit for a service
+		// that asks for no key and no account.
+		Text: "Anime data from AniList",
+	},
 	"anidb": {
 		Name: "AniDB",
 		URL:  "https://anidb.net",

@@ -72,6 +72,7 @@ import (
 	"github.com/the-loon-clan/loon-plugins/rewards"
 	"github.com/the-loon-clan/loon-plugins/scraper"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/anidb"
+	"github.com/the-loon-clan/loon-plugins/scraper/sources/anilist"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/openlibrary"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/theporndb"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/tmdb"
@@ -651,7 +652,16 @@ func main() {
 		add("tvmaze", tvmaze.New(""))
 		add("wikipedia", wikipedia.New(""))
 	}
-	add("anidb", anidb.New(os.Getenv("ANIDB_CLIENT"), nil))
+	// AniDB when a client name is registered; AniList when it is not.
+	//
+	// Both serve "anime" and the registry refuses a duplicate, so the choice is
+	// made explicitly rather than left to call order. AniDB returns nil without
+	// a client name, which is what makes this an if at all — it used to build
+	// itself regardless, hold the domain, and answer every lookup from an empty
+	// index, leaving anime at 6.2% cover art while television sat at 59%.
+	if !add("anidb", anidb.New(os.Getenv("ANIDB_CLIENT"), nil)) {
+		add("anilist", anilist.New(""))
+	}
 	// Open Library needs no credential, so it registers unconditionally and is
 	// the one source a fresh checkout actually exercises — every other source
 	// here is idle until an operator goes and gets a key, which meant the

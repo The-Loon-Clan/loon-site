@@ -71,6 +71,12 @@ var externalSites = []struct {
 	{"anidb", "AniDB", func(_, id string) string {
 		return "https://anidb.net/anime/" + url.PathEscape(id)
 	}},
+	{"anilist", "AniList", func(_, id string) string {
+		return "https://anilist.co/anime/" + url.PathEscape(id)
+	}},
+	{"mal", "MyAnimeList", func(_, id string) string {
+		return "https://myanimelist.net/anime/" + url.PathEscape(id)
+	}},
 	{"letterboxd", "Letterboxd", func(_, id string) string {
 		// The /tmdb/ route, because the id here IS a TMDB id — see
 		// buildExternalLinks. letterboxd.com/film/<number>/ 404s; that route
