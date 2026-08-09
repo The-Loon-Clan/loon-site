@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/the-loon-clan/loon-plugins/hitrun"
+	"github.com/the-loon-clan/loon-plugins/perks"
 	"github.com/the-loon-clan/loon/core"
 )
 
@@ -203,3 +204,15 @@ func freeleechLookup(c *core.Core) freeleechCap {
 
 // perksExtension is the registry key the perks plugin publishes itself under.
 const perksExtension = "perks"
+
+// wirePerksPlugin installs the wallet page's seams. Without them the plugin
+// still sells and applies tokens but mounts no page, which would leave a member
+// holding something they cannot spend.
+func wirePerksPlugin(w *web) {
+	perks.SetDeps(perks.Deps{
+		RenderPage: func(gc *gin.Context, title string, body template.HTML) {
+			w.render(gc, "site_page.html", map[string]any{"Title": title, "Fragment": body})
+		},
+		CSRFToken: csrfToken,
+	})
+}

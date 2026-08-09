@@ -58,7 +58,7 @@ import (
 	_ "github.com/the-loon-clan/loon-plugins/catalog"
 	"github.com/the-loon-clan/loon-plugins/dailyreward"
 	_ "github.com/the-loon-clan/loon-plugins/hitrun"
-	_ "github.com/the-loon-clan/loon-plugins/perks"
+
 	// forum is imported (and its init runs) via forum_web.go's SetDeps wiring.
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	_ "github.com/the-loon-clan/loon-plugins/pointstore"
@@ -606,6 +606,10 @@ func main() {
 	// the host punishes, and the punishing half is the middleware installed
 	// further down.
 	wireHitRunPlugin(c, wsrv, logger)
+
+	// Perks wallet seams (hitrun_web.go). The plugin registers its own tracker
+	// multiplier, so this is only the page a member spends a token on.
+	wirePerksPlugin(wsrv)
 
 	// Tracker plugin seams (tracker_web.go). Always wired, even when the
 	// tracker is off: SetDeps runs before Boot and the plugin decides for
