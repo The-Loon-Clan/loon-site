@@ -480,6 +480,24 @@ func main() {
 		Logger: logger,
 		Config: core.NewConfig(map[string]any{
 			"guestbook": map[string]any{"points_per_entry": 5},
+			// Catalog matching runs on a much shorter cadence than the plugin's
+			// hourly default, because on a LIVE index an hour of idle is the
+			// bottleneck rather than a kindness.
+			//
+			// Measured here: the crawler adds ~1,270 releases/hour and 46,000
+			// sit uncovered, while a match run over already-seen titles finishes
+			// in ELEVEN SECONDS — the sources cache their misses, so a repeat
+			// pass costs almost nothing and then the job sleeps for an hour.
+			// At the default cadence the backlog grows faster than it clears,
+			// and coverage falls however good the matchers are.
+			//
+			// This is not a licence to hammer anyone. Every source paces its own
+			// requests (250ms Wikipedia, 100ms Open Library) and that is the
+			// politeness control; the cadence only decides how much of the time
+			// the job is allowed to be working at that rate. A run with 3,000
+			// genuinely new titles still takes ~35 minutes, and the next one
+			// starts this long after it FINISHES, not after it started.
+			"scraper": map[string]any{"interval_min": 10},
 			// Usenet staging backend: "pg" (durable Postgres, the default) or
 			// "redis" (prod's assembly pipeline — needs REDIS_ADDR so core.Redis
 			// is wired, else the plugin refuses to boot rather than silently
