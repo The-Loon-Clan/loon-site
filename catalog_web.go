@@ -87,7 +87,11 @@ func (w *web) catalogCandidates(ctx context.Context) ([]scraper.Candidate, error
 		`SELECT n.id, n.title, n.category_id
 		   FROM usenet.nzbs n
 		   LEFT JOIN catalog.release_cover rc ON rc.release_id = n.id
-		  WHERE rc.release_id IS NULL AND n.id < $1
+		  -- ::bigint because usenet.nzbs.id is an INTEGER: without the cast
+		  -- Postgres types the parameter from the column and the "start at the
+		  -- top" sentinel overflows with 22003, which failed this whole sweep
+		  -- silently — the job logged its CPU time and matched nothing.
+		  WHERE rc.release_id IS NULL AND n.id < $1::bigint
 		  ORDER BY n.id DESC
 		  LIMIT $2`, cursor, candidateBatch)
 	if err != nil {
