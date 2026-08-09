@@ -61,6 +61,16 @@ services:
       # plugin fails to boot rather than silently running pg.
       #   USENET_STAGING=redis docker compose up --build -d
       USENET_STAGING: "${USENET_STAGING:-pg}"
+      # The BitTorrent tracker, OFF by default. It publishes announce endpoints,
+      # mints passkeys and starts keeping ratio accounting the moment it is
+      # reachable, so it is the one plugin here that must be asked for:
+      #   LOON_DEMO_TRACKER=1 docker compose up --build -d
+      LOON_DEMO_TRACKER: "${LOON_DEMO_TRACKER:-}"
+      # The absolute base baked into every downloaded .torrent. A wrong value
+      # does not fail loudly — it produces torrents pointing somewhere unable to
+      # answer, and the member finds out when their client calls the tracker
+      # dead. Defaults to the address this demo actually serves on.
+      LOON_DEMO_SITE_URL: "${LOON_DEMO_SITE_URL:-}"
       # Metadata-source credentials (optional — set on the host to enable a source).
       # Every source main.go reads must be listed here: an unlisted variable is
       # simply absent inside the container, so the source registers as "not

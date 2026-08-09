@@ -79,6 +79,7 @@ import (
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/tvmaze"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/wikipedia"
 	"github.com/the-loon-clan/loon-plugins/stats"
+	"github.com/the-loon-clan/loon-plugins/tracker"
 	_ "github.com/the-loon-clan/loon-plugins/usenet"
 
 	_ "github.com/the-loon-clan/loon-demo-site/plugins/guestbook"
@@ -475,6 +476,15 @@ func main() {
 			// is wired, else the plugin refuses to boot rather than silently
 			// falling back). Flip with USENET_STAGING=redis.
 			"usenet": map[string]any{"staging": usenetStaging},
+			// The BitTorrent tracker, OFF unless asked for. Not caution on the
+			// host's part — it is the plugin's own default, because a tracker
+			// publishes announce endpoints, mints passkeys and starts keeping
+			// ratio accounting the moment it is reachable. Everything else here
+			// is inert until a member visits it.
+			"tracker": map[string]any{
+				"enabled":  trackerEnabled(),
+				"site_url": trackerSiteURL(),
+			},
 		}),
 		// prefFiltered enforces per-kind notification preferences at the ONE
 		// entry point every plugin's Notify goes through — see settings_web.go.
@@ -505,6 +515,15 @@ func main() {
 			},
 			Baseline: map[core.Role][]core.EntitlementGrant{
 				core.RoleMod: {{Key: "dm.initiate", Val: 1, Source: "role"}},
+				// Every signed-in member may use the tracker on this demo.
+				//
+				// A real private site would grant this by rank, by invite or by
+				// hand — the plugin deliberately treats it as an entitlement
+				// rather than a column so the host decides. The gate fails
+				// CLOSED without a grant, so leaving this out would leave the
+				// tracker mounted and refusing everyone, which looks like a
+				// bug rather than a policy.
+				core.RoleUser: {{Key: tracker.EntitlementKey, Val: 1, Source: "role"}},
 			},
 		}),
 		HTTPClient: core.NewHTTPClient(),
@@ -564,6 +583,13 @@ func main() {
 		logger.Error("messages wiring", "err", err)
 		os.Exit(1)
 	}
+
+	// Tracker plugin seams (tracker_web.go). Always wired, even when the
+	// tracker is off: SetDeps runs before Boot and the plugin decides for
+	// itself whether to mount anything, so an unused seam costs nothing while a
+	// missing one is a 500 on a page a member opened. The plugin refuses to
+	// boot rather than defer if a seam is absent.
+	wsrv.wireTrackerPlugin()
 
 	// Store plugin seams (store_web.go). No error return: it self-migrates and
 	// its only seams are the chrome closure plus two pagination helpers.
