@@ -58,6 +58,7 @@ import (
 	_ "github.com/the-loon-clan/loon-plugins/catalog"
 	"github.com/the-loon-clan/loon-plugins/dailyreward"
 	_ "github.com/the-loon-clan/loon-plugins/hitrun"
+	_ "github.com/the-loon-clan/loon-plugins/perks"
 	// forum is imported (and its init runs) via forum_web.go's SetDeps wiring.
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	_ "github.com/the-loon-clan/loon-plugins/pointstore"
@@ -492,6 +493,11 @@ func main() {
 				"enabled":  trackerEnabled(),
 				"site_url": trackerSiteURL(),
 			},
+			// Tracker economy: how long a spent token lasts. Seven days by
+			// default, matching the hit-and-run seedtime requirement, so a
+			// freeleech download is free for exactly as long as a member is
+			// required to seed it.
+			"perks": map[string]any{"token_hours": 168},
 			// Hit-and-run rules over the tracker's accounting. Built from the
 			// SAME struct the host's blocking middleware reads, so the job that
 			// warns a member and the page that stops them downloading cannot

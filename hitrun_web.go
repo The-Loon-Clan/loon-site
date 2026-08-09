@@ -46,6 +46,14 @@ func wireHitRunPlugin(c *core.Core, w *web, logger *slog.Logger) {
 		// Adapted, like the tracker's: the host helper takes `any` because
 		// templates call it, and the plugin asks for a time.Time.
 		RelativeTime: func(t time.Time) string { return relativeTime(t) },
+		// A freeleech token excuses the snatch it was spent on. Resolved
+		// LAZILY off the registry rather than captured here, because perks
+		// provisions after this runs — and a host with no perks plugin is a
+		// legitimate host, so its absence exempts nobody rather than failing.
+		Exempt: func(_ context.Context, userID int64, infoHash string) bool {
+			fl := freeleechLookup(c)
+			return fl != nil && fl.HasFreeleech(userID, infoHash)
+		},
 		// The courtesy notice, and the only message that can still change the
 		// outcome — so it says what to do, not just what happened.
 		Prewarn: func(ctx context.Context, userID int64, torrent, reason string) {
@@ -168,3 +176,30 @@ func hitRunConfig() map[string]any {
 		"ratio_satisfies":  hitRunSettings.RatioSatisfies,
 	}
 }
+
+// freeleechCap is the structural view of the perks plugin's freeleech answer —
+// stdlib types only, so the host need not care which plugin provides it.
+type freeleechCap interface {
+	HasFreeleech(userID int64, infoHash string) bool
+}
+
+// freeleechLookup resolves the capability off the extension registry.
+//
+// Looked up per call rather than cached, because the hit-and-run sweep runs
+// hourly and the lookup is a map read — while caching it would capture a nil
+// on a boot where perks provisioned later, and then exempt nobody for the life
+// of the process.
+func freeleechLookup(c *core.Core) freeleechCap {
+	v, ok := c.Lookup(perksExtension)
+	if !ok {
+		return nil
+	}
+	cap, ok := v.(freeleechCap)
+	if !ok {
+		return nil
+	}
+	return cap
+}
+
+// perksExtension is the registry key the perks plugin publishes itself under.
+const perksExtension = "perks"
