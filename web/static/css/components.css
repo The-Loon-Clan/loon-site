@@ -2745,6 +2745,32 @@ a.cal-ev:hover { background: var(--surface-3); }
 .stat-figure--seed .icon { color: var(--info); }
 .stat-figure--torrents .icon { color: var(--muted); }
 
-/* In the header bar the figures are the whole widget, so the wrapper adds no
-   gap of its own and nothing wraps to a second line. */
-.top-nav__widgets .stat-figures { flex-wrap: nowrap; gap: 12px; }
+/* In the header bar the figures STACK: two rows, filled column-wise, so each
+   column is a related pair — uploaded over downloaded, ratio over seeding.
+   
+   Stacking is what makes them fit. In one row four figures ran past the width
+   this bar can spare and the last one was clipped mid-icon by the overflow
+   guard; in two rows they take half the width and use vertical space the
+   header already had.
+
+   grid-auto-flow: column with two rows is what does the pairing. It also means
+   the ORDER a widget emits its figures in decides the columns, which is why
+   the tracker emits up, down, ratio, seed — adjacent pairs, not an arbitrary
+   sequence. */
+.top-nav__widgets .stat-figures {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(2, auto);
+    gap: 1px 16px;
+    flex-wrap: nowrap;
+}
+.top-nav__widgets .stat-figure {
+    font-size: var(--fs-3xs);
+    line-height: 1.35;
+    gap: 4px;
+}
+.top-nav__widgets .stat-figure .icon { width: 12px; height: 12px; }
+/* Stacked, the row needs far less width — so the cap can be generous enough
+   that nothing clips, while still bounding a widget that returns more than
+   this bar can hold. */
+.top-nav__widgets { max-width: 46vw; }
