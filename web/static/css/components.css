@@ -2631,6 +2631,12 @@ tr:nth-last-child(-n + 3) .quick-info {
     border-radius: var(--radius);
     background: var(--poster-fallback-bg);
 }
+/* Belt and braces: .poster__fallback is position:absolute/inset:0 by design,
+   so if one is ever nested in here again it must not take the card as its
+   containing block and cover everything. The template no longer uses it, and
+   this makes that mistake cheap rather than mysterious. */
+.quick-info .poster__fallback { position: static; inset: auto; }
+
 .quick-info__body { min-width: 0; }
 .quick-info__label {
     display: block;
