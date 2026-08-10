@@ -2869,6 +2869,13 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
     border: 0;
     box-shadow: none;
     border-radius: 0;
+    /* .panelV2 sets overflow:hidden to clip its own contents to its radius.
+       Inherited here it did the opposite of what was wanted: the tray below
+       spans the full width, so its rounded corners were CLIPPED OFF by this
+       element's square box and the tray rendered square however large its
+       radius was. Nothing here needs clipping any more — there is no surface,
+       no border and no radius to clip to. */
+    overflow: visible;
 }
 .blocks__featured > .panel__header {
     background: none;
@@ -2892,4 +2899,8 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
     background: var(--panel-bg);
     border-radius: var(--featured-radius, 12px);
     padding: 14px;
+    /* Lifts the tray off the page so the rounding reads as a raised surface
+       rather than a colour change. --shadow, so each theme decides how heavy
+       its own lift is. */
+    box-shadow: var(--shadow);
 }
