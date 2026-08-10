@@ -2867,13 +2867,28 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
     border: 0;
     border-radius: var(--featured-radius, 12px);
     box-shadow: var(--shadow);
-    /* No padding: the heading and the content run to the card's own edge.
+    /* No padding on the CARD itself; what needs insetting is inset below.
        overflow:hidden is what makes that safe — it clips the table's corners
        and the poster row to the radius, which is the job .panelV2's own
        overflow was doing before this block stopped being a plain panel. */
     padding: 0;
     overflow: hidden;
 }
+
+/* The two blocks look identical and are NOT padded identically. Measured off
+   the reference at 1305px wide:
+
+     featured  card edge x=20, first poster x=34   -> 14px inset
+     latest    card edge x=20, header text  x=28   ->  0; the 8px is the
+                                                       table cell's own padding
+
+   So a single rule over both is wrong in one of the two directions whichever
+   value it picks. Padding the table would double up on its cell padding and
+   push the header off the alignment the rest of the column keeps.
+
+   The inset itself is applied BELOW, after the rule that clears .panel__body —
+   that rule names this same selector and sets padding:0, so declaring it here
+   would lose to it on source order and read as another no-op change. */
 
 /* Inside is transparent: one card, one edge. */
 .blocks__featured > .panel__header,
@@ -2898,6 +2913,10 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
 .blocks__latest-releases > .panel__body {
     background: none;
     padding: 0;
+}
+/* ...and the featured strip's inset, restored after that reset (see above). */
+.blocks__featured > .panel__body {
+    padding: var(--featured-inset, 14px);
 }
 .blocks__featured .carousel {
     background: none;

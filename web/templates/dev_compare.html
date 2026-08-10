@@ -34,10 +34,19 @@
     display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
     padding: 8px 12px; background: #1c2027; border-bottom: 1px solid #2a3038;
   }
-  select, input, button {
+  select, input, button, textarea {
     font: inherit; background: #222831; color: #e6e6e6;
     border: 1px solid #333c47; border-radius: 6px; padding: 4px 8px;
   }
+  #noterow {
+    display: flex; gap: 10px; align-items: baseline;
+    padding: 8px 12px; background: #171b21; border-bottom: 1px solid #2a3038;
+  }
+  #noterow label { white-space: nowrap; opacity: .8; }
+  /* The widest thing on the page, deliberately — an empty note is the one
+     failure this whole tool cannot recover from. */
+  #noterow textarea { flex: 1; min-width: 0; resize: vertical; }
+  #noterow textarea:focus { outline: 2px solid #3d63a0; outline-offset: 1px; }
   button { cursor: pointer; }
   button.on { background: #2f6f4f; border-color: #3d8a63; }
   button.primary { background: #2d4a7a; border-color: #3d63a0; }
@@ -88,9 +97,18 @@
   <button id="pick" type="button">Picker: off</button>
   <button id="save" class="primary" type="button">Send to Claude</button>
   <button id="clear" type="button">Clear</button>
-  <input id="note" placeholder="what is wrong with it?" size="34">
-  <span class="hint">box each side, type what is wrong, send</span>
 </header>
+
+<!-- The note is its own row, not a field wedged between the buttons. A
+     rectangle with an empty note says WHERE to look and nothing about what is
+     wrong with it, which has already cost a round-trip: two differences were
+     visible inside one box and picking between them was a guess. Making the
+     box the widest thing on screen is the cheapest available fix. -->
+<div id="noterow">
+  <label for="note">What is wrong with this region?</label>
+  <textarea id="note" rows="2" placeholder="e.g. no padding — posters should be inset from the card edge"></textarea>
+  <span class="hint">Box the same thing on both sides, say what is wrong, then Send. Ctrl+Enter sends.</span>
+</div>
 
 <main>
   <div class="pane" id="paneRef">
@@ -222,8 +240,17 @@
     log('');
   });
 
-  document.getElementById('save').addEventListener('click', function () {
+  function sendFocus() {
     if (!rects.ref || !rects.live) { report(); return; }
+    var noteEl = document.getElementById('note');
+    var note = (noteEl.value || '').trim();
+    // An empty note has already cost a round-trip: the box held two visible
+    // differences and choosing between them was a guess. Ask once rather than
+    // send a rectangle that cannot be acted on.
+    if (!note && !confirm('No note. The region alone says where to look, not what is wrong — send anyway?')) {
+      noteEl.focus();
+      return;
+    }
     var body = {
       ref: document.getElementById('ref').value,
       page: document.getElementById('page').value || '/',
@@ -234,7 +261,7 @@
       // The note travels WITH the rectangle. A region on its own says where to
       // look and not what is wrong with it, and guessing the second from the
       // first is exactly what has gone wrong repeatedly.
-      note: (document.getElementById('note').value || '').trim()
+      note: note
     };
     fetch('/dev/focus', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -242,6 +269,12 @@
     }).then(function (r) { return r.text(); })
       .then(function (t) { log('SAVED\n' + t + '\n\nNow say: "run the focus compare".'); })
       .catch(function (e) { log('save failed: ' + e); });
+  }
+  document.getElementById('save').addEventListener('click', sendFocus);
+  // Ctrl+Enter from inside the note, so writing one and sending it is a single
+  // gesture rather than type-then-reach-for-the-button.
+  document.getElementById('note').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendFocus(); }
   });
 
   // ── element picker (unchanged behaviour) ─────────────────────────────────
