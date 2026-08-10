@@ -748,7 +748,10 @@ a.tag { min-height: 24px; }
        did not even respond to the viewport. Sizing from the top keeps the
        basis authoritative and the frames uniform. */
     align-items: flex-start;
-    gap: 14px;
+    /* The reference gutters measure 6px, but against ITS 122px posters — the
+       same ratio at our 172px is ~8.5. Left at 14 because the strip's spacing
+       was not what was wrong with it; the token is here if it should change. */
+    gap: var(--carousel-gap, 14px);
     margin: 0;
     padding: 2px 0 6px;
     list-style: none;
@@ -761,7 +764,12 @@ a.tag { min-height: 24px; }
 .carousel__track::-webkit-scrollbar { display: none; }
 
 .carousel__item {
-    flex: 0 0 clamp(132px, 17vw, 172px);
+    /* Measuring the reference gives 122x178 posters against our 172x258, and
+       shrinking to match was wrong: the poster size here is deliberate and the
+       reference is simply at a different scale. Kept at 172, which is also
+       what the strip needs to fill its card at six items — at 122 the six
+       posters covered 768px of a 1204px card and left the rest empty. */
+    flex: 0 0 clamp(132px, 17vw, var(--poster-w, 172px));
     /* Belt and braces with the track's align-items: a flex item's default
        min-width:auto lets intrinsic content override the basis above. */
     min-width: 0;
@@ -2861,60 +2869,88 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
    block to this look is a deliberate line rather than something that happens
    to it. The remaining home blocks (top groups, latest topics, top posters)
    are untouched and still render as ordinary panels. */
+/* The SECTION is not the card. Measured off the reference, both headings sit
+   on the page background with the card starting below them — "FEATURED
+   RELEASES" and its Trending pill and chevrons are outside the surface, and
+   so is "LATEST RELEASES" above its table.
+
+   Doing that in CSS rather than in the markup keeps one <section> per block
+   with its header still inside it, which is what every other panel on the site
+   looks like and what the slot API hands to a plugin. Only the paint moves. */
 .blocks__featured,
 .blocks__latest-releases {
-    background: var(--panel-bg);
+    background: none;
     border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    overflow: visible;
+}
+
+/* ...and here is the card: the content, not the section.
+   overflow:hidden clips the table's corners and the poster row to the radius,
+   which is the job .panelV2's own overflow did before this block stopped
+   being a plain panel. */
+.blocks__featured > .panel__body,
+.blocks__latest-releases > .data-table-wrapper {
+    background: var(--panel-bg);
     border-radius: var(--featured-radius, 12px);
     box-shadow: var(--shadow);
-    /* No padding on the CARD itself; what needs insetting is inset below.
-       overflow:hidden is what makes that safe — it clips the table's corners
-       and the poster row to the radius, which is the job .panelV2's own
-       overflow was doing before this block stopped being a plain panel. */
-    padding: 0;
     overflow: hidden;
 }
 
-/* The two blocks look identical and are NOT padded identically. Measured off
-   the reference at 1305px wide:
+/* The heading, on the page rather than on a surface: small, letterspaced and
+   muted, against the large bright treatment a panel heading gets. Reference
+   measures a 9px cap height in #beccd1; ours was 14px in #d9e8e7. */
+.blocks__featured > .panel__header,
+.blocks__latest-releases > .panel__header {
+    padding: 0 2px 8px;
+}
+.blocks__featured > .panel__header .panel__heading,
+.blocks__latest-releases > .panel__header .panel__heading {
+    font-size: .8125rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-muted, #beccd1);
+}
+.blocks__featured > .panel__header .panel__heading a,
+.blocks__latest-releases > .panel__header .panel__heading a {
+    color: inherit;
+}
+/* The icon shrinks with the text and drops to the same muted colour — at the
+   panel default it is a large accent-coloured mark that pulls far more
+   attention than the reference's small outline glyph. */
+.blocks__featured > .panel__header .panel__heading-icon,
+.blocks__latest-releases > .panel__header .panel__heading-icon {
+    width: 1em;
+    height: 1em;
+    color: inherit;
+    opacity: .75;
+}
 
-     featured  card edge x=20, first poster x=34   -> 14px inset
-     latest    card edge x=20, header text  x=28   ->  0; the 8px is the
-                                                       table cell's own padding
-
-   So a single rule over both is wrong in one of the two directions whichever
-   value it picks. Padding the table would double up on its cell padding and
-   push the header off the alignment the rest of the column keeps.
-
-   The inset itself is applied BELOW, after the rule that clears .panel__body —
-   that rule names this same selector and sets padding:0, so declaring it here
-   would lose to it on source order and read as another no-op change. */
-
-/* Inside is transparent: one card, one edge. */
+/* The header sits on the page now, so anything it painted for itself has to
+   go. .panel__heading carries --panel-head-bg separate from the header's — on
+   nord that token is a real colour and would draw a band behind the text. */
 .blocks__featured > .panel__header,
 .blocks__latest-releases > .panel__header {
     background: none;
     border: 0;
 }
-/* .panel__heading carries --panel-head-bg of its own, separate from the
-   header's. On nord that token is a real colour, so leaving it would draw a
-   band across the top of the card. */
-.blocks__featured > .panel__header .panel__heading,
+.blocks__featured > .panel__header .panel__heading {
+    background: none;
+}
 .blocks__latest-releases > .panel__header .panel__heading {
     background: none;
 }
-/* .panel__body paints --panel-bg of its own. The featured strip wraps its
-   carousel in one, so clearing the section and the carousel left the band
-   between them still painting — which is exactly what a screenshot showed and
-   what reading only the CSS did not. Latest releases has no .panel__body (its
-   table sits in a .data-table-wrapper), which is why the two blocks needed
-   different clearing despite looking identical in the markup. */
-.blocks__featured > .panel__body,
-.blocks__latest-releases > .panel__body {
-    background: none;
-    padding: 0;
-}
-/* ...and the featured strip's inset, restored after that reset (see above). */
+
+/* The featured strip's inset. Measured off the reference at 1305px: the card
+   edge at x=20 with the first poster at x=34.
+
+   Latest releases gets none — its table header text starts 8px in, and that
+   8px is the cell's own padding over a card that really is flush. Padding the
+   wrapper would double up and push the header off the alignment the rest of
+   the column keeps. Two blocks that look identical, two different values. */
 .blocks__featured > .panel__body {
     padding: var(--featured-inset, 14px);
 }
