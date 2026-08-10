@@ -2667,7 +2667,8 @@ a.cal-ev:hover { background: var(--surface-3); }
     min-width: 0;
     white-space: nowrap;
 }
-/* Any dl a widget renders, laid flat. */
+/* Any dl a widget renders, laid flat — a widget written for a sidebar still
+   has to survive being dropped in here. */
 .top-nav__widgets .key-value {
     display: flex;
     align-items: baseline;
@@ -2696,6 +2697,7 @@ a.cal-ev:hover { background: var(--surface-3); }
     font-weight: 600;
     color: var(--text);
 }
+
 /* A widget may also carry prose or a button; neither belongs in this bar. */
 .top-nav__widgets p,
 .top-nav__widgets .button { display: none; }
@@ -2705,3 +2707,44 @@ a.cal-ev:hover { background: var(--surface-3); }
 @media (max-width: 1200px) {
     .top-nav__widgets { display: none; }
 }
+
+/* ── Stat figures: an icon and a number ──────────────────────────────────────
+   The readout every tracker's top bar has. A plugin emits the KIND of each
+   figure ("up", "down", "ratio") and never a colour; which hue a kind takes is
+   decided here, from theme tokens, so the bar follows the theme and a plugin
+   ships no palette of its own.
+
+   Each figure carries its label as visually-hidden text and a title attribute.
+   An icon-only readout is unreadable to a screen reader and ambiguous to
+   anyone who has not used a tracker before, and neither costs a pixel. */
+.stat-figures {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.stat-figure {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--fs-2xs);
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--text);
+}
+.stat-figure .icon {
+    width: 14px;
+    height: 14px;
+    flex: none;
+}
+/* Only the ICON is coloured, not the number. Colouring the value too turned
+   the bar into a row of competing highlights with nothing to read against. */
+.stat-figure--up .icon { color: var(--success); }
+.stat-figure--down .icon { color: var(--danger); }
+.stat-figure--ratio .icon { color: var(--accent); }
+.stat-figure--seed .icon { color: var(--info); }
+.stat-figure--torrents .icon { color: var(--muted); }
+
+/* In the header bar the figures are the whole widget, so the wrapper adds no
+   gap of its own and nothing wraps to a second line. */
+.top-nav__widgets .stat-figures { flex-wrap: nowrap; gap: 12px; }
