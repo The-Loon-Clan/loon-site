@@ -309,13 +309,33 @@ main > article {
    Ours had the contrast in the wrong place: "loon" white and "indexer" in a
    bright --primary-tint, so the second word pulled harder than the first.
    Weight and lightness carry the emphasis here; hue does not. */
+/* Weights are measured, not chosen by eye. Stem width at the wordmark's own
+   size, sampled across a row through the glyphs:
+
+     reference   LOON 2px   INDEXER 1px   (mode; the 3s and 5s are diagonals)
+     at 800      LOON 3px                 too heavy — the reported symptom
+     at 700/600  LOON 2px
+     at 300/200  INDEXER 1px
+
+   So 700 against 300, and INDEXER was already right: an averaged stem width
+   made it look 75% too heavy because the mean folded in the diagonals of N, X
+   and E. The mode is the measurement; the mean is an artefact.
+
+   The system stack has no continuous weight axis — 200 and 300 render as one
+   light face, 600 and 700 as one semibold — so these are the only two steps
+   available between "light" and "heavy" without shipping a webfont. That is
+   also the honest answer to whether the reference is two fonts rather than two
+   weights: at this size the evidence cannot tell them apart. */
 .top-nav__wordmark {
     font-size: var(--fs-2xl);
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.15;
     letter-spacing: 0.01em;
     text-transform: uppercase;
     color: var(--wordmark-fg, #e2e7ed);
+    /* The reference's glyphs carry a dark fringe below them, visible at 10x
+       magnification as a consistent 1px darkening under every stroke. */
+    text-shadow: var(--wordmark-shadow, 0 1px 2px rgba(0, 0, 0, 0.55));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

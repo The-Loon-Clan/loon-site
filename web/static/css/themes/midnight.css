@@ -153,6 +153,7 @@
     /* See cosmic-void.css for the reasoning. */
     --wordmark-fg: #e8e8f2;
     --wordmark-accent-fg: #9f95cf;
+    --wordmark-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
     --top-nav-dropdown-menu-bg: #131b2c;
     --top-nav-dropdown-menu-border: 1px solid var(--border-strong);
     --top-nav-dropdown-menu-border-radius: var(--radius);

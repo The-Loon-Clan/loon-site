@@ -158,6 +158,7 @@
     /* Snow Storm against Frost — see cosmic-void.css for the reasoning. */
     --wordmark-fg: #eceff4;
     --wordmark-accent-fg: #88c0d0;
+    --wordmark-shadow: 0 1px 2px rgba(46, 52, 64, 0.65);
     --top-nav-dropdown-menu-bg: #2e3440;
     --top-nav-dropdown-menu-border: none;
     --top-nav-dropdown-menu-border-radius: var(--radius-sm);
