@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -31,6 +32,42 @@ func (w *web) registerBuiltinWidgets(c *core.Core) {
 			c.Logger.Error("register widget", "slug", x.Slug, "err", err)
 		}
 	}
+
+	// ── free text, written by the operator ──────────────────────────────────
+	//
+	// The one widget with no data source: whatever an operator typed for THIS
+	// placement, rendered as markdown. A rules notice in the footer, a welcome
+	// line in a sidebar, a maintenance warning above the listings — the things
+	// a site wants to say that no plugin can know in advance.
+	//
+	// Through siteMarkdown, which is the site's ONE prose renderer: goldmark
+	// with raw inline HTML refused, then the allowlist sanitizer. An admin is
+	// exactly the account a stored XSS payload is trying to reach, so the
+	// privileged path is the last one that should get a shortcut — the same
+	// argument markdown_web.go makes for the wiki and the forum.
+	//
+	// Public, because a notice nobody can read is not a notice. An operator who
+	// wants a members-only message has the member regions to put it in.
+	reg(core.Widget{
+		Slug:        "text",
+		Title:       "Text",
+		Description: "Your own words, written in markdown.",
+		Public:      true,
+		Weight:      1,
+		ConfigLabel: "Markdown",
+		ConfigHint:  "Rendered with the site's markdown. Leave blank to show nothing.",
+		Render: func(gc *gin.Context) (template.HTML, error) {
+			// Empty means NOT CONFIGURED, so the widget renders nothing and is
+			// dropped. No sample text: an operator who cleared the field meant
+			// to clear it, and a widget that reverts to a placeholder is one
+			// nobody can switch off without removing it.
+			src := strings.TrimSpace(core.WidgetConfig(gc))
+			if src == "" {
+				return "", nil
+			}
+			return siteMarkdown(src), nil
+		},
+	})
 
 	// ── the viewer's tracker standing ───────────────────────────────────────
 	//

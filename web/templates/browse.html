@@ -17,6 +17,10 @@
 {{end}}
 
 {{define "content"}}
+{{/* Operator-placed widgets for the listing region (widgets_web.go).
+     Above the results, because that is the only place on a listing where a
+     widget can sit without interrupting a table people scan. */}}
+{{with .RegionWidgets}}{{template "widget-region" .}}{{end}}
 {{if .Unconfigured}}
 <p class="notice notice--info">
     <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>

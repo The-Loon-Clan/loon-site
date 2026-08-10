@@ -1375,6 +1375,10 @@ func (w *web) browse(c *gin.Context) {
 			rows := toSearchRows(res)
 			w.attachCovers(ctx, rows) // one lookup for the page, not one per row
 			rows = attachSwarm(ctx, attachGrabs(ctx, rows))
+			// Operator-placed widgets above the results.
+			if ws := w.renderRegion(c, "listing"); len(ws) > 0 {
+				data["RegionWidgets"] = ws
+			}
 			// Facets from the UNFILTERED set; ?cat= rides along on every facet
 			// link so filtering never drops the category you are browsing.
 			data["Facets"] = buildFacets(rows, f, "/browse", keepParams(c, "cat"))
@@ -1436,6 +1440,10 @@ func (w *web) search(c *gin.Context) {
 			rows := toSearchRows(res)
 			w.attachCovers(ctx, rows) // one lookup for the page
 			rows = attachSwarm(ctx, attachGrabs(ctx, rows))
+			// Operator-placed widgets above the results.
+			if ws := w.renderRegion(c, "listing"); len(ws) > 0 {
+				data["RegionWidgets"] = ws
+			}
 			// Facets come from the UNFILTERED set so every value offered
 			// matches something; the results are what is left after applying.
 			data["Facets"] = buildFacets(rows, f, "/search", keepParams(c, "q"))

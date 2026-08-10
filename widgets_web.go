@@ -85,6 +85,12 @@ func widgetsMigrate(db *sqlx.DB) error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_widget_placement_region
 		     ON widget_placement (region, position)`,
+		// Added after the table shipped, so ADD COLUMN IF NOT EXISTS rather
+		// than a changed CREATE — an existing deployment already has rows.
+		// The setting an operator typed for THIS placement; see
+		// core.WidgetConfig. Empty means not configured, which a widget must
+		// treat as "render nothing".
+		`ALTER TABLE widget_placement ADD COLUMN IF NOT EXISTS config TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, q := range stmts {
 		if _, err := db.Exec(q); err != nil {
@@ -100,6 +106,7 @@ type widgetPlacement struct {
 	Slug     string `db:"slug"`
 	Position int    `db:"position"`
 	Enabled  bool   `db:"enabled"`
+	Config   string `db:"config"`
 }
 
 // readPlacements returns a region's arrangement, in order.
@@ -109,7 +116,7 @@ func readPlacements(ctx context.Context, region string) []widgetPlacement {
 	}
 	var rows []widgetPlacement
 	if err := widgetsDB.SelectContext(ctx, &rows,
-		`SELECT region, slug, position, enabled FROM widget_placement
+		`SELECT region, slug, position, enabled, config FROM widget_placement
 		  WHERE region = $1 ORDER BY position, slug`, region); err != nil {
 		return nil
 	}
@@ -129,7 +136,7 @@ func readAllPlacements(ctx context.Context) map[string][]widgetPlacement {
 	}
 	var rows []widgetPlacement
 	if err := widgetsDB.SelectContext(ctx, &rows,
-		`SELECT region, slug, position, enabled FROM widget_placement
+		`SELECT region, slug, position, enabled, config FROM widget_placement
 		  ORDER BY region, position, slug`); err != nil {
 		return nil
 	}
@@ -212,6 +219,9 @@ func (w *web) renderPlaced(c *gin.Context, region string, placements []widgetPla
 		if !ok || !widget.AllowsUser(viewer) || !widget.FitsRegion(region) {
 			continue
 		}
+		// The setting for THIS placement, set immediately before Render so two
+		// placements of one widget cannot see each other's value.
+		core.SetWidgetConfig(c, p.Config)
 		body, err := widget.Render(c)
 		if err != nil || strings.TrimSpace(string(body)) == "" {
 			continue

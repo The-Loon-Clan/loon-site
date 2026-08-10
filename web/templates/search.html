@@ -22,6 +22,10 @@
 {{end}}
 
 {{define "content"}}
+{{/* Operator-placed widgets for the listing region (widgets_web.go).
+     Above the results, because that is the only place on a listing where a
+     widget can sit without interrupting a table people scan. */}}
+{{with .RegionWidgets}}{{template "widget-region" .}}{{end}}
 <section class="panelV2">
     <header class="panel__header">
         <h1 class="panel__heading">

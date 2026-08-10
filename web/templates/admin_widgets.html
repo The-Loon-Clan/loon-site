@@ -51,7 +51,7 @@
         {{if .Placed}}
         <table class="data-table">
             <caption class="visually-hidden">Widgets placed in this region</caption>
-            <thead><tr><th>Widget</th><th>Status</th><th class="data-table__shrink">Order</th><th class="data-table__shrink">Actions</th></tr></thead>
+            <thead><tr><th>Widget</th><th>Status</th><th>Setting</th><th class="data-table__shrink">Order</th><th class="data-table__shrink">Actions</th></tr></thead>
             <tbody>
                 {{range .Placed}}
                 <tr>
@@ -82,6 +82,23 @@
                             <input type="hidden" name="delta" value="1">
                             <button class="button button--text button--sm" type="submit" aria-label="Move {{.Title}} down">↓</button>
                         </form>
+                    </td>
+                    <td>
+                        {{/* Only widgets that declare a ConfigLabel get a field.
+                             The value belongs to THIS placement, so the same
+                             widget in two regions holds two different notices. */}}
+                        {{if .ConfigLabel}}
+                        <form method="post" action="/admin/widgets/apply">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="region" value="{{$.Region}}">
+                            <input type="hidden" name="slug" value="{{.Slug}}">
+                            <input type="hidden" name="action" value="configure">
+                            <label class="form__label" for="cfg-{{.Slug}}">{{.ConfigLabel}}</label>
+                            <textarea class="form__input" id="cfg-{{.Slug}}" name="config" rows="3">{{.Config}}</textarea>
+                            {{if .ConfigHint}}<div class="text-muted small">{{.ConfigHint}}</div>{{end}}
+                            <button class="button button--outlined button--sm mt-2" type="submit">Save</button>
+                        </form>
+                        {{else}}<span class="text-muted">&mdash;</span>{{end}}
                     </td>
                     <td class="data-table__nowrap">
                         <form method="post" action="/admin/widgets/apply" style="display:inline;margin:0">

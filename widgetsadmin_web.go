@@ -36,17 +36,22 @@ func (w *web) widgetsAdminPage(c *gin.Context) {
 	// whole reason resolution reports rather than skips: a row that silently
 	// vanished would leave somebody wondering why their layout changed.
 	type placedVM struct {
-		Slug     string
-		Title    string
-		Position int
-		Enabled  bool
-		Missing  bool
+		Slug        string
+		Title       string
+		Position    int
+		Enabled     bool
+		Missing     bool
+		ConfigLabel string // non-empty when this widget takes a setting
+		ConfigHint  string
+		Config      string // what the operator typed for THIS placement
 	}
 	var placed []placedVM
 	for _, p := range readPlacements(ctx, region) {
-		vm := placedVM{Slug: p.Slug, Position: p.Position, Enabled: p.Enabled, Title: p.Slug, Missing: true}
+		vm := placedVM{Slug: p.Slug, Position: p.Position, Enabled: p.Enabled,
+			Title: p.Slug, Missing: true, Config: p.Config}
 		if wd, ok := w.rt.Core().WidgetBySlug(p.Slug); ok {
 			vm.Title, vm.Missing = wd.Title, false
+			vm.ConfigLabel, vm.ConfigHint = wd.ConfigLabel, wd.ConfigHint
 		}
 		placed = append(placed, vm)
 	}
@@ -97,6 +102,15 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 		// back on puts it where it was instead of at the bottom.
 		_, _ = widgetsDB.ExecContext(ctx,
 			`UPDATE widget_placement SET enabled = NOT enabled WHERE region=$1 AND slug=$2`, region, slug)
+	case "configure":
+		// The setting for one placement. Stored verbatim — a widget decides
+		// what its own string means, and the host escaping or parsing it here
+		// would break every widget whose value is not what the host guessed.
+		// Whatever a widget does with it must be safe at RENDER; see the
+		// markdown widget, which runs the site's sanitising renderer.
+		_, _ = widgetsDB.ExecContext(ctx,
+			`UPDATE widget_placement SET config=$3 WHERE region=$1 AND slug=$2`,
+			region, slug, c.PostForm("config"))
 	case "move":
 		delta, _ := strconv.Atoi(c.PostForm("delta"))
 		if delta != 0 {
