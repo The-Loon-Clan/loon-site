@@ -116,9 +116,12 @@
     --panel-head-border-radius: 0;
     --panel-body-border-radius: 0;
     --panel-box-shadow: none;
-    --panel-head-bg: #19191b;
+    /* Transparent, not #19191b. The header read as a separate dark BOX sitting
+       on the panel — two surfaces where there is one thing. A rule under it
+       does the separating instead, which is what midnight already does. */
+    --panel-head-bg: transparent;
     --panel-head-fg: #ffffff;
-    --panel-head-border: none;  /* the head has its own bg; no rule needed */
+    --panel-head-border: 1px solid var(--border);  /* the head is transparent now, so the rule separates it */
     --panel-action-fg: #aaaaaa;
     --panel-group-fg: #888888;
 
@@ -323,8 +326,9 @@
        weaker here on purpose: the same alpha that reads as depth on navy reads
        as a stain on grey. */
     --body-wash:
-        radial-gradient(1200px 600px at 15% -10%, rgba(33, 149, 243, 0.07), transparent 60%),
-        radial-gradient(1000px 500px at 90% 0%, rgba(33, 149, 243, 0.05), transparent 55%);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05) 120px, transparent 560px),
+        radial-gradient(1200px 720px at 12% 14%, rgba(33, 149, 243, 0.15), transparent 62%),
+        radial-gradient(1100px 620px at 88% 6%, rgba(33, 149, 243, 0.10), transparent 58%);
 
     /* ── Section headings ───────────────────────────────────────────────────
        A panel heading reads as a LABEL for the block beneath it rather than as

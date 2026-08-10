@@ -200,7 +200,7 @@
        match --hero-bg's last stop or the seam shows. */
 
     /* ---- buttons ------------------------------------------------------ */
-    --button-filled-bg: linear-gradient(180deg, var(--primary) 0%, var(--primary-strong) 100%);
+    --button-filled-bg: linear-gradient(180deg, transparent 0, var(--primary) 0%, var(--primary-strong) 100%);
     --button-filled-fg: var(--primary-fg);
     --button-filled-border: 1px solid var(--primary-strong);
     --button-outlined-bg: transparent;
@@ -316,8 +316,9 @@
        Values are per-theme on purpose — the wash is the theme's own accent at
        low alpha, never a hardcoded blue. */
     --body-wash:
-        radial-gradient(1200px 600px at 15% -10%, rgba(124, 92, 255, 0.10), transparent 60%),
-        radial-gradient(1000px 500px at 90% 0%, rgba(70, 130, 255, 0.07), transparent 55%);
+        linear-gradient(180deg, rgba(124, 92, 255, 0.11) 120px, transparent 640px),
+        radial-gradient(1200px 720px at 12% 14%, rgba(124, 92, 255, 0.18), transparent 62%),
+        radial-gradient(1100px 620px at 88% 6%, rgba(56, 132, 255, 0.13), transparent 58%);
 
     /* ── Section headings ───────────────────────────────────────────────────
        A panel heading reads as a LABEL for the block beneath it rather than as

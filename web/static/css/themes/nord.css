@@ -312,8 +312,9 @@
        at low alpha, so the wash belongs to this palette rather than importing
        another theme's hue. */
     --body-wash:
-        radial-gradient(1200px 600px at 15% -10%, rgba(136, 192, 208, 0.10), transparent 60%),
-        radial-gradient(1000px 500px at 90% 0%, rgba(129, 161, 193, 0.07), transparent 55%);
+        linear-gradient(180deg, rgba(136, 192, 208, 0.10) 120px, transparent 640px),
+        radial-gradient(1200px 720px at 12% 14%, rgba(136, 192, 208, 0.16), transparent 62%),
+        radial-gradient(1100px 620px at 88% 6%, rgba(129, 161, 193, 0.12), transparent 58%);
 
     /* ── Section headings ───────────────────────────────────────────────────
        A panel heading reads as a LABEL for the block beneath it rather than as
