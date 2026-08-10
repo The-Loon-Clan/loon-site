@@ -464,7 +464,10 @@ func TestPagesExecuteForSignedInViewer(t *testing.T) {
 		// with IsSelf set. Before points moved, this branch nominally covered
 		// home and profile — but it was satisfied by the chrome strip both
 		// times, so it never actually reached either page's own markup.
-		if !strings.Contains(out, "ratio-bar__points") {
+		// stat-figure--points since the points tile became one of the shared
+		// stat figures; the guard it pins (HasPoints, so a genuine 0 still
+		// renders) is unchanged.
+		if !strings.Contains(out, "stat-figure--points") {
 			t.Errorf("%s: no points figure in the top nav for a zero-balance viewer", page)
 		}
 	}

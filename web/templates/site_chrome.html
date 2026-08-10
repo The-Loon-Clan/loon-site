@@ -235,11 +235,16 @@
                      Points stays: it is the host's own figure and has no
                      widget competing with it. */}}
                 {{if .HasPoints}}
-                <li class="ratio-bar__points">
-                    <a href="/store/history" title="Points balance">
+                <li>
+                    {{/* The same .stat-figure shape the tracker's widget uses,
+                         so the host's own figure and a plugin's sit in one set
+                         rather than looking like two systems that happen to
+                         share a bar. Still a LINK — the balance is the way in
+                         to what was spent. */}}
+                    <a class="stat-figure stat-figure--points" href="/store/history" title="Bonus points">
                         <svg class="icon" aria-hidden="true"><use href="#coin"></use></svg>
-                        <span>{{.Points}}</span>
-                        <span class="visually-hidden">points</span>
+                        <span class="stat-figure__value">{{.Points}}</span>
+                        <span class="visually-hidden">bonus points</span>
                     </a>
                 </li>
                 {{end}}
@@ -255,10 +260,12 @@
                      is exactly the kind of thing a nav bar should not try to
                      inline. */}}
                 {{if .CanClaimDaily}}
-                <li class="ratio-bar__claim">
-                    <a href="/calendar#daily-reward" title="Claim today's reward{{if .DailyStreak}} — {{.DailyStreak}} day streak{{end}}">
+                <li>
+                    <a class="stat-figure stat-figure--claim" href="/calendar#daily-reward"
+                       title="Claim today's reward{{if .DailyStreak}} — {{.DailyStreak}} day streak{{end}}">
                         <svg class="icon" aria-hidden="true"><use href="#star"></use></svg>
-                        <span>Claim{{if .DailyReward}} {{.DailyReward}}{{end}}</span>
+                        <span class="stat-figure__value">{{if .DailyReward}}{{.DailyReward}}{{else}}Claim{{end}}</span>
+                        <span class="visually-hidden">claim today's reward</span>
                     </a>
                 </li>
                 {{end}}

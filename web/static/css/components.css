@@ -2758,6 +2758,17 @@ tr:nth-last-child(-n + 3) .quick-info {
 .stat-figure--ratio .icon { color: var(--accent); }
 .stat-figure--seed .icon { color: var(--info); }
 .stat-figure--torrents .icon { color: var(--muted); }
+/* Currency and the daily claim: gold, from --warning, which is amber in every
+   theme here (#eaa640 / #ebcb8b / #ffb800). A literal gold would be the one
+   colour on the bar that ignored the theme. */
+.stat-figure--points .icon,
+.stat-figure--claim .icon { color: var(--warning); }
+
+/* A figure that is also a link keeps the bar's colour rather than the link
+   palette — it is a readout you can follow, not a sentence with a link in it.
+   The underline on hover is what says it is followable. */
+a.stat-figure { text-decoration: none; color: inherit; }
+a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
 
 /* In the header bar the figures STACK: two rows, filled column-wise, so each
    column is a related pair — uploaded over downloaded, ratio over seeding.
@@ -2788,3 +2799,23 @@ tr:nth-last-child(-n + 3) .quick-info {
    that nothing clips, while still bounding a widget that returns more than
    this bar can hold. */
 .top-nav__widgets { max-width: 46vw; }
+
+/* The host's own figures — points, the daily claim — stack on the same two-row
+   grid as a widget's, so the bar reads as ONE set rather than as two systems
+   that happen to share a row. */
+.top-nav__ratio-bar {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(2, auto);
+    gap: 1px 16px;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.top-nav__ratio-bar .stat-figure {
+    font-size: var(--fs-3xs);
+    line-height: 1.35;
+    gap: 4px;
+}
+.top-nav__ratio-bar .stat-figure .icon { width: 12px; height: 12px; }
