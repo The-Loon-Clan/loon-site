@@ -1014,23 +1014,14 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 				data["HasPoints"] = true
 			}
 		}
-		// The tracker's ratio bar, in the slot UNIT3D puts it in. Guarded on
-		// HasTracker for the same reason as HasPoints just above: a template
-		// cannot tell an absent key from a zero one, and "0.00" is a real
-		// standing that a member who has announced should see.
+		// No tracker figures in the chrome. They were rendered twice — these
+		// keys AND the tracker-standing widget, which an operator can place in
+		// the same header bar — and two sources for one number is a thing to
+		// remove rather than style around. The widget won because an operator
+		// controls where it goes, or whether it appears at all.
 		//
-		// Absent entirely when the tracker is off, so a host running without it
-		// renders exactly the chrome it did before and pays for no query — the
-		// gate is inside readTrackerTotals rather than here, so every caller
-		// gets it rather than each one remembering.
-		if tt, ok := readTrackerTotals(c.Request.Context(), usersDB, u.ID); ok {
-			data["HasTracker"] = true
-			data["TrackerUp"] = humanBytes(tt.Uploaded)
-			data["TrackerDown"] = humanBytes(tt.Downloaded)
-			data["TrackerRatio"] = tt.RatioLabel()
-			data["TrackerSeeding"] = tt.Seeding
-			data["TrackerLeeching"] = tt.Leeching
-		}
+		// A member's standing is still on /stats and on their profile, and
+		// readTrackerTotals is still what those read.
 		// unverified-email banner: look up the full record (core.User omits the flag)
 		if w.store != nil {
 			if full, err := w.store.ByID(c.Request.Context(), u.ID); err == nil && full != nil {

@@ -219,39 +219,21 @@
                  to be repeated in a second bar under the section nav, on every
                  page — see the {{block "stat-strip"}} note further down. */}}
             <ul class="top-nav__ratio-bar">
-                {{/* The tracker's figures, in the slot this bar was named for.
-                     Present only while the tracker is switched on AND the
-                     viewer has announced at least once — see readTrackerTotals.
-                     A member who has never used it sees the bar exactly as it
-                     was, because a row of dashes is not information.
+                {{/* NO tracker figures here.
 
-                     Upload, download and ratio, and nothing else. Buffer and
-                     bonus points are the other two things UNIT3D puts here;
-                     buffer is a function of a required ratio this tracker does
-                     not set, and points already has its own tile below. */}}
-                {{if .HasTracker}}
-                <li class="ratio-bar__up">
-                    <a href="/tracker" title="Uploaded">
-                        <svg class="icon" aria-hidden="true"><use href="#chevron-up"></use></svg>
-                        <span>{{.TrackerUp}}</span>
-                        <span class="visually-hidden">uploaded</span>
-                    </a>
-                </li>
-                <li class="ratio-bar__down">
-                    <a href="/tracker" title="Downloaded">
-                        <svg class="icon" aria-hidden="true"><use href="#chevron-down"></use></svg>
-                        <span>{{.TrackerDown}}</span>
-                        <span class="visually-hidden">downloaded</span>
-                    </a>
-                </li>
-                <li class="ratio-bar__ratio">
-                    <a href="/tracker" title="Share ratio{{if .TrackerSeeding}} — seeding {{.TrackerSeeding}}{{end}}">
-                        <svg class="icon" aria-hidden="true"><use href="#shield"></use></svg>
-                        <span>{{.TrackerRatio}}</span>
-                        <span class="visually-hidden">share ratio</span>
-                    </a>
-                </li>
-                {{end}}
+                     They were rendered twice: these built-in tiles AND the
+                     tracker-standing widget an operator can place in this same
+                     region, which arrives as a full <dl> and broke the bar it
+                     was dropped into. Two sources for one number is the thing
+                     to remove, not to style around.
+
+                     The widget is the one that survives, because it is the one
+                     an operator controls -- it can be placed here, in a
+                     sidebar, on a profile, or nowhere. A member's standing also
+                     still lives on /stats and on their profile.
+
+                     Points stays: it is the host's own figure and has no
+                     widget competing with it. */}}
                 {{if .HasPoints}}
                 <li class="ratio-bar__points">
                     <a href="/store/history" title="Points balance">
