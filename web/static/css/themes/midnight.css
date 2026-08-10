@@ -321,10 +321,13 @@
        low alpha, never a hardcoded blue. */
     /* Viewport-relative stops — see cosmic-void.css for why pixels left a
        stationary seam partway down the page. */
+    /* Same field as cosmic-void, in violet. See that file for how it was fitted. */
     --body-wash:
-        linear-gradient(180deg, rgba(124, 92, 255, 0.11), rgba(124, 92, 255, 0)),
-        radial-gradient(92vw 130vh at 12% 14%, rgba(124, 92, 255, 0.18), rgba(124, 92, 255, 0) 62%),
-        radial-gradient(84vw 118vh at 88% 6%, rgba(56, 132, 255, 0.13), rgba(56, 132, 255, 0) 58%);
+        linear-gradient(180deg, rgba(124, 92, 255, 0.05), rgba(124, 92, 255, 0)),
+        radial-gradient(46vw 60vh at 14% 12%, rgba(124, 92, 255, 0.11), rgba(124, 92, 255, 0) 70%),
+        radial-gradient(34vw 46vh at 52% 22%, rgba(124, 92, 255, 0.08), rgba(124, 92, 255, 0) 68%),
+        radial-gradient(40vw 54vh at 86% 60%, rgba(56, 132, 255, 0.05), rgba(56, 132, 255, 0) 66%),
+        radial-gradient(52vw 66vh at 100% 16%, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0) 76%);
 
     /* ── The featured strip ─────────────────────────────────────────────────
        Its own radius, NOT --radius-lg. cosmic-void sets --radius-lg to 0

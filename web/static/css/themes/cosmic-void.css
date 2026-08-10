@@ -340,28 +340,35 @@
     --bs-border-color: var(--border);
     --bs-success: var(--success);
 
-    /* ── Page canvas: a scaled wash rather than one flat colour ─────────────
-       See midnight.css. Cosmic Void is a near-flat grey theme, so the wash is
-       weaker here on purpose: the same alpha that reads as depth on navy reads
-       as a stain on grey.
+    /* Several soft zones, not one corner glow.
 
-       Every stop is viewport-relative, and that is the whole point. Sized in
-       pixels the wash ran out: the linear reached transparent at 560px and the
-       radials faded at 62% of a 720px radius, so below roughly 660px the
-       canvas went flat. Because the body background is attachment:fixed, that
-       boundary is pinned to the VIEWPORT — a stationary light-to-dark seam
-       that content scrolls underneath, which is exactly how you notice it.
-       Measured down the left gutter: #2a3742 at the top decaying to a dead
-       flat #222222 for the last 940px of a 1600px page.
+       The wash's job is a broad light/dark FIELD across the canvas, and the
+       shape of that field is measurable: sample a band of pure page background
+       across the full width and the reference rises to a peak near 20%, dips,
+       rises again around 45%, then falls steadily to its darkest at the right
+       edge. Two big top-corner radials cannot make that shape — they gave one
+       bright patch on the left and a flat middle.
 
-       In vh the wash always spans whatever the viewport is. 130vh of vertical
-       radius is not a typo — the radial fades to nothing at 62% of its radius,
-       so reaching the bottom edge from a centre at 14% needs a radius of about
-       1.4 viewports. */
+       Fitted with scripts/washfit.py, which renders candidates to a file:// page
+       and scores each one's profile against the reference's. Sum of absolute
+       differences across twelve sample points, lower is better:
+
+           this      25.6      +6.6 +15.4 +15.3 +8.2 +4.7 +3.5 +5.1 -1.0 ...
+           previous  91.5      +7.0 +16.0 +11.7 +5.6 -2.4 -5.0 -7.1 -10.2 ...
+           reference           +5.4 +11.5 +13.8 +7.6 +0.9 +5.6 +6.8 +1.4 ...
+
+       The dark zone is centred past the right edge (100%) on purpose: centred
+       inside the viewport it bottoms out and curls back up before the corner,
+       where the reference is still darkening.
+
+       Stops stay in vw/vh so the field still spans any viewport — see the
+       commit that removed the pixel anchoring. */
     --body-wash:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0)),
-        radial-gradient(92vw 130vh at 12% 14%, rgba(33, 149, 243, 0.15), rgba(33, 149, 243, 0) 62%),
-        radial-gradient(84vw 118vh at 88% 6%, rgba(33, 149, 243, 0.10), rgba(33, 149, 243, 0) 58%);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+        radial-gradient(46vw 60vh at 14% 12%, rgba(33, 149, 243, 0.085), rgba(33, 149, 243, 0) 70%),
+        radial-gradient(34vw 46vh at 52% 22%, rgba(33, 149, 243, 0.06), rgba(33, 149, 243, 0) 68%),
+        radial-gradient(40vw 54vh at 86% 60%, rgba(33, 149, 243, 0.04), rgba(33, 149, 243, 0) 66%),
+        radial-gradient(52vw 66vh at 100% 16%, rgba(0, 0, 0, 0.13), rgba(0, 0, 0, 0) 76%);
 
     /* ── The featured strip ─────────────────────────────────────────────────
        Its own radius, NOT --radius-lg. cosmic-void sets --radius-lg to 0
