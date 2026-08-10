@@ -2575,8 +2575,19 @@ a.cal-ev:hover { background: var(--surface-3); }
 .quick-info {
     position: absolute;
     z-index: var(--z-overlay);
-    left: 64px;
-    top: 100%;
+    /* Anchored to the ROW it describes, not dropped under it.
+    
+       top:100% put the card below the name cell, where it landed squarely on
+       the next row's poster and the start of its title — the two things a
+       reader uses to tell rows apart. Centred on the row instead, it reads as
+       belonging to the row under the cursor, and what it does cover is the
+       MIDDLE of the neighbours' titles rather than their identifying edge.
+
+       left clears the thumbnail column for the same reason: a covered poster
+       is a row you cannot recognise. */
+    left: 88px;
+    top: 50%;
+    transform: translateY(-50%);
     width: min(420px, calc(100vw - 32px));
     display: flex;
     gap: 12px;
@@ -2610,13 +2621,22 @@ a.cal-ev:hover { background: var(--surface-3); }
 .data-table__name:focus-within .quick-info {
     display: flex;
 }
-/* The last rows open UPWARD. A card below the final row is either clipped by
-   the scroll container or pushes it open again — the same problem in a
-   different disguise. Three rows of margin, because the card is taller than a
-   row. */
-tr:nth-last-child(-n + 3) .quick-info {
+/* The last rows anchor to their own BOTTOM edge rather than centring, so the
+   card cannot hang below the final row — where it would be clipped by the
+   scroll container, or push it open again, which is the bug that left a blank
+   region under the table. Two rows is enough now the card is centred rather
+   than dropped. */
+tr:nth-last-child(-n + 2) .quick-info {
     top: auto;
-    bottom: 100%;
+    bottom: 0;
+    transform: none;
+}
+/* Likewise the first row: centred, its top half would sit above the table and
+   under the sticky header. */
+tr:first-child .quick-info {
+    top: 0;
+    bottom: auto;
+    transform: none;
 }
 /* Below the breakpoint there is no hover to speak of and no room for a 420px
    card beside a table, so it is not merely hidden — it is never composited. */
