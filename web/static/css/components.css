@@ -2851,56 +2851,42 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
 }
 .top-nav__ratio-bar .stat-figure .icon { width: 12px; height: 12px; }
 
-/* ── The featured strip is CHROMELESS ────────────────────────────────────────
-   It carries .panelV2 for its structure — header, actions, the carousel —
-   but not for its surface. As a panel it drew a filled box with a 3px border
-   and an inset header, and the posters are the thing that should be seen: art
-   inside a frame inside a box is two frames too many.
+/* ── The featured strip is ONE rounded card ──────────────────────────────────
+   Heading and posters in a single rounded surface, not a rounded tray sitting
+   inside a square parent — which is what an earlier pass produced by putting
+   the surface on the INNER element and stripping it from the outer one. Two
+   edges where the design has one.
 
-   So the surface, border, shadow and radius are dropped and the heading is
-   pulled out to the same left edge as the first poster. Every other panel on
-   the site is untouched — this is one block's treatment, not a change to what
-   a panel is.
-
-   No colour is set here, only colour REMOVED, which is why this needs no
-   token: a theme still decides everything that remains visible. */
+   So the card is the outer element and everything inside it is transparent.
+   The heading sits on the card rather than on the page; the posters sit on the
+   same card under it. */
 .blocks__featured {
-    background: none;
+    background: var(--panel-bg);
     border: 0;
-    box-shadow: none;
-    border-radius: 0;
-    /* .panelV2 sets overflow:hidden to clip its own contents to its radius.
-       Inherited here it did the opposite of what was wanted: the tray below
-       spans the full width, so its rounded corners were CLIPPED OFF by this
-       element's square box and the tray rendered square however large its
-       radius was. Nothing here needs clipping any more — there is no surface,
-       no border and no radius to clip to. */
+    border-radius: var(--featured-radius, 12px);
+    box-shadow: var(--shadow);
+    /* Padding keeps the contents off the rounded corners, which is what lets
+       overflow stay visible — the posters lift on hover and a clip would cut
+       the raised shadow off at the card edge. */
+    padding: 2px 14px 14px;
     overflow: visible;
 }
+/* Everything inside is transparent: one card, one edge. */
 .blocks__featured > .panel__header {
     background: none;
     border: 0;
     padding-inline: 0;
 }
-/* The heading and the first poster share a left edge. Inset, the heading read
-   as a label ABOUT a box; flush, it reads as a label for the row beneath it.
-   The heading carries its own background token too, so it is cleared here as
-   well as on the header — on nord that token is a real colour (#2e3440), not
-   transparent, and it would draw a band behind the words. */
+/* .panel__heading carries --panel-head-bg of its own, separate from the
+   header's. On nord that token is a real colour, so leaving it would draw a
+   band across the top of the card. */
 .blocks__featured > .panel__header .panel__heading {
     padding-inline: 0;
     background: none;
 }
-
-/* The posters sit in their own ROUNDED surface, below the heading rather than
-   inside a box with it. That is the shape in the reference: a label on the
-   page, and the art in a soft-cornered tray under it. */
 .blocks__featured .carousel {
-    background: var(--panel-bg);
-    border-radius: var(--featured-radius, 12px);
-    padding: 14px;
-    /* Lifts the tray off the page so the rounding reads as a raised surface
-       rather than a colour change. --shadow, so each theme decides how heavy
-       its own lift is. */
-    box-shadow: var(--shadow);
+    background: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
 }
