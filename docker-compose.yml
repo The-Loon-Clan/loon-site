@@ -83,6 +83,11 @@ services:
       # across the web and api processes, which both serve announce.
       #   LOON_DEMO_TRACKER=1 LOON_DEMO_SEEDLOCK=1 docker compose up --build -d
       LOON_DEMO_SEEDLOCK: "${LOON_DEMO_SEEDLOCK:-}"
+      # Cheat detection: samples the tracker's counters and flags readings no
+      # real client could have produced. Records only — nothing is punished
+      # automatically. Needs the tracker itself:
+      #   LOON_DEMO_TRACKER=1 LOON_DEMO_CHEATCHECK=1 docker compose up -d
+      LOON_DEMO_CHEATCHECK: "${LOON_DEMO_CHEATCHECK:-}"
       # Metadata-source credentials (optional — set on the host to enable a source).
       # Every source main.go reads must be listed here: an unlisted variable is
       # simply absent inside the container, so the source registers as "not

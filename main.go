@@ -520,6 +520,14 @@ func main() {
 			"tracker": map[string]any{
 				"enabled":  trackerEnabled(),
 				"site_url": trackerSiteURL(),
+				// Cheat detection (tracker/cheat.go). OFF unless asked for, and
+				// on its own flag: running a tracker is a feature, judging
+				// members' accounting is a policy, and the switch that turns on
+				// accusations should have to be typed. Thresholds keep the
+				// plugin's defaults, which are deliberately generous — the
+				// output is read by a person, and a list full of maybes is a
+				// list nobody reads.
+				"cheat": map[string]any{"enabled": cheatCheckEnabled()},
 			},
 			// Tracker economy: how long a spent token lasts. Seven days by
 			// default, matching the hit-and-run seedtime requirement, so a
