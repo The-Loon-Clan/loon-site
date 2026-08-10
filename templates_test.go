@@ -46,6 +46,13 @@ var shellTemplates = map[string]bool{
 	// Deps.RenderEditor rather than being a page of its own — it is parsed by
 	// pluginTemplates(), not by newWeb.
 	"editor.html": true,
+	// The dev-only UI inspector (uiinspect_web.go). Standalone by design: it
+	// must NOT inherit base.html or the site's stylesheets, because anything
+	// it inherited could differ between the tool and the page it inspects. It
+	// is parsed per request by uiCompare rather than by newWeb, and its route
+	// exists only when LOON_DEMO_UI_INSPECT is set — so it is reachable, just
+	// not through the page set this test walks.
+	"dev_compare.html": true,
 }
 
 // parseSet builds a page's template set exactly the way newWeb does — by

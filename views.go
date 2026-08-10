@@ -763,6 +763,10 @@ func (w *web) mount(e *gin.Engine) {
 	e.GET("/nzb/:id", w.nzbDownload)
 	// Fixed host pages: /staff /stats /rules /faq /about (pages_web.go).
 	w.mountSitePages(e)
+	// The dev-only UI inspector (uiinspect_web.go). Registers nothing unless
+	// LOON_DEMO_UI_INSPECT is set — it serves files off disk and injects script
+	// into a frame of the site, neither of which belongs on a reachable build.
+	w.mountUIInspect(e)
 	// Viewer settings: /settings/privacy, /settings/notifications.
 	w.mountSettings(e)
 	e.GET("/login", w.loginPage)

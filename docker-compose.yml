@@ -88,6 +88,11 @@ services:
       # automatically. Needs the tracker itself:
       #   LOON_DEMO_TRACKER=1 LOON_DEMO_CHEATCHECK=1 docker compose up -d
       LOON_DEMO_CHEATCHECK: "${LOON_DEMO_CHEATCHECK:-}"
+      # DEV ONLY: the side-by-side UI inspector at /dev/compare. Serves files
+      # from refs/ and injects a picker into a frame of the site, so it is off
+      # unless asked for and must never be set on anything reachable:
+      #   LOON_DEMO_UI_INSPECT=1 docker compose up -d
+      LOON_DEMO_UI_INSPECT: "${LOON_DEMO_UI_INSPECT:-}"
       # Metadata-source credentials (optional — set on the host to enable a source).
       # Every source main.go reads must be listed here: an unlisted variable is
       # simply absent inside the container, so the source registers as "not
@@ -119,6 +124,10 @@ services:
       # the database rows pointing at files that no longer existed -- a broken
       # image on each affected page, and nothing in the logs.
       - uploads:/data
+      # Reference screenshots for the DEV UI inspector (/dev/compare). Read-only
+      # and harmless when the directory is empty or the inspector is off; the
+      # binary runs from / in the final image, so refs/ has to be at /refs.
+      - ./refs:/refs:ro
     depends_on:
       - db
       - redis
