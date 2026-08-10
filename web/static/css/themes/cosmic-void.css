@@ -209,14 +209,7 @@
     --quick-search-hotkey-fg: #aaaaaa;
 
     /* ---- secondary nav (the main icon+label row) ---------------------- */
-    /* Same as --top-nav-bg, deliberately. The header is three stacked rows —
-       top nav, this one, then the stat strip — and giving the middle one its
-       own lighter value made the page open on alternating bands: dark, light,
-       dark, then the page lighter again. Measured on cosmic-void at x=700:
-       #19191b, #292929, #19191b, #2c3339. The reference holds ONE tone from
-       the search row down to the page edge, so the header reads as a single
-       block with a rule under it rather than as three competing bars. */
-    --secondary-nav-bg: #19191b;
+    --secondary-nav-bg: #292929;
     --secondary-nav-box-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.2);
     --secondary-nav-tab-fg: #aaaaaa;
     --secondary-nav-tab-bg: transparent;
