@@ -86,12 +86,20 @@ func readTrackerTotals(ctx context.Context, db *sqlx.DB, userID int64) (trackerT
 		return t, false
 	}
 	var rows int
+	// The seeding/leeching definitions are the PLUGIN's, copied deliberately:
+	// "seeding" is nothing left and seen lately, not "completed at some point".
+	//
+	// This used to count `completed` as seeding, which is a different claim —
+	// a member who finished a torrent a year ago and never seeded it again was
+	// counted as seeding it now. The plugin's own tracker/store_pg.go Totals is
+	// the authority on what its numbers mean, and a site showing two answers to
+	// "how many am I seeding" is how a figure stops being believed.
 	err := db.QueryRowContext(ctx, `
 		SELECT count(*),
 		       coalesce(sum(uploaded), 0),
 		       coalesce(sum(downloaded), 0),
-		       count(*) FILTER (WHERE completed),
-		       count(*) FILTER (WHERE NOT completed AND left_bytes > 0),
+		       count(*) FILTER (WHERE left_bytes = 0 AND last_seen > now() - interval '1 hour'),
+		       count(*) FILTER (WHERE left_bytes > 0 AND last_seen > now() - interval '1 hour'),
 		       count(*) FILTER (WHERE completed)
 		  FROM tracker.user_stats
 		 WHERE user_id = $1`, userID).

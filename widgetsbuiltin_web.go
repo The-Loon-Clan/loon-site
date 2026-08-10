@@ -12,9 +12,14 @@ import (
 
 // The host's own placeable widgets.
 //
-// Plugins register theirs from Provision; these are the ones that belong to the
-// site itself — figures the host already reads for its chrome and its pages,
-// offered as things an operator can put somewhere else.
+// Plugins register theirs from Provision — the tracker's three live in
+// tracker/widgets.go and read its own store. What is left here belongs to the
+// SITE: text an operator writes, and the index's own figures.
+//
+// The tracker widgets used to be here, reading tracker.user_stats and
+// tracker.torrents directly. That worked and it meant the host hardcoded
+// another plugin's schema, where a column rename would have turned the cards
+// silently blank rather than loudly broken.
 //
 // Every one returns an empty fragment when it has nothing to say, which is the
 // contract that lets an operator place a widget anywhere without having to know
@@ -66,101 +71,6 @@ func (w *web) registerBuiltinWidgets(c *core.Core) {
 				return "", nil
 			}
 			return siteMarkdown(src), nil
-		},
-	})
-
-	// ── the viewer's tracker standing ───────────────────────────────────────
-	//
-	// The same figures the top bar carries, offered as a widget so an operator
-	// can also put them in a sidebar, the footer, or a profile. Reads through
-	// the host's own tracker helper, which is already gated on the tracker
-	// being switched on AND the member having announced — so this renders
-	// nothing on a site without a tracker, and nothing for a member who has
-	// never used it.
-	reg(core.Widget{
-		Slug:        "tracker-standing",
-		Title:       "Your tracker standing",
-		Description: "Upload, download and ratio for the signed-in member.",
-		Weight:      10,
-		Render: func(gc *gin.Context) (template.HTML, error) {
-			u, _ := w.currentUser(gc)
-			if u == nil {
-				return "", nil
-			}
-			tt, ok := readTrackerTotals(gc.Request.Context(), usersDB, u.ID)
-			if !ok {
-				return "", nil
-			}
-			return template.HTML(fmt.Sprintf(
-				`<dl class="key-value">`+
-					`<div class="key-value__group"><dt>Uploaded</dt><dd>%s</dd></div>`+
-					`<div class="key-value__group"><dt>Downloaded</dt><dd>%s</dd></div>`+
-					`<div class="key-value__group"><dt>Ratio</dt><dd>%s</dd></div>`+
-					`<div class="key-value__group"><dt>Seeding</dt><dd>%d</dd></div>`+
-					`</dl>`,
-				template.HTMLEscapeString(humanBytes(tt.Uploaded)),
-				template.HTMLEscapeString(humanBytes(tt.Downloaded)),
-				template.HTMLEscapeString(tt.RatioLabel()),
-				tt.Seeding,
-			)), nil
-		},
-	})
-
-	// ── the tracker's swarm totals ──────────────────────────────────────────
-	//
-	// Public, because it describes the site rather than a member — the figure a
-	// front page or footer would carry.
-	reg(core.Widget{
-		Slug:        "tracker-swarm",
-		Title:       "Tracker",
-		Description: "Site-wide torrent, peer and snatch totals.",
-		Public:      true,
-		Weight:      20,
-		Render: func(gc *gin.Context) (template.HTML, error) {
-			ts, ok := readTrackerSiteStats(gc.Request.Context(), usersDB)
-			if !ok {
-				return "", nil
-			}
-			return template.HTML(fmt.Sprintf(
-				`<dl class="key-value">`+
-					`<div class="key-value__group"><dt>Torrents</dt><dd>%d</dd></div>`+
-					`<div class="key-value__group"><dt>Seeders</dt><dd>%d</dd></div>`+
-					`<div class="key-value__group"><dt>Leechers</dt><dd>%d</dd></div>`+
-					`<div class="key-value__group"><dt>Snatches</dt><dd>%d</dd></div>`+
-					`</dl>`,
-				ts.Torrents, ts.Seeders, ts.Leechers, ts.Snatches)), nil
-		},
-	})
-
-	// ── this release's swarm ────────────────────────────────────────────────
-	//
-	// Regions is stated here, unusually, and the reason is the point of
-	// WidgetItem: the widget is meaningless anywhere the host has not said what
-	// the page is about. Narrowing it keeps the editor from offering it for the
-	// footer, where it could only ever render nothing.
-	reg(core.Widget{
-		Slug:        "release-swarm",
-		Title:       "Swarm",
-		Description: "Seeders and leechers for the release being viewed.",
-		Public:      true,
-		Regions:     []string{"release", "sidebar-left", "sidebar-right"},
-		Weight:      30,
-		Render: func(gc *gin.Context) (template.HTML, error) {
-			ref, ok := core.WidgetItem(gc)
-			if !ok || ref.Kind != "release" {
-				return "", nil
-			}
-			sw, ok := readTrackerSwarm(gc.Request.Context(), usersDB, ref.ID)
-			if !ok {
-				return "", nil
-			}
-			return template.HTML(fmt.Sprintf(
-				`<dl class="key-value">`+
-					`<div class="key-value__group"><dt>Seeders</dt><dd>%d</dd></div>`+
-					`<div class="key-value__group"><dt>Leechers</dt><dd>%d</dd></div>`+
-					`<div class="key-value__group"><dt>Snatches</dt><dd>%d</dd></div>`+
-					`</dl>`,
-				sw.Seeders, sw.Leechers, sw.Snatches)), nil
 		},
 	})
 
