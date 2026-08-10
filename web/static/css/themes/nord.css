@@ -155,6 +155,9 @@
     --top-nav-border: none;
     --top-nav-box-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.2);
     --top-nav-tagline-fg: #7b869d;
+    /* Snow Storm against Frost — see cosmic-void.css for the reasoning. */
+    --wordmark-fg: #eceff4;
+    --wordmark-accent-fg: #88c0d0;
     --top-nav-dropdown-menu-bg: #2e3440;
     --top-nav-dropdown-menu-border: none;
     --top-nav-dropdown-menu-border-radius: var(--radius-sm);

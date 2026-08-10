@@ -150,6 +150,9 @@
     --top-nav-border: 1px solid var(--border);
     --top-nav-box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03), 0 10px 24px -18px #000;
     --top-nav-tagline-fg: var(--muted-2);
+    /* See cosmic-void.css for the reasoning. */
+    --wordmark-fg: #e8e8f2;
+    --wordmark-accent-fg: #9f95cf;
     --top-nav-dropdown-menu-bg: #131b2c;
     --top-nav-dropdown-menu-border: 1px solid var(--border-strong);
     --top-nav-dropdown-menu-border-radius: var(--radius);

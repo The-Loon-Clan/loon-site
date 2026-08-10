@@ -300,18 +300,30 @@ main > article {
     overflow: hidden;
 }
 
+/* The wordmark is two words set against each other, not one word in two
+   colours. Measured off the reference: LOON is a near-white #e2e7ed at full
+   weight, INDEXER a muted #a8c6ce at a light one, both uppercase, cap height
+   15px at 1305px wide against ours at 14px at 1400 — about 15% smaller than
+   it should be.
+
+   Ours had the contrast in the wrong place: "loon" white and "indexer" in a
+   bright --primary-tint, so the second word pulled harder than the first.
+   Weight and lightness carry the emphasis here; hue does not. */
 .top-nav__wordmark {
-    font-size: var(--fs-xl);
-    font-weight: 700;
+    font-size: var(--fs-2xl);
+    font-weight: 800;
     line-height: 1.15;
-    letter-spacing: -0.01em;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    color: var(--wordmark-fg, #e2e7ed);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .top-nav__wordmark span {
-    color: var(--primary-tint);
+    font-weight: 300;
+    color: var(--wordmark-accent-fg, #a8c6ce);
 }
 
 .top-nav__tagline {

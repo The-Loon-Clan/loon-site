@@ -176,6 +176,12 @@
     --top-nav-border: none;     /* UNIT3D separates with the shadow, not a rule */
     --top-nav-box-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.2);
     --top-nav-tagline-fg: #888888;
+    /* The wordmark: LOON near-white at weight 800, INDEXER muted at 300.
+       Emphasis comes from weight and lightness, not hue — a bright accent
+       on the second word makes it outrank the first. Values measured off
+       the reference design. */
+    --wordmark-fg: #e2e7ed;
+    --wordmark-accent-fg: #a8c6ce;
     --top-nav-dropdown-menu-bg: #2a2a2c;
     --top-nav-dropdown-menu-border: none;
     --top-nav-dropdown-menu-border-radius: var(--radius-sm);
