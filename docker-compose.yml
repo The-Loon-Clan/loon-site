@@ -124,10 +124,17 @@ services:
       # the database rows pointing at files that no longer existed -- a broken
       # image on each affected page, and nothing in the logs.
       - uploads:/data
-      # Reference screenshots for the DEV UI inspector (/dev/compare). Read-only
-      # and harmless when the directory is empty or the inspector is off; the
-      # binary runs from / in the final image, so refs/ has to be at /refs.
-      - ./refs:/refs:ro
+      # Reference screenshots for the DEV UI inspector (/dev/compare), and the
+      # focus rectangle it writes back. NOT read-only: saving a focus is the
+      # whole handoff between "I can see what is wrong" and "the tooling can
+      # measure it", and it writes exactly one file, refs/_focus.json.
+      #
+      # Acceptable because the entire /dev tree is only REGISTERED when
+      # LOON_DEMO_UI_INSPECT is set — on any build that does not ask for it
+      # there is no handler that can write here at all.
+      #
+      # The binary runs from / in the final image, so refs/ has to be at /refs.
+      - ./refs:/refs
     depends_on:
       - db
       - redis

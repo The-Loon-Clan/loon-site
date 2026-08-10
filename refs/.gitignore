@@ -3,4 +3,7 @@
 *.png
 *.jpg
 *.jpeg
+# Session state: the rectangle picked at /dev/compare, rewritten every time a
+# new focus is saved. Useful for a loop, meaningless in history.
+_focus.json
 !README.md

@@ -33,6 +33,7 @@ and a row-profile of horizontal edges, which is where cards start and stop.
 Read the printed table first. It answers "is there a surface here and what
 colour" without any squinting, and squinting is what has been wrong.
 """
+import json
 import os
 import subprocess
 import sys
@@ -153,7 +154,78 @@ def grid(im):
     return im
 
 
+def focus_compare():
+    """Compare ONLY the region saved from /dev/compare.
+
+    This is the loop: a rectangle picked once on each side, then measured over
+    and over as the CSS changes, with no need to re-describe where to look.
+    """
+    fp = os.path.join(REPO, "refs", "_focus.json")
+    if not os.path.exists(fp):
+        print("no refs/_focus.json — draw a box on each side at "
+              "/dev/compare and press Save focus")
+        return 2
+    with open(fp, encoding="utf-8") as fh:
+        f = json.load(fh)
+
+    ref_path = os.path.join(REPO, "refs", f["ref"])
+    if not os.path.exists(ref_path):
+        print("reference missing:", ref_path)
+        return 2
+    ref = Image.open(ref_path).convert("RGB")
+
+    shot_w = 1400
+    live_path = shoot(f.get("page", "/"), "_focus_live", shot_w, 1000)
+    if not live_path:
+        print("could not screenshot the live site")
+        return 1
+    live = Image.open(live_path).convert("RGB")
+
+    rr, lr = f["refRect"], f["liveRect"]
+    # The live rect was measured against the iframe's width; the screenshot is
+    # taken at shot_w. Scaling by the ratio is what lets the same saved rect
+    # survive a different capture size.
+    k = shot_w / float(f.get("liveWidth") or shot_w)
+    ref_c = ref.crop((rr["x"], rr["y"], rr["x"] + rr["w"], rr["y"] + rr["h"]))
+    live_c = live.crop((int(lr["x"] * k), int(lr["y"] * k),
+                        int((lr["x"] + lr["w"]) * k), int((lr["y"] + lr["h"]) * k)))
+
+    print(f"FOCUS  ref={f['ref']}  page={f.get('page', '/')}")
+    print(f"  reference crop {ref_c.size}   live crop {live_c.size}")
+
+    # Content differs, so compare what a design ask is about: the palette and
+    # where the light and dark areas fall.
+    for name, im in (("REFERENCE", ref_c), ("LIVE", live_c)):
+        small = im.resize((max(1, im.width // 3), max(1, im.height // 3)))
+        cols = Counter((r // 8 * 8, g // 8 * 8, b // 8 * 8) for r, g, b in small.getdata())
+        top = cols.most_common(4)
+        n = float(sum(cols.values()))
+        px = list(small.getdata())
+        mean = tuple(int(sum(c[i] for c in px) / len(px)) for i in range(3))
+        print("")
+        print(f"  {name}")
+        print(f"     mean colour   {hexs(mean)}")
+        print("     palette       " + "  ".join(
+            f"{hexs(c)} {100.0 * k2 / n:.0f}%" for c, k2 in top))
+
+    # Side by side at one height, so the two crops can be read together.
+    H = 320
+    def scale(im):
+        return im.resize((max(1, int(im.width * H / im.height)), H))
+    a, b = scale(ref_c), scale(live_c)
+    sheet = Image.new("RGB", (a.width + b.width + 14, H), (18, 18, 20))
+    sheet.paste(a, (0, 0))
+    sheet.paste(b, (a.width + 14, 0))
+    out = os.path.join(REPO, "refs", "_focus_compare.png")
+    sheet.save(out)
+    print("")
+    print(f"wrote {out}   (reference crop | live crop)")
+    return 0
+
+
 def main():
+    if "--focus" in sys.argv:
+        return focus_compare()
     if len(sys.argv) < 2:
         print(__doc__)
         return 2

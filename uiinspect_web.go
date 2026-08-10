@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"html/template"
 	"net/http"
 	"os"
@@ -46,6 +47,7 @@ func (w *web) mountUIInspect(e *gin.Engine) {
 	}
 	e.GET("/dev/compare", w.uiCompare)
 	e.GET("/dev/refs/:name", w.uiRefImage)
+	e.POST("/dev/focus", w.uiSaveFocus)
 }
 
 // uiRefImage serves one reference image off disk.
@@ -112,4 +114,64 @@ func (w *web) uiCompare(c *gin.Context) {
 		// Streaming has already begun, so this can only be logged.
 		w.log.Error("dev_compare render", "err", err)
 	}
+}
+
+// uiFocus is a saved region of interest: the same area on the reference and on
+// the live page, so a comparison can be run against one part rather than a
+// whole screen.
+//
+// Rectangles are stored in each SOURCE's own pixels — the reference image's
+// natural size, and the live page's CSS pixels — never in screen pixels. A rect
+// recorded at whatever zoom or window size happened to be set would be
+// meaningless the moment either changed, and this file's whole purpose is to
+// outlive the session that made it.
+type uiFocus struct {
+	Ref  string `json:"ref"`
+	Page string `json:"page"`
+	// LiveWidth is the iframe width the live rect was measured against, so a
+	// screenshot taken at a different width can still be cropped to the same
+	// region.
+	LiveWidth int    `json:"liveWidth"`
+	RefRect   uiRect `json:"refRect"`
+	LiveRect  uiRect `json:"liveRect"`
+	Note      string `json:"note"`
+}
+
+type uiRect struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+	W int `json:"w"`
+	H int `json:"h"`
+}
+
+// uiSaveFocus writes refs/_focus.json — the handoff between "I can see what is
+// wrong" and "the tooling can measure it".
+func (w *web) uiSaveFocus(c *gin.Context) {
+	var f uiFocus
+	if err := c.ShouldBindJSON(&f); err != nil {
+		c.String(http.StatusBadRequest, "bad focus: %v", err)
+		return
+	}
+	f.Ref = filepath.Base(f.Ref)
+	if !strings.HasPrefix(f.Page, "/") {
+		f.Page = "/" + f.Page
+	}
+	if f.LiveWidth <= 0 {
+		f.LiveWidth = 1400
+	}
+	if f.RefRect.W <= 0 || f.LiveRect.W <= 0 {
+		c.String(http.StatusBadRequest, "both rectangles are required")
+		return
+	}
+	b, err := json.MarshalIndent(f, "", "  ")
+	if err != nil {
+		c.String(http.StatusInternalServerError, "encode: %v", err)
+		return
+	}
+	path := filepath.Join(refsDir, "_focus.json")
+	if err := os.WriteFile(path, b, 0o644); err != nil {
+		c.String(http.StatusInternalServerError, "write: %v", err)
+		return
+	}
+	c.String(http.StatusOK, "%s\n%s", path, string(b))
 }

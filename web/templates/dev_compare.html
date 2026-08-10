@@ -1,16 +1,22 @@
-{{/* DEV-ONLY side-by-side inspector (uiinspect_web.go).
+{{/* DEV-ONLY compare + focus tool (uiinspect_web.go).
 
-     Reference image left, the live site right in a frame, and a picker that
-     names whatever is clicked: selector, classes, and the computed values that
-     actually paint it — background, border, radius, shadow, padding.
+     Reference image left, the live site right, and three things that turn
+     "this looks wrong" into something a loop can act on:
 
-     Standalone: it does NOT extend base.html, because it must not inherit the
-     site's own chrome or its stylesheets. Anything it inherited would be a
-     thing that could differ between this tool and the page it is inspecting.
+       1. ZOOM on the reference, so a crop of a design at some other scale can
+          be lined up against the real thing.
+       2. A BOX on each side. Drag to select the region under discussion.
+       3. SAVE FOCUS, which writes refs/_focus.json — the two rectangles, the
+          reference file, the page, and the iframe's width so the live rect can
+          be scaled to a screenshot taken at any size.
 
-     The frame is same-origin (both :8090), which is what allows the picker to
-     be injected into it. That is also why this whole route is off unless
-     LOON_DEMO_UI_INSPECT is set. */}}
+     That file is the handoff. `python scripts/uimatch.py --focus` crops both
+     sides to those rectangles and reports what differs, so iterating no longer
+     depends on describing a location in prose — which has sent work at the
+     wrong element repeatedly.
+
+     Standalone: it does NOT extend base.html, because anything it inherited
+     could differ between the tool and the page it inspects. */}}
 <!doctype html>
 <html lang="en">
 <head>
@@ -25,57 +31,80 @@
     background: #14161a; color: #e6e6e6;
   }
   header {
-    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
     padding: 8px 12px; background: #1c2027; border-bottom: 1px solid #2a3038;
   }
-  header strong { font-weight: 600; }
   select, input, button {
     font: inherit; background: #222831; color: #e6e6e6;
     border: 1px solid #333c47; border-radius: 6px; padding: 4px 8px;
   }
   button { cursor: pointer; }
   button.on { background: #2f6f4f; border-color: #3d8a63; }
+  button.primary { background: #2d4a7a; border-color: #3d63a0; }
   main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
-  .pane { min-width: 0; min-height: 0; overflow: auto; position: relative; }
+  .pane { min-width: 0; min-height: 0; overflow: auto; position: relative; background: #0f1216; }
   .pane + .pane { border-left: 1px solid #2a3038; }
-  .pane img { display: block; width: 100%; height: auto; }
-  iframe { width: 100%; height: 100%; border: 0; background: #000; }
   .tag {
-    position: sticky; top: 0; z-index: 2; padding: 4px 10px;
-    background: #10131722; backdrop-filter: blur(4px);
-    border-bottom: 1px solid #2a303844; font-weight: 600; letter-spacing: .04em;
+    position: sticky; top: 0; z-index: 3; padding: 4px 10px;
+    background: #101317ee; border-bottom: 1px solid #2a3038;
+    font-weight: 600; letter-spacing: .04em;
+  }
+  .stage { position: relative; transform-origin: 0 0; }
+  .stage img { display: block; }
+  iframe { border: 0; background: #000; display: block; }
+  /* The selection layer sits OVER the iframe: a drag cannot be read from
+     inside a frame that is also being scrolled and clicked. */
+  .sel {
+    position: absolute; inset: 0; z-index: 2; cursor: crosshair; display: none;
+  }
+  .sel.active { display: block; }
+  .box {
+    position: absolute; border: 2px solid #ffd23f; background: rgba(255,210,63,.16);
+    display: none; pointer-events: none;
   }
   #out {
-    max-height: 34vh; overflow: auto; padding: 10px 12px;
+    max-height: 30vh; overflow: auto; padding: 10px 12px;
     background: #0f1216; border-top: 1px solid #2a3038;
     font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap;
   }
-  #out:empty::before { content: "Turn the picker on, then click something in the live pane."; opacity: .6; }
-  .hint { opacity: .7; }
+  #out:empty::before {
+    content: "Drag a box on each side, then Save focus. Or turn the picker on and click an element.";
+    opacity: .6;
+  }
+  .hint { opacity: .65; }
 </style>
 </head>
 <body>
 <header>
-  <strong>UI compare</strong>
-  <label>reference
+  <label>ref
     <select id="ref">
       {{range .Available}}<option value="{{.}}"{{if eq . $.Ref}} selected{{end}}>{{.}}</option>{{end}}
     </select>
   </label>
-  <label>page <input id="page" value="{{.Page}}" size="18"></label>
+  <label>page <input id="page" value="{{.Page}}" size="14"></label>
+  <label>zoom <input id="zoom" type="range" min="25" max="250" value="100" style="width:120px"></label>
+  <span id="zoomv" class="hint">100%</span>
+  <button id="selmode" type="button">Box select: off</button>
   <button id="pick" type="button">Picker: off</button>
-  <button id="copy" type="button">Copy report</button>
-  <span class="hint">click an element on the right — Esc clears</span>
+  <button id="save" class="primary" type="button">Save focus</button>
+  <button id="clear" type="button">Clear</button>
+  <span class="hint">drag a box on EACH side, then Save focus</span>
 </header>
 
 <main>
-  <div class="pane">
-    <div class="tag">REFERENCE — {{.Ref}}</div>
-    <img id="refimg" src="/dev/refs/{{.Ref}}" alt="reference design">
+  <div class="pane" id="paneRef">
+    <div class="tag">REFERENCE — <span id="reflabel">{{.Ref}}</span></div>
+    <div class="stage" id="refStage">
+      <img id="refimg" src="/dev/refs/{{.Ref}}" alt="reference design">
+      <div class="sel" id="refSel"><div class="box" id="refBox"></div></div>
+    </div>
   </div>
-  <div class="pane">
+  <div class="pane" id="paneLive">
     <div class="tag">LIVE — the real site</div>
-    <iframe id="site" src="{{.Page}}"></iframe>
+    <div class="stage" id="liveStage">
+      <iframe id="site" src="{{.Page}}" width="1400" height="1000"></iframe>
+      <div class="sel" id="liveSel"><div class="box" id="liveBox"></div></div>
+    </div>
   </div>
 </main>
 
@@ -85,101 +114,188 @@
 (function () {
   var out = document.getElementById('out');
   var frame = document.getElementById('site');
-  var picking = false;
+  var refImg = document.getElementById('refimg');
+  var picking = false, selecting = false;
+  var rects = { ref: null, live: null };
+
+  function log(t) { out.textContent = t; }
+
+  // ── zoom: scales the REFERENCE only ──────────────────────────────────────
+  // The live pane is a real browser at a real width; scaling it would change
+  // the layout being judged, which is the one thing that must stay honest.
+  var zoom = document.getElementById('zoom');
+  zoom.addEventListener('input', function () {
+    var z = zoom.value / 100;
+    document.getElementById('refStage').style.transform = 'scale(' + z + ')';
+    document.getElementById('zoomv').textContent = zoom.value + '%';
+  });
 
   document.getElementById('ref').addEventListener('change', function (e) {
-    document.getElementById('refimg').src = '/dev/refs/' + e.target.value;
-    document.title = 'UI compare — ' + e.target.value;
+    refImg.src = '/dev/refs/' + e.target.value;
+    document.getElementById('reflabel').textContent = e.target.value;
+    rects.ref = null;
+    document.getElementById('refBox').style.display = 'none';
   });
   document.getElementById('page').addEventListener('change', function (e) {
     var p = e.target.value.trim() || '/';
     if (p[0] !== '/') p = '/' + p;
     frame.src = p;
-  });
-  document.getElementById('copy').addEventListener('click', function () {
-    navigator.clipboard.writeText(out.textContent || '');
+    rects.live = null;
+    document.getElementById('liveBox').style.display = 'none';
   });
 
-  // A short, STABLE selector: id if there is one, else tag plus the classes
-  // that are not state, walking up until it is unique. A long chain of
-  // :nth-child is precise and unusable in conversation, which is what this
-  // output is for.
+  // ── box selection on both sides ──────────────────────────────────────────
+  function wireSelect(layerId, boxId, key, natural) {
+    var layer = document.getElementById(layerId), box = document.getElementById(boxId);
+    var sx = 0, sy = 0, dragging = false;
+    layer.addEventListener('mousedown', function (e) {
+      if (!selecting) return;
+      var r = layer.getBoundingClientRect();
+      sx = e.clientX - r.left; sy = e.clientY - r.top;
+      dragging = true;
+      box.style.display = 'block';
+      box.style.left = sx + 'px'; box.style.top = sy + 'px';
+      box.style.width = '0px'; box.style.height = '0px';
+      e.preventDefault();
+    });
+    layer.addEventListener('mousemove', function (e) {
+      if (!dragging) return;
+      var r = layer.getBoundingClientRect();
+      var x = e.clientX - r.left, y = e.clientY - r.top;
+      box.style.left = Math.min(sx, x) + 'px';
+      box.style.top = Math.min(sy, y) + 'px';
+      box.style.width = Math.abs(x - sx) + 'px';
+      box.style.height = Math.abs(y - sy) + 'px';
+    });
+    layer.addEventListener('mouseup', function () {
+      if (!dragging) return;
+      dragging = false;
+      var b = {
+        x: parseInt(box.style.left), y: parseInt(box.style.top),
+        w: parseInt(box.style.width), h: parseInt(box.style.height)
+      };
+      if (b.w < 4 || b.h < 4) { box.style.display = 'none'; return; }
+      // Stored in the source's OWN pixels — the reference image's natural size,
+      // or the iframe's CSS pixels — never in screen pixels. A rect recorded at
+      // whatever zoom happened to be set would be meaningless the moment the
+      // window changed.
+      var s = natural();
+      rects[key] = {
+        x: Math.round(b.x / s), y: Math.round(b.y / s),
+        w: Math.round(b.w / s), h: Math.round(b.h / s)
+      };
+      report();
+    });
+  }
+  wireSelect('refSel', 'refBox', 'ref', function () {
+    var z = zoom.value / 100;
+    // The <img> is displayed at its natural width inside the scaled stage, so
+    // the only factor is the zoom.
+    return z;
+  });
+  wireSelect('liveSel', 'liveBox', 'live', function () { return 1; });
+
+  function report() {
+    var l = [];
+    l.push('FOCUS');
+    l.push('  reference : ' + (rects.ref ? fmt(rects.ref) : '(none — drag a box on the left)'));
+    l.push('  live      : ' + (rects.live ? fmt(rects.live) : '(none — drag a box on the right)'));
+    if (rects.ref && rects.live) l.push('\nBoth set. Press "Save focus", then tell me to run the focus compare.');
+    log(l.join('\n'));
+  }
+  function fmt(r) { return 'x' + r.x + ' y' + r.y + '  ' + r.w + 'x' + r.h; }
+
+  document.getElementById('selmode').addEventListener('click', function () {
+    selecting = !selecting;
+    document.getElementById('refSel').classList.toggle('active', selecting);
+    document.getElementById('liveSel').classList.toggle('active', selecting);
+    this.textContent = 'Box select: ' + (selecting ? 'ON' : 'off');
+    this.className = selecting ? 'on' : '';
+    if (selecting && picking) document.getElementById('pick').click();
+  });
+
+  document.getElementById('clear').addEventListener('click', function () {
+    rects.ref = rects.live = null;
+    document.getElementById('refBox').style.display = 'none';
+    document.getElementById('liveBox').style.display = 'none';
+    log('');
+  });
+
+  document.getElementById('save').addEventListener('click', function () {
+    if (!rects.ref || !rects.live) { report(); return; }
+    var body = {
+      ref: document.getElementById('ref').value,
+      page: document.getElementById('page').value || '/',
+      // The width the live rect was measured against, so a screenshot taken at
+      // a different width can still be cropped to the same region.
+      liveWidth: frame.clientWidth || 1400,
+      refRect: rects.ref, liveRect: rects.live,
+      note: ''
+    };
+    fetch('/dev/focus', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.text(); })
+      .then(function (t) { log('SAVED\n' + t + '\n\nNow say: "run the focus compare".'); })
+      .catch(function (e) { log('save failed: ' + e); });
+  });
+
+  // ── element picker (unchanged behaviour) ─────────────────────────────────
   function selectorFor(el) {
     var parts = [];
     while (el && el.nodeType === 1 && parts.length < 4) {
       if (el.id) { parts.unshift('#' + el.id); break; }
       var s = el.tagName.toLowerCase();
       var cls = (el.className || '').toString().trim().split(/\s+/)
-        .filter(function (c) { return c && !/^(is-|has-|js-)/.test(c); })
-        .slice(0, 3);
+        .filter(function (c) { return c && !/^(is-|has-|js-)/.test(c); }).slice(0, 3);
       if (cls.length) s += '.' + cls.join('.');
       parts.unshift(s);
       el = el.parentElement;
     }
     return parts.join(' > ');
   }
-
-  // The properties that decide whether something looks like a card: what
-  // paints it, what edges it, what spaces it. Reporting everything would bury
-  // the four values a design question is ever actually about.
   var PROPS = ['background-color', 'background-image', 'border', 'border-radius',
                'box-shadow', 'padding', 'margin', 'color', 'font-size', 'overflow'];
-
-  function report(el, doc) {
-    var cs = doc.defaultView.getComputedStyle(el);
-    var r = el.getBoundingClientRect();
-    var lines = [];
-    lines.push('SELECTOR  ' + selectorFor(el));
-    lines.push('CLASSES   ' + ((el.className || '').toString() || '(none)'));
-    lines.push('BOX       ' + Math.round(r.width) + ' x ' + Math.round(r.height) +
-               '  at x' + Math.round(r.left) + ' y' + Math.round(r.top));
-    PROPS.forEach(function (p) {
-      var v = cs.getPropertyValue(p);
-      if (v && v !== 'none' && v !== 'normal' && v !== '0px' &&
-          v !== 'rgba(0, 0, 0, 0)') {
-        lines.push(pad(p) + v);
-      }
-    });
-    out.textContent = lines.join('\n');
-  }
   function pad(s) { return (s + '            ').slice(0, 10); }
 
-  function arm() {
+  frame.addEventListener('load', function () {
     var doc;
     try { doc = frame.contentDocument; } catch (e) { return; }
     if (!doc) return;
-    var box = doc.createElement('div');
-    box.style.cssText = 'position:fixed;pointer-events:none;z-index:2147483647;' +
+    var hi = doc.createElement('div');
+    hi.style.cssText = 'position:fixed;pointer-events:none;z-index:2147483647;' +
       'outline:2px solid #ffd23f;background:rgba(255,210,63,.14);display:none';
-    doc.body.appendChild(box);
-
+    doc.body.appendChild(hi);
     doc.addEventListener('mousemove', function (e) {
-      if (!picking) { box.style.display = 'none'; return; }
-      var el = e.target;
-      var r = el.getBoundingClientRect();
-      box.style.display = 'block';
-      box.style.left = r.left + 'px'; box.style.top = r.top + 'px';
-      box.style.width = r.width + 'px'; box.style.height = r.height + 'px';
+      if (!picking) { hi.style.display = 'none'; return; }
+      var r = e.target.getBoundingClientRect();
+      hi.style.display = 'block';
+      hi.style.left = r.left + 'px'; hi.style.top = r.top + 'px';
+      hi.style.width = r.width + 'px'; hi.style.height = r.height + 'px';
     }, true);
-
     doc.addEventListener('click', function (e) {
       if (!picking) return;
-      // The site is full of links; a picker that navigated on every pick
-      // would be unusable.
       e.preventDefault(); e.stopPropagation();
-      report(e.target, doc);
+      var el = e.target, cs = doc.defaultView.getComputedStyle(el), r = el.getBoundingClientRect();
+      var lines = ['SELECTOR  ' + selectorFor(el),
+                   'CLASSES   ' + ((el.className || '').toString() || '(none)'),
+                   'BOX       ' + Math.round(r.width) + ' x ' + Math.round(r.height) +
+                   '  at x' + Math.round(r.left) + ' y' + Math.round(r.top)];
+      PROPS.forEach(function (p) {
+        var v = cs.getPropertyValue(p);
+        if (v && v !== 'none' && v !== 'normal' && v !== '0px' && v !== 'rgba(0, 0, 0, 0)') {
+          lines.push(pad(p) + v);
+        }
+      });
+      log(lines.join('\n'));
     }, true);
-
-    doc.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { out.textContent = ''; box.style.display = 'none'; }
-    }, true);
-  }
-  frame.addEventListener('load', arm);
+  });
 
   document.getElementById('pick').addEventListener('click', function () {
     picking = !picking;
     this.textContent = 'Picker: ' + (picking ? 'ON' : 'off');
     this.className = picking ? 'on' : '';
+    if (picking && selecting) document.getElementById('selmode').click();
   });
 })();
 </script>

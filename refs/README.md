@@ -35,3 +35,28 @@ measures.
 
 `_match_*.png` and `*.png` here are ignored by git; these are working images,
 not source.
+
+## The focus loop
+
+Prose has repeatedly sent work at the wrong element. This removes the
+description step entirely.
+
+1. `LOON_DEMO_UI_INSPECT=1 docker compose up -d app`
+2. Open **http://localhost:8090/dev/compare**
+3. Pick the reference from the dropdown. **Zoom** it until it lines up with the
+   live pane beside it.
+4. **Box select: ON**, then drag a box round the same thing on EACH side.
+5. **Save focus** — writes `refs/_focus.json`.
+6. Then: `python scripts/uimatch.py --focus`
+
+That crops both sides to the saved rectangles and prints the mean colour and
+palette of each, plus `refs/_focus_compare.png` with the two crops side by side.
+
+The rectangles are stored in each source's OWN pixels — the reference image's
+natural size, the live page's CSS pixels — so they survive zooming, resizing
+the window, and screenshots taken at any width.
+
+The **Picker** is the other half: turn it on and click an element in the live
+pane to get its selector, classes and the computed values that actually paint
+it (background, border, radius, shadow, padding). Paste that and there is
+nothing left to translate.
