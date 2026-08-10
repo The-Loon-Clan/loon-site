@@ -2851,37 +2851,41 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
 }
 .top-nav__ratio-bar .stat-figure .icon { width: 12px; height: 12px; }
 
-/* ── The featured strip is ONE rounded card ──────────────────────────────────
-   Heading and posters in a single rounded surface, not a rounded tray sitting
-   inside a square parent — which is what an earlier pass produced by putting
-   the surface on the INNER element and stripping it from the outer one. Two
-   edges where the design has one.
+/* ── Home blocks as single rounded cards ─────────────────────────────────────
+   One card per block: surface, radius and shadow on the OUTER element, and
+   everything inside it transparent. An earlier pass put the surface on an
+   inner element and left the outer one square, which rendered as two edges —
+   a rounded tray inside a square parent.
 
-   So the card is the outer element and everything inside it is transparent.
-   The heading sits on the card rather than on the page; the posters sit on the
-   same card under it. */
-.blocks__featured {
+   Listed explicitly rather than applied to every .blocks__* so that adding a
+   block to this look is a deliberate line rather than something that happens
+   to it. The remaining home blocks (top groups, latest topics, top posters)
+   are untouched and still render as ordinary panels. */
+.blocks__featured,
+.blocks__latest-releases {
     background: var(--panel-bg);
     border: 0;
     border-radius: var(--featured-radius, 12px);
     box-shadow: var(--shadow);
-    /* Padding keeps the contents off the rounded corners, which is what lets
-       overflow stay visible — the posters lift on hover and a clip would cut
-       the raised shadow off at the card edge. */
-    padding: 2px 14px 14px;
-    overflow: visible;
+    /* No padding: the heading and the content run to the card's own edge.
+       overflow:hidden is what makes that safe — it clips the table's corners
+       and the poster row to the radius, which is the job .panelV2's own
+       overflow was doing before this block stopped being a plain panel. */
+    padding: 0;
+    overflow: hidden;
 }
-/* Everything inside is transparent: one card, one edge. */
-.blocks__featured > .panel__header {
+
+/* Inside is transparent: one card, one edge. */
+.blocks__featured > .panel__header,
+.blocks__latest-releases > .panel__header {
     background: none;
     border: 0;
-    padding-inline: 0;
 }
 /* .panel__heading carries --panel-head-bg of its own, separate from the
    header's. On nord that token is a real colour, so leaving it would draw a
    band across the top of the card. */
-.blocks__featured > .panel__header .panel__heading {
-    padding-inline: 0;
+.blocks__featured > .panel__header .panel__heading,
+.blocks__latest-releases > .panel__header .panel__heading {
     background: none;
 }
 .blocks__featured .carousel {
