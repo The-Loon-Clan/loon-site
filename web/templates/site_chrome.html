@@ -184,11 +184,15 @@
 
     <header class="top-nav">
         <div class="top-nav__left">
+            {{/* Wordmark alone — no mark, no tagline.
+                 The tagline said "Usenet, indexed" on every page of a site
+                 whose every page is already indexed Usenet, and the mark
+                 competed with the section icons in the row directly below it.
+                 What is left is the one thing the header has to say: where you
+                 are. One line each to restore if that reads as too bare. */}}
             <a class="top-nav__branding" href="/">
-                <span class="top-nav__site-logo"><svg class="icon" aria-hidden="true"><use href="#logo"></use></svg></span>
                 <span class="top-nav__branding-text">
                     <span class="top-nav__wordmark">loon<span>indexer</span></span>
-                    <span class="top-nav__tagline">Usenet, indexed</span>
                 </span>
             </a>
         </div>

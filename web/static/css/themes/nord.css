@@ -306,4 +306,30 @@
     --bs-body-bg: var(--bg);
     --bs-border-color: var(--border);
     --bs-success: var(--success);
+
+    /* ── Page canvas: a scaled wash rather than one flat colour ─────────────
+       See midnight.css for why this exists and why it is fixed. Nord's frost
+       at low alpha, so the wash belongs to this palette rather than importing
+       another theme's hue. */
+    --body-wash:
+        radial-gradient(1200px 600px at 15% -10%, rgba(136, 192, 208, 0.10), transparent 60%),
+        radial-gradient(1000px 500px at 90% 0%, rgba(129, 161, 193, 0.07), transparent 55%);
+
+    /* ── Section headings ───────────────────────────────────────────────────
+       A panel heading reads as a LABEL for the block beneath it rather than as
+       prose, which is what the uppercase + tracking does. Tokens rather than a
+       rule in components.css so a theme can decline: a serif or high-contrast
+       theme would want its headings left alone, and that should not require
+       editing shared CSS. */
+    --panel-heading-transform: uppercase;
+    --panel-heading-tracking: 0.06em;
+    --panel-heading-weight: 700;
+
+    /* ── Quick Info: the hover card over a release row ─────────────────────── */
+    --quick-info-bg: #3b4252;
+    --quick-info-fg: var(--text);
+    --quick-info-border: 1px solid #4c566a;
+    --quick-info-label-fg: var(--muted);
+    --quick-info-radius: var(--radius-lg);
+    --quick-info-shadow: var(--shadow-lg);
 }

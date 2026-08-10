@@ -317,4 +317,30 @@
     --bs-body-bg: var(--bg);
     --bs-border-color: var(--border);
     --bs-success: var(--success);
+
+    /* ── Page canvas: a scaled wash rather than one flat colour ─────────────
+       See midnight.css. Cosmic Void is a near-flat grey theme, so the wash is
+       weaker here on purpose: the same alpha that reads as depth on navy reads
+       as a stain on grey. */
+    --body-wash:
+        radial-gradient(1200px 600px at 15% -10%, rgba(33, 149, 243, 0.07), transparent 60%),
+        radial-gradient(1000px 500px at 90% 0%, rgba(33, 149, 243, 0.05), transparent 55%);
+
+    /* ── Section headings ───────────────────────────────────────────────────
+       A panel heading reads as a LABEL for the block beneath it rather than as
+       prose, which is what the uppercase + tracking does. Tokens rather than a
+       rule in components.css so a theme can decline: a serif or high-contrast
+       theme would want its headings left alone, and that should not require
+       editing shared CSS. */
+    --panel-heading-transform: uppercase;
+    --panel-heading-tracking: 0.06em;
+    --panel-heading-weight: 700;
+
+    /* ── Quick Info: the hover card over a release row ─────────────────────── */
+    --quick-info-bg: #19191b;
+    --quick-info-fg: var(--text);
+    --quick-info-border: 1px solid #404040;
+    --quick-info-label-fg: var(--muted);
+    --quick-info-radius: var(--radius-lg);
+    --quick-info-shadow: var(--shadow-lg);
 }

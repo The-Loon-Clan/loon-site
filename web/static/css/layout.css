@@ -16,7 +16,11 @@ body {
 }
 
 body {
-    background: var(--body-bg);
+    /* The wash sits OVER the flat colour, not instead of it: a theme that
+       defines no --body-wash falls back to nothing and keeps its flat canvas,
+       so adding a theme never requires knowing this exists. */
+    background: var(--body-wash, none), var(--body-bg);
+    background-attachment: fixed, fixed;
     color: var(--body-fg);
     font-family: var(--font-sans);
     /* Scrollbars in the page's own palette; the OS default is a bright seam on

@@ -307,4 +307,33 @@
     --bs-body-bg: var(--bg);
     --bs-border-color: var(--border);
     --bs-success: var(--success);
+
+    /* ── Page canvas: a scaled wash rather than one flat colour ─────────────
+       Two soft radial pools in the brand accent over the base --bg, so the
+       canvas has depth without becoming a picture. fixed attachment keeps the
+       wash still while the page scrolls: a gradient that scrolls with the
+       content reads as a moving artefact on a long listing.
+       Values are per-theme on purpose — the wash is the theme's own accent at
+       low alpha, never a hardcoded blue. */
+    --body-wash:
+        radial-gradient(1200px 600px at 15% -10%, rgba(124, 92, 255, 0.10), transparent 60%),
+        radial-gradient(1000px 500px at 90% 0%, rgba(70, 130, 255, 0.07), transparent 55%);
+
+    /* ── Section headings ───────────────────────────────────────────────────
+       A panel heading reads as a LABEL for the block beneath it rather than as
+       prose, which is what the uppercase + tracking does. Tokens rather than a
+       rule in components.css so a theme can decline: a serif or high-contrast
+       theme would want its headings left alone, and that should not require
+       editing shared CSS. */
+    --panel-heading-transform: uppercase;
+    --panel-heading-tracking: 0.06em;
+    --panel-heading-weight: 700;
+
+    /* ── Quick Info: the hover card over a release row ─────────────────────── */
+    --quick-info-bg: #141b2b;
+    --quick-info-fg: var(--text);
+    --quick-info-border: 1px solid #26314a;
+    --quick-info-label-fg: var(--muted);
+    --quick-info-radius: var(--radius-lg);
+    --quick-info-shadow: var(--shadow-lg);
 }

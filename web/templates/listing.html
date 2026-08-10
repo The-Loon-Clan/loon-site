@@ -64,6 +64,32 @@
                     {{if .Group}}<span>{{.Group}}</span>{{end}}
                 </div>
                 {{end}}
+                {{/* Quick Info: what this release IS, without opening it.
+                     CSS-only (components.css), shown on hover AND focus-within
+                     so it is not a mouse-only affordance, and pointer-events
+                     none so it can never swallow a click meant for the row.
+
+                     Real fields only. Anything the row does not carry is
+                     omitted rather than labelled and left blank — a fact with
+                     no value is worse than no row, because a reader cannot
+                     tell "unknown" from "broken". */}}
+                <div class="quick-info" role="note" aria-hidden="true">
+                    {{if .Cover}}<img class="quick-info__poster" src="{{.Cover}}" alt="" loading="lazy">
+                    {{else}}<span class="quick-info__poster poster__fallback poster__fallback--h{{$h}}"></span>{{end}}
+                    <div class="quick-info__body">
+                        <span class="quick-info__label">Quick info</span>
+                        <p class="quick-info__title">{{.Title}}</p>
+                        <dl class="quick-info__facts">
+                            {{if .Category}}<dt>Category</dt><dd>{{.Category}}</dd>{{end}}
+                            <dt>Size</dt><dd>{{.Size}}</dd>
+                            {{if .Resolution}}<dt>Quality</dt><dd>{{.Resolution}}{{if .Source}} · {{.Source}}{{end}}</dd>
+                            {{else if .Source}}<dt>Source</dt><dd>{{.Source}}</dd>{{end}}
+                            {{if .HasSwarm}}<dt>Swarm</dt><dd>{{.Seeders}} seeding · {{.Leechers}} leeching</dd>{{end}}
+                            {{if not .PostedAt.IsZero}}<dt>Posted</dt><dd>{{.Posted}}</dd>{{end}}
+                            {{if .Group}}<dt>Group</dt><dd>{{.Group}}</dd>{{end}}
+                        </dl>
+                    </div>
+                </div>
             </div>
         </div>
     </td>
