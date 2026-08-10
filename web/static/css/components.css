@@ -2850,3 +2850,31 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
     gap: 4px;
 }
 .top-nav__ratio-bar .stat-figure .icon { width: 12px; height: 12px; }
+
+/* ── The featured strip is CHROMELESS ────────────────────────────────────────
+   It carries .panelV2 for its structure — header, actions, the carousel —
+   but not for its surface. As a panel it drew a filled box with a 3px border
+   and an inset header, and the posters are the thing that should be seen: art
+   inside a frame inside a box is two frames too many.
+
+   So the surface, border, shadow and radius are dropped and the heading is
+   pulled out to the same left edge as the first poster. Every other panel on
+   the site is untouched — this is one block's treatment, not a change to what
+   a panel is.
+
+   No colour is set here, only colour REMOVED, which is why this needs no
+   token: a theme still decides everything that remains visible. */
+.blocks__featured {
+    background: none;
+    border: 0;
+    box-shadow: none;
+    border-radius: 0;
+}
+.blocks__featured > .panel__header {
+    background: none;
+    border: 0;
+    padding-inline: 0;
+}
+/* The heading and the first poster share a left edge. Inset, the heading read
+   as a label ABOUT a box; flush, it reads as a label for the row beneath it. */
+.blocks__featured > .panel__header .panel__heading { padding-inline: 0; }
