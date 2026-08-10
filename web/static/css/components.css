@@ -2642,3 +2642,66 @@ a.cal-ev:hover { background: var(--surface-3); }
 }
 .quick-info__facts dt { color: var(--quick-info-label-fg); }
 .quick-info__facts dd { margin: 0; color: var(--quick-info-fg); }
+
+/* ── Widgets in the header bar ───────────────────────────────────────────────
+   This region is one line beside the search box, and a widget does not know
+   that. tracker-standing renders a <dl class="key-value"> — right for a
+   sidebar, and as a stacked four-row block it landed on top of the search box.
+
+   So the REGION constrains its contents rather than each widget being trusted
+   to guess the layout it was dropped into. That protects widgets that have not
+   been written yet, which is the whole reason placement is an operator's
+   choice: an author cannot know every region their card will end up in.
+
+   The dl is flattened into inline label/value pairs, and the row is capped and
+   clipped — an oversized widget loses its tail instead of pushing the account
+   menu off the screen. */
+.top-nav__widgets {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    max-width: 40vw;
+    overflow: hidden;
+}
+.top-nav__widgets > li {
+    min-width: 0;
+    white-space: nowrap;
+}
+/* Any dl a widget renders, laid flat. */
+.top-nav__widgets .key-value {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+    background: none;
+}
+.top-nav__widgets .key-value__group {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    padding: 0;
+    background: none;
+}
+.top-nav__widgets dt {
+    font-size: var(--fs-3xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.top-nav__widgets dd {
+    margin: 0;
+    font-size: var(--fs-2xs);
+    font-weight: 600;
+    color: var(--text);
+}
+/* A widget may also carry prose or a button; neither belongs in this bar. */
+.top-nav__widgets p,
+.top-nav__widgets .button { display: none; }
+
+/* The bar is the first thing to lose on a narrow screen: the search box and
+   the account menu both matter more than a figure. */
+@media (max-width: 1200px) {
+    .top-nav__widgets { display: none; }
+}
