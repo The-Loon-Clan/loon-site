@@ -138,6 +138,8 @@ var pageTemplates = []string{
 	"admin_access.html", "admin_contracts.html", "admin_covers.html",
 	// The widget page editor (widgetsadmin_web.go).
 	"admin_widgets.html",
+	// Data-source attribution (credits_web.go).
+	"credits.html",
 	// Moderation is not under /admin (it gates at RoleMod) but is the same
 	// kind of page — see avatarmod_web.go.
 	"moderation_avatars.html", "moderation_community.html",

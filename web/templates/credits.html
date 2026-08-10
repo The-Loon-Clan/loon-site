@@ -1,0 +1,90 @@
+{{/* Data sources and attribution.
+
+     Keys: .Credits []sourceCredit (Name, URL, Text) — the providers actually
+     REGISTERED in this process, never the full list. A deployment with no TMDB
+     key does not thank TMDB, because claiming a provenance you do not have is
+     its own kind of wrong.
+
+     This page exists because the attribution is a LICENCE CONDITION and not a
+     courtesy: TVmaze publishes under CC BY-SA 4.0, Wikipedia under CC BY-SA,
+     and TMDB requires a specific disclaimer in its own words. It used to run
+     along the footer of every page as one long line. Moving it here keeps the
+     credit — with the required wording intact and one click from the footer —
+     and gives it room to say what each source is actually for. */}}
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
+    <li class="breadcrumb--active">Data sources</li>
+</ol>
+{{end}}
+
+{{define "content"}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
+            Data sources
+        </h1>
+    </header>
+    <div class="panel__body">
+        <p>
+            Release names come off Usenet. Everything else on a release page — the
+            poster, the synopsis, the year, the links out — is looked up from the
+            open catalogues below, and belongs to them.
+        </p>
+        <p class="text-muted small">
+            Only the sources this site actually uses are listed. A source needing a
+            key it has not been given contributes nothing and is not credited here.
+        </p>
+    </div>
+</section>
+
+{{if .Credits}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">Attribution</h2>
+    </header>
+    <div class="panel__body panel__body--flush">
+        <dl class="key-value">
+            {{range .Credits}}
+            <div class="key-value__group">
+                <dt><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Name}}</a></dt>
+                {{/* The provider's own wording, verbatim. Several of these are
+                     the exact sentence a licence asks to be shown, so this is
+                     not a place to paraphrase for tone. */}}
+                <dd>{{.Text}}</dd>
+            </div>
+            {{end}}
+        </dl>
+    </div>
+</section>
+{{else}}
+<section class="panelV2">
+    <div class="panel__body">
+        <p class="notice notice--info">
+            <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+            <span>No metadata sources are configured on this deployment, so there is
+                  nothing to credit. Release names are Usenet's own.</span>
+        </p>
+    </div>
+</section>
+{{end}}
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">Licences</h2>
+    </header>
+    <div class="panel__body">
+        <p>
+            CC BY-SA asks that the source is credited and that anything built on it
+            carries the same freedom. The catalogue data shown here is used under
+            those terms; the text of the licence is at
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">creativecommons.org</a>.
+        </p>
+        <p class="text-muted small">
+            Cover images are served from this site's own cache rather than hotlinked,
+            which is what Open Library's API terms ask for and what the others prefer.
+        </p>
+    </div>
+</section>
+{{end}}

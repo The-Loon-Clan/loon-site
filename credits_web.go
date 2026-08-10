@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/gin-gonic/gin"
+
 	"reflect"
 	"sync/atomic"
 
@@ -114,6 +116,19 @@ func setSourceCredits(providers []string) {
 func sourceCredits() []sourceCredit {
 	c, _ := activeCredits.Load().([]sourceCredit)
 	return c
+}
+
+// creditsPage serves /credits: the attribution, with room to say what each
+// source is for.
+//
+// A handler rather than sitePagePlain because the list is per-DEPLOYMENT — it
+// is whatever registered at boot, not a fixed page of text. A site with no TMDB
+// key must not thank TMDB.
+func (w *web) creditsPage(c *gin.Context) {
+	w.render(c, "credits.html", map[string]any{
+		"Title":   "Data sources",
+		"Credits": sourceCredits(),
+	})
 }
 
 // isNilSource reports whether a MetadataSource is absent, including the case a

@@ -658,15 +658,24 @@
                     <span class="top-nav__wordmark">loon<span>indexer</span></span>
                 </div>
                 <p class="footer__tagline">A demonstration Usenet indexer built on the loon framework: NNTP crawling, a Newznab API and a plugin ecosystem, with the last few days of Usenet indexed.</p>
-                {{/* Metadata-source attribution. A CONDITION of use, not a
-                     courtesy: TVmaze publishes under CC BY-SA 4.0, which asks
-                     to be credited as the source, and TMDB requires its own
-                     disclaimer. Built from the sources that actually
-                     registered (credits_web.go), so a deployment never thanks
-                     a provider whose data it does not carry. */}}
+                {{/* Metadata-source attribution — a CONDITION of use, not a
+                     courtesy: TVmaze publishes under CC BY-SA 4.0, Wikipedia
+                     under CC BY-SA, and TMDB requires its own disclaimer.
+
+                     A LINK, not the list. The credit used to run along every
+                     footer as one long line; it now has a page with room to
+                     say what each source is for (/credits). The obligation is
+                     to credit the source and let a reader find it, which a
+                     named link one click away does — deleting it outright
+                     would not, and neither would burying it somewhere
+                     unlinked.
+
+                     Still guarded on .SourceCredits: a deployment that
+                     registered no sources has nothing to attribute and should
+                     not offer a page saying so. */}}
                 {{with .SourceCredits}}
                 <p class="footer__tagline text-muted small">
-                    {{range $i, $c := .}}{{if $i}} · {{end}}<a href="{{$c.URL}}" rel="noopener">{{$c.Text}}</a>{{end}}
+                    <a href="/credits">Data sources &amp; attribution</a>
                 </p>
                 {{end}}
             </section>

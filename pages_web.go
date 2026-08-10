@@ -178,6 +178,10 @@ func (w *web) mountSitePages(e *gin.Engine) {
 	e.GET("/rules", w.sitePagePlain("rules.html", "Rules"))
 	e.GET("/faq", w.sitePagePlain("faq.html", "FAQ"))
 	e.GET("/about", w.sitePagePlain("about.html", "About"))
+	// Attribution (credits_web.go). Its own page rather than a line along every
+	// footer — the credit is a licence condition and still one click away, but
+	// it does not need to be on the screen while somebody reads a release.
+	e.GET("/credits", w.creditsPage)
 	// The HUMAN sitemap (sitemappage_web.go). /sitemap.xml is the crawler's,
 	// wired separately in main.go — the nav has linked this one since before
 	// anything served it.

@@ -371,6 +371,10 @@ func TestChromeLinksAreServed(t *testing.T) {
 		// Rendered only while .DonateEnabled, which is the env flag AND the
 		// admin toggle — but when it renders, it has to resolve.
 		"/help/donate": true,
+		// Data-source attribution (credits_web.go), linked from the footer.
+		// Rendered only when a source registered, but when it renders it has
+		// to resolve — the link is how the licence's credit is reachable.
+		"/credits": true,
 		// The tracker plugin's own index, linked from the top bar's ratio
 		// figures. Served by the plugin rather than the host, and mounted only
 		// when LOON_DEMO_TRACKER is set — which is exactly the condition under
