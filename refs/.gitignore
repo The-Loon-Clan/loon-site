@@ -1,0 +1,6 @@
+# Working images, not source: references are pasted in during a session and the
+# generated _match_ sheets are regenerated on every run.
+*.png
+*.jpg
+*.jpeg
+!README.md
