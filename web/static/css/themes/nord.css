@@ -311,10 +311,12 @@
        See midnight.css for why this exists and why it is fixed. Nord's frost
        at low alpha, so the wash belongs to this palette rather than importing
        another theme's hue. */
+    /* Viewport-relative stops — see cosmic-void.css for why pixels left a
+       stationary seam partway down the page. */
     --body-wash:
-        linear-gradient(180deg, rgba(136, 192, 208, 0.10) 120px, transparent 640px),
-        radial-gradient(1200px 720px at 12% 14%, rgba(136, 192, 208, 0.16), transparent 62%),
-        radial-gradient(1100px 620px at 88% 6%, rgba(129, 161, 193, 0.12), transparent 58%);
+        linear-gradient(180deg, rgba(136, 192, 208, 0.10), rgba(136, 192, 208, 0)),
+        radial-gradient(92vw 130vh at 12% 14%, rgba(136, 192, 208, 0.16), rgba(136, 192, 208, 0) 62%),
+        radial-gradient(84vw 118vh at 88% 6%, rgba(129, 161, 193, 0.12), rgba(129, 161, 193, 0) 58%);
 
     /* ── The featured strip ─────────────────────────────────────────────────
        Its own radius, NOT --radius-lg. cosmic-void sets --radius-lg to 0

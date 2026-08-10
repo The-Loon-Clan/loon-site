@@ -67,6 +67,20 @@
     --space-11: 32px;
     --space-12: 40px;
 
+    /* ---- featured strip -------------------------------------------------
+       Structural sizes, not colours, so they belong here rather than in a
+       theme — but a theme is free to override any of them for a denser or
+       airier strip.
+
+       Declared rather than left to a var() fallback in components.css. The
+       fallback works, and a token nothing declares is invisible to anyone
+       reading the vocabulary and to the test that keeps the two layers
+       honest. Each of these was measured against the reference design; see
+       scripts/uispec.py. */
+    --poster-w: 172px;       /* carousel poster width; reference is at another scale */
+    --carousel-gap: 14px;    /* gutter between posters */
+    --featured-inset: 14px;  /* card edge to first poster (reference: 14) */
+
     /* ---- type ---------------------------------------------------------
        System stack only: no webfont, no CDN, no external request.
        --fs-base is body copy; the steps below it are the UI sizes (labels,

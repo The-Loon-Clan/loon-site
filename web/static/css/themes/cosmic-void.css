@@ -336,11 +336,25 @@
     /* ── Page canvas: a scaled wash rather than one flat colour ─────────────
        See midnight.css. Cosmic Void is a near-flat grey theme, so the wash is
        weaker here on purpose: the same alpha that reads as depth on navy reads
-       as a stain on grey. */
+       as a stain on grey.
+
+       Every stop is viewport-relative, and that is the whole point. Sized in
+       pixels the wash ran out: the linear reached transparent at 560px and the
+       radials faded at 62% of a 720px radius, so below roughly 660px the
+       canvas went flat. Because the body background is attachment:fixed, that
+       boundary is pinned to the VIEWPORT — a stationary light-to-dark seam
+       that content scrolls underneath, which is exactly how you notice it.
+       Measured down the left gutter: #2a3742 at the top decaying to a dead
+       flat #222222 for the last 940px of a 1600px page.
+
+       In vh the wash always spans whatever the viewport is. 130vh of vertical
+       radius is not a typo — the radial fades to nothing at 62% of its radius,
+       so reaching the bottom edge from a centre at 14% needs a radius of about
+       1.4 viewports. */
     --body-wash:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.05) 120px, transparent 560px),
-        radial-gradient(1200px 720px at 12% 14%, rgba(33, 149, 243, 0.15), transparent 62%),
-        radial-gradient(1100px 620px at 88% 6%, rgba(33, 149, 243, 0.10), transparent 58%);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0)),
+        radial-gradient(92vw 130vh at 12% 14%, rgba(33, 149, 243, 0.15), rgba(33, 149, 243, 0) 62%),
+        radial-gradient(84vw 118vh at 88% 6%, rgba(33, 149, 243, 0.10), rgba(33, 149, 243, 0) 58%);
 
     /* ── The featured strip ─────────────────────────────────────────────────
        Its own radius, NOT --radius-lg. cosmic-void sets --radius-lg to 0
