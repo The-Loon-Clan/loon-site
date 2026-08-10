@@ -394,6 +394,15 @@ func main() {
 	}
 	bookmarksDB = db
 
+	// Widget placements (widgets_web.go) — WHERE an operator has put each
+	// registered widget. The widgets themselves come from plugins at boot and
+	// live in memory; this table only remembers the arrangement.
+	if err := widgetsMigrate(db); err != nil {
+		logger.Error("widgets migrate", "err", err)
+		os.Exit(1)
+	}
+	widgetsDB = db
+
 	// Last seen (presence_web.go) and follows (follows_web.go) — MOCKS M1 and
 	// M3, the last two placeholders on the profile.
 	if err := lastSeenMigrate(db); err != nil {
@@ -868,6 +877,12 @@ func main() {
 
 	contractsDB, contractsCore = db, c
 
+	// The host's own placeable widgets, registered BEFORE Boot so they sit in
+	// the same registry as the plugins' and the editor lists them together —
+	// an operator arranging a page should not be able to tell which came from
+	// where. See widgetsbuiltin_web.go.
+	wsrv.registerBuiltinWidgets(c)
+
 	rt, err := core.Boot(ctx, c)
 	if err != nil {
 		logger.Error("core.Boot", "err", err)
@@ -934,6 +949,10 @@ func main() {
 	// Where cover art comes from (coversadmin_web.go + covermode_web.go).
 	admin.GET("/covers", wsrv.adminCovers)
 	admin.POST("/covers", wsrv.adminCoversSave)
+	// The page editor: where an operator puts registered widgets
+	// (widgetsadmin_web.go). One region at a time, chosen by ?region=.
+	admin.GET("/widgets", wsrv.widgetsAdminPage)
+	admin.POST("/widgets/apply", wsrv.widgetsAdminAction)
 	admin.GET("/plugins", wsrv.adminPlugins)
 	admin.GET("/jobs", wsrv.adminJobs)
 	admin.POST("/jobs/control", wsrv.adminJobsControl)

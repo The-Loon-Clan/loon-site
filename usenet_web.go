@@ -14,6 +14,7 @@ import (
 
 	"github.com/the-loon-clan/loon-baseline/cache"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
+	"github.com/the-loon-clan/loon/core"
 )
 
 // Public usenet surface only: NZB download + the search/browse view models.
@@ -166,6 +167,13 @@ func (w *web) releasePage(c *gin.Context) {
 	// dead torrent rather than no torrent.
 	if sw, okSwarm := readTrackerSwarm(c.Request.Context(), usersDB, id); okSwarm {
 		data["Swarm"] = sw
+	}
+	// Tell widgets WHAT this page is about before rendering their region, so a
+	// release widget can read the id instead of parsing the URL. Kind as well
+	// as id: an id alone is how a release widget renders against a thread id.
+	core.SetWidgetItem(c, "release", id)
+	if ws := w.renderRegion(c, "release"); len(ws) > 0 {
+		data["RegionWidgets"] = ws
 	}
 	// Bookmarked is set ONLY for a signed-in viewer, so the button is absent
 	// rather than rendered in a false "not saved" state for anonymous readers.

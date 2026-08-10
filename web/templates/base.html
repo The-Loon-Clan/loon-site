@@ -14,8 +14,27 @@
 {{template "site-sprite" .}}
 {{template "site-header" .}}
     {{/* id is site_chrome.html's skip-link target — keep it in step with the
-         forum set's fhead, which carries the same <main id>. */}}
-    <main class="main-margin py-4" id="main-content">
+         forum set's fhead, which carries the same <main id>.
+
+         The sidebar classes are added ONLY when a sidebar actually holds
+         something, so a site with no placements keeps the full-width layout it
+         had — the grid is opt-in per page render rather than a permanent
+         three-column shell with two empty tracks. */}}
+    {{/* .WidgetRegions is ABSENT on most renders (no placements, or a page
+         rendered outside chromeData), and `index` on an absent key is an ERROR
+         — "index of untyped nil" — not an empty result. So the map is tested
+         before it is indexed, every time.
+
+         And it is WidgetRegions rather than Widgets because profile.html
+         already owns .Widgets for its SlotUserWidget cards. */}}
+    {{- $left := false -}}
+    {{- $right := false -}}
+    {{- if .WidgetRegions -}}
+        {{- $left = index .WidgetRegions "sidebar-left" -}}
+        {{- $right = index .WidgetRegions "sidebar-right" -}}
+    {{- end -}}
+    <main class="main-margin py-4{{if $left}} has-sidebar-left{{end}}{{if $right}} has-sidebar-right{{end}}" id="main-content">
+        {{with $left}}<aside class="sidebar sidebar--left">{{template "widget-region" .}}</aside>{{end}}
         <article>
             {{/* The breadcrumb is rendered by site-header, not here: it is
                  chrome and belongs against the nav. See site_chrome.html. */}}
@@ -29,6 +48,7 @@
             {{end}}
             {{template "content" .}}
         </article>
+        {{with $right}}<aside class="sidebar sidebar--right">{{template "widget-region" .}}</aside>{{end}}
     </main>
 {{template "site-footer" .}}
 {{template "site-scripts" .}}

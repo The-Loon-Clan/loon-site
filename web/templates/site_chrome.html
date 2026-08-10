@@ -277,6 +277,15 @@
                 </li>
                 {{end}}
             </ul>
+            {{/* Operator-placed widgets in the header bar. Rendered bare —
+                 no box, no heading — because this strip is a row of small
+                 figures beside the search box, and a panel would break it.
+                 The region's note in widgets_web.go says so to the operator. */}}
+            {{if .WidgetRegions}}{{with index .WidgetRegions "header-bar"}}
+            <ul class="top-nav__ratio-bar top-nav__widgets">
+                {{range .}}<li data-widget="{{.Slug}}">{{.Body}}</li>{{end}}
+            </ul>
+            {{end}}{{end}}
             <ul class="top-nav__icon-bar">
                 <li>
                     <a href="/p/inbox">
@@ -613,8 +622,31 @@
      columns + sub-footer. Every link points at a route this demo actually
      serves; there is no newsletter POST endpoint in this stack, so the
      mockup's email capture is replaced by the real feed/API affordances. */}}
+{{/* One widget region. Dot is a []renderedWidget.
+
+     Each widget gets its own box with its own heading, so an operator can see
+     what they placed and a reader can tell two figures apart. A widget that
+     rendered nothing was already dropped before this — see renderPlaced — so
+     there is never an empty box here. */}}
+{{define "widget-region"}}
+{{range .}}
+<section class="widget" data-widget="{{.Slug}}">
+    <h2 class="widget__title">{{.Title}}</h2>
+    <div class="widget__body">{{.Body}}</div>
+</section>
+{{end}}
+{{end}}
+
 {{define "site-footer"}}
     <footer class="footer">
+        {{/* Operator-placed widgets, above the footer's own columns. index
+             rather than a field, so a site that has placed nothing renders
+             nothing: index on a nil map returns nil and range does nothing. */}}
+        {{if .WidgetRegions}}{{with index .WidgetRegions "footer"}}
+        <div class="footer__wrapper footer__widgets">
+            {{template "widget-region" .}}
+        </div>
+        {{end}}{{end}}
         <div class="footer__wrapper">
             <section class="footer__section">
                 <div class="footer__brand">

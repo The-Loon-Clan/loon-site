@@ -182,6 +182,9 @@
                 </dl>
             </div>
         </section>
+        {{/* Operator-placed widgets for this page (widgets_web.go). $ because
+             the surrounding scope is .Release. */}}
+        {{with $.RegionWidgets}}{{template "widget-region" .}}{{end}}
         {{/* The swarm, present only when this release also exists as a torrent
              on the tracker AND the tracker is switched on. $ because the
              surrounding scope is .Release and the swarm is not part of it —

@@ -98,7 +98,7 @@ type web struct {
 	// instead of hotlinking a provider CDN — see covercache_web.go. Built at
 	// construction, not after Boot: it depends on nothing but the upload volume.
 	covers *coverCache
-	rt            *core.Runtime           // plugin runtime, for the /admin/plugins page
+	rt     *core.Runtime // plugin runtime, for the /admin/plugins page
 	// achievements answers where a member stands on every earnable badge.
 	// nil when the rewards plugin is absent, which renders the page's
 	// unavailable state rather than a 404 on a link the nav always shows.
@@ -136,6 +136,8 @@ var pageTemplates = []string{
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
 	"admin_access.html", "admin_contracts.html", "admin_covers.html",
+	// The widget page editor (widgetsadmin_web.go).
+	"admin_widgets.html",
 	// Moderation is not under /admin (it gates at RoleMod) but is the same
 	// kind of page — see avatarmod_web.go.
 	"moderation_avatars.html", "moderation_community.html",
@@ -907,6 +909,12 @@ func (w *web) profilePage(c *gin.Context) {
 	if t, ok := lastSeenAt(ctx, usersDB, subject.ID); ok {
 		data["SubjectLastSeen"], data["HasSubjectLastSeen"] = t, true
 	}
+	// Operator-placed widgets for the profile region. After the private gate,
+	// so a hidden profile hides these too; SetViewSubject has already run, so a
+	// widget here can read whose profile it is exactly as a SlotUserWidget can.
+	if ws := w.renderRegion(c, "profile"); len(ws) > 0 {
+		data["RegionWidgets"] = ws
+	}
 	// The subject's tracker standing, which is public on a private tracker for
 	// the reason ratio exists at all: it is the thing members are accountable
 	// to each other for.
@@ -1033,6 +1041,23 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 				data["HasUnread"] = true
 			}
 		}
+	}
+	// Operator-placed widgets in the four regions the CHROME owns. One read of
+	// the placement table for all of them — see renderRegions — and nil when a
+	// site has placed nothing, which is the default and costs the templates
+	// nothing.
+	//
+	// The page-specific regions (profile, release, listing) are rendered by
+	// their own handlers instead, because those need to say WHAT the page is
+	// about first (core.SetWidgetItem / SetViewSubject) and the chrome does not
+	// know.
+	// WidgetRegions, NOT "Widgets" — the profile page already publishes its own
+	// .Widgets ([]widgetVM, the SlotUserWidget cards), and chromeData runs after
+	// a handler's data on every page. Sharing the name meant the chrome tried to
+	// index a slice with a string and took the whole profile down. The same
+	// collision the Subject* prefixes exist for, one map up.
+	if ws := w.renderRegions(c, "header-bar", "sidebar-left", "sidebar-right", "footer"); ws != nil {
+		data["WidgetRegions"] = ws
 	}
 	// The nav shows Donate only where donations are actually accepted, so the
 	// gate has to be readable by the SHARED chrome, not just the donate pages.

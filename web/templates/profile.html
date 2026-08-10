@@ -145,6 +145,11 @@
         </section>
         {{end}}
 
+        {{/* Operator-placed widgets for the profile region (widgets_web.go).
+             Distinct from .Widgets just below, which is the SlotUserWidget
+             cards a plugin bound to this page itself. */}}
+        {{with .RegionWidgets}}{{template "widget-region" .}}{{end}}
+
         {{/* Tracker standing. Its own panel rather than rows in Stats, because
              it is one connected story — a ratio only means anything beside the
              two figures it comes from — and because Stats is guarded on its own

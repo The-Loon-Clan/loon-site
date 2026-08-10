@@ -2501,3 +2501,54 @@ a.cal-ev:hover { background: var(--surface-3); }
     padding: var(--space-2); text-align: center;
     background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
 }
+
+/* ── Widget regions (widgets_web.go) ─────────────────────────────────────────
+   An operator arranges these at /admin/widgets; the CSS only has to make an
+   arbitrary set of boxes sit sensibly in each area. */
+
+/* A placed widget's box. Matches .panelV2's surface so a widget dropped beside
+   hand-written panels does not announce itself as a different kind of thing. */
+.widget {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+}
+.widget__title {
+    margin: 0;
+    padding: 10px 12px;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+}
+.widget__body { padding: 12px; }
+
+/* The header bar's widgets are bare figures in the ratio-bar row, so they get
+   no box at all — see the template. */
+.top-nav__widgets { margin-left: 8px; }
+
+/* Sidebars. The grid is applied ONLY when a sidebar holds something (base.html
+   adds the class), so a site that has placed nothing keeps the full-width
+   layout rather than reserving two empty tracks forever. */
+.sidebar { min-width: 0; }
+@media (min-width: 1100px) {
+    .main-margin.has-sidebar-left,
+    .main-margin.has-sidebar-right {
+        display: grid;
+        gap: 16px;
+        align-items: start;
+    }
+    .main-margin.has-sidebar-left  { grid-template-columns: 280px minmax(0, 1fr); }
+    .main-margin.has-sidebar-right { grid-template-columns: minmax(0, 1fr) 280px; }
+    .main-margin.has-sidebar-left.has-sidebar-right {
+        grid-template-columns: 280px minmax(0, 1fr) 280px;
+    }
+}
+/* Below the breakpoint the sidebar stacks under the content rather than
+   squeezing it: a 280px column beside a table is unreadable on a phone. */
+@media (max-width: 1099px) {
+    .sidebar { margin-top: 16px; }
+}
+
+/* Footer widgets sit above the footer's own columns. */
+.footer__widgets { padding-bottom: 0; }

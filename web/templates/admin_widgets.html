@@ -1,0 +1,138 @@
+{{/* The page editor (widgetsadmin_web.go).
+
+     Keys: .Regions []widgetRegion · .Region string (the one being edited)
+           .Placed  []placedVM   (Slug Title Position Enabled Missing)
+           .Available []core.Widget
+
+     One region at a time, chosen by the tab row: the add form has to know what
+     it is adding to, and a page carrying seven of them invites adding to the
+     wrong one. */}}
+{{define "content"}}
+{{template "admin-subnav" .}}
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#settings"></use></svg>
+            Widgets
+        </h1>
+    </header>
+    <div class="panel__body">
+        <p class="text-muted small">
+            Plugins publish widgets; this is where they go. A widget shows only to
+            viewers it allows, and one that has nothing to say on a given page is
+            left out rather than drawn empty.
+        </p>
+    </div>
+
+    <nav class="border-bottom" aria-label="Widget regions">
+        <ul class="nav-tabsV2">
+            {{range .Regions}}
+            <li class="nav-tab">
+                <a class="{{if eq .Key $.Region}}nav-tab--active__link{{else}}nav-tab__link{{end}}"
+                   href="/admin/widgets?region={{.Key}}"{{if eq .Key $.Region}} aria-current="page"{{end}}>{{.Label}}</a>
+            </li>
+            {{end}}
+        </ul>
+    </nav>
+
+    <div class="panel__body">
+        {{range .Regions}}{{if eq .Key $.Region}}
+        <p class="text-muted small">{{.Note}}</p>
+        {{end}}{{end}}
+    </div>
+</section>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">Placed here</h2>
+    </header>
+    <div class="panel__body">
+        {{if .Placed}}
+        <table class="data-table">
+            <caption class="visually-hidden">Widgets placed in this region</caption>
+            <thead><tr><th>Widget</th><th>Status</th><th class="data-table__shrink">Order</th><th class="data-table__shrink">Actions</th></tr></thead>
+            <tbody>
+                {{range .Placed}}
+                <tr>
+                    <td>
+                        {{.Title}}
+                        {{/* A placement outlives the plugin that supplied it.
+                             Saying so is the point of resolving rather than
+                             skipping — a row that silently vanished would
+                             leave somebody wondering why the layout changed. */}}
+                        {{if .Missing}}<span class="tag tag--warning" title="No plugin currently registers this widget">missing</span>{{end}}
+                        <div class="text-muted small"><code>{{.Slug}}</code></div>
+                    </td>
+                    <td>{{if .Enabled}}<span class="tag tag--success">on</span>{{else}}<span class="tag">off</span>{{end}}</td>
+                    <td class="data-table__nowrap">
+                        <form method="post" action="/admin/widgets/apply" style="display:inline;margin:0">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="region" value="{{$.Region}}">
+                            <input type="hidden" name="slug" value="{{.Slug}}">
+                            <input type="hidden" name="action" value="move">
+                            <input type="hidden" name="delta" value="-1">
+                            <button class="button button--text button--sm" type="submit" aria-label="Move {{.Title}} up">↑</button>
+                        </form>
+                        <form method="post" action="/admin/widgets/apply" style="display:inline;margin:0">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="region" value="{{$.Region}}">
+                            <input type="hidden" name="slug" value="{{.Slug}}">
+                            <input type="hidden" name="action" value="move">
+                            <input type="hidden" name="delta" value="1">
+                            <button class="button button--text button--sm" type="submit" aria-label="Move {{.Title}} down">↓</button>
+                        </form>
+                    </td>
+                    <td class="data-table__nowrap">
+                        <form method="post" action="/admin/widgets/apply" style="display:inline;margin:0">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="region" value="{{$.Region}}">
+                            <input type="hidden" name="slug" value="{{.Slug}}">
+                            <input type="hidden" name="action" value="toggle">
+                            <button class="button button--outlined button--sm" type="submit">{{if .Enabled}}Turn off{{else}}Turn on{{end}}</button>
+                        </form>
+                        <form method="post" action="/admin/widgets/apply" style="display:inline;margin:0">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="region" value="{{$.Region}}">
+                            <input type="hidden" name="slug" value="{{.Slug}}">
+                            <input type="hidden" name="action" value="remove">
+                            <button class="button button--text button--sm" type="submit">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        <p class="text-muted">Nothing here yet. Add one below.</p>
+        {{end}}
+    </div>
+</section>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">Add a widget</h2>
+    </header>
+    <div class="panel__body">
+        {{if .Available}}
+        <form method="post" action="/admin/widgets/apply">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <input type="hidden" name="region" value="{{.Region}}">
+            <input type="hidden" name="action" value="add">
+            <div class="form__row">
+                <label class="visually-hidden" for="widget-slug">Widget</label>
+                <select class="form__input" id="widget-slug" name="slug">
+                    {{range .Available}}<option value="{{.Slug}}">{{.Title}}{{if .Description}} — {{.Description}}{{end}}</option>{{end}}
+                </select>
+                <button class="button button--primary" type="submit">Add to this region</button>
+            </div>
+        </form>
+        {{else}}
+        {{/* Two different reasons for an empty dropdown, and an operator needs
+             to know which: everything available is already placed, or nothing
+             registered a widget that fits here. */}}
+        <p class="text-muted">Every widget that fits this region is already placed here.</p>
+        {{end}}
+    </div>
+</section>
+{{end}}
