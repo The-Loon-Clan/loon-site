@@ -316,6 +316,14 @@
         radial-gradient(1200px 720px at 12% 14%, rgba(136, 192, 208, 0.16), transparent 62%),
         radial-gradient(1100px 620px at 88% 6%, rgba(129, 161, 193, 0.12), transparent 58%);
 
+    /* ── The featured strip ─────────────────────────────────────────────────
+       Its own radius, NOT --radius-lg. cosmic-void sets --radius-lg to 0
+       because that theme is square by design, so a token-driven radius here
+       would collapse to nothing in exactly the theme it was asked for. This
+       block is rounded on purpose in every theme; a theme that truly wants it
+       square sets this to 0 deliberately rather than by inheritance. */
+    --featured-radius: 12px;
+
     /* ── Section headings ───────────────────────────────────────────────────
        A panel heading reads as a LABEL for the block beneath it rather than as
        prose, which is what the uppercase + tracking does. Tokens rather than a

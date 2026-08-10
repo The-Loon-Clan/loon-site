@@ -2876,5 +2876,20 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
     padding-inline: 0;
 }
 /* The heading and the first poster share a left edge. Inset, the heading read
-   as a label ABOUT a box; flush, it reads as a label for the row beneath it. */
-.blocks__featured > .panel__header .panel__heading { padding-inline: 0; }
+   as a label ABOUT a box; flush, it reads as a label for the row beneath it.
+   The heading carries its own background token too, so it is cleared here as
+   well as on the header — on nord that token is a real colour (#2e3440), not
+   transparent, and it would draw a band behind the words. */
+.blocks__featured > .panel__header .panel__heading {
+    padding-inline: 0;
+    background: none;
+}
+
+/* The posters sit in their own ROUNDED surface, below the heading rather than
+   inside a box with it. That is the shape in the reference: a label on the
+   page, and the art in a soft-cornered tray under it. */
+.blocks__featured .carousel {
+    background: var(--panel-bg);
+    border-radius: var(--featured-radius, 12px);
+    padding: 14px;
+}
