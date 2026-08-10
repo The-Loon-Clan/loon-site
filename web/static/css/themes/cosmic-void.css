@@ -25,7 +25,7 @@
        "raised" in this theme is DARKER than the panel, not lighter. */
     --bg: #222222;
     --bg-sunken: #161618;
-    --surface: #222222;
+    --surface: #282828;   /* one step above the page — see --panel-bg */
     --surface-2: #19191b;
     --surface-3: #303030;
     --bg-elevated: var(--surface-2);
@@ -108,7 +108,19 @@
     --scrollbar-track: transparent;
 
     /* ---- panelV2 ------------------------------------------------------ */
-    --panel-bg: #222222;
+    /* A DEPARTURE from the port, and the reason is the header above.
+    
+       UNIT3D's cosmic-void makes page, surface and panel all #222222, and
+       carried the panel's definition entirely in --panel-head-bg #19191b — a
+       dark bar at the top of every panel. With that bar removed the panel had
+       nothing left: same colour as the page, so only the border showed, and a
+       header with no background floated on a bare edge.
+
+       Lifting the panel one step above the page puts the definition in the
+       SURFACE instead of in a bar, so a panel reads as a panel and its header
+       reads as part of it. midnight and nord already work this way — this was
+       the only theme where panel and page were the same colour. */
+    --panel-bg: #282828;
     --panel-fg: var(--text);
     --panel-border: 3px solid rgba(14, 21, 34, 0.25);
     --panel-border-color: rgba(14, 21, 34, 0.25);
