@@ -2601,8 +2601,13 @@ a.cal-ev:hover { background: var(--surface-3); }
     display: none;
 }
 .data-table__name { position: relative; }
-.data-table__name:hover > .quick-info,
-.data-table__name:focus-within > .quick-info {
+/* DESCENDANT, not child. The card is rendered inside
+   .data-table__name-body, so it is a grandchild of .data-table__name — the
+   child combinator that was here never matched anything and the card was
+   never once shown. It rendered in the HTML on every row, which is what made
+   it look done. */
+.data-table__name:hover .quick-info,
+.data-table__name:focus-within .quick-info {
     display: flex;
 }
 /* The last rows open UPWARD. A card below the final row is either clipped by

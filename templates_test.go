@@ -6,7 +6,9 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http/httptest"
+	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -1513,5 +1515,45 @@ func TestProfilePreviewLinkSurvivesItsOwnEffect(t *testing.T) {
 	// And the page must say it is in preview, or a stripped page reads as a bug.
 	if !strings.Contains(src, "{{if .Preview}}") {
 		t.Error("nothing renders on .Preview, so preview mode is silent")
+	}
+}
+
+// The quick-info card is rendered INSIDE .data-table__name-body, which makes it
+// a grandchild of .data-table__name — so the CSS that reveals it on hover must
+// use a descendant selector, not the child combinator.
+//
+// This shipped wrong: ".data-table__name:hover > .quick-info" matched nothing,
+// on every row, and the card was never once shown. Nothing caught it because
+// the MARKUP was correct and present on all 25 rows, which is what made it look
+// finished. A stylesheet and a template can each be right and still not meet.
+func TestQuickInfoHoverSelectorMatchesTheMarkup(t *testing.T) {
+	css, err := os.ReadFile(filepath.Join("web", "static", "css", "components.css"))
+	if err != nil {
+		t.Fatalf("read components.css: %v", err)
+	}
+	s := string(css)
+	if strings.Contains(s, ".data-table__name:hover > .quick-info") ||
+		strings.Contains(s, ".data-table__name:focus-within > .quick-info") {
+		t.Error("the hover rule uses the CHILD combinator; the card is a grandchild " +
+			"of .data-table__name, so this matches nothing and the card never shows")
+	}
+	if !strings.Contains(s, ".data-table__name:hover .quick-info") {
+		t.Error("no descendant hover rule for .quick-info — the card cannot appear")
+	}
+	// Keyboard reachability is half the point of the card being CSS-only.
+	if !strings.Contains(s, ".data-table__name:focus-within .quick-info") {
+		t.Error("no :focus-within rule — the card would be mouse-only")
+	}
+	// Hidden must be display:none, not visibility:hidden: a hidden-but-present
+	// element still contributes to the table wrapper's scroll overflow, which
+	// left a blank region under the last row.
+	i := strings.Index(s, ".quick-info {")
+	if i < 0 {
+		t.Fatal("no .quick-info rule at all")
+	}
+	block := s[i:min(i+900, len(s))]
+	if strings.Contains(block, "visibility: hidden") {
+		t.Error(".quick-info hides with visibility:hidden, which still inflates " +
+			"the scroll area of .data-table-wrapper")
 	}
 }
