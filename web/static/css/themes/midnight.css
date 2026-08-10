@@ -180,7 +180,8 @@
     --quick-search-hotkey-fg: var(--muted);
 
     /* ---- secondary nav (the main icon+label row) ---------------------- */
-    --secondary-nav-bg: #0b1120;
+    /* = --top-nav-bg; see cosmic-void.css. */
+    --secondary-nav-bg: #0c1220;
     --secondary-nav-box-shadow: inset 0 -1px 0 var(--border);
     --secondary-nav-tab-fg: var(--muted);
     --secondary-nav-tab-bg: transparent;

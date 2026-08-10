@@ -185,7 +185,8 @@
     --quick-search-hotkey-fg: #d8dee9;
 
     /* ---- secondary nav (the main icon+label row) ---------------------- */
-    --secondary-nav-bg: #242933;
+    /* = --top-nav-bg; see cosmic-void.css. */
+    --secondary-nav-bg: #2c323d;
     --secondary-nav-box-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.2);
     --secondary-nav-tab-fg: #d8dee9;
     --secondary-nav-tab-bg: transparent;
@@ -200,7 +201,7 @@
     --secondary-nav-tab-menu-box-shadow: var(--shadow-lg);
 
     /* ---- stat strip --------------------------------------------------- */
-    --stat-strip-bg: #242933;
+    --stat-strip-bg: #2c323d;   /* = --top-nav-bg, one header block */
     --stat-strip-border: 1px solid #4c566a;
     --stat-strip-label-fg: #7b869d;
     --stat-strip-value-fg: #d8dee9;
