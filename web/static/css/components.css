@@ -2863,14 +2863,10 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
    are untouched and still render as ordinary panels. */
 .blocks__featured,
 .blocks__latest-releases {
-    /* NO surface. The content sits on the page itself — the posters and the
-       table are the things to look at, and a card behind them was one layer of
-       chrome doing no work. The radius and shadow go with it: both only
-       describe an edge, and there is no longer an edge to describe. */
-    background: none;
+    background: var(--panel-bg);
     border: 0;
-    border-radius: 0;
-    box-shadow: none;
+    border-radius: var(--featured-radius, 12px);
+    box-shadow: var(--shadow);
     /* No padding: the heading and the content run to the card's own edge.
        overflow:hidden is what makes that safe — it clips the table's corners
        and the poster row to the radius, which is the job .panelV2's own

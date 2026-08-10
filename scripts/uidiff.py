@@ -33,7 +33,17 @@ from PIL import Image, ImageChops, ImageDraw
 # than a change anyone asked for. Screenshots of the same page are not
 # bit-identical between runs — fonts hint differently, images decode slightly
 # differently — so a threshold of 0 reports every capture as "changed".
-NOISE = 12
+#
+# But a threshold hides SUBTLE changes, and this tool nearly lied because of
+# it: restoring a card surface moved the pixels by 6 (#222222 -> #282828), the
+# floor was 12, and the summary reported 1% and "regions: 7" for a change that
+# covered half the page. A surface one step above the page is a perfectly
+# ordinary design change and must not read as noise.
+#
+# So the floor is lower, overridable with --threshold, and the summary ALWAYS
+# reports the mean channel difference — which is threshold-independent and
+# catches exactly the uniform, low-amplitude change a mask misses.
+NOISE = 4
 
 
 def load(path):
@@ -105,6 +115,13 @@ def main():
         h = min(before.height, after.height)
         before, after = before.crop((0, 0, w, h)), after.crop((0, 0, w, h))
 
+    for a in sys.argv[1:]:
+        if a.startswith("--threshold"):
+            global NOISE
+            NOISE = int(a.split("=", 1)[1]) if "=" in a else NOISE
+    if "--threshold" in sys.argv:
+        NOISE = int(sys.argv[sys.argv.index("--threshold") + 1])
+
     mask = diff_mask(before, after)
     changed = sum(mask.point(lambda v: 1 if v else 0)
                   .getdata())
@@ -125,9 +142,20 @@ def main():
     sheet.paste(heat, (before.width * 2 + gap * 2, 0))
     sheet.save(out_path)
 
-    print(f"changed pixels: {pct:.2f}%   regions: {len(boxes)}")
-    if pct == 0:
-        print("NOTHING CHANGED — whatever was edited did not reach the page")
+    # Threshold-independent, so a uniform low-amplitude shift (a surface one
+    # step above the page) cannot hide under the noise floor.
+    grey = ImageChops.difference(before, after).convert("L")
+    hist = grey.histogram()
+    mean = sum(i * n for i, n in enumerate(hist)) / float(total)
+    peak = max(i for i, n in enumerate(hist) if n) if any(hist) else 0
+
+    print(f"changed pixels: {pct:.2f}% (threshold {NOISE})   regions: {len(boxes)}")
+    print(f"mean channel delta: {mean:.2f}   peak: {peak}")
+    if mean == 0:
+        print("IDENTICAL — whatever was edited did not reach the page")
+    elif pct < 1 and mean > 0.5:
+        print("SUBTLE, WIDE change — low amplitude over a large area "
+              "(a surface or tint shift). Trust the mean, not the mask.")
     for b in boxes[:8]:
         print(f"  box x{b[0]}..{b[2]}  y{b[1]}..{b[3]}")
     print(f"wrote {out_path}  (before | after+boxes | difference)")
