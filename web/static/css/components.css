@@ -2586,18 +2586,32 @@ a.cal-ev:hover { background: var(--surface-3); }
     border: var(--quick-info-border);
     border-radius: var(--quick-info-radius);
     box-shadow: var(--quick-info-shadow);
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-4px);
-    transition: opacity var(--transition-fast), transform var(--transition-fast), visibility var(--transition-fast);
     pointer-events: none;
+    /* display:none, NOT visibility:hidden.
+       
+       A hidden-but-present element still contributes to SCROLL OVERFLOW, and
+       .data-table-wrapper is a scroll container — overflow-x:auto makes
+       overflow-y compute to auto as well. So twenty-five cards sitting at
+       top:100%, invisible, still stretched the scrollable area past the last
+       row and left a blank region with a scrollbar beside it.
+
+       The cost is the fade: display cannot be transitioned in every browser
+       this has to work in. A card that appears instantly is a fair trade for a
+       table that ends where its last row does. */
+    display: none;
 }
 .data-table__name { position: relative; }
 .data-table__name:hover > .quick-info,
 .data-table__name:focus-within > .quick-info {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
+    display: flex;
+}
+/* The last rows open UPWARD. A card below the final row is either clipped by
+   the scroll container or pushes it open again — the same problem in a
+   different disguise. Three rows of margin, because the card is taller than a
+   row. */
+tr:nth-last-child(-n + 3) .quick-info {
+    top: auto;
+    bottom: 100%;
 }
 /* Below the breakpoint there is no hover to speak of and no room for a 420px
    card beside a table, so it is not merely hidden — it is never composited. */
