@@ -86,9 +86,10 @@
   <span id="zoomv" class="hint">100%</span>
   <button id="selmode" type="button">Box select: off</button>
   <button id="pick" type="button">Picker: off</button>
-  <button id="save" class="primary" type="button">Save focus</button>
+  <button id="save" class="primary" type="button">Send to Claude</button>
   <button id="clear" type="button">Clear</button>
-  <span class="hint">drag a box on EACH side, then Save focus</span>
+  <input id="note" placeholder="what is wrong with it?" size="34">
+  <span class="hint">box each side, type what is wrong, send</span>
 </header>
 
 <main>
@@ -230,7 +231,10 @@
       // a different width can still be cropped to the same region.
       liveWidth: frame.clientWidth || 1400,
       refRect: rects.ref, liveRect: rects.live,
-      note: ''
+      // The note travels WITH the rectangle. A region on its own says where to
+      // look and not what is wrong with it, and guessing the second from the
+      // first is exactly what has gone wrong repeatedly.
+      note: (document.getElementById('note').value || '').trim()
     };
     fetch('/dev/focus', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

@@ -46,8 +46,13 @@ description step entirely.
 3. Pick the reference from the dropdown. **Zoom** it until it lines up with the
    live pane beside it.
 4. **Box select: ON**, then drag a box round the same thing on EACH side.
-5. **Save focus** — writes `refs/_focus.json`.
-6. Then: `python scripts/uimatch.py --focus`
+5. Type **what is wrong** in the note box.
+6. **Send to Claude** — writes `refs/_focus.json`.
+
+There is no step 7. Claude watches that file with a background poll, so
+pressing Send wakes it: no switching back to the editor, no describing where
+to look. It reads the rectangles, the note, and runs
+`python scripts/uimatch.py --focus` itself.
 
 That crops both sides to the saved rectangles and prints the mean colour and
 palette of each, plus `refs/_focus_compare.png` with the two crops side by side.
