@@ -2863,10 +2863,14 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
    are untouched and still render as ordinary panels. */
 .blocks__featured,
 .blocks__latest-releases {
-    background: var(--panel-bg);
+    /* NO surface. The content sits on the page itself — the posters and the
+       table are the things to look at, and a card behind them was one layer of
+       chrome doing no work. The radius and shadow go with it: both only
+       describe an edge, and there is no longer an edge to describe. */
+    background: none;
     border: 0;
-    border-radius: var(--featured-radius, 12px);
-    box-shadow: var(--shadow);
+    border-radius: 0;
+    box-shadow: none;
     /* No padding: the heading and the content run to the card's own edge.
        overflow:hidden is what makes that safe — it clips the table's corners
        and the poster row to the radius, which is the job .panelV2's own
@@ -2887,6 +2891,17 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
 .blocks__featured > .panel__header .panel__heading,
 .blocks__latest-releases > .panel__header .panel__heading {
     background: none;
+}
+/* .panel__body paints --panel-bg of its own. The featured strip wraps its
+   carousel in one, so clearing the section and the carousel left the band
+   between them still painting — which is exactly what a screenshot showed and
+   what reading only the CSS did not. Latest releases has no .panel__body (its
+   table sits in a .data-table-wrapper), which is why the two blocks needed
+   different clearing despite looking identical in the markup. */
+.blocks__featured > .panel__body,
+.blocks__latest-releases > .panel__body {
+    background: none;
+    padding: 0;
 }
 .blocks__featured .carousel {
     background: none;
