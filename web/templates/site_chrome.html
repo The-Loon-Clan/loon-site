@@ -54,12 +54,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="A demonstration Usenet indexer built on the loon framework.">
     <meta name="color-scheme" content="dark">
-    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/static/css/tokens.css">
-    <link rel="stylesheet" href="{{.Theme.Href}}">
-    <link rel="stylesheet" href="/static/css/layout.css">
-    <link rel="stylesheet" href="/static/css/components.css">
-    <link rel="stylesheet" href="/static/css/theme.css">
+    <link rel="stylesheet" href="{{asset "/static/css/bootstrap.min.css"}}">
+    <link rel="stylesheet" href="{{asset "/static/css/tokens.css"}}">
+    <link rel="stylesheet" href="{{asset .Theme.Href}}">
+    <link rel="stylesheet" href="{{asset "/static/css/layout.css"}}">
+    <link rel="stylesheet" href="{{asset "/static/css/components.css"}}">
+    <link rel="stylesheet" href="{{asset "/static/css/theme.css"}}">
 {{end}}
 
 {{/* -------------------------------------------------------------- sprite --

@@ -1021,6 +1021,17 @@ func TestStylesheetOrder(t *testing.T) {
 			t.Fatalf("theme %q: %v", th.Key, err)
 		}
 		got := scanAttr(buf.String(), `<link rel="stylesheet" href="`)
+		// Strip the cache-busting ?v=<hash> (assetversion_web.go). What this
+		// test is about is ORDER — bootstrap, tokens, theme, layout,
+		// components, and theme.css last — and a version query says nothing
+		// about that. Comparing full URLs would make the test fail every time
+		// a stylesheet's CONTENT changed, which is exactly when it matters
+		// least.
+		for i, u := range got {
+			if q := strings.IndexByte(u, '?'); q >= 0 {
+				got[i] = u[:q]
+			}
+		}
 		if len(got) != len(want) {
 			t.Fatalf("theme %q: got %d stylesheets %v, want %d %v", th.Key, len(got), got, len(want), want)
 		}
@@ -1096,7 +1107,16 @@ func TestHostileThemeNameNeverReachesThePage(t *testing.T) {
 		out := buf.String()
 
 		for _, href := range scanAttr(out, `<link rel="stylesheet" href="`) {
-			if strings.Contains(href, "/themes/") && !allowed[href] {
+			// Compare the PATH, without the cache-busting ?v=<hash>
+			// (assetversion_web.go). Deliberately stripped only from the
+			// right-hand side of a '?': everything before it still has to be
+			// an exact allowlist member, so a traversal attempt cannot smuggle
+			// itself through by ending up in a query string.
+			path := href
+			if q := strings.IndexByte(path, '?'); q >= 0 {
+				path = path[:q]
+			}
+			if strings.Contains(path, "/themes/") && !allowed[path] {
 				t.Errorf("input %q produced non-allowlisted stylesheet %q", name, href)
 			}
 		}

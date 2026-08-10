@@ -275,6 +275,10 @@ func (w *web) tmplFuncs() template.FuncMap {
 //	dict k v …  "Row" . "Size" "lg"   -> map          (multi-arg templates)
 func tmplHelpers() template.FuncMap {
 	return template.FuncMap{
+		// asset appends the build's content hash to a static URL, so a
+		// stylesheet change is a new URL rather than a cached old one. See
+		// assetversion_web.go.
+		"asset":     assetURL,
 		"bytes":     humanBytes,
 		"timeAgo":   timeAgo,
 		"shortDate": shortDate,
@@ -703,6 +707,9 @@ func (w *web) currentUser(c *gin.Context) (*core.User, bool) {
 
 func (w *web) mount(e *gin.Engine) {
 	sub, _ := fs.Sub(siteFS, "web/static")
+	// Headers BEFORE the file handler: the embedded FS has no modtime, so
+	// without this nothing tells a browser when to look again.
+	e.Use(staticCacheHeaders())
 	e.StaticFS("/static", http.FS(sub))
 	e.GET("/", w.home)
 	e.GET("/groups", w.groups)
