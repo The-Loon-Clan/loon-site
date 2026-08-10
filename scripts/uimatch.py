@@ -38,7 +38,7 @@ import subprocess
 import sys
 from collections import Counter
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
@@ -117,6 +117,42 @@ def profile(im, label, bands):
     return rows
 
 
+# Grid geometry: 8 columns and rows of ~110px. Big enough that a cell means a
+# region rather than a pixel, small enough to be precise about which region.
+GRID_COLS = 8
+CELL_H = 110
+
+
+def grid(im):
+    """Overlay a labelled A1..H<n> grid so a region can be pointed at by name."""
+    im = im.convert("RGB").copy()
+    d = ImageDraw.Draw(im, "RGBA")
+    cw = im.width / GRID_COLS
+    # FIXED cell height, not height/rows. Dividing each image by its own row
+    # count made the cells different sizes in the two panels, so A3 on the left
+    # was not A3 on the right — which destroys the only thing the grid is for.
+    # Both panels are already scaled to one width, so columns line up; pinning
+    # the row height makes the rows line up too, and the taller image simply
+    # has more of them.
+    ch = CELL_H
+    rows = max(1, int(im.height / ch) + 1)
+    for c in range(GRID_COLS + 1):
+        x = int(c * cw)
+        d.line([(x, 0), (x, im.height)], fill=(255, 255, 255, 40), width=1)
+    for r in range(rows + 1):
+        y = int(r * ch)
+        d.line([(0, y), (im.width, y)], fill=(255, 255, 255, 40), width=1)
+    for r in range(rows):
+        for c in range(GRID_COLS):
+            label = f"{chr(65 + c)}{r + 1}"
+            x, y = int(c * cw) + 3, int(r * ch) + 2
+            # A dark plate under the text so the label stays readable over a
+            # poster as well as over a flat background.
+            d.rectangle([x - 2, y - 1, x + 18, y + 12], fill=(0, 0, 0, 130))
+            d.text((x, y), label, fill=(255, 220, 120))
+    return im
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -165,11 +201,21 @@ def main():
     profile(ref_s, f"REFERENCE  {os.path.basename(ref_path)}", bands)
     profile(live_s, f"LIVE       {page}", bands)
 
+    # A LABELLED GRID over both panels, so a difference can be named instead of
+    # described. "B3 is wrong" is unambiguous; "the bit under the heading on the
+    # left" has cost several rounds of this already. The same cell letter and
+    # number covers the same place in both images, because both are scaled to
+    # one width first.
+    ref_s, live_s = grid(ref_s), grid(live_s)
+
     gap = 16
     H = max(ref_s.height, live_s.height)
-    sheet = Image.new("RGB", (tw * 2 + gap, H), (18, 18, 20))
-    sheet.paste(ref_s, (0, 0))
-    sheet.paste(live_s, (tw + gap, 0))
+    sheet = Image.new("RGB", (tw * 2 + gap, H + 28), (18, 18, 20))
+    sheet.paste(ref_s, (0, 28))
+    sheet.paste(live_s, (tw + gap, 28))
+    d = ImageDraw.Draw(sheet)
+    d.text((8, 8), "REFERENCE (what it should look like)", fill=(235, 235, 235))
+    d.text((tw + gap + 8, 8), "LIVE (the real site)", fill=(235, 235, 235))
     out = os.path.join(os.path.dirname(ref_path) or ".",
                        "_match_" + os.path.basename(ref_path))
     sheet.save(out)
