@@ -373,9 +373,37 @@ const (
 	homeFeatured      = 6  // posters in the featured strip
 	homeTopGroups     = 5  // rows in the busiest-groups panel
 
-	homeRowsKey   = "home:rows:v1"   // []searchRow, cover-decorated
+	// v2: the cached value changed shape when the home page became
+	// movies-and-TV only. Reusing v1 would have served the old unfiltered rows
+	// for the whole cache TTL after deploy, which reads as "the change did
+	// nothing" — a failure this project has already spent rounds on.
+	homeRowsKey   = "home:rows:v2"   // []searchRow, cover-decorated
 	homeGroupsKey = "home:groups:v1" // homeGroupsVM
 )
+
+// homeCategories restricts the home page to films and television.
+//
+// The front page was showing whatever was newest, and what is newest on Usenet
+// is not what a visitor came to see: of the 22 most recent releases, not one
+// was a film or an episode. They were cracked installers posted as "Other"
+// (8010) and "PC/Games" (4050) — Adobe, Foxit and Topaz builds advertising
+// themselves as pre-activated, which is the shape of a malware drop whatever
+// is actually in the archive — plus a run of German audiobooks under 3010.
+//
+// This is presentation, not indexing. Every category is still crawled, still
+// searchable, still in the API and still reachable from /browse; the home page
+// simply leads with the two categories the site is about. A demo whose shop
+// window is 3,120 "Misc" and 14,085 audiobooks misrepresents what is in it:
+// films and TV are 86% of the catalogue.
+//
+// The full Newznab movie and TV subtrees are listed rather than the ids that
+// happen to be populated today, so a category that starts arriving later shows
+// up without a code change. Ids come from catalog's taxonomy (the Newznab
+// standard tree) — 2060 is 3D, 5070 anime, 5080 documentary.
+var homeCategories = []int{
+	2000, 2010, 2030, 2040, 2045, 2050, 2060,
+	5000, 5020, 5030, 5040, 5045, 5060, 5070, 5080,
+}
 
 // homeReleases returns the recent-release rows for the home page, already
 // cover-decorated, plus whether they came from the page cache (the X-Cache
@@ -386,7 +414,12 @@ func (w *web) homeReleases(ctx context.Context) ([]searchRow, bool) {
 	if w.cacheGet(ctx, homeRowsKey, &rows) {
 		return rows, true
 	}
-	res, err := w.usenet.Browse(ctx, "", homeReleaseWindow)
+	// Feed rather than Browse: Browse takes a newsgroup and no categories, so
+	// filtering its result in Go would mean fetching 60 rows and throwing most
+	// of them away — with the junk being the NEWEST rows, a window of 60 could
+	// come back with nothing to show at all. Feed pushes the category list into
+	// the query's IN(), so the window is 60 films and episodes.
+	res, _, err := w.usenet.Feed(ctx, homeCategories, homeReleaseWindow, 0)
 	if err != nil {
 		w.logger().Error("home releases", "err", err)
 		return nil, false
