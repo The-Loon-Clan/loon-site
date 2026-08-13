@@ -61,6 +61,7 @@ Nothing below is required to run the site.
 | `LOON_SITE_NAME` | The name shown in the header and in authenticator apps. |
 | `LOON_SITE_URL` | Absolute base baked into generated `.torrent` files. |
 | `LOON_SESSION_SECRET` | Session signing key. **Set this for anything reachable.** |
+| `LOON_TRUSTED_PROXIES` | Whose `X-Forwarded-For` to believe. Empty (the default) trusts none. |
 | `REDIS_ADDR` | Use Redis for the page cache and sessions instead of memory. |
 | `LOON_TRACKER` | Run the BitTorrent tracker (announce endpoints, passkeys, ratio). |
 | `LOON_CHEATCHECK` | Judge tracker readings and raise flags for staff review. |
@@ -133,6 +134,21 @@ exactly what you can run before pushing.
 file is gitignored, and the container build sets `GOWORK=off`, so a workspace
 cannot leak into an image or into CI.
 
+**Behind a load balancer?** Sessions live in Redis when `REDIS_ADDR` is set, so
+no request is tied to a process and replicas need no sticky rule:
+
+```sh
+docker compose -f docker-compose.yml -f compose.lb.yml up --build -d --scale app=3
+```
+
+nginx takes port 8090 and the app containers are reachable only from inside the
+network. The one setting that matters is `LOON_TRUSTED_PROXIES`, and the overlay
+pins nginx to a fixed address so it can name exactly one: gin walks
+`X-Forwarded-For` from the right and stops at the first address it does not
+trust, so trusting only the proxy makes an invented header harmless, while
+trusting the whole subnet walks straight past the real peer into the invented
+part — putting a proxy in front and restoring the spoofing it was meant to end.
+
 **Working on the UI?** Templates and CSS are compiled into the binary, which is
 what lets the image be distroless — but it means a one-line CSS change would
 otherwise cost a rebuild:
@@ -169,6 +185,14 @@ Trust is easier to give when the gaps are stated, so:
   not everything in the module graph — that distinction matters. Its first run
   found seven reachable ones, four of them in `golang.org/x/net/html`, the
   parser `internal/sanitize` is built on. All are fixed; the scan runs in CI.
+- **`X-Forwarded-For` is not believed by default.** gin trusts every proxy
+  unless told otherwise, so `ClientIP()` returned whatever the caller put in the
+  header — and two logins from one machine with two invented values recorded two
+  different addresses in `login_logs`, which is the page a member opens to check
+  whether somebody else has been in their account. It now trusts nothing until
+  `LOON_TRUSTED_PROXIES` names a proxy. Verified both ways: three spoofed values
+  from one source collapse to one address, and two genuinely different sources
+  stay two.
 - **No signed releases yet.** Worth having; not there.
 
 ## Contributing

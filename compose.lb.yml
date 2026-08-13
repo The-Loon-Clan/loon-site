@@ -1,0 +1,73 @@
+# nginx in front of several app replicas.
+#
+#   docker compose -f docker-compose.yml -f compose.lb.yml up --build -d --scale app=3
+#
+# Then http://localhost:8090/ as usual — nginx is on that port now, and the app
+# containers are only reachable from inside the compose network.
+#
+# This works because sessions are in Redis (REDIS_ADDR is set by default), so
+# any replica can serve any request and no sticky rule is needed. It is an
+# example rather than a recommendation: one app container is the right answer
+# for almost everybody reading this, and nothing here is a substitute for TLS,
+# which a real deployment terminates at the edge.
+
+services:
+  app:
+    # !override, because Compose CONCATENATES port lists across files rather
+    # than replacing them. Without this the base file's "8090:8090" survives,
+    # every replica tries to publish the same host port, and `--scale app=3`
+    # fails on the second container with a port conflict — while looking like a
+    # problem with scaling rather than with this file.
+    #
+    # Needs Compose v2.24 or newer. On an older one, comment out the base
+    # file's app ports entry by hand instead.
+    ports: !override []
+    environment:
+      # Believe X-Forwarded-For from nginx, and from nothing else.
+      #
+      # One address, not the subnet, and the difference is the whole point.
+      # gin walks X-Forwarded-For from the right, skipping addresses it trusts,
+      # and takes the first one it does not. Trust only nginx and the value it
+      # appended — the real peer — is where the walk stops, so a header the
+      # client invented is left sitting harmlessly to its left. Trust the whole
+      # subnet and the walk continues past the peer into the invented part,
+      # which is how "we put it behind a proxy" quietly restores the very
+      # spoofing the proxy was supposed to end.
+      #
+      # This is also why the network below has a fixed subnet: an address you
+      # cannot predict is one you cannot name here. The first draft guessed
+      # Docker's usual 172.16.0.0/12 and this machine had handed out
+      # 192.168.16.0/20, which would have logged nginx's own address as every
+      # member's — plausible-looking and wrong on every row.
+      LOON_TRUSTED_PROXIES: "${LOON_TRUSTED_PROXIES:-10.89.0.10/32}"
+      # Absolute base for generated .torrent files and emailed links. It has to
+      # name the address members reach, which is now nginx rather than the app.
+      LOON_SITE_URL: "${LOON_SITE_URL:-http://localhost:8090}"
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      default:
+        # Pinned so LOON_TRUSTED_PROXIES above can name it exactly. Everything
+        # else on this network still gets an address from the pool as usual.
+        ipv4_address: 10.89.0.10
+    depends_on:
+      - app
+    restart: unless-stopped
+
+networks:
+  default:
+    ipam:
+      config:
+        # A fixed subnet, because the trust rule above has to name one address
+        # and Docker's pool is not predictable across machines — this one was
+        # handing out 192.168.16.0/20, not the 172.16.0.0/12 the documentation
+        # leads you to expect. Change it if it collides with something on your
+        # network — the first choice here, 172.28.0.0/16, collided on the machine
+        # this was written on, where every 172.16-31 range was already taken.
+        # Change LOON_TRUSTED_PROXIES to match if you move it.
+        - subnet: 10.89.0.0/16

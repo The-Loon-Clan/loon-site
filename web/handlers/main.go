@@ -112,6 +112,27 @@ func Main() {
 
 	engine := gin.Default()
 
+	// Who is allowed to tell us the client's IP.
+	//
+	// gin trusts every proxy by default, so ClientIP() returns whatever
+	// X-Forwarded-For says, and that header is a request header like any other:
+	// anyone talking to the port can set it. Two logins from one machine with
+	// two invented values recorded two different addresses in login_logs —
+	// which is the page a member opens to check whether somebody else has been
+	// in their account, and the record an admin reads after a breach.
+	//
+	// The default here is to trust NOBODY, so ClientIP() is the peer address
+	// and cannot be forged. A deployment behind a proxy names it:
+	//
+	//   LOON_TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12
+	//
+	// Failing closed matters more than the convenience: a site that forgets to
+	// set this logs the proxy's own address for everybody, which is useless but
+	// obvious. Trusting by default is useless and looks correct.
+	if err := engine.SetTrustedProxies(trustedProxies()); err != nil {
+		logger.Error("trusted proxies", "err", err)
+	}
+
 	// Liveness endpoint for a reverse proxy / load balancer health check.
 	// Registered before any middleware so it's always cheap and always answers —
 	// even while the site is in maintenance mode (the proxy needs a true "is the
@@ -704,6 +725,32 @@ func getenvDefault(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// trustedProxies reads LOON_TRUSTED_PROXIES into the list gin will believe
+// about X-Forwarded-For.
+//
+// nil, not an empty slice, when nothing is configured: gin reads nil as "trust
+// no proxy" and an empty non-nil slice the same way, but nil is the one the
+// documentation names, and this is not a place to be clever about a difference
+// that could change under us.
+//
+// Each entry is an IP or a CIDR, comma-separated. Whitespace is tolerated
+// because this is written by hand in a compose file and "10.0.0.0/8, 172.16.
+// 0.0/12" should not fail silently — SetTrustedProxies rejects a bad entry and
+// the caller logs it.
+func trustedProxies() []string {
+	raw := strings.TrimSpace(os.Getenv("LOON_TRUSTED_PROXIES"))
+	if raw == "" {
+		return nil
+	}
+	var out []string
+	for _, part := range strings.Split(raw, ",") {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // demoBackupOpener returns the backups plugin's OpenEntry seam, writing each
