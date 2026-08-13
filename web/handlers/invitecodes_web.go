@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 )
 
 // Site invite CODES — the thing invite-only registration actually needs.
@@ -31,30 +30,6 @@ import (
 // link and have them get round to it, short enough that a leaked code is not a
 // standing invitation.
 const inviteCodeTTL = 14 * 24 * time.Hour
-
-// inviteCodesMigrate creates the table. Idempotent, like the other host
-// migrations.
-func inviteCodesMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS invite_codes (
-		    code        TEXT PRIMARY KEY,
-		    created_by  BIGINT NOT NULL,
-		    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    expires_at  TIMESTAMPTZ NOT NULL,
-		    -- Set on redemption and never cleared. The invite chain is the only
-		    -- accountability an invite-only site has.
-		    used_by     BIGINT,
-		    used_at     TIMESTAMPTZ
-		)`,
-		`CREATE INDEX IF NOT EXISTS invite_codes_creator ON invite_codes (created_by, created_at DESC)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // newInviteCode returns a random, unambiguous code.
 //

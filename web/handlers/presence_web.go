@@ -19,12 +19,6 @@ import (
 // opinion about what counts as online, and this column answers a different,
 // smaller question: when was this account last used.
 
-// lastSeenMigrate adds the column. Idempotent.
-func lastSeenMigrate(db *sqlx.DB) error {
-	_, err := db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ`)
-	return err
-}
-
 // lastSeenInterval is how stale the column may get. Five minutes is well under
 // any "active today" reading of the value and cuts the writes by orders of
 // magnitude on a page that loads a dozen sub-resources.

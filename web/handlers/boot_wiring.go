@@ -27,6 +27,7 @@ import (
 	"github.com/the-loon-clan/loon-baseline/loginlog"
 	"github.com/the-loon-clan/loon-baseline/maintenance"
 	"github.com/the-loon-clan/loon-baseline/users"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"github.com/the-loon-clan/loon/schedule"
 )
@@ -149,32 +150,38 @@ func wireBaselineStores(db *sqlx.DB, logger *slog.Logger) baselineStores {
 // migrateSiteTables creates the tables and loads the settings this site owns,
 // as opposed to loon-baseline's. Runs after the user seed, because the forum's
 // starter threads attribute to the demo accounts.
-func migrateSiteTables(db *sqlx.DB, logger *slog.Logger, users *users.PGStore) {
+func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PGStore) {
 	seedDemoUsers(users, logger)
 	// Forum tables + starter content (forum_web.go). After the user seed so
 	// the starter threads can attribute to the demo accounts.
-	if err := forumMigrate(db); err != nil {
+	if err := data.MigrateForum(); err != nil {
 		logger.Error("forum migrate", "err", err)
 		os.Exit(1)
 	}
-	forumSeed(db, logger)
+	forumSeed(data.DB(), logger)
 	// Site access modes + invite codes (access_web.go, invitecodes_web.go).
-	if err := inviteCodesMigrate(db); err != nil {
+	if err := data.MigrateInviteCodes(); err != nil {
 		logger.Error("invite codes migrate", "err", err)
 		os.Exit(1)
 	}
-	if err := loadAccessSettings(context.Background(), db); err != nil {
+	// Before the two loads below: they read this table, and it used to be
+	// created only when the donations plugin was enabled.
+	if err := data.MigrateSiteSettings(); err != nil {
+		logger.Error("site settings migrate", "err", err)
+		os.Exit(1)
+	}
+	if err := loadAccessSettings(context.Background(), data.DB()); err != nil {
 		logger.Error("load access settings", "err", err)
 	}
 	// Where cover art comes from — see covermode_web.go. Loaded before the
 	// scraper can run, so the first matched cover already obeys the setting.
-	if err := loadCoverMode(context.Background(), db); err != nil {
+	if err := loadCoverMode(context.Background(), data.DB()); err != nil {
 		logger.Error("load cover mode", "err", err)
 	}
 	logger.Info("cover art", "mode", coverMode(), "meaning", coverModeLabel(coverMode()))
 	// The profile's free-text block (profilebio_web.go). A users column, so it
 	// migrates with the other host-owned users work rather than in a plugin.
-	if err := migrateProfileBio(db); err != nil {
+	if err := data.MigrateProfileBio(); err != nil {
 		logger.Error("profile bio migrate", "err", err)
 		os.Exit(1)
 	}

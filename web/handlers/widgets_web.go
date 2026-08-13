@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon/core"
 )
@@ -58,43 +57,6 @@ func widgetRegionByKey(key string) (widgetRegion, bool) {
 }
 
 // ── placements ──────────────────────────────────────────────────────────────
-
-// widgetsMigrate creates the placement table. Idempotent.
-func widgetsMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		// PRIMARY KEY (region, slug): one widget appears at most once in a
-		// region. Placing it twice is never what an operator meant, and
-		// enforcing it here means the editor's "add" can be a plain upsert
-		// rather than a read-then-write two clicks can slip between.
-		//
-		// No foreign key to anything. A slug names a widget in a REGISTRY that
-		// exists only in memory and changes with which plugins are switched
-		// on, so the database cannot check it — resolution happens at render
-		// through core.WidgetBySlug, which reports missing rather than
-		// guessing.
-		`CREATE TABLE IF NOT EXISTS widget_placement (
-		    region   TEXT    NOT NULL,
-		    slug     TEXT    NOT NULL,
-		    position INT     NOT NULL DEFAULT 0,
-		    enabled  BOOLEAN NOT NULL DEFAULT TRUE,
-		    PRIMARY KEY (region, slug)
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_widget_placement_region
-		     ON widget_placement (region, position)`,
-		// Added after the table shipped, so ADD COLUMN IF NOT EXISTS rather
-		// than a changed CREATE — an existing deployment already has rows.
-		// The setting an operator typed for THIS placement; see
-		// core.WidgetConfig. Empty means not configured, which a widget must
-		// treat as "render nothing".
-		`ALTER TABLE widget_placement ADD COLUMN IF NOT EXISTS config TEXT NOT NULL DEFAULT ''`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // widgetPlacement is one arranged widget.
 type widgetPlacement struct {

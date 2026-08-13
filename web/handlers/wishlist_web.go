@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 )
 
 // The wishlist — what members want indexed that is not here yet.
@@ -44,30 +43,6 @@ const (
 	// a list anybody reads.
 	wishPerUser = 25
 )
-
-// wishlistMigrate creates the table.
-func wishlistMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS wishlist_items (
-		    id         BIGSERIAL PRIMARY KEY,
-		    user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		    title      TEXT   NOT NULL,
-		    note       TEXT   NOT NULL DEFAULT '',
-		    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    -- Set by a PERSON deciding it turned up, never by a matcher. See
-		    -- the note above about guessing.
-		    filled_at  TIMESTAMPTZ
-		)`,
-		`CREATE INDEX IF NOT EXISTS wishlist_open ON wishlist_items (created_at DESC) WHERE filled_at IS NULL`,
-		`CREATE INDEX IF NOT EXISTS wishlist_user ON wishlist_items (user_id, created_at DESC)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // wishlistPage serves GET /wishlist.
 func (w *web) wishlistPage(c *gin.Context) {

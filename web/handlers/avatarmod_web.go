@@ -41,24 +41,6 @@ var modLog = func(ctx context.Context, what string, err error) {
 	slog.Error("avatar moderation read", "list", what, "err", err)
 }
 
-// avatarModMigrate adds the two timestamps. Idempotent, like every other host
-// migration.
-func avatarModMigrate(db *sqlx.DB) error {
-	for _, q := range []string{
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_updated_at TIMESTAMPTZ`,
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_reviewed_at TIMESTAMPTZ`,
-		// The queue reads "pending, newest first" and nothing else.
-		`CREATE INDEX IF NOT EXISTS users_avatar_review
-		   ON users (avatar_updated_at DESC)
-		 WHERE avatar_path <> ''`,
-	} {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // pendingAvatarWhere is the one definition of "needs review", used by the list
 // and the count so a badge can never disagree with the page it links to.
 //

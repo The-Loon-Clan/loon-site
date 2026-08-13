@@ -8,7 +8,6 @@ import (
 	"html/template"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon/core"
 
@@ -26,59 +25,10 @@ import (
 //
 // Ships no migration, so the host creates the tables.
 
-// ticketsMigrate creates the plugin's tables (idempotent). Columns come from
-// store_pg.go's INSERT/SELECT lists.
-func ticketsMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		// username is denormalised on the row because the plugin's list
-		// queries select it directly rather than joining users — keep it.
-		`CREATE TABLE IF NOT EXISTS support_tickets (
-		    id         BIGSERIAL PRIMARY KEY,
-		    user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		    username   TEXT NOT NULL DEFAULT '',
-		    subject    TEXT NOT NULL,
-		    body       TEXT NOT NULL,
-		    priority   TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low','normal','high')),
-		    status     TEXT NOT NULL DEFAULT 'open'   CHECK (status IN ('open','in_progress','closed')),
-		    admin_note TEXT NOT NULL DEFAULT '',
-		    -- Owner-controlled opt-in: true exposes the ticket and its replies
-		    -- on /support/public. Default private.
-		    public     BOOLEAN NOT NULL DEFAULT false,
-		    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_support_tickets_user
-		     ON support_tickets (user_id, created_at DESC)`,
-		// The admin list filters by status and the public list by the flag,
-		// both newest-first.
-		`CREATE INDEX IF NOT EXISTS idx_support_tickets_status
-		     ON support_tickets (status, created_at DESC)`,
-		`CREATE INDEX IF NOT EXISTS idx_support_tickets_public
-		     ON support_tickets (created_at DESC) WHERE public`,
-		`CREATE TABLE IF NOT EXISTS ticket_replies (
-		    id         BIGSERIAL PRIMARY KEY,
-		    ticket_id  BIGINT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
-		    user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		    username   TEXT NOT NULL DEFAULT '',
-		    body       TEXT NOT NULL,
-		    is_admin   BOOLEAN NOT NULL DEFAULT false,
-		    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_ticket_replies_ticket
-		     ON ticket_replies (ticket_id, created_at ASC)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // wireTicketsPlugin installs the SetDeps seams.
 func wireTicketsPlugin(c *core.Core, w *web) error {
 	if db := c.Storage.DB(); db != nil {
-		if err := ticketsMigrate(db); err != nil {
+		if err := w.data.MigrateTickets(); err != nil {
 			return fmt.Errorf("tickets migrate: %w", err)
 		}
 	}

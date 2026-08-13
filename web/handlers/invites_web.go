@@ -6,6 +6,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/the-loon-clan/loon-site/internal/storage"
 	"github.com/the-loon-clan/loon/core"
 
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
@@ -25,13 +26,6 @@ import (
 // contract actually needs is "credit N invites", so the honest minimum is a
 // counter — and the counter is real, spendable state rather than a display
 // number.
-
-// invitesMigrate adds the balance column. Idempotent.
-func invitesMigrate(db *sqlx.DB) error {
-	_, err := db.Exec(
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS invites INTEGER NOT NULL DEFAULT 0`)
-	return err
-}
 
 // inviteGranter is the host's pluginapi.InviteGranter.
 type inviteGranter struct{ db *sqlx.DB }
@@ -64,11 +58,11 @@ func (g inviteGranter) GrantInvites(ctx context.Context, userID, n int) (string,
 
 // wireInvites publishes the capability on the extension registry. Call before
 // core.Boot so a plugin's Provision can Lookup it.
-func wireInvites(c *core.Core, db *sqlx.DB) error {
-	if err := invitesMigrate(db); err != nil {
+func wireInvites(c *core.Core, data *storage.Store) error {
+	if err := data.MigrateInvites(); err != nil {
 		return fmt.Errorf("invites migrate: %w", err)
 	}
-	return c.Register(pluginapi.InviteGranterName, inviteGranter{db: db})
+	return c.Register(pluginapi.InviteGranterName, inviteGranter{db: data.DB()})
 }
 
 // inviteBalance is the viewer's own invite count, for the profile tile.

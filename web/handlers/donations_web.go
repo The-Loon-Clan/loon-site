@@ -65,84 +65,13 @@ func (s siteSettings) SetSetting(ctx context.Context, key, value string) error {
 	return err
 }
 
-// donationsMigrate creates the four tables the plugin queries. Columns come
-// from its own INSERT/SELECT lists and model db tags.
-//
-// site_settings is shared, not donation-specific — it is a plain key/value
-// store the plugin keeps donate_* config and BTCPay credentials in. A restart
-// must not silently discard a webhook secret and start accepting callbacks it
-// can no longer verify, which is why it is a table rather than a map.
-func donationsMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS site_settings (
-		    key   TEXT PRIMARY KEY,
-		    value TEXT NOT NULL DEFAULT ''
-		)`,
-		`CREATE TABLE IF NOT EXISTS site_costs (
-		    id         SERIAL PRIMARY KEY,
-		    label      TEXT NOT NULL,
-		    category   TEXT NOT NULL DEFAULT 'other',
-		    goal_group TEXT NOT NULL DEFAULT 'site',
-		    period     TEXT NOT NULL DEFAULT 'monthly',
-		    amount_usd DOUBLE PRECISION NOT NULL DEFAULT 0,
-		    notes      TEXT NOT NULL DEFAULT '',
-		    sort_order INTEGER NOT NULL DEFAULT 0,
-		    active     BOOLEAN NOT NULL DEFAULT true,
-		    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-		)`,
-		`CREATE TABLE IF NOT EXISTS donation_packages (
-		    id           BIGSERIAL PRIMARY KEY,
-		    label        TEXT NOT NULL,
-		    amount_usd   DOUBLE PRECISION NOT NULL DEFAULT 0,
-		    stock_total  INTEGER NOT NULL DEFAULT 0,
-		    reward       TEXT NOT NULL DEFAULT '',
-		    description  TEXT NOT NULL DEFAULT '',
-		    reset_period TEXT NOT NULL DEFAULT '',
-		    sort_order   INTEGER NOT NULL DEFAULT 0,
-		    active       BOOLEAN NOT NULL DEFAULT true,
-		    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-		)`,
-		// donor_user_id and package_id are NULLABLE on purpose: a tip-jar
-		// donation has no claimed slot, and an admin fiat entry may have no
-		// account to attribute to. The model types them as pointers for the
-		// same reason — do not add NOT NULL here.
-		`CREATE TABLE IF NOT EXISTS donations (
-		    id            BIGSERIAL PRIMARY KEY,
-		    asset         TEXT NOT NULL DEFAULT '',
-		    txid          TEXT NOT NULL DEFAULT '',
-		    amount_native DOUBLE PRECISION NOT NULL DEFAULT 0,
-		    amount_usd    DOUBLE PRECISION NOT NULL DEFAULT 0,
-		    donor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-		    donor_label   TEXT NOT NULL DEFAULT '',
-		    received_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    note          TEXT NOT NULL DEFAULT '',
-		    overfunded    BOOLEAN NOT NULL DEFAULT false,
-		    package_id    BIGINT REFERENCES donation_packages(id) ON DELETE SET NULL
-		)`,
-		// The webhook dedupes settlements by transaction id, so this is a
-		// correctness index, not just a speed one — without it a retried
-		// callback can double-credit.
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_donations_txid
-		     ON donations (txid) WHERE txid <> ''`,
-		`CREATE INDEX IF NOT EXISTS idx_donations_received ON donations (received_at DESC)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // wireDonationsPlugin installs the SetDeps seams. Always called — the plugin
 // registers at init and Provision fails loudly without deps — but every gate
 // below returns false unless LOON_DONATIONS=1.
 func wireDonationsPlugin(c *core.Core, w *web) error {
 	db := c.Storage.DB()
 	if db != nil {
-		if err := donationsMigrate(db); err != nil {
+		if err := w.data.MigrateDonations(); err != nil {
 			return fmt.Errorf("donations migrate: %w", err)
 		}
 		// Restore the persisted toggle so a restart does not silently change

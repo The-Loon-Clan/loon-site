@@ -106,6 +106,11 @@ func Main() {
 		os.Exit(1)
 	}
 
+	// The data layer, built once here and passed to everything that needs
+	// it — the migrations, the wirings, and the web struct. There is no
+	// package global to reach for any more.
+	data := storage.New(db)
+
 	engine := gin.Default()
 
 	// Liveness endpoint for a reverse proxy / load balancer health check.
@@ -120,8 +125,8 @@ func Main() {
 	// session cookie on login. The web struct (views.go) owns the templates,
 	// static assets, session cookie, and the public/login pages.
 	st := wireBaselineStores(db, logger)
-	migrateSiteTables(db, logger, st.users)
-	wsrv := newWeb(st.users, st.sessionSecret, logger, storage.New(db))
+	migrateSiteTables(data, logger, st.users)
+	wsrv := newWeb(st.users, st.sessionSecret, logger, data)
 	wsrv.loginLog = st.loginLog
 	wsrv.ipSalt = string(st.sessionSecret) // demo salt; a real host uses a dedicated ip_salt secret
 	// Cloudflare Turnstile hook (loon-baseline). Disabled unless both keys are
@@ -256,25 +261,25 @@ func Main() {
 	// previous in-memory map lost every balance on restart, and the communities
 	// plugin SELECTs COALESCE(u.points, 0) — a column that exists but never
 	// matches the real balance is worse than no column. See points_web.go.
-	if err := pointsMigrate(db); err != nil {
+	if err := data.MigratePoints(); err != nil {
 		logger.Error("points migrate", "err", err)
 		os.Exit(1)
 	}
 	// Privacy + notification preferences (settings_web.go).
-	if err := settingsMigrate(db); err != nil {
+	if err := data.MigrateSettings(); err != nil {
 		logger.Error("settings migrate", "err", err)
 		os.Exit(1)
 	}
 
 	// Grab counting (grabs_web.go) — the source trending, "N downloads" and the
 	// economy plugin's uploader bonus were all waiting on.
-	if err := grabsMigrate(db); err != nil {
+	if err := data.MigrateGrabs(); err != nil {
 		logger.Error("grabs migrate", "err", err)
 		os.Exit(1)
 	}
 
 	// Bookmarks (bookmarks_web.go) — saved releases, retiring MOCKS M4.
-	if err := bookmarksMigrate(db); err != nil {
+	if err := data.MigrateBookmarks(); err != nil {
 		logger.Error("bookmarks migrate", "err", err)
 		os.Exit(1)
 	}
@@ -282,18 +287,18 @@ func Main() {
 	// Widget placements (widgets_web.go) — WHERE an operator has put each
 	// registered widget. The widgets themselves come from plugins at boot and
 	// live in memory; this table only remembers the arrangement.
-	if err := widgetsMigrate(db); err != nil {
+	if err := data.MigrateWidgets(); err != nil {
 		logger.Error("widgets migrate", "err", err)
 		os.Exit(1)
 	}
 
 	// Last seen (presence_web.go) and follows (follows_web.go) — MOCKS M1 and
 	// M3, the last two placeholders on the profile.
-	if err := lastSeenMigrate(db); err != nil {
+	if err := data.MigrateLastSeen(); err != nil {
 		logger.Error("last-seen migrate", "err", err)
 		os.Exit(1)
 	}
-	if err := followsMigrate(db); err != nil {
+	if err := data.MigrateFollows(); err != nil {
 		logger.Error("follows migrate", "err", err)
 		os.Exit(1)
 	}
@@ -498,7 +503,7 @@ func Main() {
 	wireMetadataSources(c, logger)
 	// Invites: the host capability the store's invite items need. Invites live
 	// on users, so no sibling plugin can own this — see invites_web.go.
-	if err := wireInvites(c, db); err != nil {
+	if err := wireInvites(c, data); err != nil {
 		logger.Error("invites wiring", "err", err)
 		os.Exit(1)
 	}
@@ -565,31 +570,31 @@ func Main() {
 	// a host fills them in (see migrateUserDisplay). Replaced HERE, after every
 	// migration that adds those columns has run, and before Boot, so the first
 	// plugin query already sees the real view.
-	if err := avatarModMigrate(db); err != nil {
+	if err := data.MigrateAvatarMod(); err != nil {
 		logger.Error("avatar moderation migrate", "err", err)
 		os.Exit(1)
 	}
-	if err := securityMigrate(db); err != nil {
+	if err := data.MigrateSecurity(); err != nil {
 		logger.Error("security migrate", "err", err)
 		os.Exit(1)
 	}
-	if err := wishlistMigrate(db); err != nil {
+	if err := data.MigrateWishlist(); err != nil {
 		logger.Error("wishlist migrate", "err", err)
 		os.Exit(1)
 	}
-	if err := giftsMigrate(db); err != nil {
+	if err := data.MigrateGifts(); err != nil {
 		logger.Error("gifts migrate", "err", err)
 		os.Exit(1)
 	}
-	if err := undoMigrate(db); err != nil {
+	if err := data.MigrateUndo(); err != nil {
 		logger.Error("undo migrate", "err", err)
 		os.Exit(1)
 	}
-	if err := communityModMigrate(db); err != nil {
+	if err := data.MigrateCommunityMod(); err != nil {
 		logger.Error("community moderation migrate", "err", err)
 		os.Exit(1)
 	}
-	if err := migrateUserDisplay(db); err != nil {
+	if err := data.MigrateUserDisplay(); err != nil {
 		logger.Error("user_display migrate", "err", err)
 		os.Exit(1)
 	}

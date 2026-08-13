@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon/blob"
 	"github.com/the-loon-clan/loon/core"
@@ -26,47 +25,6 @@ import (
 // Like forum and news, it ships no migration — its comment says the tables live
 // in prod's numbered core migrations — so the host creates them.
 
-// wikiMigrate creates the plugin's tables (idempotent). Columns are taken from
-// pg.go's own INSERT/SELECT lists rather than from the model structs, since the
-// queries are what will actually fail if a column is missing.
-func wikiMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS wiki_topics (
-		    id          SERIAL PRIMARY KEY,
-		    name        TEXT NOT NULL,
-		    slug        TEXT NOT NULL UNIQUE,
-		    description TEXT NOT NULL DEFAULT '',
-		    sort_order  INTEGER NOT NULL DEFAULT 0,
-		    icon        TEXT NOT NULL DEFAULT '',
-		    color       TEXT NOT NULL DEFAULT '',
-		    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-		)`,
-		`CREATE TABLE IF NOT EXISTS wiki_posts (
-		    id         SERIAL PRIMARY KEY,
-		    topic_id   INTEGER NOT NULL REFERENCES wiki_topics(id) ON DELETE CASCADE,
-		    title      TEXT NOT NULL,
-		    slug       TEXT NOT NULL,
-		    content    TEXT NOT NULL DEFAULT '',
-		    created_by BIGINT NOT NULL DEFAULT 0,
-		    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    view_count BIGINT NOT NULL DEFAULT 0
-		)`,
-		// A post is addressed as /wiki/:topic/:post, so the slug only has to be
-		// unique WITHIN its topic.
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_wiki_posts_topic_slug
-		     ON wiki_posts (topic_id, slug)`,
-		`CREATE INDEX IF NOT EXISTS idx_wiki_posts_recent
-		     ON wiki_posts (created_at DESC)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 const (
 	// uploadRoot is the on-disk parent for every user-uploaded image, and
 	// uploadURL is the path it is served under. Shared by the wiki and
@@ -83,7 +41,7 @@ const (
 // Call after core.New and before core.Boot, like the other plugin wirings.
 func wireWikiPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 	if db := c.Storage.DB(); db != nil {
-		if err := wikiMigrate(db); err != nil {
+		if err := w.data.MigrateWiki(); err != nil {
 			return fmt.Errorf("wiki migrate: %w", err)
 		}
 	}

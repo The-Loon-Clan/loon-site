@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon/core"
 )
@@ -69,50 +68,6 @@ const (
 	resolutionRemoved = "removed"
 	resolutionKept    = "kept"
 )
-
-// communityModMigrate creates the two tables.
-func communityModMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS moderation_items (
-		    id              BIGSERIAL PRIMARY KEY,
-		    kind            TEXT   NOT NULL,
-		    subject_user_id BIGINT NOT NULL,
-		    -- What was reported, captured AT REPORT TIME. Without it a member
-		    -- changes their avatar mid-vote and everybody after that is voting
-		    -- on a different picture from everybody before.
-		    subject_ref     TEXT   NOT NULL DEFAULT '',
-		    reason          TEXT   NOT NULL DEFAULT '',
-		    reported_by     BIGINT NOT NULL,
-		    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    resolved_at     TIMESTAMPTZ,
-		    resolution      TEXT   NOT NULL DEFAULT '',
-		    -- Null when the vote decided it. That distinction is the record of
-		    -- whether the community or a moderator made the call.
-		    resolved_by     BIGINT
-		)`,
-		// One OPEN item per subject per kind. This is what turns the fiftieth
-		// reporter into a vote instead of a fiftieth row.
-		`CREATE UNIQUE INDEX IF NOT EXISTS moderation_items_one_open
-		   ON moderation_items (kind, subject_user_id) WHERE resolved_at IS NULL`,
-		`CREATE INDEX IF NOT EXISTS moderation_items_open
-		   ON moderation_items (created_at DESC) WHERE resolved_at IS NULL`,
-		`CREATE TABLE IF NOT EXISTS moderation_votes (
-		    item_id    BIGINT NOT NULL REFERENCES moderation_items(id) ON DELETE CASCADE,
-		    user_id    BIGINT NOT NULL,
-		    remove     BOOLEAN NOT NULL,
-		    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    -- One vote each, enforced by the database rather than by a check
-		    -- the handler could race with itself on a double click.
-		    PRIMARY KEY (item_id, user_id)
-		)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // modItem is one open item as the queue page shows it.
 type modItem struct {

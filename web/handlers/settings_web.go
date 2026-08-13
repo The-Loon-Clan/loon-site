@@ -33,28 +33,6 @@ var notifiableKinds = []struct{ Kind, Label, Help string }{
 	{"forum_reply", "Forum replies", "When someone replies in a thread you started."},
 }
 
-// settingsMigrate adds the privacy column and the preference table.
-func settingsMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS private_profile BOOLEAN NOT NULL DEFAULT false`,
-		// A row per DISABLED kind would be smaller, but an explicit enabled
-		// flag survives the default changing: if this host ever flips a kind to
-		// off-by-default, existing opt-ins stay opted in.
-		`CREATE TABLE IF NOT EXISTS notification_prefs (
-		    user_id BIGINT  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		    kind    TEXT    NOT NULL,
-		    enabled BOOLEAN NOT NULL DEFAULT true,
-		    PRIMARY KEY (user_id, kind)
-		)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // prefFiltered wraps the host's NotifyFn and drops kinds a recipient turned
 // off. Wrapped ONCE at the delivery entry point rather than checked at every
 // call site: a preference enforced in one place cannot be forgotten by the next

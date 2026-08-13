@@ -29,36 +29,6 @@ import (
 // column is a denormalised read for joins that want a balance without a second
 // query.
 
-// pointsMigrate adds the columns and table. Idempotent.
-func pointsMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS points INTEGER NOT NULL DEFAULT 0`,
-		// reputation_tier is read by the communities plugin for display chrome.
-		// Nothing in this stack computes reputation, so it stays 0 — a column
-		// that exists to satisfy a join, not a feature. If reputation ever
-		// becomes real it gets a plugin, not an UPDATE here.
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS reputation_tier INTEGER NOT NULL DEFAULT 0`,
-		`CREATE TABLE IF NOT EXISTS points_ledger (
-		    id           BIGSERIAL PRIMARY KEY,
-		    user_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		    amount       INTEGER NOT NULL,
-		    balance      INTEGER NOT NULL,
-		    kind         TEXT NOT NULL DEFAULT '',
-		    description  TEXT NOT NULL DEFAULT '',
-		    reference_id BIGINT,
-		    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_points_ledger_user
-		     ON points_ledger (user_id, created_at DESC)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // pgPoints is the durable core.PointsAdapter backing.
 type pgPoints struct{ db *sqlx.DB }
 

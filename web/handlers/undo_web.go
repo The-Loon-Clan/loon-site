@@ -49,32 +49,6 @@ import (
 // indefinitely waiting for a change of heart.
 const undoWindow = 15 * time.Minute
 
-// undoMigrate creates the table.
-func undoMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS undo_actions (
-		    token      TEXT PRIMARY KEY,
-		    user_id    BIGINT NOT NULL,
-		    kind       TEXT   NOT NULL,
-		    -- What is needed to reverse it, shaped by the kind. JSON rather
-		    -- than columns because the kinds have nothing in common: an avatar
-		    -- needs a path and a bio needs a body, and a table with both would
-		    -- be half null forever.
-		    payload    JSONB  NOT NULL,
-		    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    expires_at TIMESTAMPTZ NOT NULL,
-		    used_at    TIMESTAMPTZ
-		)`,
-		`CREATE INDEX IF NOT EXISTS undo_actions_expiry ON undo_actions (expires_at)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // newUndoToken returns an unguessable handle.
 //
 // Random, not the row id. An undo endpoint keyed on a sequential id lets

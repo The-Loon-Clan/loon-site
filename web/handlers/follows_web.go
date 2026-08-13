@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
@@ -16,34 +15,6 @@ import (
 // friendship — it needs no acceptance, and reciprocity is a coincidence rather
 // than a state to store. Modelling it as "friends" would mean a request/accept
 // flow nobody asked for and a second status column to carry it.
-
-// followsMigrate creates the table. Idempotent.
-func followsMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		// The pair is the primary key, so following twice is a no-op in the
-		// DATABASE rather than in a read-then-write. CASCADE on both sides:
-		// a deleted account should not leave dangling edges.
-		`CREATE TABLE IF NOT EXISTS user_follow (
-		    follower_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		    followee_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    PRIMARY KEY (follower_id, followee_id),
-		    -- Following yourself is not a state worth having; the CHECK means
-		    -- no handler has to remember to reject it.
-		    CHECK (follower_id <> followee_id)
-		)`,
-		// "who follows X" — the reverse of the primary key, which only covers
-		// "who does X follow".
-		`CREATE INDEX IF NOT EXISTS idx_user_follow_followee
-		     ON user_follow (followee_id)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // followToggle handles the profile button.
 //

@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 )
@@ -23,31 +22,6 @@ import (
 // Same shape as grabs throughout: host-owned table, ids not titles, and a
 // release that leaves the index simply stops resolving rather than lingering as
 // a stale row with a remembered name.
-
-// bookmarksMigrate creates the table. Idempotent.
-func bookmarksMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		// UNIQUE(user_id, release_id) makes the toggle idempotent in the
-		// DATABASE rather than in a read-then-write the double-click of an
-		// impatient user can slip between.
-		`CREATE TABLE IF NOT EXISTS release_bookmark (
-		    id         BIGSERIAL PRIMARY KEY,
-		    user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		    release_id BIGINT NOT NULL,
-		    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    UNIQUE (user_id, release_id)
-		)`,
-		// "my bookmarks, newest first" is the only listing query.
-		`CREATE INDEX IF NOT EXISTS idx_release_bookmark_user
-		     ON release_bookmark (user_id, created_at DESC)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 const bookmarkRows = 100
 

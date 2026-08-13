@@ -10,7 +10,6 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 )
 
 // /settings/security — the second factor, and changing the address that can
@@ -48,43 +47,6 @@ const pendingTOTPAtKey = "pending_totp_at"
 // find a phone, short enough that a shared machine does not keep a half-login
 // alive.
 const pendingTOTPTTL = 10 * time.Minute
-
-// securityMigrate adds the columns and the recovery-code table.
-func securityMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		// Pending and active are separate columns so an abandoned setup cannot
-		// half-enable anything: totp_secret is authoritative and is only
-		// written when a code has been verified.
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_pending TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled_at TIMESTAMPTZ`,
-		`CREATE TABLE IF NOT EXISTS totp_recovery_codes (
-		    id       BIGSERIAL PRIMARY KEY,
-		    user_id  BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		    -- The HASH, never the code. See hashRecoveryCode.
-		    code_hash TEXT  NOT NULL,
-		    used_at  TIMESTAMPTZ
-		)`,
-		`CREATE INDEX IF NOT EXISTS totp_recovery_user ON totp_recovery_codes (user_id) WHERE used_at IS NULL`,
-		// Email changes are confirmed at the NEW address before they take
-		// effect, so a typo cannot move the reset destination somewhere the
-		// member cannot read.
-		`CREATE TABLE IF NOT EXISTS email_changes (
-		    token      TEXT PRIMARY KEY,
-		    user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		    new_email  TEXT   NOT NULL,
-		    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-		    expires_at TIMESTAMPTZ NOT NULL,
-		    used_at    TIMESTAMPTZ
-		)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // totpStatus is what the settings page needs to know.
 type totpStatus struct {

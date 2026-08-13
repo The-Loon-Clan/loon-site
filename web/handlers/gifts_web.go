@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
@@ -30,28 +29,6 @@ import (
 // everywhere else on the site. The only new table records who sent what to
 // whom, which the ledger alone cannot say: it has two rows, one per side, and
 // nothing joining them.
-
-// giftsMigrate creates the record of who gave what to whom.
-func giftsMigrate(db *sqlx.DB) error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS point_gifts (
-		    id          BIGSERIAL PRIMARY KEY,
-		    from_user   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		    to_user     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		    amount      INTEGER NOT NULL CHECK (amount > 0),
-		    note        TEXT NOT NULL DEFAULT '',
-		    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-		)`,
-		`CREATE INDEX IF NOT EXISTS point_gifts_from ON point_gifts (from_user, created_at DESC)`,
-		`CREATE INDEX IF NOT EXISTS point_gifts_to   ON point_gifts (to_user,   created_at DESC)`,
-	}
-	for _, q := range stmts {
-		if _, err := db.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // giftsPage serves GET /gifts.
 func (w *web) giftsPage(c *gin.Context) {

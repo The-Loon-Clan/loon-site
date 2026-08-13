@@ -34,13 +34,6 @@ import (
 // loads, and an unbounded field is rendered on every view.
 const bioMaxLen = 4000
 
-// migrateProfileBio adds the column. IF NOT EXISTS so it is safe on every boot,
-// the same shape messages_web.go used to add avatar_path.
-func migrateProfileBio(db *sqlx.DB) error {
-	_, err := db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT NOT NULL DEFAULT ''`)
-	return err
-}
-
 // readBio returns a member's raw markdown, or "" when unset or unavailable.
 // Best effort: a profile must still render when this read fails.
 func (w *web) readBio(ctx context.Context, userID int64) string {
