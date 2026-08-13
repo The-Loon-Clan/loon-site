@@ -38,9 +38,6 @@ import (
 
 	goredis "github.com/redis/go-redis/v9"
 
-	"github.com/the-loon-clan/loon-baseline/account"
-	"github.com/the-loon-clan/loon-baseline/adminusers"
-	"github.com/the-loon-clan/loon-baseline/apikey"
 	"github.com/the-loon-clan/loon-baseline/authtoken"
 	"github.com/the-loon-clan/loon-baseline/cache"
 	cachememory "github.com/the-loon-clan/loon-baseline/cache/memory"
@@ -49,17 +46,14 @@ import (
 	"github.com/the-loon-clan/loon-baseline/events"
 	"github.com/the-loon-clan/loon-baseline/heartbeat"
 	"github.com/the-loon-clan/loon-baseline/jobtrigger"
-	"github.com/the-loon-clan/loon-baseline/loginlog"
 	"github.com/the-loon-clan/loon-baseline/notify"
 	"github.com/the-loon-clan/loon-baseline/password"
-	"github.com/the-loon-clan/loon-baseline/profile"
 	"github.com/the-loon-clan/loon-baseline/users"
 
 	// Plugins register themselves Caddy-style at init time. The loon-plugins
 	// ones are named imports because the host injects their deps via SetDeps.
 	"github.com/the-loon-clan/loon-plugins/backups"
 	_ "github.com/the-loon-clan/loon-plugins/catalog"
-	"github.com/the-loon-clan/loon-plugins/dailyreward"
 	_ "github.com/the-loon-clan/loon-plugins/hitrun"
 	_ "github.com/the-loon-clan/loon-plugins/perks"
 
@@ -76,7 +70,6 @@ import (
 	// (core.RegisterView), not gin templates, so they need no host templates and
 	// no SetDeps — a blank import is the whole wiring.
 	_ "github.com/the-loon-clan/loon-plugins/ranks"
-	"github.com/the-loon-clan/loon-plugins/rewards"
 	"github.com/the-loon-clan/loon-plugins/scraper"
 	"github.com/the-loon-clan/loon-plugins/stats"
 	"github.com/the-loon-clan/loon-plugins/tracker"
@@ -657,219 +650,8 @@ func Main() {
 	// The group takes the LOOSER gate and each route carries its own, rather
 	// than the other way round: the stricter gate is then written next to the
 	// stricter page, where it is read.
-	moderation := engine.Group("/moderation", wsrv.auth.Require(core.RoleUser)...)
-	adminOnly := wsrv.auth.Require(core.RoleAdmin)
-	moderation.GET("", append(adminOnly, wsrv.communityModPage)...)
-	moderation.POST("/vote", append(adminOnly, wsrv.communityModVote)...)
-	staffOnly := wsrv.auth.Require(core.RoleMod)
-	moderation.GET("/avatars", append(staffOnly, wsrv.avatarModPage)...)
-	moderation.POST("/avatars", append(staffOnly, wsrv.avatarModAction)...)
+	wireAdminAndViews(c, wsrv, engine, data, db, st, rt, inbox, ctx, stop, logger, redisClient)
 
-	admin := engine.Group("/admin", wsrv.auth.Require(core.RoleAdmin)...)
-	// Access modes + the page map (accessadmin_web.go).
-	admin.GET("/contracts", wsrv.adminContracts)
-	admin.GET("/access", wsrv.adminAccess)
-	admin.POST("/access", wsrv.adminAccessSave)
-	// Where cover art comes from (coversadmin_web.go + covermode_web.go).
-	admin.GET("/covers", wsrv.adminCovers)
-	admin.POST("/covers", wsrv.adminCoversSave)
-	// The page editor: where an operator puts registered widgets
-	// (widgetsadmin_web.go). One region at a time, chosen by ?region=.
-	admin.GET("/widgets", wsrv.widgetsAdminPage)
-	admin.POST("/widgets/apply", wsrv.widgetsAdminAction)
-	admin.GET("/plugins", wsrv.adminPlugins)
-	admin.GET("/jobs", wsrv.adminJobs)
-	admin.POST("/jobs/control", wsrv.adminJobsControl)
-	// Per-job/-service settings — loon's bundled config form (self-contained
-	// page). The demo's jobs table links here via a Config button for any job
-	// that declares settings (HasConfig).
-	admin.GET("/jobs/config", schedule.JobConfigHandler(nil))
-	admin.POST("/jobs/config", schedule.JobConfigSaveHandler(nil))
-
-	// Wire the usenet plugin's READ capability into the public pages — the
-	// plugin publishes it on the extension registry during Provision.
-	if v, ok := c.Lookup(pluginapi.UsenetIndexName); ok {
-		wsrv.usenet, _ = v.(pluginapi.UsenetIndex)
-	}
-	if v, ok := c.Lookup(pluginapi.UsenetNewznabName); ok {
-		wsrv.usenetAPI, _ = v.(pluginapi.UsenetNewznab)
-	}
-	// Daily reward: the plugin owns the once-per-day rule and the streak; the
-	// host only asks whether a claim is available, so the stat strip can offer
-	// a compact button and hide it once taken. Absent extension = no button,
-	// which is what a host without the plugin should get.
-	if v, ok := c.Lookup(dailyreward.StatusExtension); ok {
-		wsrv.dailyStatus, _ = v.(dailyreward.StatusFunc)
-	}
-
-	// Catalog plugin: its service also implements the sink + cover store the
-	// scraper writes to and the release page reads.
-	if v, ok := c.Lookup(pluginapi.CatalogName); ok {
-		if cat, ok := v.(pluginapi.Catalog); ok {
-			wsrv.catalog = cat // taxonomy + names for the /browse page
-			wsrv.catalogSink, _ = cat.(pluginapi.CatalogSink)
-			wsrv.catalogCovers, _ = cat.(pluginapi.CatalogCovers)
-		}
-	}
-	// Rewards: the plugin owns what is earnable and who has earned it; the
-	// host owns the page that shows it. Absent extension = the page says
-	// so, rather than 404ing a link the account nav always renders.
-	if v, ok := c.Lookup(rewards.AchievementsExtension); ok {
-		wsrv.achievements, _ = v.(rewards.AchievementsFunc)
-		// Seed the catalogue here rather than beside the other seeds up top:
-		// rewards.achievements is the PLUGIN's table, created by its own
-		// migration during Boot, so nothing could be inserted into it before
-		// this point. Guarded on the table being empty, so it runs once.
-		achievementsSeed(db, logger)
-	}
-
-	// The rest of the demo seed (demoseed_web.go). Here for the same reason
-	// achievementsSeed is: ranks.groups and store.items are PLUGIN tables,
-	// created by their own migrations during Boot, so nothing could be
-	// inserted into them any earlier. Each seeder checks its own table is
-	// empty, so this runs once and never fights an operator's own data.
-	demoSeed(db, logger)
-
-	// Calendar sources. Registered AFTER the capability lookups above because
-	// each source closes over one of them; a source whose dependency is absent
-	// contributes nothing and the grid simply has fewer chips on it, which is
-	// the whole reason the page reads a slice instead of naming its sources.
-	wsrv.calSources = []calSource{
-		wsrv.calAttendance(),
-		wsrv.calBookmarks(),
-	}
-
-	// Newznab / Torznab API (Sonarr/Radarr/Prowlarr consume these).
-	engine.GET("/api", wsrv.newznabAPI)
-	engine.GET("/rss", wsrv.newznabAPI)
-
-	// sitemap.xml, from loon-baseline/sitemap. Wired AFTER the usenet lookup
-	// above: its releases Source reads through that capability, and a demo
-	// without the plugin configured simply publishes a static-only sitemap.
-	// See sitemap_web.go — the host supplies the Sources, the schedule and the
-	// routes; the package does the XML, the paging and the index.
-	wsrv.wireSitemap(engine, getenvDefault("LOON_BASE_URL", "http://localhost:8090"))
-
-	// loon-baseline's batteries-included admin views (user management) plug
-	// into the SAME view system the plugins use — the host just registers
-	// them on the Core after Boot and wireViews mounts them at /admin/p/users.
-	// This is the reusable admin chrome a real host adopts instead of
-	// hand-rolling a users page.
-	if bviews, err := adminusers.Views(st.users, password.Hasher{}); err != nil {
-		logger.Error("adminusers.Views", "err", err)
-	} else {
-		for _, v := range bviews {
-			if err := c.RegisterView(v); err != nil {
-				logger.Error("register admin view", "slug", v.Slug, "err", err)
-			}
-		}
-	}
-	// loon-baseline self-service account page (profile + change password) —
-	// same view-system path, mounted at /p/account for any logged-in user.
-	// Closes the loop on authflow.ChangePassword (logic existed; this is its UI).
-	if aviews, err := account.Views(wsrv.flow, wsrv.currentUser); err != nil {
-		logger.Error("account.Views", "err", err)
-	} else {
-		for _, v := range aviews {
-			if err := c.RegisterView(v); err != nil {
-				logger.Error("register account view", "slug", v.Slug, "err", err)
-			}
-		}
-	}
-	// loon-baseline "Services online" view: /admin/p/services lists process
-	// instances that have beaten a heartbeat recently (kind, uptime, last seen).
-	if hviews, err := heartbeat.Views(st.heartbeat); err != nil {
-		logger.Error("heartbeat.Views", "err", err)
-	} else {
-		for _, v := range hviews {
-			if err := c.RegisterView(v); err != nil {
-				logger.Error("register services view", "slug", v.Slug, "err", err)
-			}
-		}
-	}
-	// loon-baseline maintenance toggle: /admin/p/maintenance (begin/end). Turning
-	// it on shows the 503 page to visitors; /admin + /api stay reachable.
-	if mviews, err := st.maint.Views(); err != nil {
-		logger.Error("maintenance.Views", "err", err)
-	} else {
-		for _, v := range mviews {
-			if err := c.RegisterView(v); err != nil {
-				logger.Error("register maintenance view", "slug", v.Slug, "err", err)
-			}
-		}
-	}
-	// loon-baseline self-service API key page: /p/api-key shows the user's
-	// Newznab key (created on first visit) + a Regenerate button. loon-api
-	// validates the key against the same table.
-	if kviews, err := apikey.Views(st.apiKeys, wsrv.currentUser); err != nil {
-		logger.Error("apikey.Views", "err", err)
-	} else {
-		for _, v := range kviews {
-			if err := c.RegisterView(v); err != nil {
-				logger.Error("register apikey view", "slug", v.Slug, "err", err)
-			}
-		}
-	}
-	// loon-baseline login audit views. Two are offered: /admin/p/login-log
-	// (every attempt, with a user column) and /p/sign-ins (your own).
-	//
-	// Only the ADMIN one is registered. The member page is the same table minus
-	// the user column, and its one distinguishing column is "IP fingerprint" —
-	// a hash, because the raw address is deliberately never stored. A row
-	// reading "fc73e44eeb75…" cannot tell a member whether a sign-in was
-	// theirs, which is the only question the page exists to answer; it closed
-	// by asking them to change their password if they saw one they did not
-	// recognise, which they had no way to determine.
-	//
-	// Staff keep the whole log, where the hash does earn its place: it groups
-	// attempts by origin without the site holding anyone's address.
-	if lviews, err := loginlog.Views(st.loginLog, wsrv.currentUser); err != nil {
-		logger.Error("loginlog.Views", "err", err)
-	} else {
-		for _, v := range lviews {
-			if v.Slot == core.SlotSitePage {
-				continue // the member-facing "Sign-ins" page — see above
-			}
-			if err := c.RegisterView(v); err != nil {
-				logger.Error("register loginlog view", "slug", v.Slug, "err", err)
-			}
-		}
-	}
-	// loon-baseline profile summary (SlotUserWidget on /u/<name>). Resolves the
-	// profile subject by id off the user store.
-	if pviews, err := profile.Views(func(ctx context.Context, id int64) (*core.User, bool) {
-		u, err := st.users.ByID(ctx, id)
-		if err != nil {
-			return nil, false
-		}
-		return u.ToCore(), true
-	}); err != nil {
-		logger.Error("profile.Views", "err", err)
-	} else {
-		for _, v := range pviews {
-			if err := c.RegisterView(v); err != nil {
-				logger.Error("register profile view", "slug", v.Slug, "err", err)
-			}
-		}
-	}
-	// Notification inbox page (/p/inbox). The navbar bell reads UnreadCount.
-	if nviews, err := notify.InboxViews(inbox, wsrv.currentUser); err != nil {
-		logger.Error("notify.InboxViews", "err", err)
-	} else {
-		for _, v := range nviews {
-			if err := c.RegisterView(v); err != nil {
-				logger.Error("register inbox view", "slug", v.Slug, "err", err)
-			}
-		}
-	}
-
-	// Plugin views (loon's view system): plugins render their settings
-	// sections, admin/status pages, public pages, and widgets as fragments;
-	// the demo mounts every slot generically and wraps the fragments in its
-	// layout. Zero plugin-specific UI code host-side.
-	wsrv.wireViews(c, engine, admin)
-
-	serve(engine, wsrv, rt, ctx, stop, logger, redisClient)
 }
 
 // seedDemoUsers creates the two demo accounts (password == username) directly
