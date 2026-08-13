@@ -1,17 +1,18 @@
-*.exe
-*.test
-*.out
-go.work
-go.work.sum
-.env
+# Local agent/editor configuration — per-developer, not per-project.
+.claude/
 
-# CDP/QA scratch. The visual-QA probes drive a headless Chrome with its own
-# --user-data-dir; when one is launched with a RELATIVE output path it lands
-# here instead of in the scratchpad, and `git add -A` will happily commit a
-# 15 MB browser profile (231 files, once).
-shots*/
+# Python bytecode from the tooling in scripts/.
+__pycache__/
+*.pyc
 
-# Reference material saved from other sites (saved-page HTML + its _files dir).
-# Kept locally to work from, never committed: it is someone else's markup and
-# assets, and a saved page drags in a few MB of js/css/images.
-examples/
+# Scratch. Anything named _tmp* is a working file from a session, not source.
+_tmp*
+
+# Reference screenshots and the comparison sheets the UI tooling writes.
+# target_*.png are inputs worth keeping; everything the tools generate is not.
+refs/_*.png
+refs/_focus.json
+
+# Built binaries.
+/loondemo
+/loondemo.exe
