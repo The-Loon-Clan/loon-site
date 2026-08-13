@@ -85,14 +85,14 @@ func (w *web) adminDashboard(c *gin.Context) {
 	// w.data.DB() is nil only in a test harness; a dash is honest there.
 	vm.Tiles = append(vm.Tiles, statTile{
 		Label: "Members",
-		Value: w.countOrDash(ctx, `SELECT COUNT(*) FROM users`),
-		Sub:   plural7d(w.countOrDash(ctx, `SELECT COUNT(*) FROM users WHERE created_at > now() - interval '7 days'`)),
+		Value: w.countOrDash(ctx, w.data.CountUsers),
+		Sub:   plural7d(w.countOrDash(ctx, w.data.CountUsersJoinedLastWeek)),
 	})
 
 	// ── support ──
 	// Open tickets are the one figure here that is a WORK QUEUE rather than a
 	// measurement, so it doubles as an alert when non-zero.
-	open := w.countOrDash(ctx, `SELECT COUNT(*) FROM support_tickets WHERE status <> 'closed'`)
+	open := w.countOrDash(ctx, w.data.CountOpenTickets)
 	vm.Tiles = append(vm.Tiles, statTile{
 		Label: "Open tickets", Value: open, Href: "/admin/tickets",
 	})
@@ -121,10 +121,11 @@ func (w *web) adminDashboard(c *gin.Context) {
 	}
 
 	// ── forum ──
-	if w.db() != nil {
-		var threads int
-		if err := w.db().GetContext(ctx, &threads,
-			`SELECT COUNT(*) FROM forum_threads WHERE hidden_at IS NULL`); err == nil {
+	// Omitted rather than dashed when unreadable: the tiles above are figures
+	// the site always has, so "—" means "not measurable"; a forum that is not
+	// there has no tile to qualify.
+	if w.data != nil {
+		if threads, ok := w.data.CountForumThreads(ctx); ok {
 			vm.Tiles = append(vm.Tiles, statTile{
 				Label: "Forum threads", Value: itoa(threads), Href: "/community/forums",
 			})
@@ -157,16 +158,22 @@ func (w *web) adminDashboard(c *gin.Context) {
 	})
 }
 
-// countOrDash runs a scalar count, returning "—" when the query cannot be
-// answered. Deliberately NOT 0: a missing table and an empty one are different
-// facts, and a staff page that renders "0 open tickets" because the ticket
-// plugin is unwired is worse than one that admits it does not know.
-func (w *web) countOrDash(ctx context.Context, q string) string {
-	if w.db() == nil {
+// countOrDash formats one dashboard figure, or an em dash if it cannot be read.
+//
+// It used to take a SQL string, which put the schema in the page that renders
+// it. It takes a store method now: the query lives beside the schema it names,
+// and this keeps the only decision that is genuinely the PAGE's — that an
+// unmeasurable figure shows "—" rather than "0", because on a staff page a
+// wrong number is one that gets acted on.
+//
+// A nil store means a test harness (dashWeb builds one with no data sources at
+// all, to assert exactly this behaviour), and a dash is honest there.
+func (w *web) countOrDash(ctx context.Context, count func(context.Context) (int, bool)) string {
+	if w.data == nil {
 		return "—"
 	}
-	var n int
-	if err := w.data.DB().GetContext(ctx, &n, q); err != nil {
+	n, ok := count(ctx)
+	if !ok {
 		return "—"
 	}
 	return itoa(n)
