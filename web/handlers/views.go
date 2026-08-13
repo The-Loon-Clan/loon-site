@@ -1512,7 +1512,7 @@ func (w *web) loginPost(c *gin.Context) {
 	// right is worth recording as a success whether or not the second step
 	// follows, because "the password is known" is the fact a reader of that log
 	// needs. See security_web.go.
-	if w.secretOf(c.Request.Context(), u.ID) != "" {
+	if w.data.TOTPSecret(c.Request.Context(), u.ID) != "" {
 		beginTOTPChallenge(c, u.ID)
 		return
 	}
