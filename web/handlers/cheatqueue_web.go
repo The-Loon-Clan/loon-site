@@ -91,7 +91,7 @@ func (w *web) cheatQueueClear(c *gin.Context) {
 		return
 	}
 	if err := st.ClearCheatFlag(c.Request.Context(), id, actor.ID); err != nil {
-		w.log.Error("clear cheat flag", "flag", id, "by", actor.ID, "err", err)
+		w.log.Error("clear cheat flag", "flag", id, "actor", actor.ID, "err", err)
 	}
 	c.Redirect(http.StatusSeeOther, "/moderation/cheat")
 }

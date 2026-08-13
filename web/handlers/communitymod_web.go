@@ -346,7 +346,7 @@ func (w *web) communityModVote(c *gin.Context) {
 			c.Redirect(http.StatusFound, "/moderation?err=could+not+resolve+that")
 			return
 		}
-		w.log.Info("moderation item resolved by staff", "item", id, "resolution", res, "actor", u.Username)
+		w.log.Info("moderation item resolved by staff", "item", id, "resolution", res, "actor", u.ID, "actor_name", u.Username)
 		c.Redirect(http.StatusFound, "/moderation?done="+res)
 		return
 	}
@@ -390,7 +390,7 @@ func (w *web) reportAvatarPost(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/u/"+name+"?report="+url.QueryEscape(err.Error()))
 		return
 	}
-	w.log.Info("avatar reported", "subject", subject.ID, "by", u.ID, "opened", opened)
+	w.log.Info("avatar reported", "user", subject.ID, "actor", u.ID, "opened", opened)
 	if opened {
 		c.Redirect(http.StatusSeeOther, "/u/"+name+"?report=opened")
 		return

@@ -199,14 +199,14 @@ func (w *web) avatarModAction(c *gin.Context) {
 		// A moderator who clears the wrong one asks the member to upload it
 		// again, which is the honest cost of the action.
 		if _, err := w.clearAvatar(ctx, w.data.DB(), id); err != nil {
-			w.log.Error("moderation clear avatar", "user", id, "by", actor.ID, "err", err)
+			w.log.Error("moderation clear avatar", "user", id, "actor", actor.ID, "err", err)
 			c.Redirect(http.StatusFound, "/moderation/avatars")
 			return
 		}
 		// Logged with WHO did it. On a queue whose whole job is judgement
 		// calls, "an avatar disappeared" without a name attached is the report
 		// nobody can follow up.
-		w.log.Info("avatar cleared by moderator", "user", id, "by", actor.ID, "actor", actor.Username)
+		w.log.Info("avatar cleared by moderator", "user", id, "actor", actor.ID, "actor_name", actor.Username)
 		if err := markAvatarReviewed(ctx, w.data.DB(), id); err != nil {
 			w.log.Error("mark avatar reviewed", "user", id, "err", err)
 		}
@@ -215,7 +215,7 @@ func (w *web) avatarModAction(c *gin.Context) {
 		if err := markAvatarReviewed(ctx, w.data.DB(), id); err != nil {
 			w.log.Error("mark avatar reviewed", "user", id, "err", err)
 		}
-		w.log.Info("avatar approved", "user", id, "by", actor.ID, "actor", actor.Username)
+		w.log.Info("avatar approved", "user", id, "actor", actor.ID, "actor_name", actor.Username)
 		c.Redirect(http.StatusFound, "/moderation/avatars?done=approved")
 	}
 }
