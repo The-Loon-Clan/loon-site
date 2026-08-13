@@ -88,9 +88,7 @@ func (w *web) wishlistAdd(c *gin.Context) {
 			url.QueryEscape("that is your "+strconv.Itoa(wishPerUser)+" open entries; fill or remove one first"))
 		return
 	}
-	if _, err := w.db().ExecContext(ctx,
-		`INSERT INTO wishlist_items (user_id, title, note) VALUES ($1,$2,$3)`,
-		u.ID, title, note); err != nil {
+	if err := w.data.AddWish(ctx, u.ID, title, note); err != nil {
 		w.log.Error("wishlist add", "user", u.ID, "err", err)
 		c.Redirect(http.StatusSeeOther, "/wishlist?err="+url.QueryEscape("could not add that"))
 		return
@@ -114,20 +112,19 @@ func (w *web) wishlistUpdate(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	// The ownership check is IN each statement rather than a lookup first: a
-	// separate read leaves a window, and a WHERE that matches nothing is the
-	// same refusal without one.
-	var q string
+	// Which edit is an HTTP decision; each store method carries the ownership
+	// check in its own WHERE, so the viewer's id travels with the row id.
+	var err2 error
 	switch c.PostForm("action") {
 	case "remove":
-		q = `DELETE FROM wishlist_items WHERE id = $1 AND user_id = $2`
+		err2 = w.data.RemoveWish(ctx, id, u.ID)
 	case "reopen":
-		q = `UPDATE wishlist_items SET filled_at = NULL WHERE id = $1 AND user_id = $2`
+		err2 = w.data.ReopenWish(ctx, id, u.ID)
 	default:
-		q = `UPDATE wishlist_items SET filled_at = now() WHERE id = $1 AND user_id = $2`
+		err2 = w.data.FillWish(ctx, id, u.ID)
 	}
-	if _, err := w.db().ExecContext(ctx, q, id, u.ID); err != nil {
-		w.log.Error("wishlist update", "item", id, "user", u.ID, "err", err)
+	if err2 != nil {
+		w.log.Error("wishlist update", "item", id, "user", u.ID, "err", err2)
 	}
 	back := "/wishlist"
 	if c.PostForm("all") == "1" {

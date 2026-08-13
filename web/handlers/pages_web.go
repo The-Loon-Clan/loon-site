@@ -116,21 +116,17 @@ func (w *web) statsPage(c *gin.Context) {
 			data["Categories"] = cats
 		}
 	}
-	// Member count is the host's own figure. Capped like the staff read.
-	if w.data.DB() != nil {
-		var n int
-		if err := w.data.DB().GetContext(ctx, &n, `SELECT COUNT(*) FROM users`); err == nil {
+	// Member and forum figures, from the same counts the staff dashboard uses.
+	// Has* on each: a template cannot tell an absent key from a zero one, and
+	// "0 members" is a different claim from "not measurable here".
+	if w.data != nil {
+		if n, ok := w.data.CountUsers(ctx); ok {
 			data["Members"], data["HasMembers"] = n, true
 		}
-	}
-	if w.db() != nil {
-		var threads, posts int
-		if err := w.db().GetContext(ctx, &threads,
-			`SELECT COUNT(*) FROM forum_threads WHERE hidden_at IS NULL`); err == nil {
+		if threads, ok := w.data.CountForumThreads(ctx); ok {
 			data["ForumThreads"], data["HasForum"] = threads, true
 		}
-		if err := w.db().GetContext(ctx, &posts,
-			`SELECT COUNT(*) FROM forum_posts WHERE hidden_at IS NULL`); err == nil {
+		if posts, ok := w.data.CountForumPosts(ctx); ok {
 			data["ForumPosts"] = posts
 		}
 	}

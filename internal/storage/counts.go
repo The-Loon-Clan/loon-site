@@ -2,7 +2,12 @@ package storage
 
 import "context"
 
-// Counts the staff dashboard shows.
+// Counts the site reports about itself.
+//
+// Shared, not dashboard-specific, and that turned out to matter: `SELECT
+// COUNT(*) FROM users` was written twice, once in the staff dashboard and once
+// on the public stats page, and the two had already drifted apart in how they
+// handled a failure. One name, one statement, both callers.
 //
 // Named methods rather than the handler passing SQL strings to a generic
 // helper. countOrDash(ctx, `SELECT COUNT(*) FROM users`) put the schema in the
@@ -46,4 +51,9 @@ func (st *Store) count(ctx context.Context, q string) (int, bool) {
 		return 0, false
 	}
 	return n, true
+}
+
+// CountForumPosts is posts a moderator has not hidden.
+func (st *Store) CountForumPosts(ctx context.Context) (int, bool) {
+	return st.count(ctx, `SELECT COUNT(*) FROM forum_posts WHERE hidden_at IS NULL`)
 }
