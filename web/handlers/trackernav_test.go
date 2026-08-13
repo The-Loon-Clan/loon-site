@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/config"
+	"github.com/the-loon-clan/loon-site/internal/config"
 
 	"os"
 	"testing"
@@ -15,15 +15,15 @@ import (
 // /hitrun for what you owe" — so a 404 here lands on somebody who is already
 // confused and now has reason to think the site is broken.
 func TestTrackerNavOnlyOffersPagesThatExist(t *testing.T) {
-	t.Setenv("LOON_DEMO_TRACKER", "")
-	t.Setenv("LOON_DEMO_SEEDLOCK", "")
+	t.Setenv("LOON_TRACKER", "")
+	t.Setenv("LOON_SEEDLOCK", "")
 	if _, ok := trackerAccountGroup(); ok {
 		t.Error("the tracker group appeared with no tracker — every link would 404")
 	}
 
 	// Tracker on, lock off: the two always-mounted pages, and NOT the lock page
 	// — the plugin only mounts /seedlock inside its enabled branch.
-	t.Setenv("LOON_DEMO_TRACKER", "1")
+	t.Setenv("LOON_TRACKER", "1")
 	g, ok := trackerAccountGroup()
 	if !ok {
 		t.Fatal("no tracker group with the tracker on")
@@ -33,7 +33,7 @@ func TestTrackerNavOnlyOffersPagesThatExist(t *testing.T) {
 	}
 
 	// Lock armed: the third page exists, so it may be listed.
-	t.Setenv("LOON_DEMO_SEEDLOCK", "1")
+	t.Setenv("LOON_SEEDLOCK", "1")
 	g, _ = trackerAccountGroup()
 	if got := hrefs(g); len(got) != 3 || got[2] != "/seedlock" {
 		t.Errorf("hrefs = %v, want /seedlock appended", got)
@@ -44,7 +44,7 @@ func TestTrackerNavOnlyOffersPagesThatExist(t *testing.T) {
 // in place would grow the menu by one group per page load — a bug that only
 // shows up on a busy site, and then looks like a rendering fault.
 func TestAccountNavDoesNotGrowTheSharedMenu(t *testing.T) {
-	t.Setenv("LOON_DEMO_TRACKER", "1")
+	t.Setenv("LOON_TRACKER", "1")
 	before := len(accountMenu)
 	for i := 0; i < 5; i++ {
 		accountNav("/hitrun")
@@ -75,13 +75,13 @@ func hrefs(g sectionTab) []string {
 // Guard against the env flags drifting apart from what compose forwards.
 func TestTrackerFlagsAreReadable(t *testing.T) {
 	for _, v := range []string{"1", "true", "yes"} {
-		t.Setenv("LOON_DEMO_SEEDLOCK", v)
+		t.Setenv("LOON_SEEDLOCK", v)
 		if !config.SeedLockEnabled() {
 			t.Errorf("config.SeedLockEnabled() = false for %q", v)
 		}
 	}
 	for _, v := range []string{"", "0", "no", "off"} {
-		t.Setenv("LOON_DEMO_SEEDLOCK", v)
+		t.Setenv("LOON_SEEDLOCK", v)
 		if config.SeedLockEnabled() {
 			t.Errorf("config.SeedLockEnabled() = true for %q", v)
 		}

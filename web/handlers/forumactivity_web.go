@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/the-loon-clan/loon-demo-site/internal/storage"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // Topics and Posts — a member's own forum activity, the two account entries

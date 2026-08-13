@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
+	"github.com/the-loon-clan/loon-site/internal/middleware"
 
 	"html/template"
 	"os"
@@ -19,7 +19,7 @@ import (
 // seams, the config that turns it on, and the entitlement that lets a member
 // through the door.
 //
-// It is off unless LOON_DEMO_TRACKER is set, and that is the plugin's own
+// It is off unless LOON_TRACKER is set, and that is the plugin's own
 // default rather than caution on the host's part: a tracker publishes announce
 // endpoints, mints passkeys, and starts keeping ratio accounting the moment it
 // is reachable. Everything else in this demo is inert until somebody visits it.
@@ -31,7 +31,7 @@ import (
 // finds out when their client reports the tracker as dead. So it is read from
 // the environment and falls back to the address this demo actually serves on.
 func trackerSiteURL() string {
-	if u := os.Getenv("LOON_DEMO_SITE_URL"); u != "" {
+	if u := os.Getenv("LOON_SITE_URL"); u != "" {
 		return u
 	}
 	return "http://localhost:8090"

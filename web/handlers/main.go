@@ -9,10 +9,10 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/config"
-	"github.com/the-loon-clan/loon-demo-site/internal/storage"
+	"github.com/the-loon-clan/loon-site/internal/config"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 
-	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
+	"github.com/the-loon-clan/loon-site/internal/middleware"
 
 	"context"
 	"errors"
@@ -91,12 +91,12 @@ import (
 	"github.com/the-loon-clan/loon-plugins/tracker"
 	_ "github.com/the-loon-clan/loon-plugins/usenet"
 
-	_ "github.com/the-loon-clan/loon-demo-site/plugins/guestbook"
+	_ "github.com/the-loon-clan/loon-site/plugins/guestbook"
 )
 
 // Main boots the demo site.
 //
-// Exported, and called from cmd/loondemo, because the repository root is a
+// Exported, and called from cmd/loonsite, because the repository root is a
 // package rather than the command: //go:embed cannot reference a parent
 // directory, and web/templates and web/static are embedded (the runtime image
 // is distroless and contains no web/ directory at all). The asset root must
@@ -105,7 +105,7 @@ import (
 func Main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	dsn := os.Getenv("LOON_DEMO_DSN")
+	dsn := os.Getenv("LOON_DSN")
 	if dsn == "" {
 		dsn = "postgres://demo:demo@localhost:5544/loon_demo?sslmode=disable"
 	}
@@ -128,7 +128,7 @@ func Main() {
 	// password (bcrypt-verified) equals their username, and signs an HMAC
 	// session cookie on login. The web struct (views.go) owns the templates,
 	// static assets, session cookie, and the public/login pages.
-	sessionSecret := []byte(getenvDefault("LOON_DEMO_SESSION_SECRET", "dev-insecure-demo-secret-change-me"))
+	sessionSecret := []byte(getenvDefault("LOON_SESSION_SECRET", "dev-insecure-demo-secret-change-me"))
 	// User store: loon-baseline's Postgres reference impl (a real host implements
 	// users.Store over its own table). Migrate the reference table + seed the two
 	// demo accounts (password == username).
@@ -306,7 +306,7 @@ func Main() {
 	wsrv.resetFlow = authtoken.Flow{
 		Tokens: tokenStore, Users: userStore, Hasher: password.Hasher{},
 		MinPwLen: minPasswordLen,
-		BaseURL:  getenvDefault("LOON_DEMO_BASE_URL", "http://localhost:8090"),
+		BaseURL:  getenvDefault("LOON_BASE_URL", "http://localhost:8090"),
 		Mail: func(to, subject, body string) error {
 			logger.Info("email (demo mailer)", "to", to, "subject", subject, "body", body)
 			return nil
@@ -697,7 +697,7 @@ func Main() {
 	}
 
 	// Donations plugin seams (donations_web.go). DEV-ONLY: gated on
-	// LOON_DEMO_DONATIONS=1, and OFF without it regardless of the persisted
+	// LOON_DONATIONS=1, and OFF without it regardless of the persisted
 	// admin toggle — this plugin takes real money through BTCPay.
 	if err := wireDonationsPlugin(c, wsrv); err != nil {
 		logger.Error("donations wiring", "err", err)
@@ -1046,7 +1046,7 @@ func Main() {
 	// without the plugin configured simply publishes a static-only sitemap.
 	// See sitemap_web.go — the host supplies the Sources, the schedule and the
 	// routes; the package does the XML, the paging and the index.
-	wsrv.wireSitemap(engine, getenvDefault("LOON_DEMO_BASE_URL", "http://localhost:8090"))
+	wsrv.wireSitemap(engine, getenvDefault("LOON_BASE_URL", "http://localhost:8090"))
 
 	// loon-baseline's batteries-included admin views (user management) plug
 	// into the SAME view system the plugins use — the host just registers
@@ -1182,7 +1182,7 @@ func Main() {
 	// linkFromCatalog for why this runs ahead of the scraper's match job.
 	go wsrv.runLocalLinks(ctx, time.Minute, logger)
 
-	logger.Info("loon demo site up",
+	logger.Info("loon site up",
 		"url", "http://localhost:8090/",
 		"login", "alice/alice (admin) or bob/bob")
 

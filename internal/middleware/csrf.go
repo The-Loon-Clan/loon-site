@@ -42,7 +42,7 @@ func CSRF() gin.HandlerFunc {
 		// The dev UI inspector's focus save (uiinspect_web.go). Exempt for the
 		// same reason as the routes above — its page is standalone and carries
 		// no session-issued token — and safe for a reason none of them have:
-		// the whole /dev tree is only REGISTERED when LOON_DEMO_UI_INSPECT is
+		// the whole /dev tree is only REGISTERED when LOON_UI_INSPECT is
 		// set, so on any build that does not ask for it this path resolves to
 		// nothing and there is no handler to reach.
 		if c.FullPath() == "/dev/focus" {

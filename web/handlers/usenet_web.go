@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/storage"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"context"
 	"fmt"
@@ -55,7 +55,7 @@ func (w *web) newznabAPI(c *gin.Context) {
 		Offset:     offset,
 		ID:         c.Query("id"),
 		BaseURL:    requestBaseURL(c),
-		Title:      "loon demo indexer",
+		Title:      "loon indexer",
 		APIKey:     c.Query("apikey"),
 	}
 

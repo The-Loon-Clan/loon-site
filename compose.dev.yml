@@ -6,10 +6,10 @@
 # (//go:embed web/templates web/static, views.go), which is what lets the
 # runtime image be distroless and carry nothing but the binary. The tradeoff is
 # that a one-line stylesheet tweak costs a full image rebuild. This overlay
-# mounts the working tree and sets LOON_DEMO_DEV=1, which swaps siteFS to
+# mounts the working tree and sets LOON_DEV=1, which swaps siteFS to
 # os.DirFS(".") and makes render() re-parse per request: edit, refresh, done.
 #
-# Why a separate file rather than `LOON_DEMO_DEV: "${LOON_DEMO_DEV:-}"` in the
+# Why a separate file rather than `LOON_DEV: "${LOON_DEV:-}"` in the
 # base compose file, which is where this started: that form reads the shell
 # environment at compose time, so any later `docker compose up -d` typed without
 # the variable silently recreates the container with dev mode OFF. The symptom
@@ -23,15 +23,15 @@
 services:
   app:
     environment:
-      LOON_DEMO_DEV: "1"
+      LOON_DEV: "1"
       # Donations are DEV-ONLY and off unless this is set — the plugin takes
       # real money through BTCPay. Passed through from the shell rather than
       # pinned to "1" so even the dev overlay does not enable payments by
       # accident:
-      #   LOON_DEMO_DONATIONS=1 docker compose -f docker-compose.yml -f compose.dev.yml up -d
+      #   LOON_DONATIONS=1 docker compose -f docker-compose.yml -f compose.dev.yml up -d
       # With it unset the public donate page 404s for non-admins and the admin
       # toggle refuses, whatever the stored setting says.
-      LOON_DEMO_DONATIONS: "${LOON_DEMO_DONATIONS:-}"
+      LOON_DONATIONS: "${LOON_DONATIONS:-}"
     volumes:
       # Read-only: the site only ever reads these. Mounted at /web because the
       # image sets no WORKDIR, so the binary's os.DirFS(".") resolves from /.

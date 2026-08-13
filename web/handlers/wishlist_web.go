@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
-	"github.com/the-loon-clan/loon-demo-site/internal/storage"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // The wishlist — what members want indexed that is not here yet.

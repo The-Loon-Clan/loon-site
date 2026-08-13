@@ -4,7 +4,7 @@ import (
 	"html/template"
 	"testing"
 
-	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
+	"github.com/the-loon-clan/loon-site/internal/markdown"
 )
 
 // These exercise tmplHelpers, which is the HANDLERS' template funcmap, so they

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	site "github.com/the-loon-clan/loon-demo-site"
+	site "github.com/the-loon-clan/loon-site"
 )
 
 // The account dropdown is the viewer's own things plus ONE staff door — see

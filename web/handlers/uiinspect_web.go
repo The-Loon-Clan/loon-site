@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/config"
+	"github.com/the-loon-clan/loon-site/internal/config"
 
-	site "github.com/the-loon-clan/loon-demo-site"
+	site "github.com/the-loon-clan/loon-site"
 
 	"encoding/json"
 	"html/template"
@@ -25,7 +25,7 @@ import (
 // the computed values that actually paint it removes the translation step
 // entirely.
 //
-// OFF unless LOON_DEMO_UI_INSPECT is set, and that is not caution for its own
+// OFF unless LOON_UI_INSPECT is set, and that is not caution for its own
 // sake. It serves files from a directory on disk and injects script into a
 // frame of the site; neither belongs on anything reachable from outside a
 // developer's machine.

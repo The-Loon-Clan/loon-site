@@ -28,7 +28,7 @@ func on(name string) bool {
 // a member's downloads is not something a host should acquire by checking the
 // repository out.
 func HitRunEnabled() bool {
-	v := os.Getenv("LOON_DEMO_HITRUN")
+	v := os.Getenv("LOON_HITRUN")
 	return v == "1" || v == "true" || v == "yes"
 }
 
@@ -39,7 +39,7 @@ func HitRunEnabled() bool {
 // failure mode here — somebody locked out of their own torrent — deserves to be
 // switched on deliberately.
 func SeedLockEnabled() bool {
-	v := os.Getenv("LOON_DEMO_SEEDLOCK")
+	v := os.Getenv("LOON_SEEDLOCK")
 	return v == "1" || v == "true" || v == "yes"
 }
 
@@ -49,13 +49,13 @@ func SeedLockEnabled() bool {
 // locally to read the code, and a private tracker answering announces is not
 // something to switch on by merely checking the repository out.
 func TrackerEnabled() bool {
-	v := os.Getenv("LOON_DEMO_TRACKER")
+	v := os.Getenv("LOON_TRACKER")
 	return v == "1" || v == "true" || v == "yes"
 }
 
 // CheatCheckEnabled reports whether the operator asked for cheat detection.
 //
-// Its own flag rather than riding on LOON_DEMO_TRACKER, because the two are
+// Its own flag rather than riding on LOON_TRACKER, because the two are
 // different decisions: running a tracker is a feature, and judging members'
 // accounting is a policy. A site can reasonably want the first without the
 // second, and the flag that turns on accusations should have to be typed.
@@ -63,12 +63,12 @@ func TrackerEnabled() bool {
 // The SAMPLING runs regardless — see the sweep. Only the judging is gated, so
 // switching this on starts working at the next sweep rather than the one after.
 func CheatCheckEnabled() bool {
-	v := os.Getenv("LOON_DEMO_CHEATCHECK")
+	v := os.Getenv("LOON_CHEATCHECK")
 	return v == "1" || v == "true" || v == "yes"
 }
 
 // UIInspectEnabled reports whether the operator asked for the inspector.
 func UIInspectEnabled() bool {
-	v := os.Getenv("LOON_DEMO_UI_INSPECT")
+	v := os.Getenv("LOON_UI_INSPECT")
 	return v == "1" || v == "true" || v == "yes"
 }

@@ -61,7 +61,7 @@ services:
         loonbaseline: ../loon-baseline
     environment:
       # talk to the db service over the compose network, not the published port
-      LOON_DEMO_DSN: "postgres://demo:demo@db:5432/loon_demo?sslmode=disable"
+      LOON_DSN: "postgres://demo:demo@db:5432/loon_demo?sslmode=disable"
       # Page cache backend AND core.Redis (the seam Redis-capable plugins use).
       # Unset -> in-memory cache + core.Redis nil; set -> the redis impl for both.
       REDIS_ADDR: "${REDIS_ADDR-redis:6379}"
@@ -73,35 +73,35 @@ services:
       # The BitTorrent tracker, OFF by default. It publishes announce endpoints,
       # mints passkeys and starts keeping ratio accounting the moment it is
       # reachable, so it is the one plugin here that must be asked for:
-      #   LOON_DEMO_TRACKER=1 docker compose up --build -d
-      LOON_DEMO_TRACKER: "${LOON_DEMO_TRACKER:-}"
+      #   LOON_TRACKER=1 docker compose up --build -d
+      LOON_TRACKER: "${LOON_TRACKER:-}"
       # The absolute base baked into every downloaded .torrent. A wrong value
       # does not fail loudly — it produces torrents pointing somewhere unable to
       # answer, and the member finds out when their client calls the tracker
       # dead. Defaults to the address this demo actually serves on.
-      LOON_DEMO_SITE_URL: "${LOON_DEMO_SITE_URL:-}"
+      LOON_SITE_URL: "${LOON_SITE_URL:-}"
       # Hit-and-run rules over the tracker's accounting. OFF by default for the
       # same reason the tracker is: this one disables members' downloads.
       # Warnings still EXPIRE when it is off — turning the rules off must not
       # freeze every warning already on the record in place forever.
-      #   LOON_DEMO_TRACKER=1 LOON_DEMO_HITRUN=1 docker compose up --build -d
-      LOON_DEMO_HITRUN: "${LOON_DEMO_HITRUN:-}"
+      #   LOON_TRACKER=1 LOON_HITRUN=1 docker compose up --build -d
+      LOON_HITRUN: "${LOON_HITRUN:-}"
       # One host per torrent per member — the anti-cheat for a member seeding
       # the same torrent from several machines and being credited by all of
       # them. OFF by default, and it needs REDIS_ADDR: a claim must be shared
       # across the web and api processes, which both serve announce.
-      #   LOON_DEMO_TRACKER=1 LOON_DEMO_SEEDLOCK=1 docker compose up --build -d
-      LOON_DEMO_SEEDLOCK: "${LOON_DEMO_SEEDLOCK:-}"
+      #   LOON_TRACKER=1 LOON_SEEDLOCK=1 docker compose up --build -d
+      LOON_SEEDLOCK: "${LOON_SEEDLOCK:-}"
       # Cheat detection: samples the tracker's counters and flags readings no
       # real client could have produced. Records only — nothing is punished
       # automatically. Needs the tracker itself:
-      #   LOON_DEMO_TRACKER=1 LOON_DEMO_CHEATCHECK=1 docker compose up -d
-      LOON_DEMO_CHEATCHECK: "${LOON_DEMO_CHEATCHECK:-}"
+      #   LOON_TRACKER=1 LOON_CHEATCHECK=1 docker compose up -d
+      LOON_CHEATCHECK: "${LOON_CHEATCHECK:-}"
       # DEV ONLY: the side-by-side UI inspector at /dev/compare. Serves files
       # from refs/ and injects a picker into a frame of the site, so it is off
       # unless asked for and must never be set on anything reachable:
-      #   LOON_DEMO_UI_INSPECT=1 docker compose up -d
-      LOON_DEMO_UI_INSPECT: "${LOON_DEMO_UI_INSPECT:-}"
+      #   LOON_UI_INSPECT=1 docker compose up -d
+      LOON_UI_INSPECT: "${LOON_UI_INSPECT:-}"
       # Metadata-source credentials (optional — set on the host to enable a source).
       # Every source main.go reads must be listed here: an unlisted variable is
       # simply absent inside the container, so the source registers as "not
@@ -139,7 +139,7 @@ services:
       # measure it", and it writes exactly one file, refs/_focus.json.
       #
       # Acceptable because the entire /dev tree is only REGISTERED when
-      # LOON_DEMO_UI_INSPECT is set — on any build that does not ask for it
+      # LOON_UI_INSPECT is set — on any build that does not ask for it
       # there is no handler that can write here at all.
       #
       # The binary runs from / in the final image, so refs/ has to be at /refs.

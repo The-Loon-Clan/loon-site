@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/storage"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 
-	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
+	"github.com/the-loon-clan/loon-site/internal/markdown"
 
-	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
+	"github.com/the-loon-clan/loon-site/internal/middleware"
 
-	site "github.com/the-loon-clan/loon-demo-site"
+	site "github.com/the-loon-clan/loon-site"
 
 	"context"
 	"errors"
@@ -720,7 +720,7 @@ func (w *web) mount(e *gin.Engine) {
 	// Fixed host pages: /staff /stats /rules /faq /about (pages_web.go).
 	w.mountSitePages(e)
 	// The dev-only UI inspector (uiinspect_web.go). Registers nothing unless
-	// LOON_DEMO_UI_INSPECT is set — it serves files off disk and injects script
+	// LOON_UI_INSPECT is set — it serves files off disk and injects script
 	// into a frame of the site, neither of which belongs on a reachable build.
 	w.mountUIInspect(e)
 	// Viewer settings: /settings/privacy, /settings/notifications.

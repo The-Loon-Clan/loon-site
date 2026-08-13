@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
+	"github.com/the-loon-clan/loon-site/internal/middleware"
 
 	"html/template"
 	"strings"

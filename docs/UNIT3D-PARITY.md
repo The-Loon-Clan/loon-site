@@ -442,7 +442,7 @@ template.
      the database. Added host-side.
 
 3. **A payment gateway.** `donations` is wired but **DEV-ONLY**, gated on
-   `LOON_DEMO_DONATIONS=1`. The gate is the ENV VAR, not the admin toggle:
+   `LOON_DONATIONS=1`. The gate is the ENV VAR, not the admin toggle:
    `IsDonateEnabled` ANDs the two, so a deployment without the flag reports
    disabled even with `donate_enabled=1` persisted — verified. `SetDonateEnabled`
    refuses with an explanation rather than silently no-opping, since an admin

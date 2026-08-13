@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	site "github.com/the-loon-clan/loon-demo-site"
+	site "github.com/the-loon-clan/loon-site"
 
 	"bytes"
 	"html/template"
@@ -50,7 +50,7 @@ var shellTemplates = map[string]bool{
 	// must NOT inherit base.html or the site's stylesheets, because anything
 	// it inherited could differ between the tool and the page it inspects. It
 	// is parsed per request by uiCompare rather than by newWeb, and its route
-	// exists only when LOON_DEMO_UI_INSPECT is set — so it is reachable, just
+	// exists only when LOON_UI_INSPECT is set — so it is reachable, just
 	// not through the page set this test walks.
 	"dev_compare.html": true,
 }

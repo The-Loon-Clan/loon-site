@@ -1,6 +1,6 @@
 package handlers
 
-import "github.com/the-loon-clan/loon-demo-site/internal/storage"
+import "github.com/the-loon-clan/loon-site/internal/storage"
 
 // The invite tree — who brought whom, and who brought them.
 //

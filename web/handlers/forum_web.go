@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
+	"github.com/the-loon-clan/loon-site/internal/markdown"
 
-	site "github.com/the-loon-clan/loon-demo-site"
+	site "github.com/the-loon-clan/loon-site"
 
 	"context"
 	"log/slog"
@@ -311,7 +311,7 @@ func (p forumPagination) Prev() int     { return p.Page - 1 }
 func (p forumPagination) Next() int     { return p.Page + 1 }
 
 // devPluginRender re-parses the gin set on every render so a template edit
-// shows on refresh (LOON_DEMO_DEV=1). Each request gets its own *Template, so
+// shows on refresh (LOON_DEV=1). Each request gets its own *Template, so
 // there is no shared mutable state to race on — which re-calling
 // engine.SetHTMLTemplate per request would have introduced. A parse error
 // renders as text instead of panicking the way template.Must would.

@@ -238,7 +238,7 @@ func takeFlashCodes(c *gin.Context) []string {
 }
 
 // siteName is the issuer an authenticator app shows beside the code.
-func siteName() string { return getenvDefault("LOON_DEMO_SITE_NAME", "loon demo indexer") }
+func siteName() string { return getenvDefault("LOON_SITE_NAME", "loon indexer") }
 
 // securityAction serves POST /settings/security.
 func (w *web) securityAction(c *gin.Context) {
@@ -353,7 +353,7 @@ func (w *web) securityAction(c *gin.Context) {
 }
 
 // baseURL is the origin confirmation links are built against.
-func baseURL() string { return getenvDefault("LOON_DEMO_BASE_URL", "http://localhost:8090") }
+func baseURL() string { return getenvDefault("LOON_BASE_URL", "http://localhost:8090") }
 
 // secretOf reads the ACTIVE secret. Empty when the factor is off, which makes
 // totpVerify refuse — so a caller that forgets to check Enabled still fails

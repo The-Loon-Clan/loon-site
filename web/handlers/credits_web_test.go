@@ -4,7 +4,7 @@ import (
 	"context"
 	"io/fs"
 
-	site "github.com/the-loon-clan/loon-demo-site"
+	site "github.com/the-loon-clan/loon-site"
 
 	"strings"
 	"testing"

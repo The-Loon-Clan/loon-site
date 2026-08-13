@@ -41,7 +41,7 @@ package handlers
 import (
 	"strings"
 
-	"github.com/the-loon-clan/loon-demo-site/internal/config"
+	"github.com/the-loon-clan/loon-site/internal/config"
 )
 
 // sectionTab is one entry. Active is resolved against the request path here

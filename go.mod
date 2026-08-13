@@ -1,4 +1,4 @@
-module github.com/the-loon-clan/loon-demo-site
+module github.com/the-loon-clan/loon-site
 
 go 1.26.4
 

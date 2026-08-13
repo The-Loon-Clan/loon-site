@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/config"
+	"github.com/the-loon-clan/loon-site/internal/config"
 
 	"testing"
 
@@ -65,7 +65,7 @@ func TestTrackerRatioLabel(t *testing.T) {
 // rather than return false, so the test fails loudly rather than passing for
 // the wrong reason.
 func TestTrackerReadsAreInertWhenDisabled(t *testing.T) {
-	t.Setenv("LOON_DEMO_TRACKER", "")
+	t.Setenv("LOON_TRACKER", "")
 	if config.TrackerEnabled() {
 		t.Fatal("tracker reads as enabled with the flag cleared")
 	}
@@ -77,7 +77,7 @@ func TestTrackerReadsAreInertWhenDisabled(t *testing.T) {
 	}
 	// And with it ON but no pool — the state during boot, and after a database
 	// blip. Still no data, still no panic.
-	t.Setenv("LOON_DEMO_TRACKER", "1")
+	t.Setenv("LOON_TRACKER", "1")
 	if !config.TrackerEnabled() {
 		t.Fatal("tracker reads as disabled with the flag set")
 	}

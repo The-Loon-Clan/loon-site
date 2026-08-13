@@ -19,7 +19,7 @@ import (
 // Donations (loon-plugins/donations) host wiring — UNIT3D's donation area.
 //
 // DEV-ONLY, BEHIND A FLAG. This plugin takes real money through BTCPay, so it
-// is gated on LOON_DEMO_DONATIONS=1 and is OFF unless that is set. The gate is
+// is gated on LOON_DONATIONS=1 and is OFF unless that is set. The gate is
 // the ENV VAR, not the admin toggle: the plugin's own donate_enabled setting is
 // still honoured, but ANDed with the flag, so nobody can turn payments on from
 // the admin UI of a deployment that was never meant to take them.
@@ -34,7 +34,7 @@ import (
 // donationsEnabled is the host-level master switch, read once at wiring time.
 // A var rather than a const so the tests and the SetDonateEnabled seam below
 // can reason about it in one place.
-var donationsEnabled = os.Getenv("LOON_DEMO_DONATIONS") == "1"
+var donationsEnabled = os.Getenv("LOON_DONATIONS") == "1"
 
 // donateToggle is the in-process half of the plugin's master toggle. The plugin
 // wants a flip to take effect NOW without a restart, so the setting is mirrored
@@ -138,7 +138,7 @@ func donationsMigrate(db *sqlx.DB) error {
 
 // wireDonationsPlugin installs the SetDeps seams. Always called — the plugin
 // registers at init and Provision fails loudly without deps — but every gate
-// below returns false unless LOON_DEMO_DONATIONS=1.
+// below returns false unless LOON_DONATIONS=1.
 func wireDonationsPlugin(c *core.Core, w *web) error {
 	db := c.Storage.DB()
 	if db != nil {
@@ -167,7 +167,7 @@ func wireDonationsPlugin(c *core.Core, w *web) error {
 				// "enable" and sees nothing change would reasonably assume the
 				// feature is broken instead of deliberately gated.
 				return fmt.Errorf("donations are disabled on this deployment " +
-					"(set LOON_DEMO_DONATIONS=1 to allow the toggle)")
+					"(set LOON_DONATIONS=1 to allow the toggle)")
 			}
 			donateToggle.Store(enabled)
 			if db == nil {

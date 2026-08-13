@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
+	"github.com/the-loon-clan/loon-site/internal/markdown"
 
-	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
+	"github.com/the-loon-clan/loon-site/internal/middleware"
 
 	"context"
 	"fmt"

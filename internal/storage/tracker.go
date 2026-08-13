@@ -14,7 +14,7 @@
 package storage
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/config"
+	"github.com/the-loon-clan/loon-site/internal/config"
 
 	"context"
 	"fmt"

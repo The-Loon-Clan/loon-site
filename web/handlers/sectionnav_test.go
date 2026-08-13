@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	site "github.com/the-loon-clan/loon-demo-site"
+	site "github.com/the-loon-clan/loon-site"
 
 	"io/fs"
 	"regexp"
@@ -379,7 +379,7 @@ func TestChromeLinksAreServed(t *testing.T) {
 		"/credits": true,
 		// The tracker plugin's own index, linked from the top bar's ratio
 		// figures. Served by the plugin rather than the host, and mounted only
-		// when LOON_DEMO_TRACKER is set — which is exactly the condition under
+		// when LOON_TRACKER is set — which is exactly the condition under
 		// which the figures render at all (chromeData -> storage.ReadTrackerTotals), so
 		// the link and the route appear and disappear together.
 		"/tracker": true,

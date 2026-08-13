@@ -13,13 +13,13 @@ COPY --from=loon . /loon/
 COPY --from=loonplugins . /loon-plugins/
 COPY --from=loonbaseline . /loon-baseline/
 COPY . .
-# ./cmd/loondemo, not . — the root is a library package now (it holds the
+# ./cmd/loonsite, not . — the root is a library package now (it holds the
 # //go:embed of web/, which cannot be declared from a subdirectory).
-RUN CGO_ENABLED=0 go build -trimpath -o /loondemo ./cmd/loondemo
+RUN CGO_ENABLED=0 go build -trimpath -o /loonsite ./cmd/loonsite
 
 # Static binary (CGO off); templates + static assets are embedded via embed.FS,
 # so the runtime image needs nothing but the binary + CA certs (for TLS NNTP).
 FROM gcr.io/distroless/static-debian12
-COPY --from=build /loondemo /loondemo
+COPY --from=build /loonsite /loonsite
 EXPOSE 8090
-ENTRYPOINT ["/loondemo"]
+ENTRYPOINT ["/loonsite"]

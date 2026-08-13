@@ -41,7 +41,7 @@ not source.
 Prose has repeatedly sent work at the wrong element. This removes the
 description step entirely.
 
-1. `LOON_DEMO_UI_INSPECT=1 docker compose up -d app`
+1. `LOON_UI_INSPECT=1 docker compose up -d app`
 2. Open **http://localhost:8090/dev/compare**
 3. Pick the reference from the dropdown. **Zoom** it until it lines up with the
    live pane beside it.

@@ -32,7 +32,7 @@ from pathlib import Path
 
 HANDLERS = Path("web/handlers")
 STORAGE = Path("internal/storage")
-MODULE = "github.com/the-loon-clan/loon-demo-site"
+MODULE = "github.com/the-loon-clan/loon-site"
 
 
 def write(path, text):

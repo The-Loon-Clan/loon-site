@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/storage"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"context"
 	"sort"

@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/internal/sanitize"
+	"github.com/the-loon-clan/loon-site/internal/sanitize"
 
 	"fmt"
 	"html/template"

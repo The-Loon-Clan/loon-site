@@ -1,4 +1,4 @@
-// Command loondemo runs the demo Usenet indexer.
+// Command loonsite runs the demo Usenet indexer.
 //
 // The command is deliberately this thin. The production indexer keeps its
 // binary under cmd/ and its handlers under web/handlers, and this tree now
@@ -14,11 +14,11 @@
 // is what moves.
 //
 // Everything real is in the root package. This file exists so `go build
-// ./cmd/loondemo` produces the binary and nothing else has to know.
+// ./cmd/loonsite` produces the binary and nothing else has to know.
 package main
 
 import (
-	"github.com/the-loon-clan/loon-demo-site/web/handlers"
+	"github.com/the-loon-clan/loon-site/web/handlers"
 )
 
 func main() { handlers.Main() }

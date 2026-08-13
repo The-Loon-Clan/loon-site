@@ -15,7 +15,7 @@ be written.
 `scraper` · `stats` · `store` · `tickets` · `usenet` · `wiki`
 
 ¹ wired but BLOCKED at runtime — see `UNIT3D-PARITY.md` §5d
-² dev-only, behind `LOON_DEMO_DONATIONS=1`
+² dev-only, behind `LOON_DONATIONS=1`
 
 ## 2. Exists, not wired (4)
 
