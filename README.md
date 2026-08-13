@@ -172,8 +172,8 @@ Trust is easier to give when the gaps are stated, so:
   ones were not the unchecked errors: three doc comments described symbols that
   had been renamed or had moved to another package during a restructure, and
   one of them documented a handler that no longer lived in that file at all.
-- **Coverage is 22.6%** with the Postgres and Redis that CI provides, and
-  **18.8%** on a laptop without them — the storage integration tests take that
+- **Coverage is 23.4%** with the Postgres and Redis that CI provides, and
+  **19.6%** on a laptop without them — the storage integration tests take that
   package from 3.6% to 38%, and they skip when there is no database. Both
   numbers are stated because only one of them is what CI measures, and quoting
   the lower one as "our coverage" understates the storage layer while quoting
@@ -182,12 +182,12 @@ Trust is easier to give when the gaps are stated, so:
 
   The floor in CI is set for the laptop number, which means it cannot detect
   the service containers going missing: every integration test would skip,
-  coverage would fall to 18.8%, and the floor would still pass. So the tests
+  coverage would fall to 19.6%, and the floor would still pass. So the tests
   fail rather than skip when `CI` is set and no DSN is present. The floor is for
   gradual erosion; that guard is for the suite disappearing.
 
-  The shape is still lopsided — `config` 100%, `sanitize` 93%, `web/handlers`
-  19.3%. The tests that exist are mostly regression tests for bugs that actually
+  The shape is still lopsided — `config` and `request` 100%, `sanitize` 93%,
+  `web/handlers` 19.5%. The tests that exist are mostly regression tests for bugs that actually
   happened, plus the security-critical paths: whether a private site is private,
   and what the avatar pipeline accepts from a stranger.
 - **CI proves the README's first claim** by cloning the repository and running

@@ -35,7 +35,7 @@ Worth stating plainly, because the rest of this document is about gaps.
   four. NexusPHP has 71 lines of test for 46,000 lines of application — it is
   effectively untested, and it is a widely deployed tracker.
 - **Coverage is measured and floored.** None of the three report coverage at
-  all. Ours is low in absolute terms (22.6% with services) but it is known,
+  all. Ours is low in absolute terms (23.4% with services) but it is known,
   published, and cannot fall.
 - **Comment density, and the kind of comment.** 31% is the highest of the four,
   and the PHP figures are inflated by generated docblocks (`@param string $id`)
@@ -98,10 +98,14 @@ ships something this does not: a documentation book (`book/`, mdBook) covering
 installation and upgrades, which is most of why people trust it enough to run
 it. Documentation is the release artefact that matters, and ours is one README.
 
-**What to do, in order:** `CHANGELOG.md` (Keep a Changelog); annotated tags;
-a GitHub Release workflow building `ghcr.io/the-loon-clan/loon-site:<tag>`;
-`docs/UPGRADING.md` stating the migration guarantee. This is the single
-highest-value item on the list.
+`CHANGELOG.md` now exists, with an Unreleased section carrying the behaviour
+changes that need stating — the trusted-proxy default in particular, which
+silently changes what a proxied deployment records until the operator sets
+`LOON_TRUSTED_PROXIES`.
+
+**Remaining, in order:** annotated tags; a release workflow building
+`ghcr.io/the-loon-clan/loon-site:<tag>`; `docs/UPGRADING.md` stating the
+migration guarantee. Still the single highest-value item on the list.
 
 ### 3. Input validation is not a named thing
 
@@ -114,9 +118,26 @@ means the rules for a given endpoint cannot be read in one place or tested
 without a request. The avatar pipeline is the counter-example that shows the
 value: once `processAvatar` was a named function, its rules got twelve tests.
 
-**What to do:** a small `validate` package and a `…Input` struct per
-state-changing endpoint, introduced where handlers are already being touched
-rather than as a sweep.
+**Started.** `internal/request` now holds the interface and the shared checks,
+and `web/handlers/inputs.go` holds one `…Input` struct per endpoint that has
+adopted it — `registerPost` first, since its rules are genuinely conditional
+(an invite code is required on an invite-only site and meaningless otherwise).
+
+Two things enforce it, one of which the language does for free:
+
+```go
+func Validate[T Input](in T) Errors     // T constrained to Input
+```
+
+Passing a struct with no `Validate` method is a compile error
+(`does not satisfy request.Input (missing method Validate)`), the same device as
+`storage.SQL`. What the compiler cannot see is a struct declared, filled from a
+form and then never passed to `Validate` at all — so `inputs_test.go` reads the
+package's own declarations and fails on any type named `…Input` that has not
+stated its rules.
+
+Remaining: the other endpoints. Introduce one where a handler is already being
+touched, rather than as a sweep.
 
 ### 4. Architecture decisions are not recorded
 
@@ -137,7 +158,10 @@ NNTmux uses CaptainHook for pre-commit and commit-msg. Nothing here stops an
 unformatted or unlinted commit before CI sees it, and there is no
 `.editorconfig`.
 
-**What to do:** an opt-in `make hooks` installing a pre-commit that runs
+`.editorconfig` now exists, so an editor set to spaces no longer turns a
+one-line change into a whole-file diff.
+
+**Remaining:** an opt-in `make hooks` installing a pre-commit that runs
 `make fmt lint`. Opt-in because a hook nobody asked for gets bypassed with
 `--no-verify` and then ignored forever.
 
@@ -176,12 +200,13 @@ The ratio is good; the distribution is not.
 | Package | Coverage |
 | --- | --- |
 | `internal/config` | 100% |
+| `internal/request` | 100% |
 | `internal/sanitize` | 93% |
 | `internal/middleware` | 87% |
 | `internal/markdown` | 88% |
 | `internal/storage` | 38% (3.6% without a database) |
-| `web/handlers` | 19% |
-| **total** | **22.6% with services, 18.8% without** |
+| `web/handlers` | 19.5% |
+| **total** | **23.4% with services, 19.6% without** |
 
 Both PHP projects separate `tests/Unit` from `tests/Feature`, and NNTmux adds
 `tests/Integration` and `tests/Install`. Here, unit and integration tests live
@@ -254,7 +279,7 @@ Ordered so each step makes the next one safe.
 
 **Before calling it production-ready**
 5. `web/handlers` coverage past 40% via the consumer-interface pattern.
-6. Input validation as named, tested units.
+6. Input validation as named, tested units — the mechanism is in place; the remaining endpoints are not.
 7. `docs/adr/` for the decisions already argued in comments.
 8. Split `views.go`.
 9. Requests/bounties, as the largest missing feature loop.

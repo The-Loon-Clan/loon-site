@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/request"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"github.com/the-loon-clan/loon-site/internal/markdown"
@@ -1533,12 +1534,24 @@ func (w *web) registerPage(c *gin.Context) {
 }
 
 func (w *web) registerPost(c *gin.Context) {
-	name := strings.TrimSpace(c.PostForm("username"))
-	email := strings.TrimSpace(c.PostForm("email"))
+	in := readRegisterInput(c, captcha.FormField)
+
+	// again re-renders the form with what was typed still in it. Losing a
+	// half-filled form to a validation message is its own small insult, and
+	// four call sites rebuilding the same map by hand is how one of them ends
+	// up dropping a field.
+	again := func(status int, msg string) {
+		c.Status(status)
+		w.render(c, "register.html", map[string]any{
+			"Title": "Register", "Error": msg, "RegMode": in.RegMode,
+			"Username": in.Username, "Email": in.Email, "Invite": in.Invite,
+		})
+	}
+
 	// Enforced HERE as well as in the template, because the template only
 	// hides the form. A closed site whose POST still works is open to anyone
 	// who kept the page open, or who has ever used curl.
-	switch registrationMode() {
+	switch in.RegMode {
 	case RegClosed:
 		c.Status(http.StatusForbidden)
 		w.render(c, "register.html", map[string]any{
@@ -1546,26 +1559,26 @@ func (w *web) registerPost(c *gin.Context) {
 		})
 		return
 	case RegInvite:
-		if !w.data.InviteCodeValid(c.Request.Context(), strings.TrimSpace(c.PostForm("invite"))) {
-			c.Status(http.StatusForbidden)
-			w.render(c, "register.html", map[string]any{
-				"Title": "Register", "RegMode": RegInvite,
-				"Error": "That invite code is not valid.", "Username": name, "Email": email,
-				"Invite": strings.TrimSpace(c.PostForm("invite")),
-			})
+		if !w.data.InviteCodeValid(c.Request.Context(), in.Invite) {
+			again(http.StatusForbidden, "That invite code is not valid.")
 			return
 		}
 	}
-	if err := w.captcha.Verify(c.Request.Context(), c.PostForm(captcha.FormField), c.ClientIP()); err != nil {
-		c.Status(http.StatusBadRequest)
-		w.render(c, "register.html", map[string]any{"Title": "Register", "Error": "Please complete the captcha and try again.", "Username": name, "Email": email, "RegMode": registrationMode(), "Invite": strings.TrimSpace(c.PostForm("invite"))})
+	// The endpoint's own rules, in one place — see inputs.go. Ahead of the
+	// captcha because these cost nothing to check and the captcha costs a round
+	// trip to Cloudflare.
+	if errs := request.Validate(in); errs.Any() {
+		again(http.StatusBadRequest, errs.First(in.fieldOrder()...))
 		return
 	}
-	invite := strings.TrimSpace(c.PostForm("invite"))
-	u, err := w.flow.Register(c.Request.Context(), name, email, c.PostForm("password"))
+	if err := w.captcha.Verify(c.Request.Context(), in.Captcha, c.ClientIP()); err != nil {
+		again(http.StatusBadRequest, "Please complete the captcha and try again.")
+		return
+	}
+	invite := in.Invite
+	u, err := w.flow.Register(c.Request.Context(), in.Username, in.Email, in.Password)
 	if err != nil {
-		c.Status(http.StatusBadRequest)
-		w.render(c, "register.html", map[string]any{"Title": "Register", "Error": err.Error(), "Username": name, "Email": email, "RegMode": registrationMode(), "Invite": invite})
+		again(http.StatusBadRequest, err.Error())
 		return
 	}
 	// Consume the code now the account exists. Redeem, not just validate: a

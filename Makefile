@@ -26,7 +26,7 @@ export GOWORK = off
 # an aspiration: its job is to stop a regression, and a floor nobody can meet
 # gets deleted rather than met. Raise it when the number rises.
 #
-# Set for a run with NO backing services — 18.8% on a laptop, 22.6% with the
+# Set for a run with NO backing services — 19.6% on a laptop, 23.4% with the
 # Postgres and Redis that CI provides, because the storage integration tests
 # take that package from 3.6% to 38%.
 #
@@ -36,9 +36,24 @@ export GOWORK = off
 # and the floor would still pass. That job belongs to the tests themselves: with
 # CI set and no DSN they FAIL rather than skip. The floor is for gradual
 # erosion; the guard is for the suite disappearing.
-COVER_MIN ?= 18.0
+COVER_MIN ?= 19.0
 
-.PHONY: check build test itest cover lint golint fmt sql vuln run clean
+.PHONY: help check build test itest cover lint golint fmt sql vuln run clean
+
+# `make` on its own explains itself, rather than silently building the first
+# target. Every target below already carried a `## name: description` line and
+# nothing surfaced them, so the documentation existed and was unreachable.
+.DEFAULT_GOAL := help
+
+## help: list the targets, with what each one does
+help:
+	@echo "loon-site — make <target>"
+	@echo
+	@grep -hE '^## [a-z-]+:' $(MAKEFILE_LIST) \
+	  | sed -e 's/^## //' \
+	  | awk -F': ' '{ printf "  \033[1m%-8s\033[0m %s\n", $$1, $$2 }'
+	@echo
+	@echo "  The Go toolchain runs in Docker by default. Pass GO=go to use the host's."
 
 ## check: everything CI runs
 check: fmt build lint golint sql test cover

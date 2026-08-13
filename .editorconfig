@@ -1,0 +1,45 @@
+# Editor settings, so a contributor's IDE does not fight gofmt.
+#
+# `make fmt` fails on anything unformatted, which is the enforcement. This is
+# the part that stops the problem arising: an editor set to spaces turns a
+# one-line change into a whole-file diff, and the review is then about
+# whitespace rather than about the change.
+#
+# https://editorconfig.org — supported natively by GoLand and VS Code, and by
+# plugin nearly everywhere else.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Go is tabs, and gofmt is not negotiable about it.
+[*.go]
+indent_style = tab
+indent_size = 4
+
+[Makefile]
+# Make requires real tabs for recipe lines; spaces are a syntax error whose
+# message ("missing separator") names neither the line nor the cause.
+indent_style = tab
+
+[*.{md,markdown}]
+# Two trailing spaces are a hard line break in Markdown, so trimming them
+# silently reflows the text.
+trim_trailing_whitespace = false
+
+[*.{yml,yaml,json,js,css,html}]
+indent_style = space
+indent_size = 2
+
+[*.py]
+indent_style = space
+indent_size = 4
+
+[*.{sh,bash}]
+indent_style = tab
