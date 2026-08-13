@@ -1,17 +1,18 @@
 # syntax=docker/dockerfile:1
 
-# The demo's go.mod replaces loon + loon-plugins + loon-baseline with sibling
-# checkouts. Until loon publishes tagged releases, the Docker build pulls them in
-# via BuildKit named build-contexts (see docker-compose.yml -> app.build.additional_contexts):
-#   --build-context loon=../loon  --build-context loonplugins=../loon-plugins
-#   --build-context loonbaseline=../loon-baseline
-# The replace paths (../loon, …) resolve to /loon, /loon-plugins, /loon-baseline
-# from the /app workdir, so that's where we copy them.
+# loon, loon-plugins and loon-baseline are ordinary module dependencies, so
+# this image builds from a clone of this repository alone — no sibling
+# checkouts, no named build contexts.
 FROM golang:1.26 AS build
 WORKDIR /app
-COPY --from=loon . /loon/
-COPY --from=loonplugins . /loon-plugins/
-COPY --from=loonbaseline . /loon-baseline/
+# GOWORK=off so a developer's go.work (which points at their sibling checkouts,
+# and is gitignored) cannot change what ends up inside the image. What ships is
+# what go.mod pins.
+ENV GOWORK=off
+# Modules first: this layer is cached unless the dependencies actually change,
+# which is most of the build time on a small source tree.
+COPY go.mod go.sum ./
+RUN go mod download
 COPY . .
 # ./cmd/loonsite, not . — the root is a library package now (it holds the
 # //go:embed of web/, which cannot be declared from a subdirectory).

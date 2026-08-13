@@ -14,5 +14,11 @@ refs/_*.png
 refs/_focus.json
 
 # Built binaries.
-/loondemo
-/loondemo.exe
+/loonsite
+/loonsite.exe
+
+# Local multi-module development against sibling checkouts. go.work.example is
+# committed and explains it; the file itself is per-developer, and committing
+# one would make everybody else's build depend on directories they do not have.
+go.work
+go.work.sum

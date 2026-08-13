@@ -1,0 +1,33 @@
+// Local development against sibling checkouts of loon, loon-plugins and
+// loon-baseline.
+//
+// Copy this to go.work (which is gitignored) when you are changing those
+// repositories alongside this one:
+//
+//	cp go.work.example go.work
+//
+// With it in place, `go build` and `go test` use your working copies instead
+// of the versions in go.mod, so a change in loon-plugins is visible here
+// immediately and without a commit, a push or a `go get`.
+//
+// Without it — which is the default, and what a fresh clone gets — everything
+// resolves through go.mod like any other dependency, so the project builds on
+// its own. That is the point: `git clone && docker compose up --build` must
+// work for somebody who has never heard of the sibling repositories.
+//
+// The container build sets GOWORK=off explicitly, so a go.work sitting in your
+// tree cannot silently change what is inside the image.
+//
+// Remember that go.work overrides go.mod ENTIRELY for these modules: if you
+// take a dependency on something new in a sibling, `go get` it here too before
+// pushing, or CI (which has no go.work) will fail on a version that only
+// exists on your machine.
+
+go 1.26.4
+
+use (
+	.
+	../loon
+	../loon-baseline
+	../loon-plugins
+)

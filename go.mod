@@ -2,27 +2,25 @@ module github.com/the-loon-clan/loon-site
 
 go 1.26.4
 
-// loon + loon-plugins are developed as sibling checkouts; when they publish
-// with tagged releases these replaces drop for normal requires.
-replace github.com/the-loon-clan/loon => ../loon
-
-replace github.com/the-loon-clan/loon-plugins => ../loon-plugins
-
-replace github.com/the-loon-clan/loon-baseline => ../loon-baseline
-
+// loon, loon-plugins and loon-baseline are fetched like any other dependency,
+// so a clone of THIS repository builds on its own — see go.work.example for
+// developing them side by side.
 require (
 	github.com/gin-contrib/sessions v1.1.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.12.3
 	github.com/redis/go-redis/v9 v9.21.0
-	github.com/the-loon-clan/loon v0.0.0-00010101000000-000000000000
-	github.com/the-loon-clan/loon-baseline v0.0.0-00010101000000-000000000000
-	github.com/the-loon-clan/loon-plugins v0.0.0-00010101000000-000000000000
 	github.com/yuin/goldmark v1.8.5
 	golang.org/x/crypto v0.50.0
 	golang.org/x/image v0.44.0
 	golang.org/x/net v0.53.0
+)
+
+require (
+	github.com/the-loon-clan/loon v0.0.0-20260812212233-90e72a7524b9
+	github.com/the-loon-clan/loon-baseline v0.0.0-20260725031118-59273104365c
+	github.com/the-loon-clan/loon-plugins v0.0.0-20260813091725-c930a7d11258
 )
 
 require (
