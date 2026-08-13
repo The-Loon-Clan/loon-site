@@ -78,13 +78,6 @@ import (
 	_ "github.com/the-loon-clan/loon-plugins/ranks"
 	"github.com/the-loon-clan/loon-plugins/rewards"
 	"github.com/the-loon-clan/loon-plugins/scraper"
-	"github.com/the-loon-clan/loon-plugins/scraper/sources/anidb"
-	"github.com/the-loon-clan/loon-plugins/scraper/sources/anilist"
-	"github.com/the-loon-clan/loon-plugins/scraper/sources/openlibrary"
-	"github.com/the-loon-clan/loon-plugins/scraper/sources/theporndb"
-	"github.com/the-loon-clan/loon-plugins/scraper/sources/tmdb"
-	"github.com/the-loon-clan/loon-plugins/scraper/sources/tvmaze"
-	"github.com/the-loon-clan/loon-plugins/scraper/sources/wikipedia"
 	"github.com/the-loon-clan/loon-plugins/stats"
 	"github.com/the-loon-clan/loon-plugins/tracker"
 	_ "github.com/the-loon-clan/loon-plugins/usenet"
@@ -499,91 +492,7 @@ func Main() {
 		os.Exit(1)
 	}
 
-	// Forum plugin seams + its gin-side templates (forum_web.go). Before
-	// Boot: SetDeps is checked at Provision. wsrv is passed so the plugin's
-	// pages get the host's chrome data (nav, theme, viewer tiles) from the
-	// SAME function render() uses — see chromeData.
-	if err := wireForumPlugin(c, engine, wsrv); err != nil {
-		logger.Error("forum wiring", "err", err)
-		os.Exit(1)
-	}
-
-	// News plugin seams (news_web.go). Renders host templates through the same
-	// gin HTML set the forum uses — pluginTemplates() parses both dirs — so it
-	// needs no engine argument, only the chrome closure and the host's HTML
-	// sanitization policy.
-	if err := wireNewsPlugin(c, wsrv); err != nil {
-		logger.Error("news wiring", "err", err)
-		os.Exit(1)
-	}
-
-	// Wiki plugin seams (wiki_web.go). Needs the engine as well as the chrome
-	// closure: it serves admin image uploads off a static route.
-	if err := wireWikiPlugin(c, engine, wsrv); err != nil {
-		logger.Error("wiki wiring", "err", err)
-		os.Exit(1)
-	}
-
-	// Communities plugin seams (communities_web.go) — user-owned sub-forums at
-	// /c/*. Wired LAST of the gin-template plugins because its joins need
-	// users.avatar_path, users.points and users.reputation_tier, which the
-	// messages and points work added.
-	if err := wireCommunitiesPlugin(c, wsrv); err != nil {
-		logger.Error("communities wiring", "err", err)
-		os.Exit(1)
-	}
-
-	// Messages plugin seams (messages_web.go) — threaded DMs + admin
-	// announcements at /inbox. Distinct from /p/inbox, which is the baseline's
-	// NOTIFICATION inbox.
-	if err := wireMessagesPlugin(c, wsrv); err != nil {
-		logger.Error("messages wiring", "err", err)
-		os.Exit(1)
-	}
-
-	// Hit-and-run seams (hitrun_web.go). Messages only: the plugin detects,
-	// the host punishes, and the punishing half is the middleware installed
-	// further down.
-	wireHitRunPlugin(c, wsrv, logger)
-
-	// Perks wallet seams (hitrun_web.go). The plugin registers its own tracker
-	// multiplier, so this is only the page a member spends a token on.
-	wirePerksPlugin(wsrv)
-
-	// Seed-lock claims page (hitrun_web.go). The plugin installs its own
-	// announce guard; this is the page its refusal message points at.
-	wireSeedLockPlugin(wsrv)
-
-	// Tracker plugin seams (tracker_web.go). Always wired, even when the
-	// tracker is off: SetDeps runs before Boot and the plugin decides for
-	// itself whether to mount anything, so an unused seam costs nothing while a
-	// missing one is a 500 on a page a member opened. The plugin refuses to
-	// boot rather than defer if a seam is absent.
-	wsrv.wireTrackerPlugin()
-
-	// Store plugin seams (store_web.go). No error return: it self-migrates and
-	// its only seams are the chrome closure plus two pagination helpers.
-	wireStorePlugin(wsrv)
-
-	// Playlists plugin seams (playlists_web.go). Self-migrating, so no DDL
-	// here; its two lookup seams resolve release and user ids the plugin
-	// deliberately does not join to itself.
-	wirePlaylistsPlugin(wsrv)
-
-	// Tickets plugin seams (tickets_web.go) — the helpdesk at /support.
-	if err := wireTicketsPlugin(c, wsrv); err != nil {
-		logger.Error("tickets wiring", "err", err)
-		os.Exit(1)
-	}
-
-	// Donations plugin seams (donations_web.go). DEV-ONLY: gated on
-	// LOON_DONATIONS=1, and OFF without it regardless of the persisted
-	// admin toggle — this plugin takes real money through BTCPay.
-	if err := wireDonationsPlugin(c, wsrv); err != nil {
-		logger.Error("donations wiring", "err", err)
-		os.Exit(1)
-	}
-	logger.Info("donations", "enabled", donationsEnabled)
+	wirePluginSeams(c, wsrv, engine, logger)
 
 	// --- loon-plugins wiring (all worker plugins; they boot under Process
 	// "all"). The scraper needs the shared catalog.Registry on the extension
@@ -591,89 +500,7 @@ func Main() {
 	// backups needs a place to put entries; stats needs a cache. The demo
 	// impls just log (or write to a temp dir), the way a real host would swap
 	// in its catalog_entry table / archive store / Redis cache.
-	// The shared catalog.Registry + its metadata sources. Sources are idle until
-	// their key/client is set via env (hook up now, test later):
-	//   TPDB_API_KEY  → ThePornDB (xxx) · ANIDB_CLIENT → AniDB (anime)
-	//   TMDB_API_KEY  → TMDB (movie + tv)
-	// TMDB is registered TWICE off the one key: the registry keys a source by
-	// its single Domain().Key, and the scraper routes Newznab 2xxx → "movie"
-	// and 5xxx → "tv" as separate domains, so each needs its own instance.
-	reg := catalog.NewRegistry()
-	// providers records WHICH provider filled each slot, for the footer's
-	// attribution. Domain alone cannot answer it — "movie" is TMDB with a key
-	// and Wikipedia without — and crediting the wrong source is a false claim
-	// about provenance rather than a missing one. See credits_web.go.
-	var providers []string
-	add := func(name string, src catalog.MetadataSource) bool {
-		// isNilSource, not src == nil. The keyed constructors return a nil
-		// *Source when their credential is unset, and a nil POINTER stored in
-		// an INTERFACE is not a nil interface — so `src == nil` is false, the
-		// source registers, and the registry calls Domain() on nil. That
-		// panicked the whole process at boot: the site came up, served nothing,
-		// and restart-looped. The previous code checked each constructor's
-		// concrete result before it ever became an interface, which is why the
-		// trap only appeared when the checks moved in here.
-		if isNilSource(src) {
-			return false
-		}
-		if err := reg.RegisterSource(src); err != nil {
-			logger.Error("register catalog source", "provider", name, "err", err)
-			return false
-		}
-		providers = append(providers, name)
-		return true
-	}
-
-	add("theporndb", theporndb.New(os.Getenv("TPDB_API_KEY"), ""))
-
-	// TMDB when a key is set; the keyless pair when it is not.
-	//
-	// TMDB serves BOTH "movie" and "tv", and catalog.Registry refuses a
-	// duplicate domain — so registering the fallbacks alongside it would
-	// silently drop one and which one would depend on call order. The choice is
-	// therefore made explicitly.
-	//
-	// TMDB wins where available: backdrops, structured genres, and a far larger
-	// non-English catalogue. Without it, TVmaze covers television and Wikipedia
-	// covers film, so a host with no credentials at all still gets posters,
-	// summaries and dates across the two biggest categories on the index
-	// instead of blank cards — see docs/METADATA-SOURCES.md.
-	tmdbOn := false
-	for _, kind := range []tmdb.Kind{tmdb.KindMovie, tmdb.KindTV} {
-		if add("tmdb", tmdb.New(os.Getenv("TMDB_API_KEY"), kind, "")) {
-			tmdbOn = true
-		}
-	}
-	if !tmdbOn {
-		add("tvmaze", tvmaze.New(""))
-		add("wikipedia", wikipedia.New(""))
-	}
-	// AniDB when a client name is registered; AniList when it is not.
-	//
-	// Both serve "anime" and the registry refuses a duplicate, so the choice is
-	// made explicitly rather than left to call order. AniDB returns nil without
-	// a client name, which is what makes this an if at all — it used to build
-	// itself regardless, hold the domain, and answer every lookup from an empty
-	// index, leaving anime at 6.2% cover art while television sat at 59%.
-	if !add("anidb", anidb.New(os.Getenv("ANIDB_CLIENT"), nil)) {
-		add("anilist", anilist.New(""))
-	}
-	// Open Library needs no credential, so it registers unconditionally and is
-	// the one source a fresh checkout actually exercises — every other source
-	// here is idle until an operator goes and gets a key, which meant the
-	// enrichment path had no way to be tested at all without one.
-	add("openlibrary", openlibrary.New(""))
-
-	for _, s := range reg.Sources() {
-		logger.Info("catalog source registered", "domain", s.Domain().Key, "priority", s.Domain().Priority)
-	}
-	// Credit them in the footer. A licence condition for TVmaze and Wikipedia
-	// (both CC BY-SA) and for TMDB (its required disclaimer).
-	setSourceCredits(providers)
-	if err := c.Register(catalog.RegistryExtension, reg); err != nil {
-		logger.Error("register catalog registry", "err", err)
-		os.Exit(1)
-	}
+	wireMetadataSources(c, logger)
 	// Invites: the host capability the store's invite items need. Invites live
 	// on users, so no sibling plugin can own this — see invites_web.go.
 	if err := wireInvites(c, db); err != nil {
