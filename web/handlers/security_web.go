@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/the-loon-clan/loon/core"
 )
 
 // /settings/security — the second factor, and changing the address that can
@@ -212,102 +213,144 @@ func (w *web) securityAction(c *gin.Context) {
 
 	switch c.PostForm("action") {
 	case "begin":
-		secret, err := totpSecret()
-		if err != nil {
-			fail("could not start setup")
-			return
-		}
-		// Written to the PENDING column. Nothing about the account changes
-		// until a code proves the app has the same secret.
-		if _, err := w.db().ExecContext(ctx,
-			`UPDATE users SET totp_pending = $1 WHERE id = $2`, secret, u.ID); err != nil {
-			fail("could not start setup")
-			return
-		}
-		c.Redirect(http.StatusSeeOther, "/settings/security")
-
+		w.totpBegin(c, ctx, u, fail)
 	case "confirm":
-		st := w.readTOTPStatus(ctx, u.ID)
-		if st.Pending == "" {
-			fail("start the setup again")
-			return
-		}
-		if !totpVerify(st.Pending, c.PostForm("code"), time.Now()) {
-			// The pending secret is KEPT so the member can retype rather than
-			// rescan. A wrong code is usually a typo or a clock, not a
-			// different secret.
-			fail("that code did not match — check your phone's clock and try the next one")
-			return
-		}
-		codes, err := w.issueRecoveryCodes(ctx, u.ID)
-		if err != nil {
-			w.log.Error("issue recovery codes", "user", u.ID, "err", err)
-			fail("could not finish setup")
-			return
-		}
-		// Only now does the factor exist, and the codes are already written.
-		if _, err := w.db().ExecContext(ctx,
-			`UPDATE users SET totp_secret = totp_pending, totp_pending = '', totp_enabled_at = now()
-			  WHERE id = $1`, u.ID); err != nil {
-			fail("could not finish setup")
-			return
-		}
-		w.log.Info("two-factor enabled", "user", u.ID)
-		flashCodes(c, codes)
-		c.Redirect(http.StatusSeeOther, "/settings/security?done=enabled")
-
+		w.totpConfirm(c, ctx, u, fail)
 	case "cancel":
-		_, _ = w.db().ExecContext(ctx, `UPDATE users SET totp_pending = '' WHERE id = $1`, u.ID)
-		c.Redirect(http.StatusSeeOther, "/settings/security")
-
+		w.totpCancel(c, ctx, u, fail)
 	case "regenerate":
-		st := w.readTOTPStatus(ctx, u.ID)
-		if !st.Enabled || !totpVerify(w.secretOf(ctx, u.ID), c.PostForm("code"), time.Now()) {
-			fail("that code did not match")
-			return
-		}
-		codes, err := w.issueRecoveryCodes(ctx, u.ID)
-		if err != nil {
-			fail("could not regenerate")
-			return
-		}
-		w.log.Info("recovery codes regenerated", "user", u.ID)
-		flashCodes(c, codes)
-		c.Redirect(http.StatusSeeOther, "/settings/security?done=codes")
-
+		w.totpRegenerate(c, ctx, u, fail)
 	case "disable":
-		// A CODE, not just a session. Otherwise a stolen session removes the
-		// factor in one click and it protected nothing.
-		if !totpVerify(w.secretOf(ctx, u.ID), c.PostForm("code"), time.Now()) &&
-			!w.spendRecoveryCode(ctx, u.ID, c.PostForm("code")) {
-			fail("that code did not match")
-			return
-		}
-		if _, err := w.db().ExecContext(ctx,
-			`UPDATE users SET totp_secret = '', totp_pending = '', totp_enabled_at = NULL WHERE id = $1`,
-			u.ID); err != nil {
-			fail("could not turn it off")
-			return
-		}
-		_, _ = w.db().ExecContext(ctx, `DELETE FROM totp_recovery_codes WHERE user_id = $1`, u.ID)
-		w.log.Info("two-factor disabled", "user", u.ID)
-		c.Redirect(http.StatusSeeOther, "/settings/security?done=disabled")
-
+		w.totpDisable(c, ctx, u, fail)
 	case "email":
-		link, err := w.requestEmailChange(ctx, u.ID, c.PostForm("email"), w.baseURL())
-		if err != nil {
-			fail(err.Error())
-			return
-		}
-		// The demo mailer logs the message rather than sending it, exactly as
-		// the password-reset flow does -- so the link is followable from the
-		// container log without an SMTP server.
-		w.log.Info("email change requested (demo mailer)", "user", u.ID, "link", link)
-		c.Redirect(http.StatusSeeOther, "/settings/security?done=email-sent")
-
+		w.emailChangeRequest(c, ctx, u, fail)
 	default:
 		c.Redirect(http.StatusSeeOther, "/settings/security")
 	}
+}
+
+// totpBegin mints a secret and shows the QR code.
+//
+// The secret goes to the PENDING column: nothing about the account changes
+// until a code proves the authenticator holds the same secret.
+func (w *web) totpBegin(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
+	secret, err := totpSecret()
+	if err != nil {
+		fail("could not start setup")
+		return
+	}
+	// Written to the PENDING column. Nothing about the account changes
+	// until a code proves the app has the same secret.
+	if _, err := w.db().ExecContext(ctx,
+		`UPDATE users SET totp_pending = $1 WHERE id = $2`, secret, u.ID); err != nil {
+		fail("could not start setup")
+		return
+	}
+	c.Redirect(http.StatusSeeOther, "/settings/security")
+}
+
+// totpConfirm turns a pending secret into a live second factor.
+//
+// A wrong code KEEPS the pending secret so the member can retype rather than
+// rescan — a mismatch is usually a typo or a clock, not a different secret.
+// Recovery codes are written before the factor goes live, so there is no
+// window where the account is behind an app with no way back.
+func (w *web) totpConfirm(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
+	st := w.readTOTPStatus(ctx, u.ID)
+	if st.Pending == "" {
+		fail("start the setup again")
+		return
+	}
+	if !totpVerify(st.Pending, c.PostForm("code"), time.Now()) {
+		// The pending secret is KEPT so the member can retype rather than
+		// rescan. A wrong code is usually a typo or a clock, not a
+		// different secret.
+		fail("that code did not match — check your phone's clock and try the next one")
+		return
+	}
+	codes, err := w.issueRecoveryCodes(ctx, u.ID)
+	if err != nil {
+		w.log.Error("issue recovery codes", "user", u.ID, "err", err)
+		fail("could not finish setup")
+		return
+	}
+	// Only now does the factor exist, and the codes are already written.
+	if _, err := w.db().ExecContext(ctx,
+		`UPDATE users SET totp_secret = totp_pending, totp_pending = '', totp_enabled_at = now()
+		  WHERE id = $1`, u.ID); err != nil {
+		fail("could not finish setup")
+		return
+	}
+	w.log.Info("two-factor enabled", "user", u.ID)
+	flashCodes(c, codes)
+	c.Redirect(http.StatusSeeOther, "/settings/security?done=enabled")
+}
+
+// totpCancel abandons a setup in progress, clearing the pending secret.
+func (w *web) totpCancel(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
+	_, _ = w.db().ExecContext(ctx, `UPDATE users SET totp_pending = '' WHERE id = $1`, u.ID)
+	c.Redirect(http.StatusSeeOther, "/settings/security")
+}
+
+// totpRegenerate issues fresh recovery codes and invalidates the old ones.
+//
+// Shown once: they are stored hashed, so the site cannot show them again and
+// does not pretend it can.
+func (w *web) totpRegenerate(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
+	st := w.readTOTPStatus(ctx, u.ID)
+	if !st.Enabled || !totpVerify(w.secretOf(ctx, u.ID), c.PostForm("code"), time.Now()) {
+		fail("that code did not match")
+		return
+	}
+	codes, err := w.issueRecoveryCodes(ctx, u.ID)
+	if err != nil {
+		fail("could not regenerate")
+		return
+	}
+	w.log.Info("recovery codes regenerated", "user", u.ID)
+	flashCodes(c, codes)
+	c.Redirect(http.StatusSeeOther, "/settings/security?done=codes")
+}
+
+// totpDisable removes the second factor.
+//
+// Requires a CODE, not merely a session — otherwise a stolen session removes
+// the factor in one click and it protected nothing.
+func (w *web) totpDisable(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
+	// A CODE, not just a session. Otherwise a stolen session removes the
+	// factor in one click and it protected nothing.
+	if !totpVerify(w.secretOf(ctx, u.ID), c.PostForm("code"), time.Now()) &&
+		!w.spendRecoveryCode(ctx, u.ID, c.PostForm("code")) {
+		fail("that code did not match")
+		return
+	}
+	if _, err := w.db().ExecContext(ctx,
+		`UPDATE users SET totp_secret = '', totp_pending = '', totp_enabled_at = NULL WHERE id = $1`,
+		u.ID); err != nil {
+		fail("could not turn it off")
+		return
+	}
+	_, _ = w.db().ExecContext(ctx, `DELETE FROM totp_recovery_codes WHERE user_id = $1`, u.ID)
+	w.log.Info("two-factor disabled", "user", u.ID)
+	c.Redirect(http.StatusSeeOther, "/settings/security?done=disabled")
+}
+
+// emailChangeRequest starts a verified email change.
+//
+// The demo's mailer logs the message rather than sending it, as the
+// password-reset flow does, so the link is followable from the container log
+// without an SMTP server.
+func (w *web) emailChangeRequest(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
+	link, err := w.requestEmailChange(ctx, u.ID, c.PostForm("email"), w.baseURL())
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+	// The demo mailer logs the message rather than sending it, exactly as
+	// the password-reset flow does -- so the link is followable from the
+	// container log without an SMTP server.
+	w.log.Info("email change requested (demo mailer)", "user", u.ID, "link", link)
+	c.Redirect(http.StatusSeeOther, "/settings/security?done=email-sent")
 }
 
 // baseURL is the origin confirmation links are built against.

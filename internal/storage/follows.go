@@ -60,6 +60,11 @@ func (st *Store) ToggleFollow(ctx context.Context, followerID, followeeID int64)
 	return err == nil, err
 }
 
+// ListFollowers returns the people following userID, newest first.
+//
+// Followers and following are the same query against opposite ends of the same
+// row, which is why both go through FollowQuery rather than duplicating the
+// join and the avatar/role/since projection the template needs.
 func (st *Store) ListFollowers(ctx context.Context, userID int64) []FollowList {
 	return st.FollowQuery(ctx,
 		`SELECT u.username, u.role, COALESCE(u.avatar_path, '') AS avatar_path,
@@ -68,6 +73,7 @@ func (st *Store) ListFollowers(ctx context.Context, userID int64) []FollowList {
 		  WHERE f.followee_id = $1 ORDER BY f.created_at DESC LIMIT $2`, userID)
 }
 
+// ListFollowing returns the people userID follows, newest first.
 func (st *Store) ListFollowing(ctx context.Context, userID int64) []FollowList {
 	return st.FollowQuery(ctx,
 		`SELECT u.username, u.role, COALESCE(u.avatar_path, '') AS avatar_path,
@@ -130,6 +136,12 @@ type FollowKind string
 // account is the query nobody notices until there is one.
 const FollowPageRows = 200
 
+// FollowQuery runs one of the follow-list queries above and scans the result.
+//
+// The SQL is passed in rather than built here because the three lists differ
+// only in which side of user_follow they join on; the projection, the limit and
+// the error handling are identical and belong in one place. Exported because
+// the profile page composes its own variant.
 func (st *Store) FollowQuery(ctx context.Context, q string, userID int64) []FollowList {
 	if userID <= 0 {
 		return nil

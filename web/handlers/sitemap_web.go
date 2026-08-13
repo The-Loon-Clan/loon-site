@@ -36,6 +36,7 @@ type releaseSource struct {
 	baseURL string
 }
 
+// Kind names this source in the sitemap index.
 func (s releaseSource) Kind() string { return "releases" }
 
 // Count leans on Feed's total. Asking for one row to learn the count is a
@@ -46,6 +47,11 @@ func (s releaseSource) Count(ctx context.Context) (int, error) {
 	return total, err
 }
 
+// Page returns one page of release URLs.
+//
+// Paged rather than returning everything at once because the catalogue runs to
+// six figures, and a sitemap generator that materialises all of it holds the
+// lot in memory to write a file it streams anyway.
 func (s releaseSource) Page(ctx context.Context, limit, offset int) ([]sitemap.Entry, error) {
 	rel, _, err := s.idx.Feed(ctx, nil, limit, offset)
 	if err != nil {

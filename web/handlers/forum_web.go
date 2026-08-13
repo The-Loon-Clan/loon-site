@@ -231,6 +231,11 @@ func hostPagination(page, pageSize, totalItems int, baseURL string) forumPaginat
 	return forumPagination{Page: page, TotalPages: total, BaseURL: baseURL + sep}
 }
 
+// The four methods below exist for the TEMPLATE, not for Go: html/template
+// cannot do arithmetic or comparison in an expression, so `{{if .HasPrev}}` and
+// `{{.Prev}}` are the only way to express "page - 1" in the markup. They are
+// deliberately one-liners with no doc comment each — naming them individually
+// would say less than this note does.
 func (p forumPagination) HasPrev() bool { return p.Page > 1 }
 func (p forumPagination) HasNext() bool { return p.Page < p.TotalPages }
 func (p forumPagination) Prev() int     { return p.Page - 1 }
@@ -243,6 +248,11 @@ func (p forumPagination) Next() int     { return p.Page + 1 }
 // renders as text instead of panicking the way template.Must would.
 type devPluginRender struct{}
 
+// Instance renders a plugin template by name.
+//
+// The dev-reload path: templates are re-parsed per request so an edit shows on
+// refresh. Wrong for production, where a parse error would become a page
+// instead of a boot failure.
 func (devPluginRender) Instance(name string, data any) render.Render {
 	t, err := pluginTemplates()
 	if err != nil {

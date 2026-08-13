@@ -47,6 +47,11 @@ var donateToggle atomic.Bool
 // discard a webhook secret and start accepting unverifiable callbacks.
 type siteSettings struct{ db *sqlx.DB }
 
+// GetSetting reads one key from the shared site_settings table.
+//
+// The donations plugin keeps its BTCPay credentials here rather than in
+// memory: a restart must not silently discard a webhook secret and start
+// accepting callbacks it can no longer verify.
 func (s siteSettings) GetSetting(ctx context.Context, key string) (string, error) {
 	var v string
 	err := s.db.GetContext(ctx, &v, `SELECT value FROM site_settings WHERE key = $1`, key)
@@ -58,6 +63,7 @@ func (s siteSettings) GetSetting(ctx context.Context, key string) (string, error
 	return v, err
 }
 
+// SetSetting writes one key to the shared site_settings table.
 func (s siteSettings) SetSetting(ctx context.Context, key, value string) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO site_settings (key, value) VALUES ($1, $2)

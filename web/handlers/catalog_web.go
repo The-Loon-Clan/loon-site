@@ -23,6 +23,11 @@ import (
 // it's resolved.
 type lazySink struct{ w *web }
 
+// Upsert stores a catalogue entry, caching its cover art locally on the way.
+//
+// Lazy because the real sink is not known when the scraper is wired: a nil
+// sink here means the host has not registered one, and dropping the entry is
+// correct rather than an error.
 func (l lazySink) Upsert(ctx context.Context, e catalog.CatalogEntry) error {
 	if l.w.catalogSink == nil {
 		return nil

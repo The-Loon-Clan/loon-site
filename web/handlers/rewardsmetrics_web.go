@@ -38,6 +38,10 @@ import (
 // trip per member to discover that almost nobody moved.
 type metricFunc func(ctx context.Context) (map[int64]int64, error)
 
+// Values satisfies the rewards plugin's metric interface.
+//
+// The adapter that lets a plain function be a metric source, so a host adds one
+// by writing a query rather than a type.
 func (f metricFunc) Values(ctx context.Context) (map[int64]int64, error) { return f(ctx) }
 
 // countBy runs a "user_id, count" query into the map the plugin wants.

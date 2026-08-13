@@ -706,6 +706,10 @@ func getenvDefault(key, def string) string {
 // plugin still boots and appears on the jobs page with it wired.
 type catalogLogSink struct{ log *slog.Logger }
 
+// Upsert logs the entry and discards it.
+//
+// The demo's stand-in for a real catalogue table: it shows WHAT a host would
+// persist without pretending to persist it. A host swaps in its own sink.
 func (s catalogLogSink) Upsert(_ context.Context, e catalog.CatalogEntry) error {
 	s.log.Info("catalog upsert", "kind", e.Ref.Kind, "id", e.Ref.ID, "title", e.Title)
 	return nil
