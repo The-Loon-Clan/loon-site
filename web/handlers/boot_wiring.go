@@ -17,8 +17,6 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/the-loon-clan/loon-baseline/apikey"
 	"github.com/the-loon-clan/loon-baseline/authtoken"
 	"github.com/the-loon-clan/loon-baseline/heartbeat"
@@ -53,13 +51,13 @@ type baselineStores struct {
 // Every failure here is fatal on purpose: a host that cannot create its own
 // users table has nothing to serve, and continuing would surface as confusing
 // per-request errors much later.
-func wireBaselineStores(db *sqlx.DB, logger *slog.Logger) baselineStores {
+func wireBaselineStores(db storage.Conn, logger *slog.Logger) baselineStores {
 	var st baselineStores
 	st.sessionSecret = []byte(getenvDefault("LOON_SESSION_SECRET", "dev-insecure-demo-secret-change-me"))
 	// User store: loon-baseline's Postgres reference impl (a real host implements
 	// users.Store over its own table). Migrate the reference table + seed the two
 	// demo accounts (password == username).
-	st.users = users.NewPGStore(db.DB)
+	st.users = users.NewPGStore(db.Raw().DB)
 	// Host-owned reads for /staff and /stats — see w.data.DB() in pages_web.go.
 	if err := st.users.Migrate(context.Background()); err != nil {
 		logger.Error("users migrate", "err", err)
@@ -67,13 +65,13 @@ func wireBaselineStores(db *sqlx.DB, logger *slog.Logger) baselineStores {
 	}
 	// Login-attempt audit (loon-baseline): the host records each attempt at its
 	// login handler; the store + views live in the baseline.
-	st.loginLog = loginlog.NewPGStore(db.DB)
+	st.loginLog = loginlog.NewPGStore(db.Raw().DB)
 	if err := st.loginLog.Migrate(context.Background()); err != nil {
 		logger.Error("loginlog migrate", "err", err)
 		os.Exit(1)
 	}
 	// Password-reset + email-verification token store (loon-baseline).
-	st.tokens = authtoken.NewPGStore(db.DB)
+	st.tokens = authtoken.NewPGStore(db.Raw().DB)
 	if err := st.tokens.Migrate(context.Background()); err != nil {
 		logger.Error("authtoken migrate", "err", err)
 		os.Exit(1)
@@ -85,7 +83,7 @@ func wireBaselineStores(db *sqlx.DB, logger *slog.Logger) baselineStores {
 	// MarkRemote — surfaces its cache-TTL settings on this web admin's config
 	// page. Edit here; loon-api reads the same job_settings rows. That's the
 	// cross-process settings path from LOON-DISTRIBUTED.
-	jobSettings := jobsettings.NewPGStore(db.DB)
+	jobSettings := jobsettings.NewPGStore(db.Raw().DB)
 	if err := jobSettings.Migrate(context.Background()); err != nil {
 		logger.Error("jobsettings migrate", "err", err)
 		os.Exit(1)
@@ -93,7 +91,7 @@ func wireBaselineStores(db *sqlx.DB, logger *slog.Logger) baselineStores {
 	// Newznab API keys (loon-baseline): one per user, shown + regenerated on the
 	// self-service /p/api-key page. loon-api (against this same DB) validates the
 	// ?apikey= a client sends against this table.
-	st.apiKeys = apikey.NewPGStore(db.DB)
+	st.apiKeys = apikey.NewPGStore(db.Raw().DB)
 	if err := st.apiKeys.Migrate(context.Background()); err != nil {
 		logger.Error("apikey migrate", "err", err)
 		os.Exit(1)
@@ -102,7 +100,7 @@ func wireBaselineStores(db *sqlx.DB, logger *slog.Logger) baselineStores {
 	// contained 503 page + an admin toggle. Restore the last state on boot so a
 	// restart mid-maintenance stays in maintenance. The API tier (loon-api)
 	// deliberately does NOT install this middleware, so it stays up.
-	maintStore := maintenance.NewPGStore(db.DB)
+	maintStore := maintenance.NewPGStore(db.Raw().DB)
 	if err := maintStore.Migrate(context.Background()); err != nil {
 		logger.Error("maintenance migrate", "err", err)
 		os.Exit(1)
@@ -116,7 +114,7 @@ func wireBaselineStores(db *sqlx.DB, logger *slog.Logger) baselineStores {
 	// the WEB process installs schedule.RemoteTrigger to enqueue instead —
 	// never both in one process, or a triggerless job re-enqueues itself, so
 	// the demo (single process) only polls.
-	st.jobTriggers = jobtrigger.NewPGStore(db.DB)
+	st.jobTriggers = jobtrigger.NewPGStore(db.Raw().DB)
 	if err := st.jobTriggers.Migrate(context.Background()); err != nil {
 		logger.Error("jobtrigger migrate", "err", err)
 		os.Exit(1)
@@ -124,7 +122,7 @@ func wireBaselineStores(db *sqlx.DB, logger *slog.Logger) baselineStores {
 	// Process presence (loon-baseline): this instance beats a heartbeat on an
 	// interval; the admin "Services online" view lists who's checked in. One
 	// "all" process here; a split deployment would show web + worker rows.
-	st.heartbeat = heartbeat.NewPGStore(db.DB)
+	st.heartbeat = heartbeat.NewPGStore(db.Raw().DB)
 	if err := st.heartbeat.Migrate(context.Background()); err != nil {
 		logger.Error("heartbeat migrate", "err", err)
 		os.Exit(1)

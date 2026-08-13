@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"bytes"
 	"context"
 	"crypto/rand"
@@ -22,7 +24,6 @@ import (
 	"golang.org/x/image/draw"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon/blob"
 )
@@ -221,8 +222,8 @@ func readAvatarUpload(c *gin.Context, field string) ([]byte, error) {
 }
 
 // readAvatarPath returns a member's current avatar URL, or "".
-func readAvatarPath(ctx context.Context, db *sqlx.DB, userID int64) string {
-	if db == nil || userID <= 0 {
+func readAvatarPath(ctx context.Context, db storage.Conn, userID int64) string {
+	if !db.Valid() || userID <= 0 {
 		return ""
 	}
 	var p string
@@ -240,7 +241,7 @@ func readAvatarPath(ctx context.Context, db *sqlx.DB, userID int64) string {
 // fails the site is left with an orphaned file, which costs disk. In the other
 // order a failed update leaves the row pointing at a file that is gone, which
 // costs every page that member appears on a broken image.
-func setAvatar(ctx context.Context, db *sqlx.DB, userID int64, raw []byte) error {
+func setAvatar(ctx context.Context, db storage.Conn, userID int64, raw []byte) error {
 	data, err := processAvatar(raw)
 	if err != nil {
 		return err
@@ -274,7 +275,7 @@ func setAvatar(ctx context.Context, db *sqlx.DB, userID int64, raw []byte) error
 }
 
 // clearAvatar removes a member's avatar and the file behind it.
-func (w *web) clearAvatar(ctx context.Context, db *sqlx.DB, userID int64) (string, error) {
+func (w *web) clearAvatar(ctx context.Context, db storage.Conn, userID int64) (string, error) {
 	old := readAvatarPath(ctx, db, userID)
 	// Clearing leaves avatar_updated_at alone: there is no picture to review,
 	// and the queue predicate already requires a non-empty avatar_path.
@@ -295,7 +296,7 @@ const undoKindAvatar = "avatar.cleared"
 
 func init() {
 	// Registered beside the thing it reverses, so the two cannot drift.
-	registerUndo(undoKindAvatar, func(ctx context.Context, db *sqlx.DB, userID int64, payload []byte) error {
+	registerUndo(undoKindAvatar, func(ctx context.Context, db storage.Conn, userID int64, payload []byte) error {
 		var p struct {
 			Path string `json:"path"`
 		}

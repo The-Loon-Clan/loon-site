@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -11,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 )
 
 // Undo, for the actions that cannot be taken back by doing them again.
@@ -70,7 +71,7 @@ func newUndoToken() (string, error) {
 // undo record is a worse outcome than one that happened with one, but it is a
 // far better outcome than an error page after the change already landed.
 func (w *web) recordUndo(ctx context.Context, userID int64, kind string, payload any) string {
-	if w.db() == nil || userID <= 0 {
+	if !w.db().Valid() || userID <= 0 {
 		return ""
 	}
 	blob, err := json.Marshal(payload)
@@ -94,7 +95,7 @@ func (w *web) recordUndo(ctx context.Context, userID int64, kind string, payload
 // switch so a new kind is a registration next to the thing it undoes, instead
 // of an edit to a function in another file that its author has no reason to
 // open.
-var undoKinds = map[string]func(ctx context.Context, db *sqlx.DB, userID int64, payload []byte) error{}
+var undoKinds = map[string]func(ctx context.Context, db storage.Conn, userID int64, payload []byte) error{}
 
 // registerUndo wires one kind. Called from init() next to the action itself.
 // The handler receives the database handle rather than reaching for a
@@ -102,7 +103,7 @@ var undoKinds = map[string]func(ctx context.Context, db *sqlx.DB, userID int64, 
 // server to hang a method off, which is exactly why the global existed — and
 // exactly the sort of hidden dependency this refactor is removing. Passing it
 // at call time keeps registration free of any handle at all.
-func registerUndo(kind string, fn func(ctx context.Context, db *sqlx.DB, userID int64, payload []byte) error) {
+func registerUndo(kind string, fn func(ctx context.Context, db storage.Conn, userID int64, payload []byte) error) {
 	undoKinds[kind] = fn
 }
 
@@ -116,7 +117,7 @@ var errUndoGone = errors.New("that can no longer be undone")
 
 // performUndo reverses one recorded action.
 func (w *web) performUndo(ctx context.Context, userID int64, token string) (string, error) {
-	if w.db() == nil || token == "" || userID <= 0 {
+	if !w.db().Valid() || token == "" || userID <= 0 {
 		return "", errUndoGone
 	}
 	var row struct {
@@ -152,7 +153,7 @@ func (w *web) performUndo(ctx context.Context, userID int64, token string) (stri
 // purgeUndo drops expired records. Called by the sweep job (avatarsweep_web.go)
 // rather than on a timer of its own — one caretaker, not two.
 func (w *web) purgeUndo(ctx context.Context) (int64, error) {
-	if w.db() == nil {
+	if !w.db().Valid() {
 		return 0, nil
 	}
 	res, err := w.db().ExecContext(ctx,

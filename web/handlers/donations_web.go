@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"context"
 	"database/sql"
 	"fmt"
@@ -9,7 +11,6 @@ import (
 	"sync/atomic"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon/core"
 
@@ -45,7 +46,7 @@ var donateToggle atomic.Bool
 // plugin keeps donate_* config and BTCPay credentials here, which is why this
 // is a real table and not an in-memory map — a restart must not silently
 // discard a webhook secret and start accepting unverifiable callbacks.
-type siteSettings struct{ db *sqlx.DB }
+type siteSettings struct{ db storage.Conn }
 
 // GetSetting reads one key from the shared site_settings table.
 //
@@ -75,8 +76,8 @@ func (s siteSettings) SetSetting(ctx context.Context, key, value string) error {
 // registers at init and Provision fails loudly without deps — but every gate
 // below returns false unless LOON_DONATIONS=1.
 func wireDonationsPlugin(c *core.Core, w *web) error {
-	db := c.Storage.DB()
-	if db != nil {
+	db := storage.Wrap(c.Storage.DB())
+	if db.Valid() {
 		if err := w.data.MigrateDonations(); err != nil {
 			return fmt.Errorf("donations migrate: %w", err)
 		}
@@ -105,7 +106,7 @@ func wireDonationsPlugin(c *core.Core, w *web) error {
 					"(set LOON_DONATIONS=1 to allow the toggle)")
 			}
 			donateToggle.Store(enabled)
-			if db == nil {
+			if !db.Valid() {
 				return nil
 			}
 			v := "0"

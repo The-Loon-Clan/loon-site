@@ -114,7 +114,7 @@ func enforceHitRunBlock(w *web) gin.HandlerFunc {
 			return
 		}
 		u, ok := w.currentUser(c)
-		if !ok || u == nil || w.data.DB() == nil {
+		if !ok || u == nil || !w.data.DB().Valid() {
 			c.Next()
 			return
 		}

@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"log/slog"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 
-	"github.com/jmoiron/sqlx"
+	"log/slog"
 )
 
 // Demo data for the plugins that show nothing until somebody puts something in
@@ -38,8 +38,8 @@ import (
 // configuration; seeding the second is fiction.
 
 // demoSeed runs every seeder. Order matters where one references another.
-func demoSeed(db *sqlx.DB, log *slog.Logger) {
-	if db == nil {
+func demoSeed(db storage.Conn, log *slog.Logger) {
+	if !db.Valid() {
 		return
 	}
 	// Ranks first: the store's rank items reference a rank by id.
@@ -55,7 +55,7 @@ func demoSeed(db *sqlx.DB, log *slog.Logger) {
 // been set up. Three kinds because the plugin has three and a demo that shows
 // one teaches the wrong shape: earned by activity, bought with points, given by
 // staff.
-func ranksSeed(db *sqlx.DB, log *slog.Logger) {
+func ranksSeed(db storage.Conn, log *slog.Logger) {
 	var n int
 	if err := db.Get(&n, `SELECT COUNT(*) FROM ranks.groups`); err != nil || n > 0 {
 		return
@@ -92,7 +92,7 @@ func ranksSeed(db *sqlx.DB, log *slog.Logger) {
 // actually implements, against a rank that actually exists or the host's own
 // invite balance. A shop full of items that error on purchase is a worse demo
 // than an empty one, because the failure arrives after the points are spent.
-func storeSeed(db *sqlx.DB, log *slog.Logger) {
+func storeSeed(db storage.Conn, log *slog.Logger) {
 	var n int
 	if err := db.Get(&n, `SELECT COUNT(*) FROM store.items`); err != nil || n > 0 {
 		return
@@ -134,7 +134,7 @@ func storeSeed(db *sqlx.DB, log *slog.Logger) {
 // it implies a history the site does not have. Both say plainly that this is a
 // demonstration, because a visitor reading a seeded announcement written as if
 // it were real has been misled by the demo itself.
-func newsSeed(db *sqlx.DB, log *slog.Logger) {
+func newsSeed(db storage.Conn, log *slog.Logger) {
 	var n int
 	if err := db.Get(&n, `SELECT COUNT(*) FROM news_posts`); err != nil || n > 0 {
 		return

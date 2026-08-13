@@ -24,7 +24,7 @@ import (
 // widgetsAdminPage renders the editor for one region.
 func (w *web) widgetsAdminPage(c *gin.Context) {
 	region := c.Query("region")
-	if _, ok := widgetRegionByKey(region); !ok || w.db() == nil {
+	if _, ok := widgetRegionByKey(region); !ok || !w.db().Valid() {
 		// Default to the first region rather than erroring: arriving with no
 		// query is the normal way in, from the subnav.
 		region = widgetRegions[0].Key
@@ -73,7 +73,7 @@ func (w *web) widgetsAdminPage(c *gin.Context) {
 // whatever their browser last rendered.
 func (w *web) widgetsAdminAction(c *gin.Context) {
 	region := c.PostForm("region")
-	if _, ok := widgetRegionByKey(region); !ok || w.db() == nil {
+	if _, ok := widgetRegionByKey(region); !ok || !w.db().Valid() {
 		c.Redirect(http.StatusSeeOther, "/admin/widgets")
 		return
 	}

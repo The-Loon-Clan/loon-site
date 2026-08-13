@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"github.com/the-loon-clan/loon-site/internal/markdown"
 
 	"context"
@@ -12,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 )
 
 // The profile's free-text block — EMP's user-written profile, the thing that
@@ -51,7 +52,7 @@ func renderBio(src string) template.HTML {
 const undoKindBio = "bio.replaced"
 
 func init() {
-	registerUndo(undoKindBio, func(ctx context.Context, db *sqlx.DB, userID int64, payload []byte) error {
+	registerUndo(undoKindBio, func(ctx context.Context, db storage.Conn, userID int64, payload []byte) error {
 		var p struct {
 			Previous string `json:"previous"`
 		}
@@ -120,7 +121,7 @@ func (w *web) settingsProfileSave(c *gin.Context) {
 		bio = string(r[:bioMaxLen])
 	}
 	token := ""
-	if w.data.DB() != nil {
+	if w.data.DB().Valid() {
 		// Read the old text BEFORE overwriting it. Saving an empty editor wipes
 		// a profile with no warning and no copy of what was there, which is the
 		// same irreversibility an avatar removal has and the reason both are

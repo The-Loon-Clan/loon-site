@@ -118,7 +118,7 @@ var externalSites = []struct {
 // between a release and its entry — the same join releaseArt uses. It is a
 // weak key, so the newest entry wins rather than an arbitrary one.
 func (w *web) releaseExternals(ctx context.Context, coverURL string) []externalLink {
-	if coverURL == "" || w.data.DB() == nil {
+	if coverURL == "" || !w.data.DB().Valid() {
 		return nil
 	}
 	rows, err := w.data.DB().QueryContext(ctx,

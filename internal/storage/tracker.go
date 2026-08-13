@@ -217,13 +217,14 @@ func (st *Store) SwarmCounts(ctx context.Context, releaseIDs []int64) map[int64]
 		return nil
 	}
 	var rows []struct {
-		NzbID    int64  `st.db:"nzb_id"`
-		InfoHash string `st.db:"info_hash"`
-		Seeders  int    `st.db:"seeders"`
-		Leechers int    `st.db:"leechers"`
-		Snatches int    `st.db:"snatches"`
+		NzbID    int64  `db:"nzb_id"`
+		InfoHash string `db:"info_hash"`
+		Seeders  int    `db:"seeders"`
+		Leechers int    `db:"leechers"`
+		Snatches int    `db:"snatches"`
 	}
-	if err := st.db.SelectContext(ctx, &rows, st.db.Rebind(q), args...); err != nil {
+	// sqllint:allow q comes from sqlx.In, which only expands the ? placeholders in the constant above
+	if err := st.db.SelectContext(ctx, &rows, st.db.Rebind(SQL(q)), args...); err != nil {
 		return nil
 	}
 	out := make(map[int64]TrackerSwarm, len(rows))

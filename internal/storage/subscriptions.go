@@ -62,10 +62,10 @@ func (st *Store) ListBookmarkSubs(ctx context.Context, userID int64, limit int) 
 
 // SubscriptionRow is one thing being followed, whatever kind it is.
 type SubscriptionRow struct {
-	Title string `st.db:"title"`
-	Href  string `st.db:"href"`
-	Sub   string `st.db:"sub"` // the second line: members, category, size
-	Since string `st.db:"since"`
+	Title string `db:"title"`
+	Href  string `db:"href"`
+	Sub   string `db:"sub"` // the second line: members, category, size
+	Since string `db:"since"`
 }
 
 // SubsLog reports a failed read. Package-level so the two list functions stay

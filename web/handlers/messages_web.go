@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/the-loon-clan/loon-site/internal/markdown"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"github.com/the-loon-clan/loon-site/internal/middleware"
 
@@ -69,8 +70,8 @@ func wireMessagesPlugin(c *core.Core, w *web) error {
 // cap is the point: it keeps a seam that is unbounded by nature from becoming a
 // full-table scan if this demo is ever pointed at a real user table.
 func demoUserOptions(ctx context.Context, c *core.Core) ([]messages.UserOption, error) {
-	db := c.Storage.DB()
-	if db == nil {
+	db := storage.Wrap(c.Storage.DB())
+	if !db.Valid() {
 		return nil, nil
 	}
 	var rows []struct {

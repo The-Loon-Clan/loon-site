@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/the-loon-clan/loon-site/internal/storage"
 	"github.com/the-loon-clan/loon/core"
 )
 
@@ -100,7 +101,7 @@ type modItem struct {
 // or "your report was added to one already open" — a member who reports
 // something and is told nothing reports it again.
 func (w *web) reportAvatar(ctx context.Context, subjectID, reporterID int64, reason string) (opened bool, err error) {
-	if w.db() == nil {
+	if !w.db().Valid() {
 		return false, errors.New("moderation is not available")
 	}
 	if subjectID == reporterID {
@@ -238,10 +239,12 @@ func (w *web) applyResolution(ctx context.Context, kind string, subjectID int64)
 
 // listModItems returns the open queue, or the decided history.
 func (w *web) listModItems(ctx context.Context, viewerID int64, history bool) []modItem {
-	if w.db() == nil {
+	if !w.db().Valid() {
 		return nil
 	}
-	where, order := `i.resolved_at IS NULL`, `i.created_at DESC`
+	// Typed SQL so the concatenation below type-checks — and so a future
+	// edit that put a request value here would fail to compile.
+	where, order := storage.SQL(`i.resolved_at IS NULL`), storage.SQL(`i.created_at DESC`)
 	if history {
 		where, order = `i.resolved_at IS NOT NULL`, `i.resolved_at DESC`
 	}

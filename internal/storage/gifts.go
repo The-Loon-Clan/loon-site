@@ -125,13 +125,13 @@ func (st *Store) ListGifts(ctx context.Context, userID int64, limit int) []GiftR
 
 // GiftRow is one transfer as either side sees it.
 type GiftRow struct {
-	Other  string `st.db:"other"`
-	Amount int    `st.db:"amount"`
-	Note   string `st.db:"note"`
-	When   string `st.db:"when_at"`
+	Other  string `db:"other"`
+	Amount int    `db:"amount"`
+	Note   string `db:"note"`
+	When   string `db:"when_at"`
 	// Sent is true when the viewer was the giver, which is the only thing
 	// distinguishing the two directions on the page.
-	Sent bool `st.db:"sent"`
+	Sent bool `db:"sent"`
 }
 
 // ErrGiftSelf is separate from the rest because it is the one refusal that is

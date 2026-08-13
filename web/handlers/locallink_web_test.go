@@ -3,6 +3,7 @@ package handlers
 import (
 	"testing"
 
+	"github.com/the-loon-clan/loon-site/internal/storage"
 	"github.com/the-loon-clan/loon/catalog"
 )
 
@@ -136,7 +137,7 @@ func TestMovieKeysNeverInviteAPrefixMatch(t *testing.T) {
 // Each spec sweeps with its OWN cursor. Sharing one would make each kind skip
 // whatever the other had just walked past.
 func TestLinkSpecsHaveDistinctCursors(t *testing.T) {
-	seen := map[string]string{}
+	seen := map[string]storage.SQL{}
 	for _, s := range linkSpecs() {
 		if prev, clash := seen[s.cursorKey]; clash {
 			t.Errorf("%s and %s share cursor key %q", prev, s.catWhere, s.cursorKey)

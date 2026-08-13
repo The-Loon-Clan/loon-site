@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"context"
 	"fmt"
 	"regexp"
@@ -63,8 +65,8 @@ type contractFinding struct {
 // on a host that does not wire the plugin) is not a finding, it is a check that
 // does not apply. Reporting "could not check" for every plugin a host chose not
 // to install would bury the findings that matter.
-func auditContracts(ctx context.Context, c *core.Core, db *sqlx.DB) []contractFinding {
-	if db == nil {
+func auditContracts(ctx context.Context, c *core.Core, db storage.Conn) []contractFinding {
+	if !db.Valid() {
 		return nil
 	}
 	registered := map[string]bool{}
@@ -88,7 +90,7 @@ func auditContracts(ctx context.Context, c *core.Core, db *sqlx.DB) []contractFi
 // registered handler — deliberately, so a points-only host still works. The
 // cost is that a reward promising a medal on a host with no medal handler is
 // indistinguishable from one that has not been claimed yet.
-func auditRewardPayouts(ctx context.Context, db *sqlx.DB, registered map[string]bool) []contractFinding {
+func auditRewardPayouts(ctx context.Context, db storage.Conn, registered map[string]bool) []contractFinding {
 	var kinds []string
 	if err := db.SelectContext(ctx, &kinds, `
 		SELECT DISTINCT p.kind
@@ -120,7 +122,7 @@ func auditRewardPayouts(ctx context.Context, db *sqlx.DB, registered map[string]
 // This is the one that shipped: five achievements were seeded against metrics
 // whose counters the host had not registered, so every member sat at 0/N
 // forever and the page looked like a member who had not done anything yet.
-func auditAchievementMetrics(ctx context.Context, db *sqlx.DB, registered map[string]bool) []contractFinding {
+func auditAchievementMetrics(ctx context.Context, db storage.Conn, registered map[string]bool) []contractFinding {
 	var metrics []string
 	if err := db.SelectContext(ctx, &metrics, `
 		SELECT DISTINCT metric FROM rewards.achievements
@@ -159,7 +161,7 @@ var constantExpr = regexp.MustCompile(`^(?i)('[^']*'|-?\d+(\.\d+)?|NULL)(::[a-z0
 // Checked by reading the view's own definition rather than by sampling its
 // rows. Sampling cannot tell a stubbed column from a real one that happens to
 // hold the same value for everybody, which on a small site is most of them.
-func auditUserDisplay(ctx context.Context, db *sqlx.DB) []contractFinding {
+func auditUserDisplay(ctx context.Context, db storage.Conn) []contractFinding {
 	var def string
 	if err := db.GetContext(ctx, &def,
 		`SELECT pg_get_viewdef('user_display'::regclass, true)`); err != nil {
@@ -207,7 +209,7 @@ func auditUserDisplay(ctx context.Context, db *sqlx.DB) []contractFinding {
 // WARN, not Info: these are wiring bugs, and the whole reason they survive is
 // that they produce no output at all. One line each, with the fix in it, so the
 // operator does not have to already know what "extension" means to act.
-func reportContracts(ctx context.Context, c *core.Core, db *sqlx.DB, log logger) []contractFinding {
+func reportContracts(ctx context.Context, c *core.Core, db storage.Conn, log logger) []contractFinding {
 	found := auditContracts(ctx, c, db)
 	for _, f := range found {
 		log.Warn("unfilled contract", "area", f.Area, "symptom", f.Symptom, "fix", f.Fix)
@@ -236,7 +238,7 @@ var (
 
 // adminContracts serves GET /admin/contracts.
 func (w *web) adminContracts(c *gin.Context) {
-	found := auditContracts(c.Request.Context(), contractsCore, contractsDB)
+	found := auditContracts(c.Request.Context(), contractsCore, storage.Wrap(contractsDB))
 	w.render(c, "admin_contracts.html", map[string]any{
 		"Title":    "Contracts",
 		"Findings": found,

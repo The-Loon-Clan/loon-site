@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/the-loon-clan/loon-site/internal/markdown"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"fmt"
 
@@ -28,7 +29,7 @@ import (
 
 // wireCommunitiesPlugin installs the SetDeps seams.
 func wireCommunitiesPlugin(c *core.Core, w *web) error {
-	if db := c.Storage.DB(); db != nil {
+	if db := storage.Wrap(c.Storage.DB()); db.Valid() {
 		if err := w.data.MigrateCommunities(); err != nil {
 			return fmt.Errorf("communities migrate: %w", err)
 		}

@@ -41,10 +41,11 @@ func (st *Store) GrabCounts(ctx context.Context, releaseIDs []int64) map[int64]i
 		return nil
 	}
 	var rows []struct {
-		ReleaseID int64 `st.db:"release_id"`
-		N         int   `st.db:"n"`
+		ReleaseID int64 `db:"release_id"`
+		N         int   `db:"n"`
 	}
-	if err := st.db.SelectContext(ctx, &rows, st.db.Rebind(q), args...); err != nil {
+	// sqllint:allow q comes from sqlx.In, which only expands the ? placeholders in the constant above
+	if err := st.db.SelectContext(ctx, &rows, st.db.Rebind(SQL(q)), args...); err != nil {
 		return nil
 	}
 	out := make(map[int64]int, len(rows))
@@ -63,8 +64,8 @@ func (st *Store) GrabCounts(ctx context.Context, releaseIDs []int64) map[int64]i
 // stale row that outranks live ones.
 func (st *Store) PopularGrabs(ctx context.Context, days, limit int) ([]int64, map[int64]int) {
 	var rows []struct {
-		ReleaseID int64 `st.db:"release_id"`
-		N         int   `st.db:"n"`
+		ReleaseID int64 `db:"release_id"`
+		N         int   `db:"n"`
 	}
 	if err := st.db.SelectContext(ctx, &rows,
 		`SELECT release_id, COUNT(*) AS n FROM release_grab
@@ -89,8 +90,8 @@ func (st *Store) PopularGrabs(ctx context.Context, days, limit int) ([]int64, ma
 // that was actually missing.
 func (st *Store) UploaderGrabTotals(ctx context.Context, since time.Time) (map[int64]int, error) {
 	var rows []struct {
-		ReleaseID int64 `st.db:"release_id"`
-		N         int   `st.db:"n"`
+		ReleaseID int64 `db:"release_id"`
+		N         int   `db:"n"`
 	}
 	if err := st.db.SelectContext(ctx, &rows,
 		`SELECT release_id, COUNT(*) AS n FROM release_grab

@@ -215,7 +215,7 @@ func (w *web) linkCover(ctx context.Context, releaseID int64, coverURL string) e
 // same empty result — the page renders without a backdrop, which is the normal
 // case for most of the catalogue.
 func (w *web) releaseArt(ctx context.Context, coverURL string) (banner, background string) {
-	if coverURL == "" || w.data.DB() == nil {
+	if coverURL == "" || !w.data.DB().Valid() {
 		return "", ""
 	}
 	var b, bg sql.NullString

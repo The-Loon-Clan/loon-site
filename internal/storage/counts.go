@@ -45,7 +45,7 @@ func (st *Store) CountForumThreads(ctx context.Context) (int, bool) {
 // Unexported, and it takes SQL, which is the thing this file exists to stop
 // handlers doing — the difference is that the statements are written here, next
 // to the schema they name, and a caller cannot supply one.
-func (st *Store) count(ctx context.Context, q string) (int, bool) {
+func (st *Store) count(ctx context.Context, q SQL) (int, bool) {
 	var n int
 	if err := st.db.GetContext(ctx, &n, q); err != nil {
 		return 0, false

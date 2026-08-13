@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"context"
 	"net/http"
 	"net/url"
@@ -8,7 +10,6 @@ import (
 	"sync/atomic"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 )
 
 // Who may reach this site, and who may join it — the two questions every
@@ -92,7 +93,7 @@ func browsingMode() string {
 //
 // A restart must not silently reopen a closed site — the whole point of
 // persisting these is that the answer survives the process.
-func loadAccessSettings(ctx context.Context, db *sqlx.DB) error {
+func loadAccessSettings(ctx context.Context, db storage.Conn) error {
 	accessStore = siteSettings{db: db}
 	if v, err := accessStore.GetSetting(ctx, settingRegistration); err != nil {
 		return err

@@ -103,6 +103,10 @@ func Main() {
 	// it — the migrations, the wirings, and the web struct. There is no
 	// package global to reach for any more.
 	data := storage.New(db)
+	// conn is the same pool, constant-SQL only. Handed to everything of ours
+	// that runs statements; the raw db still goes to loon and loon-baseline,
+	// whose APIs take a pool.
+	conn := data.DB()
 
 	engine := gin.Default()
 
@@ -117,7 +121,7 @@ func Main() {
 	// password (bcrypt-verified) equals their username, and signs an HMAC
 	// session cookie on login. The web struct (views.go) owns the templates,
 	// static assets, session cookie, and the public/login pages.
-	st := wireBaselineStores(db, logger)
+	st := wireBaselineStores(conn, logger)
 	migrateSiteTables(data, logger, st.users)
 	wsrv := newWeb(st.users, st.sessionSecret, logger, data)
 	wsrv.loginLog = st.loginLog
@@ -298,7 +302,7 @@ func Main() {
 	// Topics/Posts read forum_threads and forum_posts, which live in
 	// `public` and are the host's — no migration of its own to run.
 
-	points := pgPoints{db: db}
+	points := pgPoints{db: conn}
 	pointsSvc := core.NewPoints(points.adapter())
 	wsrv.points = pointsSvc // navbar balance readout
 
@@ -432,7 +436,7 @@ func Main() {
 		// prefFiltered enforces per-kind notification preferences at the ONE
 		// entry point every plugin's Notify goes through — see settings_web.go.
 		Notifications: core.NewNotifications(core.NotificationsAdapter{
-			NotifyFn: prefFiltered(db, notifications.Deliver),
+			NotifyFn: prefFiltered(conn, notifications.Deliver),
 		}),
 		Points: pointsSvc,
 		// In-memory grants (lost on restart) — a real host backs this
@@ -523,7 +527,7 @@ func Main() {
 	// preference: the rewards plugin collects these during its own Provision by
 	// scanning the registry, so one registered afterwards is never seen and its
 	// achievements sit at zero forever with nothing logged.
-	if err := registerAchievementMetrics(c, db); err != nil {
+	if err := registerAchievementMetrics(c, conn); err != nil {
 		logger.Error("register achievement metrics", "err", err)
 	}
 	// Scraper enrichment: persist entries + link covers via the catalog plugin
@@ -614,11 +618,11 @@ func Main() {
 	// It reports and does not stop the site. Most of these seams are optional
 	// by design, and an operator who has deliberately not wired one should not
 	// have to argue with the binary about it.
-	reportContracts(ctx, c, db, logger)
+	reportContracts(ctx, c, conn, logger)
 
 	// The avatar file sweep (avatarsweep_web.go) -- the only thing that deletes
 	// an avatar file, now that undo needs replaced and cleared ones to survive.
-	wsrv.startAvatarSweep(ctx, db, logger)
+	wsrv.startAvatarSweep(ctx, conn, logger)
 
 	// --- Admin dashboard. core.AdminHandler renders the plugin manifest;
 	// schedule.JobsAdminHandler renders the jobs/services table with manual
@@ -650,7 +654,7 @@ func Main() {
 	// The group takes the LOOSER gate and each route carries its own, rather
 	// than the other way round: the stricter gate is then written next to the
 	// stricter page, where it is read.
-	wireAdminAndViews(c, wsrv, engine, data, db, st, rt, inbox, ctx, stop, logger, redisClient)
+	wireAdminAndViews(c, wsrv, engine, data, conn, st, rt, inbox, ctx, stop, logger, redisClient)
 
 }
 

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"github.com/jmoiron/sqlx"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"github.com/the-loon-clan/loon-site/internal/markdown"
@@ -667,9 +666,9 @@ func (w *web) cacheSet(ctx context.Context, key string, v any, ttl time.Duration
 // when a data source is absent, showing "—" rather than a 500, which is the
 // admin dashboard's stated contract and what its test constructs a web with no
 // sources to prove. So handlers tolerate a missing store; queries do not.
-func (w *web) db() *sqlx.DB {
+func (w *web) db() storage.Conn {
 	if w.data == nil {
-		return nil
+		return storage.Conn{}
 	}
 	// w.data.DB(), NOT w.db(): the rewrite that introduced this accessor
 	// replaced every w.data.DB() in the package, including the one inside the

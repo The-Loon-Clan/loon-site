@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"github.com/the-loon-clan/loon-site/internal/markdown"
 
 	site "github.com/the-loon-clan/loon-site"
@@ -14,7 +16,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon/core"
 
@@ -33,7 +34,7 @@ import (
 // Runs only when forum_categories is empty — an existing board is never
 // touched. reply_count follows the plugin's invariant: the OP post does not
 // count as a reply (total posts = reply_count + 1).
-func forumSeed(db *sqlx.DB, log *slog.Logger) {
+func forumSeed(db storage.Conn, log *slog.Logger) {
 	var n int
 	if err := db.Get(&n, `SELECT COUNT(*) FROM forum_categories`); err != nil || n > 0 {
 		return
@@ -320,7 +321,7 @@ func (w *web) wireForumPlugin(c *core.Core, engine *gin.Engine) error {
 // forumReads). Hidden posts are excluded so a moderated post does not still
 // count toward someone's total.
 func (w *web) forumPostCount(ctx context.Context, userID int64) (int, error) {
-	if forumReads == nil || w.db() == nil {
+	if forumReads == nil || !w.db().Valid() {
 		return 0, nil
 	}
 	var n int

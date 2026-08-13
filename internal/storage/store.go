@@ -22,7 +22,9 @@ import "github.com/jmoiron/sqlx"
 // global, so the same package answered the question "where does the database
 // come from?" two different ways depending on which file you opened.
 type Store struct {
-	db *sqlx.DB
+	// Conn, not *sqlx.DB: the handle only accepts constant SQL, so a statement
+	// built from a request value does not compile. See conn.go.
+	db Conn
 }
 
 // New returns a Store over db.
@@ -34,10 +36,13 @@ func New(db *sqlx.DB) *Store {
 	if db == nil {
 		panic("storage.New: nil database handle")
 	}
-	return &Store{db: db}
+	return &Store{db: Wrap(db)}
 }
 
-// DB exposes the underlying handle for the few callers that still need one —
-// migrations and the seeding paths that run before the site serves anything.
-// Not for queries: those belong on this type as methods.
-func (st *Store) DB() *sqlx.DB { return st.db }
+// DB exposes the constant-only handle.
+//
+// Returns a Conn rather than the pool, so code outside this package writing its
+// own statements gets the same compile-time restriction. Use Raw() on the
+// result only for things that are not statements — handing the pool to a
+// plugin that owns its own schema, for instance.
+func (st *Store) DB() Conn { return st.db }

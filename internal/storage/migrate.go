@@ -45,7 +45,7 @@ func (st *Store) MigrateUserDisplay() error {
 	// Belt and braces: both columns are added elsewhere (messages and points),
 	// and adding them here as well means this file does not silently depend on
 	// which plugins a host happens to wire.
-	for _, q := range []string{
+	for _, q := range []SQL{
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_path TEXT`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS reputation_tier INTEGER NOT NULL DEFAULT 0`,
 	} {
@@ -73,7 +73,7 @@ func (st *Store) MigrateUserDisplay() error {
 // MigrateAvatarMod adds the two timestamps. Idempotent, like every other host
 // migration.
 func (st *Store) MigrateAvatarMod() error {
-	for _, q := range []string{
+	for _, q := range []SQL{
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_updated_at TIMESTAMPTZ`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_reviewed_at TIMESTAMPTZ`,
 		// The queue reads "pending, newest first" and nothing else.
@@ -90,7 +90,7 @@ func (st *Store) MigrateAvatarMod() error {
 
 // MigrateBookmarks creates the table. Idempotent.
 func (st *Store) MigrateBookmarks() error {
-	stmts := []string{
+	stmts := []SQL{
 		// UNIQUE(user_id, release_id) makes the toggle idempotent in the
 		// DATABASE rather than in a read-then-write the double-click of an
 		// impatient user can slip between.
@@ -116,7 +116,7 @@ func (st *Store) MigrateBookmarks() error {
 // MigrateCommunities creates the plugin's eight tables. Columns are taken from
 // its INSERT lists and model st.db tags.
 func (st *Store) MigrateCommunities() error {
-	stmts := []string{
+	stmts := []SQL{
 		`CREATE TABLE IF NOT EXISTS communities (
 		    id                   SERIAL PRIMARY KEY,
 		    slug                 TEXT NOT NULL UNIQUE,
@@ -242,7 +242,7 @@ func (st *Store) MigrateCommunities() error {
 
 // MigrateCommunityMod creates the two tables.
 func (st *Store) MigrateCommunityMod() error {
-	stmts := []string{
+	stmts := []SQL{
 		`CREATE TABLE IF NOT EXISTS moderation_items (
 		    id              BIGSERIAL PRIMARY KEY,
 		    kind            TEXT   NOT NULL,
@@ -292,7 +292,7 @@ func (st *Store) MigrateCommunityMod() error {
 // must not silently discard a webhook secret and start accepting callbacks it
 // can no longer verify, which is why it is a table rather than a map.
 func (st *Store) MigrateDonations() error {
-	stmts := []string{
+	stmts := []SQL{
 		`CREATE TABLE IF NOT EXISTS site_costs (
 		    id         SERIAL PRIMARY KEY,
 		    label      TEXT NOT NULL,
@@ -353,7 +353,7 @@ func (st *Store) MigrateDonations() error {
 
 // MigrateFollows creates the table. Idempotent.
 func (st *Store) MigrateFollows() error {
-	stmts := []string{
+	stmts := []SQL{
 		// The pair is the primary key, so following twice is a no-op in the
 		// DATABASE rather than in a read-then-write. CASCADE on both sides:
 		// a deleted account should not leave dangling edges.
@@ -383,7 +383,7 @@ func (st *Store) MigrateFollows() error {
 // numbered migrations; when the plugin ships its own migrations (planned for
 // the PG17 consolidation window) this moves there and no-ops here.
 func (st *Store) MigrateForum() error {
-	stmts := []string{
+	stmts := []SQL{
 		`CREATE TABLE IF NOT EXISTS forum_categories (
 		    id          SERIAL PRIMARY KEY,
 		    name        TEXT NOT NULL UNIQUE,
@@ -448,7 +448,7 @@ func (st *Store) MigrateForum() error {
 
 // MigrateGifts creates the record of who gave what to whom.
 func (st *Store) MigrateGifts() error {
-	stmts := []string{
+	stmts := []SQL{
 		`CREATE TABLE IF NOT EXISTS point_gifts (
 		    id          BIGSERIAL PRIMARY KEY,
 		    from_user   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -471,7 +471,7 @@ func (st *Store) MigrateGifts() error {
 // MigrateGrabs creates the table. One row per download, not a counter column:
 // a counter cannot answer "this week", which is the question trending asks.
 func (st *Store) MigrateGrabs() error {
-	stmts := []string{
+	stmts := []SQL{
 		// user_id is NULLABLE: /nzb/:id is reachable by an anonymous visitor
 		// and by an API key, and a grab still happened. Making it NOT NULL
 		// would silently drop exactly the traffic a public indexer sees most.
@@ -497,7 +497,7 @@ func (st *Store) MigrateGrabs() error {
 // MigrateInviteCodes creates the table. Idempotent, like the other host
 // migrations.
 func (st *Store) MigrateInviteCodes() error {
-	stmts := []string{
+	stmts := []SQL{
 		`CREATE TABLE IF NOT EXISTS invite_codes (
 		    code        TEXT PRIMARY KEY,
 		    created_by  BIGINT NOT NULL,
@@ -529,7 +529,7 @@ func (st *Store) MigrateInvites() error {
 // from pg.go's INSERT/SELECT lists — those are what actually fail on a
 // mismatch, not the model structs.
 func (st *Store) MigrateMessages() error {
-	stmts := []string{
+	stmts := []SQL{
 		// One row per PAIR: user_lo_id/user_hi_id are stored in canonical
 		// (LEAST, GREATEST) order, so the unique index below is what actually
 		// enforces "one thread per pair regardless of who started it".
@@ -603,7 +603,7 @@ func (st *Store) MigrateMessages() error {
 // MigrateNews creates the plugin's table (idempotent). Mirrors the DDL the
 // plugin's store_pg.go queries and its integration test creates.
 func (st *Store) MigrateNews() error {
-	stmts := []string{
+	stmts := []SQL{
 		`CREATE TABLE IF NOT EXISTS news_posts (
 		    id         BIGSERIAL PRIMARY KEY,
 		    title      TEXT NOT NULL,
@@ -628,7 +628,7 @@ func (st *Store) MigrateNews() error {
 
 // MigratePoints adds the columns and table. Idempotent.
 func (st *Store) MigratePoints() error {
-	stmts := []string{
+	stmts := []SQL{
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS points INTEGER NOT NULL DEFAULT 0`,
 		// reputation_tier is read by the communities plugin for display chrome.
 		// Nothing in this stack computes reputation, so it stays 0 — a column
@@ -671,7 +671,7 @@ func (st *Store) MigrateProfileBio() error {
 
 // MigrateSecurity adds the columns and the recovery-code table.
 func (st *Store) MigrateSecurity() error {
-	stmts := []string{
+	stmts := []SQL{
 		// Pending and active are separate columns so an abandoned setup cannot
 		// half-enable anything: totp_secret is authoritative and is only
 		// written when a code has been verified.
@@ -708,7 +708,7 @@ func (st *Store) MigrateSecurity() error {
 
 // MigrateSettings adds the privacy column and the preference table.
 func (st *Store) MigrateSettings() error {
-	stmts := []string{
+	stmts := []SQL{
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS private_profile BOOLEAN NOT NULL DEFAULT false`,
 		// A row per DISABLED kind would be smaller, but an explicit enabled
 		// flag survives the default changing: if this host ever flips a kind to
@@ -731,7 +731,7 @@ func (st *Store) MigrateSettings() error {
 // MigrateTickets creates the plugin's tables (idempotent). Columns come from
 // store_pg.go's INSERT/SELECT lists.
 func (st *Store) MigrateTickets() error {
-	stmts := []string{
+	stmts := []SQL{
 		// username is denormalised on the row because the plugin's list
 		// queries select it directly rather than joining users — keep it.
 		`CREATE TABLE IF NOT EXISTS support_tickets (
@@ -779,7 +779,7 @@ func (st *Store) MigrateTickets() error {
 
 // MigrateUndo creates the table.
 func (st *Store) MigrateUndo() error {
-	stmts := []string{
+	stmts := []SQL{
 		`CREATE TABLE IF NOT EXISTS undo_actions (
 		    token      TEXT PRIMARY KEY,
 		    user_id    BIGINT NOT NULL,
@@ -805,7 +805,7 @@ func (st *Store) MigrateUndo() error {
 
 // MigrateWidgets creates the placement table. Idempotent.
 func (st *Store) MigrateWidgets() error {
-	stmts := []string{
+	stmts := []SQL{
 		// PRIMARY KEY (region, slug): one widget appears at most once in a
 		// region. Placing it twice is never what an operator meant, and
 		// enforcing it here means the editor's "add" can be a plain upsert
@@ -844,7 +844,7 @@ func (st *Store) MigrateWidgets() error {
 // pg.go's own INSERT/SELECT lists rather than from the model structs, since the
 // queries are what will actually fail if a column is missing.
 func (st *Store) MigrateWiki() error {
-	stmts := []string{
+	stmts := []SQL{
 		`CREATE TABLE IF NOT EXISTS wiki_topics (
 		    id          SERIAL PRIMARY KEY,
 		    name        TEXT NOT NULL,
@@ -883,7 +883,7 @@ func (st *Store) MigrateWiki() error {
 
 // MigrateWishlist creates the table.
 func (st *Store) MigrateWishlist() error {
-	stmts := []string{
+	stmts := []SQL{
 		`CREATE TABLE IF NOT EXISTS wishlist_items (
 		    id         BIGSERIAL PRIMARY KEY,
 		    user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

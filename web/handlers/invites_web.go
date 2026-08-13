@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/the-loon-clan/loon-site/internal/storage"
 	"github.com/the-loon-clan/loon/core"
 
@@ -28,7 +26,7 @@ import (
 // number.
 
 // inviteGranter is the host's pluginapi.InviteGranter.
-type inviteGranter struct{ db *sqlx.DB }
+type inviteGranter struct{ db storage.Conn }
 
 var _ pluginapi.InviteGranter = inviteGranter{}
 
@@ -67,7 +65,7 @@ func wireInvites(c *core.Core, data *storage.Store) error {
 
 // inviteBalance is the viewer's own invite count, for the profile tile.
 func (w *web) inviteBalance(ctx context.Context, userID int64) (int, bool) {
-	if w.db() == nil {
+	if !w.db().Valid() {
 		return 0, false
 	}
 	var n int

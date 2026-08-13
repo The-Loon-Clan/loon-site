@@ -1,10 +1,10 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"context"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon/core"
 )
@@ -30,7 +30,7 @@ import (
 // query.
 
 // pgPoints is the durable core.PointsAdapter backing.
-type pgPoints struct{ db *sqlx.DB }
+type pgPoints struct{ db storage.Conn }
 
 // change applies a delta and records the ledger row in one transaction, so the
 // two can never disagree. Returns ErrInsufficientPoints when the balance would

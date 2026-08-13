@@ -1,11 +1,12 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon/core"
 )
@@ -41,9 +42,9 @@ var notifiableKinds = []struct{ Kind, Label, Help string }{
 // Fails OPEN. A missing row, an unknown kind, or a failed lookup all deliver:
 // the cost of an unwanted notification is mild annoyance, and the cost of a
 // silent drop is a user never learning their ticket was answered.
-func prefFiltered(db *sqlx.DB, next func(context.Context, int64, core.Notification) error) func(context.Context, int64, core.Notification) error {
+func prefFiltered(db storage.Conn, next func(context.Context, int64, core.Notification) error) func(context.Context, int64, core.Notification) error {
 	return func(ctx context.Context, userID int64, n core.Notification) error {
-		if db != nil && n.Kind != "" {
+		if db.Valid() && n.Kind != "" {
 			var enabled bool
 			err := db.GetContext(ctx, &enabled,
 				`SELECT enabled FROM notification_prefs WHERE user_id = $1 AND kind = $2`,
@@ -59,12 +60,12 @@ func prefFiltered(db *sqlx.DB, next func(context.Context, int64, core.Notificati
 }
 
 // notificationPrefs reads a viewer's toggles, defaulting anything unset to on.
-func notificationPrefs(ctx context.Context, db *sqlx.DB, userID int64) map[string]bool {
+func notificationPrefs(ctx context.Context, db storage.Conn, userID int64) map[string]bool {
 	out := make(map[string]bool, len(notifiableKinds))
 	for _, k := range notifiableKinds {
 		out[k.Kind] = true
 	}
-	if db == nil {
+	if !db.Valid() {
 		return out
 	}
 	var rows []struct {

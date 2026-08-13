@@ -81,7 +81,14 @@ def const_names(src):
     # `WHERE ` + where + ` and let a textbook injection through. That exact
     # line is the linter's own test case now; see the note at the bottom of
     # this file.
-    PURE = re.compile(r'^(?:`[^`]*`|"(?:[^"\\]|\\.)*")\s*$')
+    # A literal, or a literal wrapped in the SQL type.
+    #
+    # `where := storage.SQL(\`w.filled_at IS NULL\`)` is a constant that has
+    # also been TYPED, and typing it is strictly stronger than not: the
+    # compiler then refuses any later assignment of a runtime string to it. So
+    # this form is at least as safe as a bare literal, and the linter defers to
+    # the type system rather than duplicating its judgement.
+    PURE = re.compile(r'^(?:(?:storage\.)?SQL\()?(?:`[^`]*`|"(?:[^"\\]|\\.)*")\)?\s*$')
     assigned = {}
 
     # Multi-line raw strings first, over the whole file. A predicate held as
@@ -106,17 +113,56 @@ def const_names(src):
         parts = [p.strip() for p in m.group(2).split(',')]
         if len(names) == len(parts):
             for n, p in zip(names, parts):
-                assigned.setdefault(n, []).append(p.startswith('`') or p.startswith('"'))
+                assigned.setdefault(n, []).append(bool(PURE.match(p)))
     return {n for n, kinds in assigned.items() if kinds and all(kinds)}
 
 
+def blank_comments(src):
+    """Comments replaced by spaces, keeping every offset and line number.
+
+    The rules must run over CODE. Without this the tool flagged its own
+    documentation — the lines in internal/storage/conn.go that quote
+    `WHERE ` + someConst and SQL(x) in order to explain them — which is the
+    fourth time in this project that prose mentioning an identifier has been
+    read as a use of it.
+    """
+    out = list(src)
+    i, n = 0, len(src)
+    while i < n:
+        if src.startswith('//', i):
+            j = src.find('\n', i)
+            j = n if j == -1 else j
+            for k in range(i, j):
+                out[k] = ' '
+            i = j
+        elif src.startswith('/*', i):
+            j = src.find('*/', i + 2)
+            j = n if j == -1 else j + 2
+            for k in range(i, j):
+                if out[k] != '\n':
+                    out[k] = ' '
+            i = j
+        else:
+            i += 1
+    return ''.join(out)
+
+
 def scan(path):
-    src = path.read_text(encoding='utf-8', errors='replace').replace('\r\n', '\n')
+    raw = path.read_text(encoding='utf-8', errors='replace').replace('\r\n', '\n')
+    src = blank_comments(raw)
     if not SQL_KEYWORD.search(src):
         return []
-    lines = src.split('\n')
+    lines = raw.split('\n')  # originals, for display and for the allow-check
+    code = src.split('\n')   # comments blanked: what the per-line rules read
     consts = const_names(src)
     out = []
+
+    # conn.go is the wrapper itself. Its whole job is to make the one
+    # unavoidable conversion — string(q), from an SQL-typed parameter — in a
+    # single reviewed place, so that nowhere else has to. Linting it for doing
+    # that is linting the guard for standing at the gate.
+    if path.name == 'conn.go' and 'storage' in path.parts:
+        return []
 
     # 1. concatenation into a SQL string, scanned over the WHOLE file.
     #
@@ -148,11 +194,26 @@ def scan(path):
         out.append((path, line_no, 'concatenated into a SQL string: %s' % frag,
                     lines[line_no - 1].strip()))
 
-    for i, line in enumerate(lines):
+    for i, line in enumerate(code):
         if allowed(lines, i):
             continue
 
-        # 2. a format string that builds SQL
+        # 2. an explicit conversion to the SQL type
+        #
+        # internal/storage.SQL makes a built statement a COMPILE error, so the
+        # only way past it is to say so out loud: storage.SQL(x). That cannot
+        # be removed from the language and should not be — sqlx.In legitimately
+        # hands back a string it expanded itself. But it is the one remaining
+        # door, so it is the one this tool now watches, and it needs a reason.
+        for m in re.finditer(r'\b(?:storage\.)?SQL\(([^)]*)\)', line):
+            arg = m.group(1).strip()
+            if arg.startswith('`') or arg.startswith('"'):
+                continue  # converting a literal changes nothing
+            out.append((path, i + 1,
+                        'explicit conversion to SQL: %s — the compiler cannot check this one' % arg,
+                        line.strip()))
+
+        # 3. a format string that builds SQL
         #
         # The format must OPEN with a SQL verb. Matching the keyword anywhere
         # flagged a human-readable fix message that happened to contain the

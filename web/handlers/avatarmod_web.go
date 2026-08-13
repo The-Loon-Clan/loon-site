@@ -1,13 +1,14 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"context"
 	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 )
 
 // The new-avatar review queue.
@@ -87,8 +88,8 @@ const avatarModRows = 60
 // an avatar does is being seen, so the one uploaded a minute ago is the urgent
 // one; the one from last week has already been seen by everybody it was going
 // to be seen by.
-func listPendingAvatars(ctx context.Context, db *sqlx.DB) []avatarReviewRow {
-	if db == nil {
+func listPendingAvatars(ctx context.Context, db storage.Conn) []avatarReviewRow {
+	if !db.Valid() {
 		return nil
 	}
 	var rows []avatarReviewRow
@@ -111,8 +112,8 @@ func listPendingAvatars(ctx context.Context, db *sqlx.DB) []avatarReviewRow {
 
 // listReviewedAvatars is the audit trail — avatars that have been looked at and
 // left in place.
-func listReviewedAvatars(ctx context.Context, db *sqlx.DB) []avatarReviewRow {
-	if db == nil {
+func listReviewedAvatars(ctx context.Context, db storage.Conn) []avatarReviewRow {
+	if !db.Valid() {
 		return nil
 	}
 	var rows []avatarReviewRow
@@ -132,8 +133,8 @@ func listReviewedAvatars(ctx context.Context, db *sqlx.DB) []avatarReviewRow {
 
 // countPendingAvatars feeds the badge. Best effort: a queue count that fails to
 // read must not take the page with it.
-func countPendingAvatars(ctx context.Context, db *sqlx.DB) int {
-	if db == nil {
+func countPendingAvatars(ctx context.Context, db storage.Conn) int {
+	if !db.Valid() {
 		return 0
 	}
 	var n int
@@ -145,7 +146,7 @@ func countPendingAvatars(ctx context.Context, db *sqlx.DB) int {
 }
 
 // markAvatarReviewed records that a moderator looked and left it alone.
-func markAvatarReviewed(ctx context.Context, db *sqlx.DB, userID int64) error {
+func markAvatarReviewed(ctx context.Context, db storage.Conn, userID int64) error {
 	_, err := db.ExecContext(ctx,
 		`UPDATE users SET avatar_reviewed_at = now() WHERE id = $1`, userID)
 	return err

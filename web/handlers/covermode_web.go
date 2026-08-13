@@ -1,13 +1,13 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"context"
 	"net/http"
 	"os"
 	"strings"
 	"sync/atomic"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // Where cover art comes from, as an operator setting.
@@ -110,7 +110,7 @@ var coverSettingsStore siteSettings
 // an operator who changed it in the admin page must not have that undone by an
 // environment variable left over in a compose file. Same precedence as every
 // other persisted setting here — the database is the answer, env is the seed.
-func loadCoverMode(ctx context.Context, db *sqlx.DB) error {
+func loadCoverMode(ctx context.Context, db storage.Conn) error {
 	coverSettingsStore = siteSettings{db: db}
 	if env := strings.TrimSpace(os.Getenv("COVER_MODE")); env != "" && validCoverMode(env) {
 		coverModeVal.Store(env)

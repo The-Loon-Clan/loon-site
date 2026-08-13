@@ -1,6 +1,10 @@
 package handlers
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/the-loon-clan/loon-site/internal/storage"
+)
 
 // The two halves of the achievements wiring have to agree, and neither says
 // anything when they do not.
@@ -15,7 +19,10 @@ import "testing"
 func TestSeededAchievementsNameRegisteredMetrics(t *testing.T) {
 	// nil DB: the map's KEYS are the contract under test, and building the
 	// closures never touches the handle.
-	metrics := achievementMetrics(nil)
+	// An empty Conn rather than nil: Conn is a value type now, and the point of
+	// the test is unchanged — the map's KEYS are the contract, and building the
+	// closures never touches the handle.
+	metrics := achievementMetrics(storage.Conn{})
 	if len(metrics) == 0 {
 		t.Fatal("no achievement metrics registered at all")
 	}

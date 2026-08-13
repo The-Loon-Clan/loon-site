@@ -1,11 +1,11 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"context"
 	"sync"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // Last seen — docs/MOCKS.md M1, which stood in for it with an em dash.
@@ -38,8 +38,8 @@ var lastSeen = struct {
 // touchLastSeen records that a user was active, at most once per interval.
 // Best-effort throughout: this must never fail a request that was otherwise
 // fine, so every error is dropped rather than surfaced.
-func touchLastSeen(ctx context.Context, db *sqlx.DB, userID int64) {
-	if db == nil || userID <= 0 {
+func touchLastSeen(ctx context.Context, db storage.Conn, userID int64) {
+	if !db.Valid() || userID <= 0 {
 		return
 	}
 	now := time.Now()
@@ -63,8 +63,8 @@ func touchLastSeen(ctx context.Context, db *sqlx.DB, userID int64) {
 // lastSeenAt reads the column for a profile. ok is false when it has never
 // been set — a brand-new account, or one that predates the column — so the
 // tile can say nothing rather than claim the epoch.
-func lastSeenAt(ctx context.Context, db *sqlx.DB, userID int64) (time.Time, bool) {
-	if db == nil || userID <= 0 {
+func lastSeenAt(ctx context.Context, db storage.Conn, userID int64) (time.Time, bool) {
+	if !db.Valid() || userID <= 0 {
 		return time.Time{}, false
 	}
 	var t *time.Time

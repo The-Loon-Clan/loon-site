@@ -66,12 +66,12 @@ func (st *Store) ListPosts(ctx context.Context, userID int64) []ActivityRow {
 // a reply landed in — and two near-identical structs is how the two templates
 // drift apart.
 type ActivityRow struct {
-	ThreadID int    `st.db:"thread_id"`
-	Title    string `st.db:"title"`
-	Category string `st.db:"category"`
-	Excerpt  string `st.db:"excerpt"`
-	Replies  int    `st.db:"replies"`
-	At       string `st.db:"at"`
+	ThreadID int    `db:"thread_id"`
+	Title    string `db:"title"`
+	Category string `db:"category"`
+	Excerpt  string `db:"excerpt"`
+	Replies  int    `db:"replies"`
+	At       string `db:"at"`
 }
 
 // ForumActivityRows caps either listing. A prolific member's post history is

@@ -71,12 +71,12 @@ func (st *Store) ListInviteCodes(ctx context.Context, userID int64) []InviteCode
 
 // InviteCodeRow is one code as its owner sees it.
 type InviteCodeRow struct {
-	Code    string `st.db:"code"`
-	Created string `st.db:"created"`
-	Expires string `st.db:"expires"`
-	UsedBy  string `st.db:"used_by_name"`
-	Spent   bool   `st.db:"spent"`
-	Expired bool   `st.db:"expired"`
+	Code    string `db:"code"`
+	Created string `db:"created"`
+	Expires string `db:"expires"`
+	UsedBy  string `db:"used_by_name"`
+	Spent   bool   `db:"spent"`
+	Expired bool   `db:"expired"`
 }
 
 // NormaliseInviteCode makes matching forgiving about how a code was typed.
@@ -137,17 +137,17 @@ func (st *Store) InviteTree(ctx context.Context, rootID int64) []InviteTreeRow {
 
 // InviteTreeRow is one member in the chain.
 type InviteTreeRow struct {
-	Depth    int    `st.db:"depth"`
-	Username string `st.db:"username"`
-	Role     int    `st.db:"role"`
-	Joined   string `st.db:"joined"`
+	Depth    int    `db:"depth"`
+	Username string `db:"username"`
+	Role     int    `db:"role"`
+	Joined   string `db:"joined"`
 	// Invited is how many people this member has gone on to invite. Shown
 	// because it is the number that makes a tree worth reading: one account
 	// that brought thirty is a different fact from thirty accounts that brought
 	// one each.
-	Invited int `st.db:"invited"`
+	Invited int `db:"invited"`
 	// Indent is Depth-1, so the template can range without arithmetic.
-	Indent int `st.db:"-"`
+	Indent int `db:"-"`
 }
 
 // InviteTreeTotals summarises a tree for the line above it.

@@ -17,7 +17,6 @@ import (
 	"log/slog"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/the-loon-clan/loon-baseline/account"
@@ -44,7 +43,7 @@ func wireAdminAndViews(
 	wsrv *web,
 	engine *gin.Engine,
 	data *storage.Store,
-	db *sqlx.DB,
+	db storage.Conn,
 	st baselineStores,
 	rt *core.Runtime,
 	inbox notify.InboxStore,

@@ -1,14 +1,14 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // The avatar file sweep — the single owner of deleting an avatar file.
@@ -48,8 +48,8 @@ const (
 // Returns how many it removed. Errors on individual files are logged and
 // skipped rather than aborting: one unreadable file must not stop the sweep
 // reaching the rest.
-func (w *web) sweepAvatars(ctx context.Context, db *sqlx.DB) (int, error) {
-	if db == nil {
+func (w *web) sweepAvatars(ctx context.Context, db storage.Conn) (int, error) {
+	if !db.Valid() {
 		return 0, nil
 	}
 	dir := filepath.Join(uploadRoot, "avatars")
@@ -80,7 +80,7 @@ func (w *web) sweepAvatars(ctx context.Context, db *sqlx.DB) (int, error) {
 	// Everything an unexpired undo record could still restore. Same rule: a
 	// failed read means "keep everything", never "delete everything".
 	var undoPaths []string
-	if w.db() != nil {
+	if w.db().Valid() {
 		if err := w.db().SelectContext(ctx, &undoPaths, `
 			SELECT payload->>'path' FROM undo_actions
 			 WHERE kind = $1 AND used_at IS NULL AND expires_at > now()
@@ -122,7 +122,7 @@ func (w *web) sweepAvatars(ctx context.Context, db *sqlx.DB) (int, error) {
 //
 // Runs once at startup as well, so a process that is restarted more often than
 // the interval still collects.
-func (w *web) startAvatarSweep(ctx context.Context, db *sqlx.DB, log *slog.Logger) {
+func (w *web) startAvatarSweep(ctx context.Context, db storage.Conn, log *slog.Logger) {
 	sweep := func() {
 		n, err := w.sweepAvatars(ctx, db)
 		if err != nil {

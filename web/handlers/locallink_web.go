@@ -11,6 +11,7 @@ import (
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/anilist"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/tvmaze"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/wikipedia"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 	"github.com/the-loon-clan/loon/catalog"
 )
 
@@ -47,7 +48,7 @@ const localLinkBatch = 5000
 type linkSpec struct {
 	// catWhere is a SQL predicate on n.category_id. A constant in this file,
 	// never user input, which is why it is interpolated.
-	catWhere string
+	catWhere storage.SQL
 	// kinds are the catalog kinds an entry may have. Anime accepts BOTH its
 	// own and "tv": AniList files a show under anime, TVmaze files the same
 	// show under tv, and either is a correct answer for the release.
@@ -159,7 +160,7 @@ func (w *web) linkFromCatalog(ctx context.Context) (int, error) {
 // side was created from that function's output, so a separate reduction would
 // drift, and the failure mode is a release wearing another title's poster.
 func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
-	if w.db() == nil || w.catalogCovers == nil {
+	if !w.db().Valid() || w.catalogCovers == nil {
 		return 0, nil
 	}
 	cursor, err := w.sweepCursor(ctx, spec.cursorKey)
@@ -251,7 +252,7 @@ func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 // BEFORE the network job gets its candidates, so the expensive pass is handed
 // the releases that genuinely need an API call.
 func (w *web) runLocalLinks(ctx context.Context, every time.Duration, log *slog.Logger) {
-	if w.db() == nil || w.catalogCovers == nil {
+	if !w.db().Valid() || w.catalogCovers == nil {
 		return
 	}
 	// A short first delay so a boot does not race the migrations, then settle

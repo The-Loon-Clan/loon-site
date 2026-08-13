@@ -10,7 +10,10 @@ import (
 // One function for both, because they differ by a WHERE clause and nothing
 // else; two would drift the moment either grew a column.
 func (st *Store) ListWishlist(ctx context.Context, viewerID int64, mineOnly bool) []WishRow {
-	where := `w.filled_at IS NULL`
+	// Typed SQL, not string: the concatenation below then type-checks as SQL,
+	// and a future edit that assigned a request value here would stop
+	// compiling rather than becoming an injection.
+	where := SQL(`w.filled_at IS NULL`)
 	if mineOnly {
 		where = `w.user_id = $1`
 	}
@@ -41,15 +44,15 @@ func (st *Store) ListWishlist(ctx context.Context, viewerID int64, mineOnly bool
 
 // WishRow is one entry.
 type WishRow struct {
-	ID      int64  `st.db:"id"`
-	Title   string `st.db:"title"`
-	Note    string `st.db:"note"`
-	Owner   string `st.db:"owner"`
-	Added   string `st.db:"added"`
-	Filled  string `st.db:"filled"`
-	IsMine  bool   `st.db:"is_mine"`
-	IsOpen  bool   `st.db:"is_open"`
-	Wanters int    `st.db:"wanters"`
+	ID      int64  `db:"id"`
+	Title   string `db:"title"`
+	Note    string `db:"note"`
+	Owner   string `db:"owner"`
+	Added   string `db:"added"`
+	Filled  string `db:"filled"`
+	IsMine  bool   `db:"is_mine"`
+	IsOpen  bool   `db:"is_open"`
+	Wanters int    `db:"wanters"`
 }
 
 // CountOpenWishes is the per-member cap check.

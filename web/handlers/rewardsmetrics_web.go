@@ -1,11 +1,11 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/storage"
+
 	"context"
 	"fmt"
 	"log/slog"
-
-	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon-plugins/rewards"
 	"github.com/the-loon-clan/loon/core"
@@ -45,7 +45,10 @@ type metricFunc func(ctx context.Context) (map[int64]int64, error)
 func (f metricFunc) Values(ctx context.Context) (map[int64]int64, error) { return f(ctx) }
 
 // countBy runs a "user_id, count" query into the map the plugin wants.
-func countBy(db *sqlx.DB, query string) metricFunc {
+// query is storage.SQL, not string: countBy takes a statement as a PARAMETER,
+// which is the shape that turns into an injection the moment somebody passes a
+// built one. Typed, only a constant can reach it.
+func countBy(db storage.Conn, query storage.SQL) metricFunc {
 	return func(ctx context.Context) (map[int64]int64, error) {
 		rows, err := db.QueryContext(ctx, query)
 		if err != nil {
@@ -77,7 +80,7 @@ func countBy(db *sqlx.DB, query string) metricFunc {
 // plugin's metric name. One map so the registration below and the seed's
 // definitions cannot disagree about which metrics exist — a definition naming
 // an unregistered metric is INERT: it never progresses, and nothing says so.
-func achievementMetrics(db *sqlx.DB) map[string]metricFunc {
+func achievementMetrics(db storage.Conn) map[string]metricFunc {
 	return map[string]metricFunc{
 		// Posts a member has written. Hidden posts still count: the member did
 		// write them, and un-counting on moderation would walk an achievement
@@ -96,7 +99,7 @@ func achievementMetrics(db *sqlx.DB) map[string]metricFunc {
 
 // registerAchievementMetrics publishes every counter above, plus the payout
 // handler that lets an earned achievement actually be claimed.
-func registerAchievementMetrics(c *core.Core, db *sqlx.DB) error {
+func registerAchievementMetrics(c *core.Core, db storage.Conn) error {
 	for key, src := range achievementMetrics(db) {
 		if err := c.Register(rewards.MetricSourcePrefix+key, src); err != nil {
 			return fmt.Errorf("register metric %q: %w", key, err)
@@ -155,7 +158,7 @@ var achievementSeeds = []achievementDef{
 // already earned by the seeded forum activity, the high ones sit in progress.
 // A page where everything is unlocked demonstrates as little as one where
 // nothing is.
-func achievementsSeed(db *sqlx.DB, log *slog.Logger) {
+func achievementsSeed(db storage.Conn, log *slog.Logger) {
 	var n int
 	if err := db.Get(&n, `SELECT COUNT(*) FROM rewards.achievements`); err != nil || n > 0 {
 		return

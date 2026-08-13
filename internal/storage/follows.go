@@ -14,8 +14,8 @@ func (st *Store) FollowCounts(ctx context.Context, userID int64) (followers, fol
 		return 0, 0, false
 	}
 	var row struct {
-		Followers int `st.db:"followers"`
-		Following int `st.db:"following"`
+		Followers int `db:"followers"`
+		Following int `db:"following"`
 	}
 	if err := st.db.GetContext(ctx, &row,
 		`SELECT (SELECT COUNT(*) FROM user_follow WHERE followee_id = $1) AS followers,
@@ -147,15 +147,15 @@ const FollowPageRows = 200
 // enumerated — here they are the three above, each passing a literal. Exported,
 // it would be an open door with a polite sign on it, and scripts/sqllint.py
 // flagged it as one.
-func (st *Store) followQuery(ctx context.Context, q string, userID int64) []FollowList {
+func (st *Store) followQuery(ctx context.Context, q SQL, userID int64) []FollowList {
 	if userID <= 0 {
 		return nil
 	}
 	var rows []struct {
-		Username string `st.db:"username"`
-		Role     int    `st.db:"role"`
-		Since    string `st.db:"since"`
-		Avatar   string `st.db:"avatar_path"`
+		Username string `db:"username"`
+		Role     int    `db:"role"`
+		Since    string `db:"since"`
+		Avatar   string `db:"avatar_path"`
 	}
 	// sqllint:allow q is one of the three literals above; followQuery is unexported so callers cannot supply their own
 	if err := st.db.SelectContext(ctx, &rows, q, userID, FollowPageRows); err != nil {

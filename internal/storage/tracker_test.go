@@ -76,7 +76,7 @@ func TestTrackerReadsAreInertWhenDisabled(t *testing.T) {
 	// each read. Those guards are gone — storage.New refuses a nil handle, so
 	// the state they defended against cannot reach a method any more — and the
 	// guard's absence is exactly what this needs to keep proving.
-	st := &Store{db: sqlx.NewDb(nil, "postgres")}
+	st := &Store{db: Wrap(sqlx.NewDb(nil, "postgres"))}
 
 	t.Setenv("LOON_TRACKER", "")
 	if config.TrackerEnabled() {
