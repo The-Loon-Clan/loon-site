@@ -858,7 +858,7 @@ func (w *web) profilePage(c *gin.Context) {
 	// Bookmarks are PUBLIC on a profile the way UNIT3D shows them — a count,
 	// not the list. Has* rather than a bare zero, so an unreachable table
 	// leaves the tile an em dash instead of claiming nobody saved anything.
-	if n, ok := bookmarkCount(ctx, subject.ID); ok {
+	if n, ok := storage.BookmarkCount(ctx, subject.ID); ok {
 		data["SubjectBookmarks"], data["HasSubjectBookmarks"] = n, true
 	}
 	// Achievements — MOCKS M2, retired. Public like the bookmark count: what
@@ -871,7 +871,7 @@ func (w *web) profilePage(c *gin.Context) {
 	// Followers/following (M3) and last seen (M1) — the last two placeholders
 	// on this page. Has* on each, so an unreachable table leaves an em dash
 	// rather than asserting a zero nobody measured.
-	if followers, following, ok := followCounts(ctx, subject.ID); ok {
+	if followers, following, ok := storage.FollowCounts(ctx, subject.ID); ok {
 		data["SubjectFollowers"], data["SubjectFollowing"] = followers, following
 		data["HasSubjectFollows"] = true
 	}
@@ -907,7 +907,7 @@ func (w *web) profilePage(c *gin.Context) {
 	// The follow button is for a signed-in viewer looking at SOMEONE ELSE.
 	if viewer != nil && viewer.ID != subject.ID {
 		data["CanFollow"] = true
-		data["Following"] = isFollowing(ctx, viewer.ID, subject.ID)
+		data["Following"] = storage.IsFollowing(ctx, viewer.ID, subject.ID)
 	}
 	// Invites are the viewer's own spendable balance, so they only show on
 	// your own profile — someone else's invite count is not your business.
@@ -1487,7 +1487,7 @@ func (w *web) registerPost(c *gin.Context) {
 		})
 		return
 	case RegInvite:
-		if !inviteCodeValid(c.Request.Context(), strings.TrimSpace(c.PostForm("invite"))) {
+		if !storage.InviteCodeValid(c.Request.Context(), strings.TrimSpace(c.PostForm("invite"))) {
 			c.Status(http.StatusForbidden)
 			w.render(c, "register.html", map[string]any{
 				"Title": "Register", "RegMode": RegInvite,
@@ -1516,7 +1516,7 @@ func (w *web) registerPost(c *gin.Context) {
 	// After Register on purpose. Redeeming first would burn the code when
 	// registration then fails on a taken username — the visitor loses an invite
 	// they were given and has nothing to show for it.
-	if registrationMode() == RegInvite && !redeemInviteCode(c.Request.Context(), invite, u.ID) {
+	if registrationMode() == RegInvite && !storage.RedeemInviteCode(c.Request.Context(), invite, u.ID) {
 		// The account exists and the code did not stick — a race with another
 		// registration on the same code. Say so rather than leaving them signed
 		// in via a gate that did not open.
@@ -1657,7 +1657,7 @@ const homePopularRows = 5
 // Returns nothing when no row has a grab, so a site nobody has downloaded from
 // shows no block at all instead of a ranking of zeroes.
 func popularRows(ctx context.Context, rows []searchRow, limit int) []searchRow {
-	ids, counts := popularGrabs(ctx, 7, limit*4)
+	ids, counts := storage.PopularGrabs(ctx, 7, limit*4)
 	if len(ids) == 0 {
 		return nil
 	}

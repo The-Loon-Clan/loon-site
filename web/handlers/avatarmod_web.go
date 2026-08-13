@@ -35,7 +35,7 @@ import (
 // avatar was approved uploads a NEW one, and it is pending again because the
 // timestamp moved, without anything having to remember to re-enqueue them.
 
-// modLog reports a failed moderation read. Package level, like subsLog: these
+// modLog reports a failed moderation read. Package level, like storage.SubsLog: these
 // two functions need a logger and nothing else off the web struct.
 var modLog = func(ctx context.Context, what string, err error) {
 	slog.Error("avatar moderation read", "list", what, "err", err)

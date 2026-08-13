@@ -60,7 +60,7 @@ func widgetRegionByKey(key string) (widgetRegion, bool) {
 // ── placements ──────────────────────────────────────────────────────────────
 
 // widgetsDB is the host's handle for the placement table. Package-level like
-// bookmarksDB and grabsDB: host-owned data with no plugin behind it.
+// storage.BookmarksDB and storage.GrabsDB: host-owned data with no plugin behind it.
 var widgetsDB *sqlx.DB
 
 // widgetsMigrate creates the placement table. Idempotent.

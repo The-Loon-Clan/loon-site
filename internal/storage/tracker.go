@@ -182,7 +182,7 @@ type TrackerSwarm struct {
 // SwarmCounts is ReadTrackerSwarm for a whole listing — one query for the page
 // rather than one per row.
 //
-// Modelled on grabCounts, including the parts that matter: ids are deduplicated
+// Modelled on GrabCounts, including the parts that matter: ids are deduplicated
 // before the IN clause (a listing can carry the same release twice), and any
 // problem returns nil so the caller leaves every row untouched rather than
 // asserting an empty swarm on all of them.

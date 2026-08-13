@@ -1,16 +1,14 @@
 package handlers
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/base32"
-	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/the-loon-clan/loon-demo-site/internal/storage"
 )
 
 // Site invite CODES — the thing invite-only registration actually needs.
@@ -29,8 +27,6 @@ import (
 // chain is the only accountability there is — if an account turns out to be a
 // problem, "who vouched for them" is the first question, and a schema that
 // cannot answer it makes invite-only a formality.
-
-var inviteCodesDB *sqlx.DB
 
 // inviteCodeTTL is how long an unused code lives. Long enough to send someone a
 // link and have them get round to it, short enough that a leaked code is not a
@@ -76,89 +72,6 @@ func newInviteCode() (string, error) {
 	return s[:4] + "-" + s[4:8] + "-" + s[8:12] + "-" + s[12:], nil
 }
 
-// normaliseInviteCode makes matching forgiving about how a code was typed.
-//
-// ui-patterns calls this Forgiving Format: the code is the same code whether it
-// arrived lowercased by a chat client, with the dashes stripped, or wrapped in
-// whitespace by a copy-paste. Rejecting those is rejecting the right person for
-// the wrong reason.
-func normaliseInviteCode(s string) string {
-	return strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(s), "-", ""))
-}
-
-// inviteCodeValid reports whether a code may be redeemed right now.
-//
-// A READ only. Redemption happens in redeemInviteCode, inside the same
-// transaction that consumes it, because checking and using in two steps is how
-// one code creates two accounts.
-func inviteCodeValid(ctx context.Context, code string) bool {
-	if inviteCodesDB == nil || code == "" {
-		return false
-	}
-	var n int
-	if err := inviteCodesDB.GetContext(ctx, &n, `
-		SELECT count(*) FROM invite_codes
-		 WHERE replace(upper(code), '-', '') = $1
-		   AND used_by IS NULL AND expires_at > now()`, normaliseInviteCode(code)); err != nil {
-		return false
-	}
-	return n > 0
-}
-
-// redeemInviteCode marks a code used by a new account, atomically.
-//
-// The UPDATE ... WHERE used_by IS NULL is the whole safety argument: two
-// registrations racing on one code both run this, and exactly one updates a
-// row. Checking first and updating second would let both through.
-func redeemInviteCode(ctx context.Context, code string, userID int64) bool {
-	if inviteCodesDB == nil || code == "" || userID <= 0 {
-		return false
-	}
-	res, err := inviteCodesDB.ExecContext(ctx, `
-		UPDATE invite_codes SET used_by = $1, used_at = now()
-		 WHERE replace(upper(code), '-', '') = $2
-		   AND used_by IS NULL AND expires_at > now()`, userID, normaliseInviteCode(code))
-	if err != nil {
-		return false
-	}
-	n, err := res.RowsAffected()
-	return err == nil && n == 1
-}
-
-// inviteCodeRow is one code as its owner sees it.
-type inviteCodeRow struct {
-	Code    string `db:"code"`
-	Created string `db:"created"`
-	Expires string `db:"expires"`
-	UsedBy  string `db:"used_by_name"`
-	Spent   bool   `db:"spent"`
-	Expired bool   `db:"expired"`
-}
-
-// listInviteCodes returns the codes a member has issued, newest first.
-func listInviteCodes(ctx context.Context, userID int64) []inviteCodeRow {
-	if inviteCodesDB == nil || userID <= 0 {
-		return nil
-	}
-	var rows []inviteCodeRow
-	if err := inviteCodesDB.SelectContext(ctx, &rows, `
-		SELECT i.code,
-		       to_char(i.created_at, 'DD Mon YYYY')      AS created,
-		       to_char(i.expires_at, 'DD Mon YYYY')      AS expires,
-		       COALESCE(u.username, '')                  AS used_by_name,
-		       (i.used_by IS NOT NULL)                   AS spent,
-		       (i.used_by IS NULL AND i.expires_at <= now()) AS expired
-		  FROM invite_codes i
-		  LEFT JOIN users u ON u.id = i.used_by
-		 WHERE i.created_by = $1
-		 ORDER BY i.created_at DESC
-		 LIMIT 50`, userID); err != nil {
-		slog.Error("invite codes read", "err", err)
-		return nil
-	}
-	return rows
-}
-
 // invitesPage serves GET /invites.
 func (w *web) invitesPage(c *gin.Context) {
 	u, ok := w.currentUser(c)
@@ -167,11 +80,11 @@ func (w *web) invitesPage(c *gin.Context) {
 		return
 	}
 	balance, _ := inviteBalance(c.Request.Context(), u.ID)
-	tree := inviteTree(c.Request.Context(), usersDB, u.ID)
+	tree := storage.InviteTree(c.Request.Context(), usersDB, u.ID)
 	w.render(c, "invites.html", map[string]any{
 		"Title":   "Invites",
 		"Balance": balance,
-		"Codes":   listInviteCodes(c.Request.Context(), u.ID),
+		"Codes":   storage.ListInviteCodes(c.Request.Context(), u.ID),
 		// Said plainly, because a member holding invites on an OPEN site is
 		// reasonably confused about what they are for.
 		"RegMode": registrationMode(),
@@ -200,7 +113,7 @@ func (w *web) invitesCreate(c *gin.Context) {
 	// Spend the balance and mint the code in ONE transaction. Decrementing
 	// outside it loses an invite when the insert fails; inserting outside it
 	// mints a code the member never paid for.
-	tx, err := inviteCodesDB.BeginTxx(ctx, nil)
+	tx, err := storage.InviteCodesDB.BeginTxx(ctx, nil)
 	if err != nil {
 		c.Redirect(http.StatusFound, "/invites?err=could+not+create+a+code")
 		return

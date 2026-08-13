@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/the-loon-clan/loon-demo-site/internal/storage"
 )
 
 // The wishlist — what members want indexed that is not here yet.
@@ -47,8 +47,6 @@ const (
 	wishPerUser = 25
 )
 
-var wishlistDB *sqlx.DB
-
 // wishlistMigrate creates the table.
 func wishlistMigrate(db *sqlx.DB) error {
 	stmts := []string{
@@ -73,63 +71,13 @@ func wishlistMigrate(db *sqlx.DB) error {
 	return nil
 }
 
-// wishRow is one entry.
-type wishRow struct {
-	ID      int64  `db:"id"`
-	Title   string `db:"title"`
-	Note    string `db:"note"`
-	Owner   string `db:"owner"`
-	Added   string `db:"added"`
-	Filled  string `db:"filled"`
-	IsMine  bool   `db:"is_mine"`
-	IsOpen  bool   `db:"is_open"`
-	Wanters int    `db:"wanters"`
-}
-
-// listWishlist returns either one member's entries or the whole site's.
-//
-// One function for both, because they differ by a WHERE clause and nothing
-// else; two would drift the moment either grew a column.
-func listWishlist(ctx context.Context, viewerID int64, mineOnly bool) []wishRow {
-	if wishlistDB == nil {
-		return nil
-	}
-	where := `w.filled_at IS NULL`
-	if mineOnly {
-		where = `w.user_id = $1`
-	}
-	var rows []wishRow
-	if err := wishlistDB.SelectContext(ctx, &rows, `
-		SELECT w.id, w.title, w.note,
-		       u.username                                      AS owner,
-		       to_char(w.created_at, 'DD Mon YYYY')             AS added,
-		       COALESCE(to_char(w.filled_at, 'DD Mon YYYY'), '') AS filled,
-		       (w.user_id = $1)                                 AS is_mine,
-		       (w.filled_at IS NULL)                            AS is_open,
-		       -- How many OTHER people asked for the same thing, matched on the
-		       -- title as typed. Crude on purpose: a fuzzy match would group
-		       -- entries that are not the same request, and the number is here
-		       -- to show demand, not to be authoritative.
-		       (SELECT count(*) FROM wishlist_items w2
-		         WHERE lower(w2.title) = lower(w.title) AND w2.filled_at IS NULL) AS wanters
-		  FROM wishlist_items w
-		  JOIN users u ON u.id = w.user_id
-		 WHERE `+where+`
-		 ORDER BY w.created_at DESC
-		 LIMIT 200`, viewerID); err != nil {
-		slog.Error("wishlist read", "mine", mineOnly, "err", err)
-		return nil
-	}
-	return rows
-}
-
 // countOpenWishes is the per-member cap check.
 func countOpenWishes(ctx context.Context, userID int64) int {
 	var n int
-	if wishlistDB == nil {
+	if storage.WishlistDB == nil {
 		return 0
 	}
-	_ = wishlistDB.GetContext(ctx, &n,
+	_ = storage.WishlistDB.GetContext(ctx, &n,
 		`SELECT count(*) FROM wishlist_items WHERE user_id = $1 AND filled_at IS NULL`, userID)
 	return n
 }
@@ -145,7 +93,7 @@ func (w *web) wishlistPage(c *gin.Context) {
 	mine := c.Query("all") != "1"
 	w.render(c, "wishlist.html", map[string]any{
 		"Title":    "Wishlist",
-		"Items":    listWishlist(ctx, u.ID, mine),
+		"Items":    storage.ListWishlist(ctx, u.ID, mine),
 		"Mine":     mine,
 		"Open":     countOpenWishes(ctx, u.ID),
 		"Cap":      wishPerUser,
@@ -180,7 +128,7 @@ func (w *web) wishlistAdd(c *gin.Context) {
 			url.QueryEscape("that is your "+strconv.Itoa(wishPerUser)+" open entries; fill or remove one first"))
 		return
 	}
-	if _, err := wishlistDB.ExecContext(ctx,
+	if _, err := storage.WishlistDB.ExecContext(ctx,
 		`INSERT INTO wishlist_items (user_id, title, note) VALUES ($1,$2,$3)`,
 		u.ID, title, note); err != nil {
 		w.log.Error("wishlist add", "user", u.ID, "err", err)
@@ -219,7 +167,7 @@ func (w *web) wishlistUpdate(c *gin.Context) {
 	default:
 		q = `UPDATE wishlist_items SET filled_at = now() WHERE id = $1 AND user_id = $2`
 	}
-	if _, err := wishlistDB.ExecContext(ctx, q, id, u.ID); err != nil {
+	if _, err := storage.WishlistDB.ExecContext(ctx, q, id, u.ID); err != nil {
 		w.log.Error("wishlist update", "item", id, "user", u.ID, "err", err)
 	}
 	back := "/wishlist"
@@ -232,9 +180,9 @@ func (w *web) wishlistUpdate(c *gin.Context) {
 // wishlistCount is the number of open entries site-wide, for the stats page.
 func wishlistCount(ctx context.Context) int {
 	var n int
-	if wishlistDB == nil {
+	if storage.WishlistDB == nil {
 		return 0
 	}
-	_ = wishlistDB.GetContext(ctx, &n, `SELECT count(*) FROM wishlist_items WHERE filled_at IS NULL`)
+	_ = storage.WishlistDB.GetContext(ctx, &n, `SELECT count(*) FROM wishlist_items WHERE filled_at IS NULL`)
 	return n
 }

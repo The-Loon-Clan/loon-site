@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 
+	"github.com/the-loon-clan/loon-demo-site/internal/storage"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 )
 
@@ -50,39 +51,13 @@ func bookmarksMigrate(db *sqlx.DB) error {
 	return nil
 }
 
-// bookmarksDB is the handle. Package-level for the same reason grabsDB is:
-// host-owned data with no plugin behind it.
-var bookmarksDB *sqlx.DB
-
-// toggleBookmark adds or removes one bookmark and reports the state AFTER the
-// change, so the caller can render the button without a second read.
-func toggleBookmark(ctx context.Context, userID, releaseID int64) (saved bool, err error) {
-	if bookmarksDB == nil || userID <= 0 || releaseID <= 0 {
-		return false, nil
-	}
-	// One statement per direction, both keyed on the unique pair: DELETE
-	// reports whether it removed anything, which is the toggle's answer.
-	res, err := bookmarksDB.ExecContext(ctx,
-		`DELETE FROM release_bookmark WHERE user_id = $1 AND release_id = $2`, userID, releaseID)
-	if err != nil {
-		return false, err
-	}
-	if n, _ := res.RowsAffected(); n > 0 {
-		return false, nil // it was bookmarked; now it is not
-	}
-	_, err = bookmarksDB.ExecContext(ctx,
-		`INSERT INTO release_bookmark (user_id, release_id) VALUES ($1, $2)
-		 ON CONFLICT (user_id, release_id) DO NOTHING`, userID, releaseID)
-	return err == nil, err
-}
-
 // isBookmarked answers the release page's single question.
 func isBookmarked(ctx context.Context, userID, releaseID int64) bool {
-	if bookmarksDB == nil || userID <= 0 || releaseID <= 0 {
+	if storage.BookmarksDB == nil || userID <= 0 || releaseID <= 0 {
 		return false
 	}
 	var n int
-	if err := bookmarksDB.GetContext(ctx, &n,
+	if err := storage.BookmarksDB.GetContext(ctx, &n,
 		`SELECT COUNT(*) FROM release_bookmark WHERE user_id = $1 AND release_id = $2`,
 		userID, releaseID); err != nil {
 		return false
@@ -90,28 +65,13 @@ func isBookmarked(ctx context.Context, userID, releaseID int64) bool {
 	return n > 0
 }
 
-// bookmarkCount is the profile figure that used to be a mock. Returns ok=false
-// when the table is unreachable, so the tile can stay an em dash rather than
-// claim a confident zero — the same rule the staff dashboard follows.
-func bookmarkCount(ctx context.Context, userID int64) (int, bool) {
-	if bookmarksDB == nil || userID <= 0 {
-		return 0, false
-	}
-	var n int
-	if err := bookmarksDB.GetContext(ctx, &n,
-		`SELECT COUNT(*) FROM release_bookmark WHERE user_id = $1`, userID); err != nil {
-		return 0, false
-	}
-	return n, true
-}
-
 // bookmarkedIDs lists one user's saved release ids, newest first.
 func bookmarkedIDs(ctx context.Context, userID int64, limit int) []int64 {
-	if bookmarksDB == nil || userID <= 0 {
+	if storage.BookmarksDB == nil || userID <= 0 {
 		return nil
 	}
 	var ids []int64
-	if err := bookmarksDB.SelectContext(ctx, &ids,
+	if err := storage.BookmarksDB.SelectContext(ctx, &ids,
 		`SELECT release_id FROM release_bookmark
 		  WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2`, userID, limit); err != nil {
 		return nil
@@ -162,7 +122,7 @@ func (w *web) bookmarkToggle(c *gin.Context) {
 		c.String(http.StatusBadRequest, "invalid release id")
 		return
 	}
-	if _, err := toggleBookmark(c.Request.Context(), u.ID, id); err != nil {
+	if _, err := storage.ToggleBookmark(c.Request.Context(), u.ID, id); err != nil {
 		w.log.Error("toggle bookmark", "release", id, "err", err)
 	}
 	// Back to whichever listing the button was pressed on, falling back to the

@@ -245,13 +245,13 @@ func (w *web) nzbDownload(c *gin.Context) {
 	}
 	// Count the grab BEFORE writing the body, while the request context is
 	// still live — after c.Data the client may already be gone. Best-effort:
-	// recordGrab swallows its own errors, because a download that worked must
+	// storage.RecordGrab swallows its own errors, because a download that worked must
 	// not fail on a counter that did not.
 	var uid int64
 	if u, ok := w.currentUser(c); ok && u != nil {
 		uid = u.ID
 	}
-	recordGrab(c.Request.Context(), id, uid)
+	storage.RecordGrab(c.Request.Context(), id, uid)
 
 	c.Header("Content-Disposition", `attachment; filename="`+sanitizeFilename(filename)+`"`)
 	c.Data(http.StatusOK, "application/x-nzb", data)
@@ -304,7 +304,7 @@ func attachGrabs(ctx context.Context, rows []searchRow) []searchRow {
 	for _, r := range rows {
 		ids = append(ids, r.ID)
 	}
-	counts := grabCounts(ctx, ids)
+	counts := storage.GrabCounts(ctx, ids)
 	if counts == nil {
 		return rows
 	}

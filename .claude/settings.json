@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Process -Name \"Docker Desktop\",\"com.docker.backend\" -ErrorAction SilentlyContinue)"
+    ]
+  }
+}

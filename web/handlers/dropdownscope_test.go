@@ -1,12 +1,13 @@
 package handlers
 
 import (
-	site "github.com/the-loon-clan/loon-demo-site"
 	"io/fs"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
+
+	site "github.com/the-loon-clan/loon-demo-site"
 )
 
 // The account dropdown is the viewer's own things plus ONE staff door — see

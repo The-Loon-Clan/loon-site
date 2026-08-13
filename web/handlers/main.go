@@ -10,6 +10,7 @@ package handlers
 
 import (
 	"github.com/the-loon-clan/loon-demo-site/internal/config"
+	"github.com/the-loon-clan/loon-demo-site/internal/storage"
 
 	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
 
@@ -134,7 +135,7 @@ func Main() {
 	userStore := users.NewPGStore(db.DB)
 	// Host-owned reads for /staff and /stats — see usersDB in pages_web.go.
 	usersDB = db
-	subscriptionsDB = db // /subscriptions reads communities + bookmarks
+	storage.SubscriptionsDB = db // /subscriptions reads communities + bookmarks
 	if err := userStore.Migrate(context.Background()); err != nil {
 		logger.Error("users migrate", "err", err)
 		os.Exit(1)
@@ -231,7 +232,7 @@ func Main() {
 		logger.Error("invite codes migrate", "err", err)
 		os.Exit(1)
 	}
-	inviteCodesDB = db
+	storage.InviteCodesDB = db
 	if err := loadAccessSettings(context.Background(), db); err != nil {
 		logger.Error("load access settings", "err", err)
 	}
@@ -398,14 +399,14 @@ func Main() {
 		logger.Error("grabs migrate", "err", err)
 		os.Exit(1)
 	}
-	grabsDB = db
+	storage.GrabsDB = db
 
 	// Bookmarks (bookmarks_web.go) — saved releases, retiring MOCKS M4.
 	if err := bookmarksMigrate(db); err != nil {
 		logger.Error("bookmarks migrate", "err", err)
 		os.Exit(1)
 	}
-	bookmarksDB = db
+	storage.BookmarksDB = db
 
 	// Widget placements (widgets_web.go) — WHERE an operator has put each
 	// registered widget. The widgets themselves come from plugins at boot and
@@ -426,10 +427,10 @@ func Main() {
 		logger.Error("follows migrate", "err", err)
 		os.Exit(1)
 	}
-	followsDB = db
+	storage.FollowsDB = db
 	// Topics/Posts read forum_threads and forum_posts, which live in
 	// `public` and are the host's — no migration of its own to run.
-	forumActivityDB = db
+	storage.ForumActivityDB = db
 
 	points := pgPoints{db: db}
 	pointsSvc := core.NewPoints(points.adapter())
@@ -872,12 +873,12 @@ func Main() {
 		logger.Error("security migrate", "err", err)
 		os.Exit(1)
 	}
-	wishlistDB = db
+	storage.WishlistDB = db
 	if err := wishlistMigrate(db); err != nil {
 		logger.Error("wishlist migrate", "err", err)
 		os.Exit(1)
 	}
-	giftsDB = db
+	storage.GiftsDB = db
 	if err := giftsMigrate(db); err != nil {
 		logger.Error("gifts migrate", "err", err)
 		os.Exit(1)

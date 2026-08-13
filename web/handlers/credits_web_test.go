@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"context"
-	site "github.com/the-loon-clan/loon-demo-site"
 	"io/fs"
+
+	site "github.com/the-loon-clan/loon-demo-site"
 
 	"strings"
 	"testing"
