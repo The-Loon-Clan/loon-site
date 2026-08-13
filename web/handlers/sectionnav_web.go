@@ -38,7 +38,11 @@ package handlers
 // pages had no other route in. They live in the avatar dropdown now, which is
 // where a reader looks for their own things, and this is the list.
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/the-loon-clan/loon-demo-site/internal/config"
+)
 
 // sectionTab is one entry. Active is resolved against the request path here
 // rather than in the template, so the matching rule lives in one place.
@@ -111,7 +115,7 @@ var accountMenu = []sectionTab{
 // carries the viewer's own things. All three are that — your seeding debts,
 // your tokens, your locks — and none is a queue, a tool or a staff list.
 func trackerAccountGroup() (sectionTab, bool) {
-	if !trackerEnabled() {
+	if !config.TrackerEnabled() {
 		// No tracker, no tracker pages. The plugins may still be compiled in,
 		// but a member has nothing to seed and nothing to owe.
 		return sectionTab{}, false
@@ -126,7 +130,7 @@ func trackerAccountGroup() (sectionTab, bool) {
 	// The lock page only exists when the rule is armed — the plugin mounts it
 	// inside that branch — so listing it otherwise would be the dead link this
 	// function exists to avoid.
-	if seedLockEnabled() {
+	if config.SeedLockEnabled() {
 		items = append(items, sectionTab{Label: "Seeding locks", Href: "/seedlock"})
 	}
 	return sectionTab{Label: "Tracker", Items: items}, true

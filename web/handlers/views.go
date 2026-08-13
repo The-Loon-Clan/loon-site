@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/storage"
+
 	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
 
 	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
@@ -893,7 +895,7 @@ func (w *web) profilePage(c *gin.Context) {
 	//
 	// Reached only after the private gate, so a member who has hidden their
 	// profile hides this with it.
-	if tt, ok := readTrackerTotals(ctx, usersDB, subject.ID); ok {
+	if tt, ok := storage.ReadTrackerTotals(ctx, usersDB, subject.ID); ok {
 		data["HasSubjectTracker"] = true
 		data["SubjectTrackerUp"] = humanBytes(tt.Uploaded)
 		data["SubjectTrackerDown"] = humanBytes(tt.Downloaded)
@@ -986,7 +988,7 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 		// controls where it goes, or whether it appears at all.
 		//
 		// A member's standing is still on /stats and on their profile, and
-		// readTrackerTotals is still what those read.
+		// storage.ReadTrackerTotals is still what those read.
 		// unverified-email banner: look up the full record (core.User omits the flag)
 		if w.store != nil {
 			if full, err := w.store.ByID(c.Request.Context(), u.ID); err == nil && full != nil {

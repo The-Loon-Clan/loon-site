@@ -1,6 +1,8 @@
-package handlers
+package storage
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/config"
+
 	"testing"
 
 	"github.com/the-loon-clan/loon-plugins/tracker"
@@ -25,7 +27,7 @@ func TestTrackerRatioMatchesPlugin(t *testing.T) {
 		{7, 3},              // small numbers, no rounding luck
 		{1 << 40, 1 << 40},  // exactly 1.00
 	} {
-		host := trackerTotals{Uploaded: c.up, Downloaded: c.down}.Ratio()
+		host := TrackerTotals{Uploaded: c.up, Downloaded: c.down}.Ratio()
 		plugin := tracker.Totals{Uploaded: c.up, Downloaded: c.down}.Ratio()
 		if host != plugin {
 			t.Errorf("up=%d down=%d: host ratio %v, plugin ratio %v", c.up, c.down, host, plugin)
@@ -48,7 +50,7 @@ func TestTrackerRatioLabel(t *testing.T) {
 		{0, 5 << 30, "0.00"},
 		{1 << 30, 3 << 30, "0.33"},
 	} {
-		if got := (trackerTotals{Uploaded: c.up, Downloaded: c.down}).RatioLabel(); got != c.want {
+		if got := (TrackerTotals{Uploaded: c.up, Downloaded: c.down}).RatioLabel(); got != c.want {
 			t.Errorf("up=%d down=%d: label %q, want %q", c.up, c.down, got, c.want)
 		}
 	}
@@ -64,25 +66,25 @@ func TestTrackerRatioLabel(t *testing.T) {
 // the wrong reason.
 func TestTrackerReadsAreInertWhenDisabled(t *testing.T) {
 	t.Setenv("LOON_DEMO_TRACKER", "")
-	if trackerEnabled() {
+	if config.TrackerEnabled() {
 		t.Fatal("tracker reads as enabled with the flag cleared")
 	}
-	if _, ok := readTrackerTotals(t.Context(), nil, 1); ok {
-		t.Error("readTrackerTotals reported data with the tracker off")
+	if _, ok := ReadTrackerTotals(t.Context(), nil, 1); ok {
+		t.Error("ReadTrackerTotals reported data with the tracker off")
 	}
-	if _, ok := readTrackerSwarm(t.Context(), nil, 1); ok {
-		t.Error("readTrackerSwarm reported data with the tracker off")
+	if _, ok := ReadTrackerSwarm(t.Context(), nil, 1); ok {
+		t.Error("ReadTrackerSwarm reported data with the tracker off")
 	}
 	// And with it ON but no pool — the state during boot, and after a database
 	// blip. Still no data, still no panic.
 	t.Setenv("LOON_DEMO_TRACKER", "1")
-	if !trackerEnabled() {
+	if !config.TrackerEnabled() {
 		t.Fatal("tracker reads as disabled with the flag set")
 	}
-	if _, ok := readTrackerTotals(t.Context(), nil, 1); ok {
-		t.Error("readTrackerTotals reported data with no pool")
+	if _, ok := ReadTrackerTotals(t.Context(), nil, 1); ok {
+		t.Error("ReadTrackerTotals reported data with no pool")
 	}
-	if _, ok := readTrackerSwarm(t.Context(), nil, 1); ok {
-		t.Error("readTrackerSwarm reported data with no pool")
+	if _, ok := ReadTrackerSwarm(t.Context(), nil, 1); ok {
+		t.Error("ReadTrackerSwarm reported data with no pool")
 	}
 }

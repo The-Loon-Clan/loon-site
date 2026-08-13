@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/config"
+
 	"os"
 	"testing"
 )
@@ -74,14 +76,14 @@ func hrefs(g sectionTab) []string {
 func TestTrackerFlagsAreReadable(t *testing.T) {
 	for _, v := range []string{"1", "true", "yes"} {
 		t.Setenv("LOON_DEMO_SEEDLOCK", v)
-		if !seedLockEnabled() {
-			t.Errorf("seedLockEnabled() = false for %q", v)
+		if !config.SeedLockEnabled() {
+			t.Errorf("config.SeedLockEnabled() = false for %q", v)
 		}
 	}
 	for _, v := range []string{"", "0", "no", "off"} {
 		t.Setenv("LOON_DEMO_SEEDLOCK", v)
-		if seedLockEnabled() {
-			t.Errorf("seedLockEnabled() = true for %q", v)
+		if config.SeedLockEnabled() {
+			t.Errorf("config.SeedLockEnabled() = true for %q", v)
 		}
 	}
 	_ = os.Getenv

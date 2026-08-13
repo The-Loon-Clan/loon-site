@@ -24,30 +24,6 @@ import (
 // endpoints, mints passkeys, and starts keeping ratio accounting the moment it
 // is reachable. Everything else in this demo is inert until somebody visits it.
 
-// trackerEnabled reports whether the operator asked for the tracker.
-//
-// An env flag rather than a constant because the demo is also what people run
-// locally to read the code, and a private tracker answering announces is not
-// something to switch on by merely checking the repository out.
-func trackerEnabled() bool {
-	v := os.Getenv("LOON_DEMO_TRACKER")
-	return v == "1" || v == "true" || v == "yes"
-}
-
-// cheatCheckEnabled reports whether the operator asked for cheat detection.
-//
-// Its own flag rather than riding on LOON_DEMO_TRACKER, because the two are
-// different decisions: running a tracker is a feature, and judging members'
-// accounting is a policy. A site can reasonably want the first without the
-// second, and the flag that turns on accusations should have to be typed.
-//
-// The SAMPLING runs regardless — see the sweep. Only the judging is gated, so
-// switching this on starts working at the next sweep rather than the one after.
-func cheatCheckEnabled() bool {
-	v := os.Getenv("LOON_DEMO_CHEATCHECK")
-	return v == "1" || v == "true" || v == "yes"
-}
-
 // trackerSiteURL is the absolute base baked into every downloaded .torrent.
 //
 // There is no sensible default and a wrong value does not fail loudly — it

@@ -9,6 +9,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/config"
+
 	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
 
 	"context"
@@ -529,7 +531,7 @@ func Main() {
 			// ratio accounting the moment it is reachable. Everything else here
 			// is inert until a member visits it.
 			"tracker": map[string]any{
-				"enabled":  trackerEnabled(),
+				"enabled":  config.TrackerEnabled(),
 				"site_url": trackerSiteURL(),
 				// Cheat detection (tracker/cheat.go). OFF unless asked for, and
 				// on its own flag: running a tracker is a feature, judging
@@ -538,7 +540,7 @@ func Main() {
 				// plugin's defaults, which are deliberately generous — the
 				// output is read by a person, and a list full of maybes is a
 				// list nobody reads.
-				"cheat": map[string]any{"enabled": cheatCheckEnabled()},
+				"cheat": map[string]any{"enabled": config.CheatCheckEnabled()},
 			},
 			// Tracker economy: how long a spent token lasts. Seven days by
 			// default, matching the hit-and-run seedtime requirement, so a
@@ -555,7 +557,7 @@ func Main() {
 			// — a claim has to be shared across the web and api processes,
 			// which both serve announce.
 			"seedlock": map[string]any{
-				"enabled":      seedLockEnabled(),
+				"enabled":      config.SeedLockEnabled(),
 				"lock_minutes": 30,
 				"identify_by":  "ip",
 			},

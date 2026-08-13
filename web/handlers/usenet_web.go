@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/storage"
+
 	"context"
 	"fmt"
 	"net/http"
@@ -165,7 +167,7 @@ func (w *web) releasePage(c *gin.Context) {
 	// Absent for a release that has none — which is nearly all of them — so the
 	// page shows a swarm or says nothing, never "0 seeders", which reads as a
 	// dead torrent rather than no torrent.
-	if sw, okSwarm := readTrackerSwarm(c.Request.Context(), usersDB, id); okSwarm {
+	if sw, okSwarm := storage.ReadTrackerSwarm(c.Request.Context(), usersDB, id); okSwarm {
 		data["Swarm"] = sw
 	}
 	// Tell widgets WHAT this page is about before rendering their region, so a
@@ -326,7 +328,7 @@ func attachSwarm(ctx context.Context, rows []searchRow) []searchRow {
 	for _, r := range rows {
 		ids = append(ids, r.ID)
 	}
-	swarms := swarmCounts(ctx, usersDB, ids)
+	swarms := storage.SwarmCounts(ctx, usersDB, ids)
 	if swarms == nil {
 		return rows
 	}

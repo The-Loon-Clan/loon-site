@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/config"
+
 	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
 
 	"context"
@@ -8,7 +10,6 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -155,20 +156,10 @@ var hitRunSettings = hitrun.DefaultPolicy()
 // hitRunPolicy is the live rule set.
 func hitRunPolicy() hitrun.Policy { return hitRunSettings }
 
-// hitRunEnabled reports whether the operator asked for the rules.
-//
-// An env flag for the same reason the tracker has one: a system that disables
-// a member's downloads is not something a host should acquire by checking the
-// repository out.
-func hitRunEnabled() bool {
-	v := os.Getenv("LOON_DEMO_HITRUN")
-	return v == "1" || v == "true" || v == "yes"
-}
-
 // hitRunConfig is the plugins.hitrun.* section, built from the same struct the
 // middleware reads.
 func hitRunConfig() map[string]any {
-	hitRunSettings.Enabled = hitRunEnabled()
+	hitRunSettings.Enabled = config.HitRunEnabled()
 	return map[string]any{
 		"enabled":          hitRunSettings.Enabled,
 		"seedtime_seconds": hitRunSettings.Seedtime,
@@ -218,17 +209,6 @@ func wirePerksPlugin(w *web) {
 		},
 		CSRFToken: middleware.Token,
 	})
-}
-
-// seedLockEnabled reports whether the operator asked for the one-host rule.
-//
-// Its own flag rather than riding on the tracker's: a site may well want a
-// tracker without telling members which machine they may seed from, and the
-// failure mode here — somebody locked out of their own torrent — deserves to be
-// switched on deliberately.
-func seedLockEnabled() bool {
-	v := os.Getenv("LOON_DEMO_SEEDLOCK")
-	return v == "1" || v == "true" || v == "yes"
 }
 
 // wireSeedLockPlugin installs the claims page's seams.

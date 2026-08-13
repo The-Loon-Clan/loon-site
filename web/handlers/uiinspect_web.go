@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/config"
+
 	site "github.com/the-loon-clan/loon-demo-site"
 
 	"encoding/json"
@@ -32,19 +34,13 @@ import (
 // script here is not chrome — it is a tool that renders nothing on the site
 // itself and is absent from every build that does not ask for it.
 
-// uiInspectEnabled reports whether the operator asked for the inspector.
-func uiInspectEnabled() bool {
-	v := os.Getenv("LOON_DEMO_UI_INSPECT")
-	return v == "1" || v == "true" || v == "yes"
-}
-
 // refsDir is where reference screenshots live. Outside the embedded FS on
 // purpose: they are pasted in during a session, not shipped with the binary.
 const refsDir = "refs"
 
 // mountUIInspect wires the tool when it is switched on.
 func (w *web) mountUIInspect(e *gin.Engine) {
-	if !uiInspectEnabled() {
+	if !config.UIInspectEnabled() {
 		return
 	}
 	e.GET("/dev/compare", w.uiCompare)
