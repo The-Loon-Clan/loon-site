@@ -25,9 +25,19 @@ check: fmt build lint sql test cover
 build:
 	$(GO) build ./...
 
-## test: the full suite
+## test: the full suite. Storage integration tests SKIP unless LOON_TEST_DSN
+## is set — see `make itest` for a throwaway database to point it at.
 test:
 	$(GO) test ./...
+
+## itest: the storage tests against a disposable Postgres on port 5599.
+## Never the development database: these truncate the tables they touch.
+itest:
+	@docker rm -fv loon-itestdb >/dev/null 2>&1 || true
+	@docker run -d --name loon-itestdb -e POSTGRES_USER=demo -e POSTGRES_PASSWORD=demo -e POSTGRES_DB=loon_test -p 5599:5432 postgres:16-alpine >/dev/null
+	@sleep 10
+	@LOON_TEST_DSN="postgres://demo:demo@localhost:5599/loon_test?sslmode=disable" $(GO) test -count=1 ./internal/storage/ -v -run "Scans|Ownership|Recovery" || true
+	@docker rm -fv loon-itestdb >/dev/null 2>&1
 
 ## cover: test with coverage, print the per-package table, enforce the floor
 cover:

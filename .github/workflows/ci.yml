@@ -23,6 +23,26 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+
+    # A Postgres for the storage tests. Without one they SKIP, which is right
+    # for a laptop and wrong for CI: the bug they exist for — struct tags that
+    # stopped matching their columns — is invisible until a statement actually
+    # runs.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: demo
+          POSTGRES_PASSWORD: demo
+          POSTGRES_DB: loon_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+
+    env:
+      LOON_TEST_DSN: postgres://demo:demo@localhost:5432/loon_test?sslmode=disable
+
     steps:
       - uses: actions/checkout@v4
 
