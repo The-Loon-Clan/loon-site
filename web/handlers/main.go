@@ -48,10 +48,8 @@ import (
 	"github.com/the-loon-clan/loon-baseline/captcha"
 	"github.com/the-loon-clan/loon-baseline/events"
 	"github.com/the-loon-clan/loon-baseline/heartbeat"
-	"github.com/the-loon-clan/loon-baseline/jobsettings"
 	"github.com/the-loon-clan/loon-baseline/jobtrigger"
 	"github.com/the-loon-clan/loon-baseline/loginlog"
-	"github.com/the-loon-clan/loon-baseline/maintenance"
 	"github.com/the-loon-clan/loon-baseline/notify"
 	"github.com/the-loon-clan/loon-baseline/password"
 	"github.com/the-loon-clan/loon-baseline/profile"
@@ -128,129 +126,11 @@ func Main() {
 	// password (bcrypt-verified) equals their username, and signs an HMAC
 	// session cookie on login. The web struct (views.go) owns the templates,
 	// static assets, session cookie, and the public/login pages.
-	sessionSecret := []byte(getenvDefault("LOON_SESSION_SECRET", "dev-insecure-demo-secret-change-me"))
-	// User store: loon-baseline's Postgres reference impl (a real host implements
-	// users.Store over its own table). Migrate the reference table + seed the two
-	// demo accounts (password == username).
-	userStore := users.NewPGStore(db.DB)
-	// Host-owned reads for /staff and /stats — see usersDB in pages_web.go.
-	usersDB = db
-	storage.SubscriptionsDB = db // /subscriptions reads communities + bookmarks
-	if err := userStore.Migrate(context.Background()); err != nil {
-		logger.Error("users migrate", "err", err)
-		os.Exit(1)
-	}
-	// Login-attempt audit (loon-baseline): the host records each attempt at its
-	// login handler; the store + views live in the baseline.
-	loginLog := loginlog.NewPGStore(db.DB)
-	if err := loginLog.Migrate(context.Background()); err != nil {
-		logger.Error("loginlog migrate", "err", err)
-		os.Exit(1)
-	}
-	// Password-reset + email-verification token store (loon-baseline).
-	tokenStore := authtoken.NewPGStore(db.DB)
-	if err := tokenStore.Migrate(context.Background()); err != nil {
-		logger.Error("authtoken migrate", "err", err)
-		os.Exit(1)
-	}
-	// Admin-editable job/service settings (loon-baseline). This is the
-	// persistence behind loon's schedule config vars. We register the "Search
-	// API" read tier as a REMOTE service: its run loop lives in loon-api (a
-	// separate process against this same DB), but declaring it here — with
-	// MarkRemote — surfaces its cache-TTL settings on this web admin's config
-	// page. Edit here; loon-api reads the same job_settings rows. That's the
-	// cross-process settings path from LOON-DISTRIBUTED.
-	jobSettings := jobsettings.NewPGStore(db.DB)
-	if err := jobSettings.Migrate(context.Background()); err != nil {
-		logger.Error("jobsettings migrate", "err", err)
-		os.Exit(1)
-	}
-	// Newznab API keys (loon-baseline): one per user, shown + regenerated on the
-	// self-service /p/api-key page. loon-api (against this same DB) validates the
-	// ?apikey= a client sends against this table.
-	apiKeys := apikey.NewPGStore(db.DB)
-	if err := apiKeys.Migrate(context.Background()); err != nil {
-		logger.Error("apikey migrate", "err", err)
-		os.Exit(1)
-	}
-	// Planned-maintenance mode (loon-baseline): a persisted flag + a self-
-	// contained 503 page + an admin toggle. Restore the last state on boot so a
-	// restart mid-maintenance stays in maintenance. The API tier (loon-api)
-	// deliberately does NOT install this middleware, so it stays up.
-	maintStore := maintenance.NewPGStore(db.DB)
-	if err := maintStore.Migrate(context.Background()); err != nil {
-		logger.Error("maintenance migrate", "err", err)
-		os.Exit(1)
-	}
-	maint := maintenance.NewController(maintStore)
-	if err := maint.Restore(context.Background()); err != nil {
-		logger.Error("maintenance restore", "err", err)
-	}
-	// Cross-process "run now" queue (loon-baseline). This demo is the WORKER
-	// side: it drains the queue and runs the job locally. In a split deployment
-	// the WEB process installs schedule.RemoteTrigger to enqueue instead —
-	// never both in one process, or a triggerless job re-enqueues itself, so
-	// the demo (single process) only polls.
-	jobTriggers := jobtrigger.NewPGStore(db.DB)
-	if err := jobTriggers.Migrate(context.Background()); err != nil {
-		logger.Error("jobtrigger migrate", "err", err)
-		os.Exit(1)
-	}
-	// Process presence (loon-baseline): this instance beats a heartbeat on an
-	// interval; the admin "Services online" view lists who's checked in. One
-	// "all" process here; a split deployment would show web + worker rows.
-	hbStore := heartbeat.NewPGStore(db.DB)
-	if err := hbStore.Migrate(context.Background()); err != nil {
-		logger.Error("heartbeat migrate", "err", err)
-		os.Exit(1)
-	}
-
-	apiSvc := schedule.RegisterService("Search API", "Newznab/Torznab read tier (runs in loon-api)")
-	apiSvc.DeclareConfig(jobSettings,
-		schedule.JobConfigVar{Key: "cache_ttl_secs", Label: "Search cache TTL (seconds)", Type: schedule.JobConfigInt, Default: "3600",
-			Description: "How long search/tvsearch/movie/rss responses stay cached in the API tier. Safe to keep long: an ingest invalidates the namespace."},
-		schedule.JobConfigVar{Key: "caps_ttl_secs", Label: "Caps cache TTL (seconds)", Type: schedule.JobConfigInt, Default: "3600",
-			Description: "How long the caps (category tree) response stays cached — nearly static."},
-		schedule.JobConfigVar{Key: "rate_per_min", Label: "Requests per minute", Type: schedule.JobConfigInt, Default: "60",
-			Description: "Per-API-key (or IP) request cap per minute in the API tier — burst protection. 0 disables."},
-		schedule.JobConfigVar{Key: "rate_per_day", Label: "Requests per day", Type: schedule.JobConfigInt, Default: "10000",
-			Description: "Per-API-key (or IP) request cap per day in the API tier — the daily quota. 0 disables."},
-		schedule.JobConfigVar{Key: "rate_contributor_mult", Label: "Contributor limit multiplier", Type: schedule.JobConfigInt, Default: "3",
-			Description: "Contributors get this multiple of the base API limits; mods/admins are exempt entirely."},
-	)
-	apiSvc.MarkRemote() // its loop lives in loon-api; here it's a config stub
-	seedDemoUsers(userStore, logger)
-	// Forum tables + starter content (forum_web.go). After the user seed so
-	// the starter threads can attribute to the demo accounts.
-	if err := forumMigrate(db); err != nil {
-		logger.Error("forum migrate", "err", err)
-		os.Exit(1)
-	}
-	forumSeed(db, logger)
-	// Site access modes + invite codes (access_web.go, invitecodes_web.go).
-	if err := inviteCodesMigrate(db); err != nil {
-		logger.Error("invite codes migrate", "err", err)
-		os.Exit(1)
-	}
-	storage.InviteCodesDB = db
-	if err := loadAccessSettings(context.Background(), db); err != nil {
-		logger.Error("load access settings", "err", err)
-	}
-	// Where cover art comes from — see covermode_web.go. Loaded before the
-	// scraper can run, so the first matched cover already obeys the setting.
-	if err := loadCoverMode(context.Background(), db); err != nil {
-		logger.Error("load cover mode", "err", err)
-	}
-	logger.Info("cover art", "mode", coverMode(), "meaning", coverModeLabel(coverMode()))
-	// The profile's free-text block (profilebio_web.go). A users column, so it
-	// migrates with the other host-owned users work rather than in a plugin.
-	if err := migrateProfileBio(db); err != nil {
-		logger.Error("profile bio migrate", "err", err)
-		os.Exit(1)
-	}
-	wsrv := newWeb(userStore, sessionSecret, logger)
-	wsrv.loginLog = loginLog
-	wsrv.ipSalt = string(sessionSecret) // demo salt; a real host uses a dedicated ip_salt secret
+	st := wireBaselineStores(db, logger)
+	migrateSiteTables(db, logger, st.users)
+	wsrv := newWeb(st.users, st.sessionSecret, logger)
+	wsrv.loginLog = st.loginLog
+	wsrv.ipSalt = string(st.sessionSecret) // demo salt; a real host uses a dedicated ip_salt secret
 	// Cloudflare Turnstile hook (loon-baseline). Disabled unless both keys are
 	// set, so the demo runs without CF; set TURNSTILE_SITEKEY + TURNSTILE_SECRET
 	// (or the CF test keys) to see it gate login + register.
@@ -304,7 +184,7 @@ func Main() {
 	// Reset/verify flow. The demo "mailer" just logs the message (link included)
 	// so you can follow it in the logs; a real host sends via SMTP.
 	wsrv.resetFlow = authtoken.Flow{
-		Tokens: tokenStore, Users: userStore, Hasher: password.Hasher{},
+		Tokens: st.tokens, Users: st.users, Hasher: password.Hasher{},
 		MinPwLen: minPasswordLen,
 		BaseURL:  getenvDefault("LOON_BASE_URL", "http://localhost:8090"),
 		Mail: func(to, subject, body string) error {
@@ -354,7 +234,7 @@ func Main() {
 	// /static, /healthz — and /api+/rss, so the Newznab API keeps serving while
 	// the web UI is down. That mirrors a real deployment where the API tier runs
 	// without this middleware; here it's one process, so the bypass stands in.
-	engine.Use(maint.Middleware(func(g *gin.Context) bool {
+	engine.Use(st.maint.Middleware(func(g *gin.Context) bool {
 		p := g.Request.URL.Path
 		return strings.HasPrefix(p, "/admin") || strings.HasPrefix(p, "/static") ||
 			strings.HasPrefix(p, "/api") || strings.HasPrefix(p, "/rss") ||
@@ -582,7 +462,7 @@ func Main() {
 		Entitlements: core.NewEntitlements(core.EntitlementsConfig{
 			Store: core.NewMemEntitlementStore(),
 			RoleOf: func(ctx context.Context, userID int64) (core.Role, bool, error) {
-				u, err := userStore.ByID(ctx, userID)
+				u, err := st.users.ByID(ctx, userID)
 				if err != nil || u == nil {
 					// (0, false, nil) = "no such user, cacheable". Reserve the
 					// error return for transient failures, which are NOT cached.
@@ -845,18 +725,18 @@ func Main() {
 	// Re-read the maintenance flag periodically so a toggle on another web
 	// replica reaches this one (single process here, but the pattern is the same
 	// as loon-api's settings refresh — coordinate through shared state).
-	go maint.StartRefresh(ctx, 5*time.Second)
+	go st.maint.StartRefresh(ctx, 5*time.Second)
 
 	// Drain the cross-process run-now queue: claim requests another process
 	// enqueued and run the job locally via schedule.TriggerJob.
-	go jobtrigger.StartPoller(ctx, jobTriggers, 3*time.Second, func(name string) bool {
+	go jobtrigger.StartPoller(ctx, st.jobTriggers, 3*time.Second, func(name string) bool {
 		ran := schedule.TriggerJob(name)
 		logger.Info("job trigger drained", "job", name, "ran", ran)
 		return ran
 	})
 
 	// Beat this instance's presence every 15s (kind "all" — single-process demo).
-	go heartbeat.StartReporter(ctx, hbStore, heartbeat.HostID("all"), "all", "loon-demo", 15*time.Second)
+	go heartbeat.StartReporter(ctx, st.heartbeat, heartbeat.HostID("all"), "all", "loon-demo", 15*time.Second)
 
 	// user_display is the plugin-facing identity contract, and the baseline
 	// builds it with avatar_path and reputation_tier stubbed to constants until
@@ -1053,7 +933,7 @@ func Main() {
 	// them on the Core after Boot and wireViews mounts them at /admin/p/users.
 	// This is the reusable admin chrome a real host adopts instead of
 	// hand-rolling a users page.
-	if bviews, err := adminusers.Views(userStore, password.Hasher{}); err != nil {
+	if bviews, err := adminusers.Views(st.users, password.Hasher{}); err != nil {
 		logger.Error("adminusers.Views", "err", err)
 	} else {
 		for _, v := range bviews {
@@ -1076,7 +956,7 @@ func Main() {
 	}
 	// loon-baseline "Services online" view: /admin/p/services lists process
 	// instances that have beaten a heartbeat recently (kind, uptime, last seen).
-	if hviews, err := heartbeat.Views(hbStore); err != nil {
+	if hviews, err := heartbeat.Views(st.heartbeat); err != nil {
 		logger.Error("heartbeat.Views", "err", err)
 	} else {
 		for _, v := range hviews {
@@ -1087,7 +967,7 @@ func Main() {
 	}
 	// loon-baseline maintenance toggle: /admin/p/maintenance (begin/end). Turning
 	// it on shows the 503 page to visitors; /admin + /api stay reachable.
-	if mviews, err := maint.Views(); err != nil {
+	if mviews, err := st.maint.Views(); err != nil {
 		logger.Error("maintenance.Views", "err", err)
 	} else {
 		for _, v := range mviews {
@@ -1099,7 +979,7 @@ func Main() {
 	// loon-baseline self-service API key page: /p/api-key shows the user's
 	// Newznab key (created on first visit) + a Regenerate button. loon-api
 	// validates the key against the same table.
-	if kviews, err := apikey.Views(apiKeys, wsrv.currentUser); err != nil {
+	if kviews, err := apikey.Views(st.apiKeys, wsrv.currentUser); err != nil {
 		logger.Error("apikey.Views", "err", err)
 	} else {
 		for _, v := range kviews {
@@ -1121,7 +1001,7 @@ func Main() {
 	//
 	// Staff keep the whole log, where the hash does earn its place: it groups
 	// attempts by origin without the site holding anyone's address.
-	if lviews, err := loginlog.Views(loginLog, wsrv.currentUser); err != nil {
+	if lviews, err := loginlog.Views(st.loginLog, wsrv.currentUser); err != nil {
 		logger.Error("loginlog.Views", "err", err)
 	} else {
 		for _, v := range lviews {
@@ -1136,7 +1016,7 @@ func Main() {
 	// loon-baseline profile summary (SlotUserWidget on /u/<name>). Resolves the
 	// profile subject by id off the user store.
 	if pviews, err := profile.Views(func(ctx context.Context, id int64) (*core.User, bool) {
-		u, err := userStore.ByID(ctx, id)
+		u, err := st.users.ByID(ctx, id)
 		if err != nil {
 			return nil, false
 		}
@@ -1167,33 +1047,7 @@ func Main() {
 	// layout. Zero plugin-specific UI code host-side.
 	wsrv.wireViews(c, engine, admin)
 
-	srv := &http.Server{Addr: ":8090", Handler: engine}
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("http", "err", err)
-			stop()
-		}
-	}()
-	// Pull down the art of releases matched before local caching existed. Slow
-	// on purpose and cancelled with the process — see backfillCovers.
-	go wsrv.backfillCovers(ctx, 2*time.Second, logger)
-	// Give cover art to releases whose SERIES is already in the catalog. Costs
-	// no API call, so it is not paced by anyone's rate limit — see
-	// linkFromCatalog for why this runs ahead of the scraper's match job.
-	go wsrv.runLocalLinks(ctx, time.Minute, logger)
-
-	logger.Info("loon site up",
-		"url", "http://localhost:8090/",
-		"login", "alice/alice (admin) or bob/bob")
-
-	<-ctx.Done()
-	shutCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	_ = srv.Shutdown(shutCtx)
-	rt.Stop(shutCtx)
-	if redisClient != nil {
-		_ = redisClient.Close() // host owns the shared client's lifecycle
-	}
+	serve(engine, wsrv, rt, ctx, stop, logger, redisClient)
 }
 
 // seedDemoUsers creates the two demo accounts (password == username) directly
