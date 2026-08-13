@@ -110,7 +110,7 @@ func (w *web) invitesCreate(c *gin.Context) {
 	// Spend the balance and mint the code in ONE transaction. Decrementing
 	// outside it loses an invite when the insert fails; inserting outside it
 	// mints a code the member never paid for.
-	tx, err := w.data.DB().BeginTxx(ctx, nil)
+	tx, err := w.db().BeginTxx(ctx, nil)
 	if err != nil {
 		c.Redirect(http.StatusFound, "/invites?err=could+not+create+a+code")
 		return

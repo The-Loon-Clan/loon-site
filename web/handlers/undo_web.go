@@ -49,8 +49,6 @@ import (
 // indefinitely waiting for a change of heart.
 const undoWindow = 15 * time.Minute
 
-var undoDB *sqlx.DB
-
 // undoMigrate creates the table.
 func undoMigrate(db *sqlx.DB) error {
 	stmts := []string{
@@ -97,8 +95,8 @@ func newUndoToken() (string, error) {
 // failing here must not fail their request. An action that happened without an
 // undo record is a worse outcome than one that happened with one, but it is a
 // far better outcome than an error page after the change already landed.
-func recordUndo(ctx context.Context, userID int64, kind string, payload any) string {
-	if undoDB == nil || userID <= 0 {
+func (w *web) recordUndo(ctx context.Context, userID int64, kind string, payload any) string {
+	if w.db() == nil || userID <= 0 {
 		return ""
 	}
 	blob, err := json.Marshal(payload)
@@ -109,7 +107,7 @@ func recordUndo(ctx context.Context, userID int64, kind string, payload any) str
 	if err != nil {
 		return ""
 	}
-	if _, err := undoDB.ExecContext(ctx, `
+	if _, err := w.db().ExecContext(ctx, `
 		INSERT INTO undo_actions (token, user_id, kind, payload, expires_at)
 		VALUES ($1, $2, $3, $4, now() + $5::interval)`,
 		token, userID, kind, blob, undoWindow.String()); err != nil {
@@ -138,8 +136,8 @@ func registerUndo(kind string, fn func(ctx context.Context, userID int64, payloa
 var errUndoGone = errors.New("that can no longer be undone")
 
 // performUndo reverses one recorded action.
-func performUndo(ctx context.Context, userID int64, token string) (string, error) {
-	if undoDB == nil || token == "" || userID <= 0 {
+func (w *web) performUndo(ctx context.Context, userID int64, token string) (string, error) {
+	if w.db() == nil || token == "" || userID <= 0 {
 		return "", errUndoGone
 	}
 	var row struct {
@@ -149,7 +147,7 @@ func performUndo(ctx context.Context, userID int64, token string) (string, error
 	// The UPDATE ... WHERE used_at IS NULL is what makes this single-use: two
 	// clicks racing both run it and exactly one gets a row back, so an undo
 	// cannot be applied twice.
-	if err := undoDB.GetContext(ctx, &row, `
+	if err := w.db().GetContext(ctx, &row, `
 		UPDATE undo_actions SET used_at = now()
 		 WHERE token = $1 AND user_id = $2 AND used_at IS NULL AND expires_at > now()
 		 RETURNING kind, payload`, token, userID); err != nil {
@@ -165,7 +163,7 @@ func performUndo(ctx context.Context, userID int64, token string) (string, error
 	if err := fn(ctx, userID, row.Payload); err != nil {
 		// Put the token back: the action was not reversed, so the offer should
 		// still stand.
-		_, _ = undoDB.ExecContext(ctx,
+		_, _ = w.db().ExecContext(ctx,
 			`UPDATE undo_actions SET used_at = NULL WHERE token = $1`, token)
 		return "", err
 	}
@@ -174,11 +172,11 @@ func performUndo(ctx context.Context, userID int64, token string) (string, error
 
 // purgeUndo drops expired records. Called by the sweep job (avatarsweep_web.go)
 // rather than on a timer of its own — one caretaker, not two.
-func purgeUndo(ctx context.Context) (int64, error) {
-	if undoDB == nil {
+func (w *web) purgeUndo(ctx context.Context) (int64, error) {
+	if w.db() == nil {
 		return 0, nil
 	}
-	res, err := undoDB.ExecContext(ctx,
+	res, err := w.db().ExecContext(ctx,
 		`DELETE FROM undo_actions WHERE expires_at < now() - interval '1 day'`)
 	if err != nil {
 		return 0, err
@@ -205,7 +203,7 @@ func (w *web) undoPost(c *gin.Context) {
 	if idx := len(back); idx > 0 && containsByte(back, '?') {
 		sep = "&"
 	}
-	if _, err := performUndo(c.Request.Context(), u.ID, c.PostForm("token")); err != nil {
+	if _, err := w.performUndo(c.Request.Context(), u.ID, c.PostForm("token")); err != nil {
 		w.log.Info("undo refused", "user", u.ID, "err", err)
 		c.Redirect(http.StatusSeeOther, back+sep+"undone=0")
 		return

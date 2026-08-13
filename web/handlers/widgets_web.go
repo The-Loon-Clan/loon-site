@@ -59,10 +59,6 @@ func widgetRegionByKey(key string) (widgetRegion, bool) {
 
 // ── placements ──────────────────────────────────────────────────────────────
 
-// widgetsDB is the host's handle for the placement table. Package-level like
-// w.data.DB() and w.data.DB(): host-owned data with no plugin behind it.
-var widgetsDB *sqlx.DB
-
 // widgetsMigrate creates the placement table. Idempotent.
 func widgetsMigrate(db *sqlx.DB) error {
 	stmts := []string{
@@ -110,12 +106,12 @@ type widgetPlacement struct {
 }
 
 // readPlacements returns a region's arrangement, in order.
-func readPlacements(ctx context.Context, region string) []widgetPlacement {
-	if widgetsDB == nil {
+func (w *web) readPlacements(ctx context.Context, region string) []widgetPlacement {
+	if w.db() == nil {
 		return nil
 	}
 	var rows []widgetPlacement
-	if err := widgetsDB.SelectContext(ctx, &rows,
+	if err := w.db().SelectContext(ctx, &rows,
 		`SELECT region, slug, position, enabled, config FROM widget_placement
 		  WHERE region = $1 ORDER BY position, slug`, region); err != nil {
 		return nil
@@ -130,12 +126,12 @@ func readPlacements(ctx context.Context, region string) []widgetPlacement {
 // placed nothing, four queries per page view to learn that four times over is
 // a cost with no benefit. The whole table is tiny by construction: it holds one
 // row per placed widget, not per member or per release.
-func readAllPlacements(ctx context.Context) map[string][]widgetPlacement {
-	if widgetsDB == nil {
+func (w *web) readAllPlacements(ctx context.Context) map[string][]widgetPlacement {
+	if w.db() == nil {
 		return nil
 	}
 	var rows []widgetPlacement
-	if err := widgetsDB.SelectContext(ctx, &rows,
+	if err := w.db().SelectContext(ctx, &rows,
 		`SELECT region, slug, position, enabled, config FROM widget_placement
 		  ORDER BY region, position, slug`); err != nil {
 		return nil
@@ -176,7 +172,7 @@ type renderedWidget struct {
 // chrome of somebody else's page: a broken widget must cost its own box, never
 // the page it was placed on.
 func (w *web) renderRegion(c *gin.Context, region string) []renderedWidget {
-	return w.renderPlaced(c, region, readPlacements(c.Request.Context(), region))
+	return w.renderPlaced(c, region, w.readPlacements(c.Request.Context(), region))
 }
 
 // renderRegions renders several regions from ONE read of the placement table.
@@ -186,7 +182,7 @@ func (w *web) renderRegion(c *gin.Context, region string) []renderedWidget {
 // is placed anywhere, so a template's {{range index .Widgets "footer"}} simply
 // does nothing.
 func (w *web) renderRegions(c *gin.Context, regions ...string) map[string][]renderedWidget {
-	all := readAllPlacements(c.Request.Context())
+	all := w.readAllPlacements(c.Request.Context())
 	if len(all) == 0 {
 		return nil
 	}
@@ -238,7 +234,7 @@ func (w *web) availableWidgets(ctx context.Context, region string) []core.Widget
 		return nil
 	}
 	placed := map[string]bool{}
-	for _, p := range readPlacements(ctx, region) {
+	for _, p := range w.readPlacements(ctx, region) {
 		placed[p.Slug] = true
 	}
 	var out []core.Widget

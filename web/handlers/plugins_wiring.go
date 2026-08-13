@@ -29,7 +29,7 @@ func wirePluginSeams(c *core.Core, wsrv *web, engine *gin.Engine, logger *slog.L
 	// Boot: SetDeps is checked at Provision. wsrv is passed so the plugin's
 	// pages get the host's chrome data (nav, theme, viewer tiles) from the
 	// SAME function render() uses — see chromeData.
-	if err := wireForumPlugin(c, engine, wsrv); err != nil {
+	if err := wsrv.wireForumPlugin(c, engine); err != nil {
 		logger.Error("forum wiring", "err", err)
 		os.Exit(1)
 	}

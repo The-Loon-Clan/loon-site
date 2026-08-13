@@ -48,7 +48,7 @@ const (
 // Returns how many it removed. Errors on individual files are logged and
 // skipped rather than aborting: one unreadable file must not stop the sweep
 // reaching the rest.
-func sweepAvatars(ctx context.Context, db *sqlx.DB) (int, error) {
+func (w *web) sweepAvatars(ctx context.Context, db *sqlx.DB) (int, error) {
 	if db == nil {
 		return 0, nil
 	}
@@ -80,8 +80,8 @@ func sweepAvatars(ctx context.Context, db *sqlx.DB) (int, error) {
 	// Everything an unexpired undo record could still restore. Same rule: a
 	// failed read means "keep everything", never "delete everything".
 	var undoPaths []string
-	if undoDB != nil {
-		if err := undoDB.SelectContext(ctx, &undoPaths, `
+	if w.db() != nil {
+		if err := w.db().SelectContext(ctx, &undoPaths, `
 			SELECT payload->>'path' FROM undo_actions
 			 WHERE kind = $1 AND used_at IS NULL AND expires_at > now()
 			   AND payload->>'path' IS NOT NULL`, undoKindAvatar); err != nil {
@@ -122,9 +122,9 @@ func sweepAvatars(ctx context.Context, db *sqlx.DB) (int, error) {
 //
 // Runs once at startup as well, so a process that is restarted more often than
 // the interval still collects.
-func startAvatarSweep(ctx context.Context, db *sqlx.DB, log *slog.Logger) {
+func (w *web) startAvatarSweep(ctx context.Context, db *sqlx.DB, log *slog.Logger) {
 	sweep := func() {
-		n, err := sweepAvatars(ctx, db)
+		n, err := w.sweepAvatars(ctx, db)
 		if err != nil {
 			log.Warn("avatar sweep failed", "err", err)
 			return
@@ -132,7 +132,7 @@ func startAvatarSweep(ctx context.Context, db *sqlx.DB, log *slog.Logger) {
 		// Purged here rather than on a timer of its own: one caretaker, not
 		// two, and the records this drops are the ones the sweep just stopped
 		// having to respect.
-		purged, _ := purgeUndo(ctx)
+		purged, _ := w.purgeUndo(ctx)
 		if n > 0 || purged > 0 {
 			log.Info("avatar sweep", "files_removed", n, "undo_records_purged", purged)
 		}

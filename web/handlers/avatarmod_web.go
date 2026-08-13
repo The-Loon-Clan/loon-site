@@ -215,7 +215,7 @@ func (w *web) avatarModAction(c *gin.Context) {
 		// would let them restore a picture on an account that is not theirs.
 		// A moderator who clears the wrong one asks the member to upload it
 		// again, which is the honest cost of the action.
-		if _, err := clearAvatar(ctx, usersDB, id); err != nil {
+		if _, err := w.clearAvatar(ctx, usersDB, id); err != nil {
 			w.log.Error("moderation clear avatar", "user", id, "by", actor.ID, "err", err)
 			c.Redirect(http.StatusFound, "/moderation/avatars")
 			return

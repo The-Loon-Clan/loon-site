@@ -12,7 +12,7 @@ import (
 
 // usersDB is the host's own users table, for the two reads no capability
 // covers: who is staff, and how many members there are. Same pattern as
-// forumDB — core has no "list users" method by design, so a host that wants
+// w.db() — core has no "list users" method by design, so a host that wants
 // one owns the query AND the bound on it.
 var usersDB *sqlx.DB
 
@@ -130,13 +130,13 @@ func (w *web) statsPage(c *gin.Context) {
 			data["Members"], data["HasMembers"] = n, true
 		}
 	}
-	if forumDB != nil {
+	if w.db() != nil {
 		var threads, posts int
-		if err := forumDB.GetContext(ctx, &threads,
+		if err := w.db().GetContext(ctx, &threads,
 			`SELECT COUNT(*) FROM forum_threads WHERE hidden_at IS NULL`); err == nil {
 			data["ForumThreads"], data["HasForum"] = threads, true
 		}
-		if err := forumDB.GetContext(ctx, &posts,
+		if err := w.db().GetContext(ctx, &posts,
 			`SELECT COUNT(*) FROM forum_posts WHERE hidden_at IS NULL`); err == nil {
 			data["ForumPosts"] = posts
 		}

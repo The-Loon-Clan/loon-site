@@ -70,8 +70,6 @@ const (
 	resolutionKept    = "kept"
 )
 
-var communityModDB *sqlx.DB
-
 // communityModMigrate creates the two tables.
 func communityModMigrate(db *sqlx.DB) error {
 	stmts := []string{
@@ -146,8 +144,8 @@ type modItem struct {
 // Returns whether this call opened a NEW item, so the caller can say "reported"
 // or "your report was added to one already open" — a member who reports
 // something and is told nothing reports it again.
-func reportAvatar(ctx context.Context, subjectID, reporterID int64, reason string) (opened bool, err error) {
-	if communityModDB == nil {
+func (w *web) reportAvatar(ctx context.Context, subjectID, reporterID int64, reason string) (opened bool, err error) {
+	if w.db() == nil {
 		return false, errors.New("moderation is not available")
 	}
 	if subjectID == reporterID {
@@ -163,7 +161,7 @@ func reportAvatar(ctx context.Context, subjectID, reporterID int64, reason strin
 	}
 
 	var id int64
-	err = communityModDB.GetContext(ctx, &id, `
+	err = w.db().GetContext(ctx, &id, `
 		INSERT INTO moderation_items (kind, subject_user_id, subject_ref, reason, reported_by)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT DO NOTHING
@@ -173,16 +171,16 @@ func reportAvatar(ctx context.Context, subjectID, reporterID int64, reason strin
 		// A new item. The reporter's own opinion is already on the record, so
 		// it is cast as a vote too — otherwise an item opens at 0-0 and the
 		// person who raised it has to click again to say what they meant.
-		return true, castVote(ctx, id, reporterID, true)
+		return true, w.castVote(ctx, id, reporterID, true)
 	case errors.Is(err, sql.ErrNoRows):
 		// The partial unique index rejected it: one is already open.
-		if err := communityModDB.GetContext(ctx, &id, `
+		if err := w.db().GetContext(ctx, &id, `
 			SELECT id FROM moderation_items
 			 WHERE kind = $1 AND subject_user_id = $2 AND resolved_at IS NULL`,
 			itemKindAvatar, subjectID); err != nil {
 			return false, err
 		}
-		return false, castVote(ctx, id, reporterID, true)
+		return false, w.castVote(ctx, id, reporterID, true)
 	default:
 		return false, err
 	}
@@ -190,8 +188,8 @@ func reportAvatar(ctx context.Context, subjectID, reporterID int64, reason strin
 
 // castVote records one member's opinion. Re-voting CHANGES the vote rather than
 // failing: somebody who clicks the wrong button should be able to say so.
-func castVote(ctx context.Context, itemID, userID int64, remove bool) error {
-	_, err := communityModDB.ExecContext(ctx, `
+func (w *web) castVote(ctx context.Context, itemID, userID int64, remove bool) error {
+	_, err := w.db().ExecContext(ctx, `
 		INSERT INTO moderation_votes (item_id, user_id, remove)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (item_id, user_id) DO UPDATE SET remove = EXCLUDED.remove, created_at = now()`,
@@ -210,9 +208,9 @@ type tally struct {
 // Called after every vote. Synchronous on purpose: a queue that decides on a
 // timer leaves a window where the page says the vote passed and the avatar is
 // still there, and that window is exactly when somebody looks.
-func decide(ctx context.Context, itemID int64) error {
+func (w *web) decide(ctx context.Context, itemID int64) error {
 	var t tally
-	if err := communityModDB.GetContext(ctx, &t, `
+	if err := w.db().GetContext(ctx, &t, `
 		SELECT count(*) FILTER (WHERE remove)     AS removes,
 		       count(*) FILTER (WHERE NOT remove) AS keeps
 		  FROM moderation_votes WHERE item_id = $1`, itemID); err != nil {
@@ -224,9 +222,9 @@ func decide(ctx context.Context, itemID int64) error {
 	}
 	switch {
 	case t.Removes*voteMajorityDen >= total*voteMajorityNum:
-		return resolveItem(ctx, itemID, resolutionRemoved, 0)
+		return w.resolveItem(ctx, itemID, resolutionRemoved, 0)
 	case t.Keeps*voteMajorityDen >= total*voteMajorityNum:
-		return resolveItem(ctx, itemID, resolutionKept, 0)
+		return w.resolveItem(ctx, itemID, resolutionKept, 0)
 	}
 	// Quorum reached, no majority either way. Left open deliberately: a split
 	// community is a real answer, and the item stays for staff or for more
@@ -239,12 +237,12 @@ func decide(ctx context.Context, itemID int64) error {
 // actorID is 0 when the community decided it, which is why resolved_by is
 // nullable — "who did this" and "nobody, the vote did" are different answers
 // and both need to be recordable.
-func resolveItem(ctx context.Context, itemID int64, resolution string, actorID int64) error {
+func (w *web) resolveItem(ctx context.Context, itemID int64, resolution string, actorID int64) error {
 	var it struct {
 		Kind    string `db:"kind"`
 		Subject int64  `db:"subject_user_id"`
 	}
-	if err := communityModDB.GetContext(ctx, &it,
+	if err := w.db().GetContext(ctx, &it,
 		`SELECT kind, subject_user_id FROM moderation_items WHERE id = $1 AND resolved_at IS NULL`,
 		itemID); err != nil {
 		// Already resolved, or gone. Not an error: two votes landing at once
@@ -252,7 +250,7 @@ func resolveItem(ctx context.Context, itemID int64, resolution string, actorID i
 		return nil
 	}
 	if resolution == resolutionRemoved {
-		if err := applyResolution(ctx, it.Kind, it.Subject); err != nil {
+		if err := w.applyResolution(ctx, it.Kind, it.Subject); err != nil {
 			return err
 		}
 	}
@@ -260,7 +258,7 @@ func resolveItem(ctx context.Context, itemID int64, resolution string, actorID i
 	if actorID > 0 {
 		by = actorID
 	}
-	_, err := communityModDB.ExecContext(ctx, `
+	_, err := w.db().ExecContext(ctx, `
 		UPDATE moderation_items
 		   SET resolved_at = now(), resolution = $1, resolved_by = $2
 		 WHERE id = $3 AND resolved_at IS NULL`, resolution, by, itemID)
@@ -269,13 +267,13 @@ func resolveItem(ctx context.Context, itemID int64, resolution string, actorID i
 
 // applyResolution carries out a removal for one kind. The ONLY place that knows
 // what an item actually is — a second kind adds a case here and nothing else.
-func applyResolution(ctx context.Context, kind string, subjectID int64) error {
+func (w *web) applyResolution(ctx context.Context, kind string, subjectID int64) error {
 	switch kind {
 	case itemKindAvatar:
 		// The undo token is discarded: this is a decision the community made,
 		// not a slip, and an undo offered to nobody in particular is an undo
 		// nobody can use. The subject can upload a new picture.
-		_, err := clearAvatar(ctx, usersDB, subjectID)
+		_, err := w.clearAvatar(ctx, usersDB, subjectID)
 		return err
 	}
 	// An unknown kind must not be silently treated as done: that would close
@@ -284,8 +282,8 @@ func applyResolution(ctx context.Context, kind string, subjectID int64) error {
 }
 
 // listModItems returns the open queue, or the decided history.
-func listModItems(ctx context.Context, viewerID int64, history bool) []modItem {
-	if communityModDB == nil {
+func (w *web) listModItems(ctx context.Context, viewerID int64, history bool) []modItem {
+	if w.db() == nil {
 		return nil
 	}
 	where, order := `i.resolved_at IS NULL`, `i.created_at DESC`
@@ -293,7 +291,7 @@ func listModItems(ctx context.Context, viewerID int64, history bool) []modItem {
 		where, order = `i.resolved_at IS NOT NULL`, `i.resolved_at DESC`
 	}
 	var rows []modItem
-	if err := communityModDB.SelectContext(ctx, &rows, `
+	if err := w.db().SelectContext(ctx, &rows, `
 		SELECT i.id, i.kind, i.subject_ref, i.reason,
 		       s.username                                   AS subject,
 		       COALESCE(r.username, '')                     AS reported_by_name,
@@ -324,7 +322,7 @@ func listModItems(ctx context.Context, viewerID int64, history bool) []modItem {
 		Remove bool  `db:"remove"`
 	}
 	if viewerID > 0 {
-		_ = communityModDB.SelectContext(ctx, &votes,
+		_ = w.db().SelectContext(ctx, &votes,
 			`SELECT item_id, remove FROM moderation_votes WHERE user_id = $1`, viewerID)
 	}
 	for _, v := range votes {
@@ -347,7 +345,7 @@ func (w *web) communityModPage(c *gin.Context) {
 		return
 	}
 	history := c.Query("decided") == "1"
-	items := listModItems(c.Request.Context(), u.ID, history)
+	items := w.listModItems(c.Request.Context(), u.ID, history)
 	// Marked here rather than in SQL so the query stays viewer-independent and
 	// cacheable later.
 	for i := range items {
@@ -385,7 +383,7 @@ func (w *web) communityModVote(c *gin.Context) {
 		if act == "remove" {
 			res = resolutionRemoved
 		}
-		if err := resolveItem(ctx, id, res, u.ID); err != nil {
+		if err := w.resolveItem(ctx, id, res, u.ID); err != nil {
 			w.log.Error("staff resolve moderation item", "item", id, "err", err)
 			c.Redirect(http.StatusFound, "/moderation?err=could+not+resolve+that")
 			return
@@ -398,7 +396,7 @@ func (w *web) communityModVote(c *gin.Context) {
 	// The subject does not vote on themselves. Enforced here as well as hidden
 	// in the template, because a hidden control is not an absent one.
 	var subject int64
-	if err := communityModDB.GetContext(ctx, &subject,
+	if err := w.db().GetContext(ctx, &subject,
 		`SELECT subject_user_id FROM moderation_items WHERE id = $1 AND resolved_at IS NULL`, id); err != nil {
 		c.Redirect(http.StatusFound, "/moderation")
 		return
@@ -407,12 +405,12 @@ func (w *web) communityModVote(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/moderation?err=you+cannot+vote+on+your+own+avatar")
 		return
 	}
-	if err := castVote(ctx, id, u.ID, c.PostForm("vote") == "remove"); err != nil {
+	if err := w.castVote(ctx, id, u.ID, c.PostForm("vote") == "remove"); err != nil {
 		w.log.Error("cast moderation vote", "item", id, "err", err)
 		c.Redirect(http.StatusFound, "/moderation?err=could+not+record+your+vote")
 		return
 	}
-	if err := decide(ctx, id); err != nil {
+	if err := w.decide(ctx, id); err != nil {
 		w.log.Error("apply moderation decision", "item", id, "err", err)
 	}
 	c.Redirect(http.StatusFound, "/moderation?done=voted")
@@ -430,7 +428,7 @@ func (w *web) reportAvatarPost(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	opened, err := reportAvatar(c.Request.Context(), subject.ID, u.ID, c.PostForm("reason"))
+	opened, err := w.reportAvatar(c.Request.Context(), subject.ID, u.ID, c.PostForm("reason"))
 	if err != nil {
 		c.Redirect(http.StatusSeeOther, "/u/"+name+"?report="+url.QueryEscape(err.Error()))
 		return

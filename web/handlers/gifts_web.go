@@ -62,7 +62,7 @@ func (w *web) giftsPage(c *gin.Context) {
 	ctx := c.Request.Context()
 	w.render(c, "gifts.html", map[string]any{
 		"Title":   "Gifts",
-		"Balance": pgPoints{db: w.data.DB()}.balance(ctx, u.ID),
+		"Balance": pgPoints{db: w.db()}.balance(ctx, u.ID),
 		"Gifts":   w.data.ListGifts(ctx, u.ID, 50),
 		"Max":     storage.GiftMax,
 		"NoteMax": storage.GiftNoteMax,

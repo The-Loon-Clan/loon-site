@@ -286,7 +286,6 @@ func Main() {
 		logger.Error("widgets migrate", "err", err)
 		os.Exit(1)
 	}
-	widgetsDB = db
 
 	// Last seen (presence_web.go) and follows (follows_web.go) — MOCKS M1 and
 	// M3, the last two placeholders on the profile.
@@ -570,8 +569,6 @@ func Main() {
 		logger.Error("avatar moderation migrate", "err", err)
 		os.Exit(1)
 	}
-	communityModDB = db
-	securityDB = db
 	if err := securityMigrate(db); err != nil {
 		logger.Error("security migrate", "err", err)
 		os.Exit(1)
@@ -584,7 +581,6 @@ func Main() {
 		logger.Error("gifts migrate", "err", err)
 		os.Exit(1)
 	}
-	undoDB = db
 	if err := undoMigrate(db); err != nil {
 		logger.Error("undo migrate", "err", err)
 		os.Exit(1)
@@ -624,7 +620,7 @@ func Main() {
 
 	// The avatar file sweep (avatarsweep_web.go) -- the only thing that deletes
 	// an avatar file, now that undo needs replaced and cleared ones to survive.
-	startAvatarSweep(ctx, db, logger)
+	wsrv.startAvatarSweep(ctx, db, logger)
 
 	// --- Admin dashboard. core.AdminHandler renders the plugin manifest;
 	// schedule.JobsAdminHandler renders the jobs/services table with manual

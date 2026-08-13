@@ -113,7 +113,7 @@ func (w *web) wishlistAdd(c *gin.Context) {
 			url.QueryEscape("that is your "+strconv.Itoa(wishPerUser)+" open entries; fill or remove one first"))
 		return
 	}
-	if _, err := w.data.DB().ExecContext(ctx,
+	if _, err := w.db().ExecContext(ctx,
 		`INSERT INTO wishlist_items (user_id, title, note) VALUES ($1,$2,$3)`,
 		u.ID, title, note); err != nil {
 		w.log.Error("wishlist add", "user", u.ID, "err", err)
@@ -151,7 +151,7 @@ func (w *web) wishlistUpdate(c *gin.Context) {
 	default:
 		q = `UPDATE wishlist_items SET filled_at = now() WHERE id = $1 AND user_id = $2`
 	}
-	if _, err := w.data.DB().ExecContext(ctx, q, id, u.ID); err != nil {
+	if _, err := w.db().ExecContext(ctx, q, id, u.ID); err != nil {
 		w.log.Error("wishlist update", "item", id, "user", u.ID, "err", err)
 	}
 	back := "/wishlist"

@@ -168,13 +168,6 @@ func forumSeed(db *sqlx.DB, log *slog.Logger) {
 // home page tolerates by dropping both panels.
 var forumReads forum.Store
 
-// forumDB is the same handle forumReads was opened over, kept for the couple of
-// host-side reads the plugin exposes no capability for (the profile post tally).
-// Reading the plugin's tables directly is already the established pattern here —
-// see forumReads' own comment — and is preferable to adding a method to a plugin
-// that runs on a live site for one number on one page.
-var forumDB *sqlx.DB
-
 const (
 	homeForumThreads = 5               // rows in the recent-threads panel
 	homeForumPosters = 5               // rows in the top-posters panel
@@ -329,7 +322,7 @@ func (devPluginRender) Instance(name string, data any) render.Render {
 // templates into gin's HTML set. Call after core.New and after newWeb (the
 // BaseData closure enriches through the host's chromeData) and before core.Boot
 // (SetDeps is checked at Provision).
-func wireForumPlugin(c *core.Core, engine *gin.Engine, w *web) error {
+func (w *web) wireForumPlugin(c *core.Core, engine *gin.Engine) error {
 	// The forum templates are a SEPARATE set: full documents rendered by name
 	// through gin's HTML set, not the demo's per-page map. They still need the
 	// site header/footer/sprite, so this set names web/templates/site_chrome.html
@@ -350,7 +343,6 @@ func wireForumPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 	// Read-only handle for the home page's forum panels (see forumReads).
 	if db := c.Storage.DB(); db != nil {
 		forumReads = forum.NewPGStore(db)
-		forumDB = db
 	}
 
 	forum.SetDeps(forum.Deps{
@@ -384,17 +376,14 @@ func wireForumPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 // capability to it, matching how the home page's panels already read (see
 // forumReads). Hidden posts are excluded so a moderated post does not still
 // count toward someone's total.
-func forumPostCount(ctx context.Context, userID int64) (int, error) {
-	if forumReads == nil {
-		return 0, nil
-	}
-	if forumDB == nil {
+func (w *web) forumPostCount(ctx context.Context, userID int64) (int, error) {
+	if forumReads == nil || w.db() == nil {
 		return 0, nil
 	}
 	var n int
 	// hidden_at IS NULL excludes moderated posts, so a removed post stops
 	// counting toward its author's total rather than lingering in it.
-	err := forumDB.GetContext(ctx, &n,
+	err := w.db().GetContext(ctx, &n,
 		`SELECT COUNT(*) FROM forum_posts WHERE user_id = $1 AND hidden_at IS NULL`, userID)
 	return n, err
 }

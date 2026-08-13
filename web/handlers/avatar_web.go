@@ -274,7 +274,7 @@ func setAvatar(ctx context.Context, db *sqlx.DB, userID int64, raw []byte) error
 }
 
 // clearAvatar removes a member's avatar and the file behind it.
-func clearAvatar(ctx context.Context, db *sqlx.DB, userID int64) (string, error) {
+func (w *web) clearAvatar(ctx context.Context, db *sqlx.DB, userID int64) (string, error) {
 	old := readAvatarPath(ctx, db, userID)
 	// Clearing leaves avatar_updated_at alone: there is no picture to review,
 	// and the queue predicate already requires a non-empty avatar_path.
@@ -287,7 +287,7 @@ func clearAvatar(ctx context.Context, db *sqlx.DB, userID int64) (string, error)
 	}
 	// The FILE stays. It is what undo restores, and avatarsweep_web.go collects
 	// it once the undo window has passed.
-	return recordUndo(ctx, userID, undoKindAvatar, map[string]string{"path": old}), nil
+	return w.recordUndo(ctx, userID, undoKindAvatar, map[string]string{"path": old}), nil
 }
 
 // undoKindAvatar is the kind recorded when an avatar is cleared.
@@ -330,7 +330,7 @@ func (w *web) settingsAvatarSave(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	if c.PostForm("remove") != "" {
-		token, err := clearAvatar(ctx, usersDB, u.ID)
+		token, err := w.clearAvatar(ctx, usersDB, u.ID)
 		if err != nil {
 			w.log.Error("clear avatar", "user", u.ID, "err", err)
 			c.Redirect(http.StatusFound, "/settings/profile?averr="+url.QueryEscape(err.Error()))

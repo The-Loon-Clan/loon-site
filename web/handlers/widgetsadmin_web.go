@@ -24,7 +24,7 @@ import (
 // widgetsAdminPage renders the editor for one region.
 func (w *web) widgetsAdminPage(c *gin.Context) {
 	region := c.Query("region")
-	if _, ok := widgetRegionByKey(region); !ok {
+	if _, ok := widgetRegionByKey(region); !ok || w.db() == nil {
 		// Default to the first region rather than erroring: arriving with no
 		// query is the normal way in, from the subnav.
 		region = widgetRegions[0].Key
@@ -46,7 +46,7 @@ func (w *web) widgetsAdminPage(c *gin.Context) {
 		Config      string // what the operator typed for THIS placement
 	}
 	var placed []placedVM
-	for _, p := range readPlacements(ctx, region) {
+	for _, p := range w.readPlacements(ctx, region) {
 		vm := placedVM{Slug: p.Slug, Position: p.Position, Enabled: p.Enabled,
 			Title: p.Slug, Missing: true, Config: p.Config}
 		if wd, ok := w.rt.Core().WidgetBySlug(p.Slug); ok {
@@ -73,7 +73,7 @@ func (w *web) widgetsAdminPage(c *gin.Context) {
 // whatever their browser last rendered.
 func (w *web) widgetsAdminAction(c *gin.Context) {
 	region := c.PostForm("region")
-	if _, ok := widgetRegionByKey(region); !ok || widgetsDB == nil {
+	if _, ok := widgetRegionByKey(region); !ok || w.db() == nil {
 		c.Redirect(http.StatusSeeOther, "/admin/widgets")
 		return
 	}
@@ -90,17 +90,17 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 		// Appended at the end: position is the count of what is already there.
 		// ON CONFLICT DO NOTHING makes a double-submit idempotent rather than
 		// moving a widget the operator did not touch.
-		_, _ = widgetsDB.ExecContext(ctx,
+		_, _ = w.db().ExecContext(ctx,
 			`INSERT INTO widget_placement (region, slug, position, enabled)
 			 VALUES ($1, $2, coalesce((SELECT max(position)+1 FROM widget_placement WHERE region=$1), 0), TRUE)
 			 ON CONFLICT (region, slug) DO NOTHING`, region, slug)
 	case "remove":
-		_, _ = widgetsDB.ExecContext(ctx,
+		_, _ = w.db().ExecContext(ctx,
 			`DELETE FROM widget_placement WHERE region=$1 AND slug=$2`, region, slug)
 	case "toggle":
 		// Off rather than removed keeps the position, so switching a widget
 		// back on puts it where it was instead of at the bottom.
-		_, _ = widgetsDB.ExecContext(ctx,
+		_, _ = w.db().ExecContext(ctx,
 			`UPDATE widget_placement SET enabled = NOT enabled WHERE region=$1 AND slug=$2`, region, slug)
 	case "configure":
 		// The setting for one placement. Stored verbatim — a widget decides
@@ -108,7 +108,7 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 		// would break every widget whose value is not what the host guessed.
 		// Whatever a widget does with it must be safe at RENDER; see the
 		// markdown widget, which runs the site's sanitising renderer.
-		_, _ = widgetsDB.ExecContext(ctx,
+		_, _ = w.db().ExecContext(ctx,
 			`UPDATE widget_placement SET config=$3 WHERE region=$1 AND slug=$2`,
 			region, slug, c.PostForm("config"))
 	case "move":
@@ -128,7 +128,7 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 // and removes a whole class of "the button did nothing".
 func (w *web) moveWidget(c *gin.Context, region, slug string, delta int) {
 	ctx := c.Request.Context()
-	rows := readPlacements(ctx, region)
+	rows := w.readPlacements(ctx, region)
 	idx := -1
 	for i, p := range rows {
 		if p.Slug == slug {
@@ -144,7 +144,7 @@ func (w *web) moveWidget(c *gin.Context, region, slug string, delta int) {
 		return // already at the end; not an error, just nothing to do
 	}
 	rows[idx], rows[target] = rows[target], rows[idx]
-	tx, err := widgetsDB.BeginTxx(ctx, nil)
+	tx, err := w.db().BeginTxx(ctx, nil)
 	if err != nil {
 		return
 	}

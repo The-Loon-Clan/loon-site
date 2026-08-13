@@ -49,8 +49,6 @@ const pendingTOTPAtKey = "pending_totp_at"
 // alive.
 const pendingTOTPTTL = 10 * time.Minute
 
-var securityDB *sqlx.DB
-
 // securityMigrate adds the columns and the recovery-code table.
 func securityMigrate(db *sqlx.DB) error {
 	stmts := []string{
@@ -95,21 +93,21 @@ type totpStatus struct {
 	RecoveryLeft int
 }
 
-func readTOTPStatus(ctx context.Context, userID int64) totpStatus {
+func (w *web) readTOTPStatus(ctx context.Context, userID int64) totpStatus {
+	if w.db() == nil {
+		return totpStatus{}
+	}
 	var st struct {
 		Secret  string `db:"totp_secret"`
 		Pending string `db:"totp_pending"`
 	}
-	if securityDB == nil {
-		return totpStatus{}
-	}
-	if err := securityDB.GetContext(ctx, &st,
+	if err := w.db().GetContext(ctx, &st,
 		`SELECT totp_secret, totp_pending FROM users WHERE id = $1`, userID); err != nil {
 		return totpStatus{}
 	}
 	out := totpStatus{Enabled: st.Secret != "", Pending: st.Pending}
 	if out.Enabled {
-		_ = securityDB.GetContext(ctx, &out.RecoveryLeft,
+		_ = w.db().GetContext(ctx, &out.RecoveryLeft,
 			`SELECT count(*) FROM totp_recovery_codes WHERE user_id = $1 AND used_at IS NULL`, userID)
 	}
 	return out
@@ -120,8 +118,8 @@ func readTOTPStatus(ctx context.Context, userID int64) totpStatus {
 // Replaces rather than appends: regenerating exists precisely because the old
 // list is compromised or lost, and leaving the old ones valid would defeat both
 // reasons.
-func issueRecoveryCodes(ctx context.Context, w *web, userID int64) ([]string, error) {
-	tx, err := securityDB.BeginTxx(ctx, nil)
+func (w *web) issueRecoveryCodes(ctx context.Context, userID int64) ([]string, error) {
+	tx, err := w.db().BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +155,7 @@ func issueRecoveryCodes(ctx context.Context, w *web, userID int64) ([]string, er
 // hashed, so there is nothing to look up BY. That is the cost of storing them
 // safely and it is ten bcrypt comparisons on a path somebody reaches when they
 // have lost their phone.
-func spendRecoveryCode(ctx context.Context, w *web, userID int64, code string) bool {
+func (w *web) spendRecoveryCode(ctx context.Context, userID int64, code string) bool {
 	if strings.TrimSpace(code) == "" {
 		return false
 	}
@@ -165,7 +163,7 @@ func spendRecoveryCode(ctx context.Context, w *web, userID int64, code string) b
 		ID   int64  `db:"id"`
 		Hash string `db:"code_hash"`
 	}
-	if err := securityDB.SelectContext(ctx, &rows,
+	if err := w.db().SelectContext(ctx, &rows,
 		`SELECT id, code_hash FROM totp_recovery_codes WHERE user_id = $1 AND used_at IS NULL`,
 		userID); err != nil {
 		return false
@@ -176,7 +174,7 @@ func spendRecoveryCode(ctx context.Context, w *web, userID int64, code string) b
 		}
 		// Marked used inside the same statement that claims it, so two
 		// simultaneous logins cannot both spend one code.
-		res, err := securityDB.ExecContext(ctx,
+		res, err := w.db().ExecContext(ctx,
 			`UPDATE totp_recovery_codes SET used_at = now() WHERE id = $1 AND used_at IS NULL`, r.ID)
 		if err != nil {
 			return false
@@ -194,7 +192,7 @@ func (w *web) securityPage(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	st := readTOTPStatus(ctx, u.ID)
+	st := w.readTOTPStatus(ctx, u.ID)
 
 	data := map[string]any{
 		"Title":    "Security",
@@ -211,7 +209,7 @@ func (w *web) securityPage(c *gin.Context) {
 	if st.Pending != "" {
 		data["Setup"] = true
 		data["Secret"] = totpFormatSecret(st.Pending)
-		data["URI"] = totpURI(siteName(), u.Username, st.Pending)
+		data["URI"] = totpURI(w.siteName(), u.Username, st.Pending)
 	}
 	w.render(c, "settings_security.html", data)
 }
@@ -237,7 +235,7 @@ func takeFlashCodes(c *gin.Context) []string {
 }
 
 // siteName is the issuer an authenticator app shows beside the code.
-func siteName() string { return getenvDefault("LOON_SITE_NAME", "loon indexer") }
+func (w *web) siteName() string { return getenvDefault("LOON_SITE_NAME", "loon indexer") }
 
 // securityAction serves POST /settings/security.
 func (w *web) securityAction(c *gin.Context) {
@@ -259,7 +257,7 @@ func (w *web) securityAction(c *gin.Context) {
 		}
 		// Written to the PENDING column. Nothing about the account changes
 		// until a code proves the app has the same secret.
-		if _, err := securityDB.ExecContext(ctx,
+		if _, err := w.db().ExecContext(ctx,
 			`UPDATE users SET totp_pending = $1 WHERE id = $2`, secret, u.ID); err != nil {
 			fail("could not start setup")
 			return
@@ -267,7 +265,7 @@ func (w *web) securityAction(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/settings/security")
 
 	case "confirm":
-		st := readTOTPStatus(ctx, u.ID)
+		st := w.readTOTPStatus(ctx, u.ID)
 		if st.Pending == "" {
 			fail("start the setup again")
 			return
@@ -279,14 +277,14 @@ func (w *web) securityAction(c *gin.Context) {
 			fail("that code did not match — check your phone's clock and try the next one")
 			return
 		}
-		codes, err := issueRecoveryCodes(ctx, w, u.ID)
+		codes, err := w.issueRecoveryCodes(ctx, u.ID)
 		if err != nil {
 			w.log.Error("issue recovery codes", "user", u.ID, "err", err)
 			fail("could not finish setup")
 			return
 		}
 		// Only now does the factor exist, and the codes are already written.
-		if _, err := securityDB.ExecContext(ctx,
+		if _, err := w.db().ExecContext(ctx,
 			`UPDATE users SET totp_secret = totp_pending, totp_pending = '', totp_enabled_at = now()
 			  WHERE id = $1`, u.ID); err != nil {
 			fail("could not finish setup")
@@ -297,16 +295,16 @@ func (w *web) securityAction(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/settings/security?done=enabled")
 
 	case "cancel":
-		_, _ = securityDB.ExecContext(ctx, `UPDATE users SET totp_pending = '' WHERE id = $1`, u.ID)
+		_, _ = w.db().ExecContext(ctx, `UPDATE users SET totp_pending = '' WHERE id = $1`, u.ID)
 		c.Redirect(http.StatusSeeOther, "/settings/security")
 
 	case "regenerate":
-		st := readTOTPStatus(ctx, u.ID)
-		if !st.Enabled || !totpVerify(secretOf(ctx, u.ID), c.PostForm("code"), time.Now()) {
+		st := w.readTOTPStatus(ctx, u.ID)
+		if !st.Enabled || !totpVerify(w.secretOf(ctx, u.ID), c.PostForm("code"), time.Now()) {
 			fail("that code did not match")
 			return
 		}
-		codes, err := issueRecoveryCodes(ctx, w, u.ID)
+		codes, err := w.issueRecoveryCodes(ctx, u.ID)
 		if err != nil {
 			fail("could not regenerate")
 			return
@@ -318,23 +316,23 @@ func (w *web) securityAction(c *gin.Context) {
 	case "disable":
 		// A CODE, not just a session. Otherwise a stolen session removes the
 		// factor in one click and it protected nothing.
-		if !totpVerify(secretOf(ctx, u.ID), c.PostForm("code"), time.Now()) &&
-			!spendRecoveryCode(ctx, w, u.ID, c.PostForm("code")) {
+		if !totpVerify(w.secretOf(ctx, u.ID), c.PostForm("code"), time.Now()) &&
+			!w.spendRecoveryCode(ctx, u.ID, c.PostForm("code")) {
 			fail("that code did not match")
 			return
 		}
-		if _, err := securityDB.ExecContext(ctx,
+		if _, err := w.db().ExecContext(ctx,
 			`UPDATE users SET totp_secret = '', totp_pending = '', totp_enabled_at = NULL WHERE id = $1`,
 			u.ID); err != nil {
 			fail("could not turn it off")
 			return
 		}
-		_, _ = securityDB.ExecContext(ctx, `DELETE FROM totp_recovery_codes WHERE user_id = $1`, u.ID)
+		_, _ = w.db().ExecContext(ctx, `DELETE FROM totp_recovery_codes WHERE user_id = $1`, u.ID)
 		w.log.Info("two-factor disabled", "user", u.ID)
 		c.Redirect(http.StatusSeeOther, "/settings/security?done=disabled")
 
 	case "email":
-		link, err := requestEmailChange(ctx, u.ID, c.PostForm("email"), baseURL())
+		link, err := w.requestEmailChange(ctx, u.ID, c.PostForm("email"), w.baseURL())
 		if err != nil {
 			fail(err.Error())
 			return
@@ -351,17 +349,17 @@ func (w *web) securityAction(c *gin.Context) {
 }
 
 // baseURL is the origin confirmation links are built against.
-func baseURL() string { return getenvDefault("LOON_BASE_URL", "http://localhost:8090") }
+func (w *web) baseURL() string { return getenvDefault("LOON_BASE_URL", "http://localhost:8090") }
 
 // secretOf reads the ACTIVE secret. Empty when the factor is off, which makes
 // totpVerify refuse — so a caller that forgets to check Enabled still fails
 // closed.
-func secretOf(ctx context.Context, userID int64) string {
-	var s string
-	if securityDB == nil {
+func (w *web) secretOf(ctx context.Context, userID int64) string {
+	if w.db() == nil {
 		return ""
 	}
-	_ = securityDB.GetContext(ctx, &s, `SELECT totp_secret FROM users WHERE id = $1`, userID)
+	var s string
+	_ = w.db().GetContext(ctx, &s, `SELECT totp_secret FROM users WHERE id = $1`, userID)
 	return s
 }
 
@@ -428,7 +426,7 @@ func (w *web) twoFactorPost(c *gin.Context) {
 
 	// A recovery code is accepted here too, because "I have lost my phone" is
 	// exactly when somebody is looking at this form.
-	if !totpVerify(secretOf(ctx, id), code, time.Now()) && !spendRecoveryCode(ctx, w, id, code) {
+	if !totpVerify(w.secretOf(ctx, id), code, time.Now()) && !w.spendRecoveryCode(ctx, id, code) {
 		w.log.Info("second factor rejected", "user", id)
 		c.Redirect(http.StatusSeeOther, "/login/2fa?err="+url.QueryEscape("that code did not match"))
 		return
@@ -462,7 +460,7 @@ const emailChangeTTL = 24 * time.Hour
 // they find out is the next time they are locked out.
 //
 // The old address is not changed and not freed until the new one answers.
-func requestEmailChange(ctx context.Context, userID int64, newEmail, baseURL string) (string, error) {
+func (w *web) requestEmailChange(ctx context.Context, userID int64, newEmail, baseURL string) (string, error) {
 	newEmail = strings.TrimSpace(strings.ToLower(newEmail))
 	if newEmail == "" || !strings.Contains(newEmail, "@") || strings.Contains(newEmail, " ") {
 		return "", errors.New("that does not look like an email address")
@@ -471,7 +469,7 @@ func requestEmailChange(ctx context.Context, userID int64, newEmail, baseURL str
 	// naming, because "nothing happened" and "we sent you a link" look the same
 	// from the outside.
 	var owner int64
-	err := securityDB.GetContext(ctx, &owner,
+	err := w.db().GetContext(ctx, &owner,
 		`SELECT id FROM users WHERE lower(email) = $1`, newEmail)
 	switch {
 	case err == nil && owner == userID:
@@ -484,7 +482,7 @@ func requestEmailChange(ctx context.Context, userID int64, newEmail, baseURL str
 	if err != nil {
 		return "", errors.New("could not start that change")
 	}
-	if _, err := securityDB.ExecContext(ctx, `
+	if _, err := w.db().ExecContext(ctx, `
 		INSERT INTO email_changes (token, user_id, new_email, expires_at)
 		VALUES ($1,$2,$3, now() + $4::interval)`,
 		token, userID, newEmail, emailChangeTTL.String()); err != nil {
@@ -509,7 +507,7 @@ func (w *web) emailConfirm(c *gin.Context) {
 	}
 	// Claimed and read in one statement, so a link opened twice (a mail client
 	// prefetching it, say) cannot apply twice.
-	if err := securityDB.GetContext(ctx, &row, `
+	if err := w.db().GetContext(ctx, &row, `
 		UPDATE email_changes SET used_at = now()
 		 WHERE token = $1 AND used_at IS NULL AND expires_at > now()
 		 RETURNING user_id, new_email`, token); err != nil {
@@ -517,7 +515,7 @@ func (w *web) emailConfirm(c *gin.Context) {
 			url.QueryEscape("that link has expired or has already been used"))
 		return
 	}
-	if _, err := securityDB.ExecContext(ctx,
+	if _, err := w.db().ExecContext(ctx,
 		`UPDATE users SET email = $1 WHERE id = $2`, row.Email, row.UserID); err != nil {
 		w.log.Error("apply email change", "user", row.UserID, "err", err)
 		c.Redirect(http.StatusSeeOther, "/settings/security?err="+url.QueryEscape("could not apply that change"))
@@ -526,7 +524,7 @@ func (w *web) emailConfirm(c *gin.Context) {
 	// Every other pending change for this account is dropped: they were all
 	// requested from the old address, and one of them just stopped being the
 	// account's address.
-	_, _ = securityDB.ExecContext(ctx,
+	_, _ = w.db().ExecContext(ctx,
 		`UPDATE email_changes SET used_at = now() WHERE user_id = $1 AND used_at IS NULL`, row.UserID)
 	w.log.Info("email changed", "user", row.UserID)
 	c.Redirect(http.StatusSeeOther, "/settings/security?done=email")

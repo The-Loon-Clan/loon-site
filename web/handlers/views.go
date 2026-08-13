@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/jmoiron/sqlx"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"github.com/the-loon-clan/loon-site/internal/markdown"
@@ -659,6 +660,25 @@ func (w *web) cacheSet(ctx context.Context, key string, v any, ttl time.Duration
 }
 
 // currentUser resolves the request's user via the baseline session middleware.
+// db is the site's database handle, or nil when there is no store.
+//
+// The storage package refuses a nil handle — that is where a mis-wiring should
+// be caught. Here the answer is different on purpose: a page must still RENDER
+// when a data source is absent, showing "—" rather than a 500, which is the
+// admin dashboard's stated contract and what its test constructs a web with no
+// sources to prove. So handlers tolerate a missing store; queries do not.
+func (w *web) db() *sqlx.DB {
+	if w.data == nil {
+		return nil
+	}
+	// w.data.DB(), NOT w.db(): the rewrite that introduced this accessor
+	// replaced every w.data.DB() in the package, including the one inside the
+	// accessor itself, which recursed until the stack died. The build was
+	// clean and every test passed — a nil store short-circuits above this
+	// line, so the tests never reached it. Only running the site found it.
+	return w.data.DB()
+}
+
 func (w *web) currentUser(c *gin.Context) (*core.User, bool) {
 	return w.auth.Current(c)
 }
@@ -891,7 +911,7 @@ func (w *web) profilePage(c *gin.Context) {
 		}
 	}
 	if forumReads != nil {
-		if n, err := forumPostCount(ctx, subject.ID); err == nil {
+		if n, err := w.forumPostCount(ctx, subject.ID); err == nil {
 			data["SubjectPosts"], data["HasSubjectPosts"] = n, true
 		}
 	}
@@ -1492,7 +1512,7 @@ func (w *web) loginPost(c *gin.Context) {
 	// right is worth recording as a success whether or not the second step
 	// follows, because "the password is known" is the fact a reader of that log
 	// needs. See security_web.go.
-	if secretOf(c.Request.Context(), u.ID) != "" {
+	if w.secretOf(c.Request.Context(), u.ID) != "" {
 		beginTOTPChallenge(c, u.ID)
 		return
 	}

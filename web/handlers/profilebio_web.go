@@ -151,7 +151,7 @@ func (w *web) settingsProfileSave(c *gin.Context) {
 			`UPDATE users SET bio = $1 WHERE id = $2`, bio, u.ID); err != nil {
 			w.log.Error("save bio", "user", u.ID, "err", err)
 		} else if previous != "" && previous != bio {
-			token = recordUndo(c.Request.Context(), u.ID, undoKindBio,
+			token = w.recordUndo(c.Request.Context(), u.ID, undoKindBio,
 				map[string]string{"previous": previous})
 		}
 	}

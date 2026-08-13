@@ -121,9 +121,9 @@ func (w *web) adminDashboard(c *gin.Context) {
 	}
 
 	// ── forum ──
-	if forumDB != nil {
+	if w.db() != nil {
 		var threads int
-		if err := forumDB.GetContext(ctx, &threads,
+		if err := w.db().GetContext(ctx, &threads,
 			`SELECT COUNT(*) FROM forum_threads WHERE hidden_at IS NULL`); err == nil {
 			vm.Tiles = append(vm.Tiles, statTile{
 				Label: "Forum threads", Value: itoa(threads), Href: "/community/forums",
