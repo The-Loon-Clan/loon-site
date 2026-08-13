@@ -1,0 +1,20 @@
+# Normalise line endings in the repository to LF.
+#
+# Without this, every commit made on Windows prints a "LF will be replaced by
+# CRLF" warning for each file it touches — 96 lines of it during the layout
+# refactor — and diffs between contributors on different platforms can show
+# whole files as changed when nothing was.
+#
+# text=auto lets Git decide what is text, and eol=lf pins what goes INTO the
+# repository. Working copies still get the platform's native endings on
+# checkout, so nothing changes for anyone editing on Windows.
+* text=auto eol=lf
+
+# Binary assets: never touch these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.gz binary
+*.zip binary

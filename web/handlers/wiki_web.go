@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
+
 	"fmt"
 	"html/template"
 	"os"
@@ -106,7 +108,7 @@ func wireWikiPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 			w.renderStatus(gc, status, "site_page.html",
 				map[string]any{"Title": title, "Fragment": body})
 		},
-		Markdown: siteMarkdown,
+		Markdown: markdown.Render,
 		Files:    blob.NewLocal(uploadRoot, uploadURL),
 	})
 	return nil

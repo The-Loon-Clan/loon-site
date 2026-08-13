@@ -1,6 +1,8 @@
-package handlers
+package markdown
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/sanitize"
+
 	"bytes"
 	"html"
 	"html/template"
@@ -37,11 +39,11 @@ var siteMD = goldmark.New(
 	goldmark.WithRendererOptions(gmhtml.WithHardWraps()),
 )
 
-// siteMarkdown renders untrusted prose to sanitized HTML. It satisfies the
+// Render renders untrusted prose to sanitized HTML. It satisfies the
 // Deps.Markdown signature every prose plugin asks the host for, and is also
 // registered as the {{prose}} template helper for the plugin-rendered pages
 // whose bodies arrive as plain strings.
-func siteMarkdown(src string) template.HTML {
+func Render(src string) template.HTML {
 	var buf bytes.Buffer
 	if err := siteMD.Convert([]byte(src), &buf); err != nil {
 		// Render nothing rather than the raw source: on a page that marks its
@@ -49,22 +51,22 @@ func siteMarkdown(src string) template.HTML {
 		// through exactly the markup the pipeline exists to filter.
 		return ""
 	}
-	return template.HTML(sanitizeNewsHTML(buf.String()))
+	return template.HTML(sanitize.HTML(buf.String()))
 }
 
-// excerpt turns already-rendered prose into a plain-text summary of n runes.
+// Excerpt turns already-rendered prose into a plain-text summary of n runes.
 //
 // Truncating the HTML itself would cut a tag in half, and marking the result
 // template.HTML again would then hand the browser broken markup that the
 // sanitizer had already approved — a page can be XSS-safe and still be wrong.
 // So this strips to TEXT and returns a string, which the template escapes on
-// the way out: an excerpt is a summary, not a rendering.
+// the way out: an Excerpt is a summary, not a rendering.
 //
 // The input is post-sanitizer, so the only tags present are the allowlist's.
 // BLOCK boundaries become spaces — otherwise "</p><p>" welds the last word of
 // one paragraph to the first of the next — while inline ones do not, because a
 // space there splits a word from its own punctuation.
-func excerpt(n int, body template.HTML) string {
+func Excerpt(n int, body template.HTML) string {
 	var b strings.Builder
 	for i := 0; i < len(body); i++ {
 		if body[i] != '<' {
@@ -79,7 +81,7 @@ func excerpt(n int, body template.HTML) string {
 		i += end
 		// <script>/<style> cannot reach here — the sanitizer drops them with
 		// their contents — but if one ever did, its SOURCE is not prose, and an
-		// excerpt reading "alert(1)" is wrong even when rendered as text. Skip
+		// Excerpt reading "alert(1)" is wrong even when rendered as text. Skip
 		// to the matching close rather than treating the body as words.
 		if name == "script" || name == "style" {
 			rest := strings.ToLower(string(body[i:]))
@@ -99,7 +101,7 @@ func excerpt(n int, body template.HTML) string {
 	}
 	// Entities survive tag-stripping as "&amp;" and would be shown literally.
 	text := html.UnescapeString(b.String())
-	return ellipsis(n, strings.Join(strings.Fields(text), " "))
+	return Ellipsis(n, strings.Join(strings.Fields(text), " "))
 }
 
 // excerptBlockTag reports whether a tag name (with any attributes, opening or
@@ -124,4 +126,32 @@ func excerptTagName(tag string) string {
 		tag = tag[:i]
 	}
 	return strings.ToLower(tag)
+}
+
+// Ellipsis shortens a string to n runes, ending in a single-character ellipsis
+// when it had to cut. Runes, not bytes: a release title is arbitrary bytes off
+// a Usenet header, and slicing one mid-rune produces the replacement character.
+//
+// Titles here are not names — obfuscated posts run to ninety characters of
+// punctuation — so any slot that shows one inline (a breadcrumb, a poster
+// field) needs a bound or the layout is at the mercy of whatever was posted.
+// The full value stays available in a title attribute at the call site.
+func Ellipsis(n int, s string) string {
+	if n <= 0 {
+		return ""
+	}
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	// Prefer to cut at a space so the result ends on a word where one is near
+	// the limit, rather than mid-token.
+	cut := n
+	for i := n; i > n*3/4 && i > 0; i-- {
+		if r[i] == ' ' {
+			cut = i
+			break
+		}
+	}
+	return strings.TrimRight(string(r[:cut]), " ") + "…"
 }

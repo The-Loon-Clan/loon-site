@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -63,7 +65,7 @@ func renderBio(src string) template.HTML {
 	if src == "" {
 		return ""
 	}
-	return siteMarkdown(src)
+	return markdown.Render(src)
 }
 
 // undoKindBio is the kind recorded when profile text is replaced.

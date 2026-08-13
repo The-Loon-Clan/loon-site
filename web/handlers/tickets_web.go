@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
+
 	"context"
 	"fmt"
 	"html/template"
@@ -98,7 +100,7 @@ func wireTicketsPlugin(c *core.Core, w *web) error {
 		},
 		// Crosses the seam because it SANITISES: a second renderer here would
 		// be a second allowlist, and the laxer of two is a stored-XSS bug.
-		Markdown: siteMarkdown,
+		Markdown: markdown.Render,
 		PageOffset: func(page, pageSize int) int {
 			if page < 1 {
 				page = 1

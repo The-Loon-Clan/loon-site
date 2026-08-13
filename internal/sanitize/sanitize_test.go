@@ -1,8 +1,8 @@
-package handlers
+package sanitize
 
 import "testing"
 
-// sanitizeNewsHTML is the last stage of every path in this host that renders
+// HTML is the last stage of every path in this host that renders
 // stored input UNESCAPED.
 //
 // It was written for news bodies, which are admin-authored, and this comment
@@ -63,8 +63,8 @@ func TestSanitizeNewsHTML(t *testing.T) {
 			`<a href="/a" title="he said &#34;hi&#34;">x</a>`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := sanitizeNewsHTML(tc.in); got != tc.want {
-				t.Errorf("sanitizeNewsHTML(%q)\n got: %q\nwant: %q", tc.in, got, tc.want)
+			if got := HTML(tc.in); got != tc.want {
+				t.Errorf("HTML(%q)\n got: %q\nwant: %q", tc.in, got, tc.want)
 			}
 		})
 	}
@@ -80,8 +80,8 @@ func TestSanitizeNewsHTMLIsIdempotent(t *testing.T) {
 		"5 < 6 & 7 > 2",
 		`<div><span>plain</span></div>`,
 	} {
-		once := sanitizeNewsHTML(in)
-		twice := sanitizeNewsHTML(once)
+		once := HTML(in)
+		twice := HTML(once)
 		if once != twice {
 			t.Errorf("not idempotent for %q:\n once: %q\ntwice: %q", in, once, twice)
 		}

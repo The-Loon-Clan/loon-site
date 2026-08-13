@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
+
 	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
 
 	site "github.com/the-loon-clan/loon-demo-site"
@@ -281,10 +283,10 @@ func tmplHelpers() template.FuncMap {
 		// Deps.Markdown seam to route them through — and printing those with
 		// {{.Body}} means HTML collapses every newline, so a multi-paragraph
 		// support ticket arrives as one run-on block.
-		"prose":    siteMarkdown,
+		"prose":    markdown.Render,
 		"ordinal":  ordinal,
-		"ellipsis": ellipsis,
-		"excerpt":  excerpt,
+		"ellipsis": markdown.Ellipsis,
+		"excerpt":  markdown.Excerpt,
 		"str":      str_,
 		"add":      func(a, b int) int { return a + b },
 		"dict":     dict,
@@ -329,34 +331,6 @@ func str_(v any) string {
 		return *x
 	}
 	return fmt.Sprint(v)
-}
-
-// ellipsis shortens a string to n runes, ending in a single-character ellipsis
-// when it had to cut. Runes, not bytes: a release title is arbitrary bytes off
-// a Usenet header, and slicing one mid-rune produces the replacement character.
-//
-// Titles here are not names — obfuscated posts run to ninety characters of
-// punctuation — so any slot that shows one inline (a breadcrumb, a poster
-// field) needs a bound or the layout is at the mercy of whatever was posted.
-// The full value stays available in a title attribute at the call site.
-func ellipsis(n int, s string) string {
-	if n <= 0 {
-		return ""
-	}
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
-	// Prefer to cut at a space so the result ends on a word where one is near
-	// the limit, rather than mid-token.
-	cut := n
-	for i := n; i > n*3/4 && i > 0; i-- {
-		if r[i] == ' ' {
-			cut = i
-			break
-		}
-	}
-	return strings.TrimRight(string(r[:cut]), " ") + "…"
 }
 
 // navActive reports whether a nav entry covers the current path — an exact

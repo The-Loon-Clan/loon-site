@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
+
 	site "github.com/the-loon-clan/loon-demo-site"
 
 	"context"
@@ -368,7 +370,7 @@ func wireForumPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 			w.chromeData(gc, data)
 			return data
 		},
-		Markdown: siteMarkdown,
+		Markdown: markdown.Render,
 		Paginate: func(page, totalPages int, baseURL string) any {
 			return forumPagination{Page: page, TotalPages: totalPages, BaseURL: baseURL}
 		},

@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
+
 	"fmt"
 	"html/template"
 	"strings"
@@ -45,7 +47,7 @@ func (w *web) registerBuiltinWidgets(c *core.Core) {
 	// line in a sidebar, a maintenance warning above the listings — the things
 	// a site wants to say that no plugin can know in advance.
 	//
-	// Through siteMarkdown, which is the site's ONE prose renderer: goldmark
+	// Through markdown.Render, which is the site's ONE prose renderer: goldmark
 	// with raw inline HTML refused, then the allowlist sanitizer. An admin is
 	// exactly the account a stored XSS payload is trying to reach, so the
 	// privileged path is the last one that should get a shortcut — the same
@@ -70,7 +72,7 @@ func (w *web) registerBuiltinWidgets(c *core.Core) {
 			if src == "" {
 				return "", nil
 			}
-			return siteMarkdown(src), nil
+			return markdown.Render(src), nil
 		},
 	})
 

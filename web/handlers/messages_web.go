@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
+
 	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
 
 	"context"
@@ -125,7 +127,7 @@ func wireMessagesPlugin(c *core.Core, w *web) error {
 			return w.renderPagination(hostPagination(page, pageSize, totalItems, baseURL))
 		},
 		// Crosses the seam because it sanitises — one allowlist for the site.
-		Markdown: siteMarkdown,
+		Markdown: markdown.Render,
 		// ListUsers backs the admin composer's recipient dropdown. It is
 		// optional precisely because core has no "list every user" method — on
 		// a real site that query breaks the page. The demo has two seeded

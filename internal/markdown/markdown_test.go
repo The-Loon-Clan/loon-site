@@ -1,4 +1,4 @@
-package handlers
+package markdown
 
 import (
 	"html/template"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// siteMarkdown is the site's ONE prose renderer (markdown_web.go) and, since
+// Render is the site's ONE prose renderer (markdown_web.go) and, since
 // the forum, tickets, DMs and announcements were routed through it, the gate
 // for arbitrary USER-authored input rather than only admin-authored news.
 //
@@ -38,7 +38,7 @@ var (
 
 func mdSafe(t *testing.T, label, src string) string {
 	t.Helper()
-	out := string(siteMarkdown(src))
+	out := string(Render(src))
 	low := strings.ToLower(out)
 	// Elements that must never appear at all, in any position.
 	for _, bad := range []string{
@@ -80,9 +80,9 @@ func TestSiteMarkdownRendersOrdinaryProse(t *testing.T) {
 		{"strikethrough (GFM)", "~~gone~~", "<del>"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := string(siteMarkdown(tc.in))
+			got := string(Render(tc.in))
 			if !strings.Contains(got, tc.want) {
-				t.Errorf("siteMarkdown(%q)\n got: %s\nwant it to contain: %s", tc.in, got, tc.want)
+				t.Errorf("Render(%q)\n got: %s\nwant it to contain: %s", tc.in, got, tc.want)
 			}
 		})
 	}
@@ -90,7 +90,7 @@ func TestSiteMarkdownRendersOrdinaryProse(t *testing.T) {
 	// HardWraps is on because people type posts, not documents: a single
 	// newline has to survive as a line break or every multi-line message
 	// collapses — the bug that motivated routing tickets through here.
-	if got := string(siteMarkdown("line one\nline two")); !strings.Contains(got, "<br") {
+	if got := string(Render("line one\nline two")); !strings.Contains(got, "<br") {
 		t.Errorf("a single newline did not become a line break: %s", got)
 	}
 }
@@ -159,8 +159,8 @@ func TestSiteMarkdownIsIdempotent(t *testing.T) {
 		"[x](javascript:alert(1))",
 		"> quoted\n\n- item\n\n`code`",
 	} {
-		once := string(siteMarkdown(in))
-		twice := string(siteMarkdown(once))
+		once := string(Render(in))
+		twice := string(Render(once))
 		mdSafe(t, "second pass", once)
 		// Not asserting once == twice: markdown is not a fixpoint (rendered
 		// HTML re-rendered is escaped differently). The property that matters
@@ -173,39 +173,12 @@ func TestSiteMarkdownIsIdempotent(t *testing.T) {
 // Returning the unrendered input on a convert error would hand the caller the
 // exact markup the pipeline exists to filter, already marked template.HTML.
 func TestSiteMarkdownEmptyInput(t *testing.T) {
-	if got := siteMarkdown(""); strings.TrimSpace(string(got)) != "" {
+	if got := Render(""); strings.TrimSpace(string(got)) != "" {
 		t.Errorf("empty input rendered %q", got)
 	}
 }
 
-// TestProseHelperIsTheSameRenderer: the {{prose}} template helper and the
-// Deps.Markdown seam must not drift into two policies — the whole point of
-// markdown_web.go is that there is exactly one. The plugin-rendered pages
-// (tickets, DMs, announcements) reach the pipeline ONLY through this helper, so
-// if it were ever pointed at a laxer renderer those pages would silently lose
-// the sanitizer while the forum kept it.
-func TestProseHelperIsTheSameRenderer(t *testing.T) {
-	helper, ok := tmplHelpers()["prose"]
-	if !ok {
-		t.Fatal("no {{prose}} helper registered — the plugin pages render bodies through it")
-	}
-	fn, ok := helper.(func(string) template.HTML)
-	if !ok {
-		t.Fatalf("{{prose}} is %T, want func(string) template.HTML", helper)
-	}
-	for _, src := range []string{
-		"a **b** and a [link](/wiki)",
-		"[x](javascript:alert(1))",
-		"<script>alert(1)</script>",
-		"line one\nline two",
-	} {
-		if got, want := string(fn(src)), string(siteMarkdown(src)); got != want {
-			t.Errorf("{{prose}} diverged from siteMarkdown for %q:\n got: %s\nwant: %s", src, got, want)
-		}
-	}
-}
-
-// excerpt feeds the news index. It runs on POST-sanitizer HTML, so its job is
+// Excerpt feeds the news index. It runs on POST-sanitizer HTML, so its job is
 // not safety — it is that a summary must be TEXT: truncating markup would cut a
 // tag in half, and re-marking that template.HTML would hand the browser broken
 // markup the sanitizer had already approved.
@@ -220,57 +193,25 @@ func TestExcerptStripsToPlainText(t *testing.T) {
 		{"empty", "", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := excerpt(200, template.HTML(tc.in)); got != tc.want {
-				t.Errorf("excerpt(%q) = %q, want %q", tc.in, got, tc.want)
+			if got := Excerpt(200, template.HTML(tc.in)); got != tc.want {
+				t.Errorf("Excerpt(%q) = %q, want %q", tc.in, got, tc.want)
 			}
 		})
 	}
 
 	// Bounded, and never mid-tag — the whole reason it strips first.
 	long := "<p>" + strings.Repeat("word ", 200) + "</p>"
-	got := excerpt(60, template.HTML(long))
+	got := Excerpt(60, template.HTML(long))
 	if n := len([]rune(got)); n > 61 {
-		t.Errorf("excerpt(60) returned %d runes", n)
+		t.Errorf("Excerpt(60) returned %d runes", n)
 	}
 	if strings.ContainsAny(got, "<>") {
-		t.Errorf("markup leaked into an excerpt: %q", got)
+		t.Errorf("markup leaked into an Excerpt: %q", got)
 	}
 
 	// The output is rendered as TEXT by the template, so this is belt and
-	// braces — but an excerpt must never carry a tag even if one reached it.
-	if got := excerpt(200, template.HTML(`<p>safe</p><script>alert(1)</script>`)); strings.Contains(got, "alert") {
-		t.Errorf("script content survived into an excerpt: %q", got)
-	}
-}
-
-// cond is used in ARGUMENT position inside dict literals, where a type error
-// is not a compile failure — it is an EXECUTE failure that truncates the page
-// mid-document and still returns 200. It was declared func(bool, …) and got a
-// string, which blanked two pages that looked fine by status code alone.
-func TestCondMatchesTemplateTruthiness(t *testing.T) {
-	fn, ok := tmplHelpers()["cond"].(func(a, b, c any) any)
-	if !ok {
-		t.Fatalf("cond is %T", tmplHelpers()["cond"])
-	}
-	for _, tc := range []struct {
-		name string
-		in   any
-		want any
-	}{
-		{"true bool", true, "yes"},
-		{"false bool", false, "no"},
-		{"non-empty string", "Mar 2026", "yes"},
-		{"empty string", "", "no"},
-		{"nonzero int", 3, "yes"},
-		{"zero int", 0, "no"},
-		{"nil", nil, "no"},
-		{"non-empty slice", []int{1}, "yes"},
-		{"empty slice", []int{}, "no"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := fn(tc.in, "yes", "no"); got != tc.want {
-				t.Errorf("cond(%#v) = %v, want %v", tc.in, got, tc.want)
-			}
-		})
+	// braces — but an Excerpt must never carry a tag even if one reached it.
+	if got := Excerpt(200, template.HTML(`<p>safe</p><script>alert(1)</script>`)); strings.Contains(got, "alert") {
+		t.Errorf("script content survived into an Excerpt: %q", got)
 	}
 }

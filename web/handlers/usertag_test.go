@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/markdown"
+
 	site "github.com/the-loon-clan/loon-demo-site"
 
 	"bytes"
@@ -106,13 +108,13 @@ func TestEllipsisBoundsUntrustedTitles(t *testing.T) {
 		// the replacement character.
 		{3, "日本語テキスト", "日本語…"},
 	} {
-		if got := ellipsis(tc.n, tc.in); got != tc.want {
-			t.Errorf("ellipsis(%d, %q) = %q, want %q", tc.n, tc.in, got, tc.want)
+		if got := markdown.Ellipsis(tc.n, tc.in); got != tc.want {
+			t.Errorf("markdown.Ellipsis(%d, %q) = %q, want %q", tc.n, tc.in, got, tc.want)
 		}
 	}
 	// Never longer than the bound plus the one ellipsis rune.
 	long := strings.Repeat("x", 500)
-	if n := len([]rune(ellipsis(64, long))); n > 65 {
-		t.Errorf("ellipsis(64) returned %d runes", n)
+	if n := len([]rune(markdown.Ellipsis(64, long))); n > 65 {
+		t.Errorf("markdown.Ellipsis(64) returned %d runes", n)
 	}
 }
