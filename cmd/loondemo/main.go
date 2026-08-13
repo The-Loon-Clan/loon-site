@@ -18,7 +18,7 @@
 package main
 
 import (
-	site "github.com/the-loon-clan/loon-demo-site"
+	"github.com/the-loon-clan/loon-demo-site/web/handlers"
 )
 
-func main() { site.Main() }
+func main() { handlers.Main() }
