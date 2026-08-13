@@ -2,134 +2,159 @@
   <img src="img/logo.png" alt="loon" width="180">
 </p>
 
-<h1 align="center">loon-demo-site</h1>
+<h1 align="center">loon-site</h1>
 
-<p align="center">A working reference site built on the <a href="https://github.com/The-Loon-Clan/loon">loon</a> plugin framework.</p>
+<p align="center">
+  A working Usenet indexer, and the reference host for the
+  <a href="https://github.com/The-Loon-Clan/loon">loon</a> plugin framework.
+</p>
+
+<p align="center">
+  <a href="https://github.com/The-Loon-Clan/loon-site/actions/workflows/ci.yml">
+    <img src="https://github.com/The-Loon-Clan/loon-site/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <img src="https://img.shields.io/badge/go-1.26-00ADD8" alt="Go 1.26">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
+</p>
 
 ---
 
-A small but real site on loon: it wires every `core.Deps` seam, boots the plugin
-runtime against Postgres, and serves a browsable, dark-themed **Usenet indexer** —
-news / search / groups / NZB download, an admin dashboard, and a setup wizard.
-`main.go` is what a HOST looks like; the plugins come from
-[loon-plugins](https://github.com/The-Loon-Clan/loon-plugins).
+## What this is
+
+A real site, not a skeleton. It crawls NNTP, assembles multi-part posts into
+NZBs, parses release names into quality badges, fetches cover art, and serves a
+browsable dark-themed indexer with search, a forum, a wiki, communities, an
+admin area and a Newznab API that Sonarr and Radarr can consume.
+
+It is also the **reference host** for [loon](https://github.com/The-Loon-Clan/loon):
+every seam a plugin can use is wired here, so the code doubles as the worked
+example of how to build one.
 
 ## Run it
 
-```
+```sh
+git clone https://github.com/The-Loon-Clan/loon-site.git
+cd loon-site
 docker compose up --build
 ```
 
-Open **http://localhost:8090/** and log in as **alice** (admin) or **bob** (user)
-— each account's **password is the same as its username** (`alice`/`alice`,
-`bob`/`bob`).
+Open **http://localhost:8090/** and sign in as **alice** (admin) or **bob**
+(member) — each password is the same as its username.
 
-> Everything runs in Docker (Postgres + the app). The build pulls in `loon` and
-> `loon-plugins` as sibling checkouts via BuildKit named contexts, so keep them
-> checked out next to this repo. (That requirement drops once loon tags releases.)
+That is the whole setup. No sibling checkouts, no configuration file, no
+external services: Postgres and the app both come up in Docker, the schema
+migrates itself on first boot, and the site seeds two accounts and some starter
+content so there is something to look at.
 
-### Working on the UI
+> **Nothing is indexed yet.** The site is a working indexer with an empty
+> catalogue until you point it at an NNTP server — see
+> [docs/OPERATING.md](docs/OPERATING.md).
 
-Templates and stylesheets are compiled into the binary (`//go:embed`), which is
-what lets the runtime image be distroless — but it also means a one-line CSS
-tweak costs a full rebuild. For UI work, add the dev overlay:
+## Configuration
+
+Everything is off by default and switched on with an environment variable.
+Nothing below is required to run the site.
+
+| Variable | Effect |
+| --- | --- |
+| `LOON_DSN` | Postgres connection string. Defaults to the compose database. |
+| `LOON_SITE_NAME` | The name shown in the header and in authenticator apps. |
+| `LOON_SITE_URL` | Absolute base baked into generated `.torrent` files. |
+| `LOON_SESSION_SECRET` | Session signing key. **Set this for anything reachable.** |
+| `REDIS_ADDR` | Use Redis for the page cache and sessions instead of memory. |
+| `LOON_TRACKER` | Run the BitTorrent tracker (announce endpoints, passkeys, ratio). |
+| `LOON_CHEATCHECK` | Judge tracker readings and raise flags for staff review. |
+| `LOON_HITRUN` | Enforce hit-and-run rules over the tracker's accounting. |
+| `LOON_SEEDLOCK` | One host per torrent per member. Needs `REDIS_ADDR`. |
+| `LOON_DEV` | Re-read templates per request, so UI edits show on refresh. |
+| `TMDB_API_KEY` | Cover art for films and TV. Without it, keyless sources are used. |
+| `TPDB_API_KEY`, `ANIDB_CLIENT` | Metadata for XXX and anime. |
+| `TURNSTILE_SITEKEY`, `TURNSTILE_SECRET` | Cloudflare captcha on login and register. |
+
+The tracker and its rules are off by default deliberately: switching one on
+starts keeping ratio accounting the moment it is reachable, which is not
+something a checkout should do to you.
+
+## How it is laid out
 
 ```
+cmd/loonsite/        the binary
+assets.go            //go:embed of web/ — the only thing at the module root
+internal/
+  config/            the operator switches above, in one place
+  markdown/          the site's one prose renderer
+  middleware/        CSRF
+  sanitize/          the HTML allowlist policy
+  storage/           every SQL statement, and the row types it scans into
+web/
+  handlers/          HTTP: routing, auth gates, view models, templates
+  templates/  static/
+plugins/guestbook/   the smallest possible plugin, as a worked example
+```
+
+Two rules hold the shape:
+
+- **No SQL in a handler.** `web/handlers` decides what to show and who may see
+  it; `internal/storage` decides how to ask the database. This is enforced by
+  review, and the properties each statement depends on (atomic claims, ownership
+  checks in the `WHERE`) are documented beside the SQL that implements them.
+- **The root package holds only the embed.** `//go:embed` cannot reference a
+  parent directory, and the runtime image is distroless with no `web/` directory
+  in it at all — so the package declaring those directives has to sit above
+  `web/`, and everything else moved out from under it.
+
+Start reading at [`web/handlers/main.go`](web/handlers/main.go) (what a host
+does at boot), then [`plugins/guestbook/`](plugins/guestbook/) (own schema,
+routes, points, a job — the hello-world for writing your own).
+
+## Development
+
+```sh
+make check      # gofmt, build, vet, sqllint, tests, coverage floor
+make run        # the site, detached
+make clean      # stop it — KEEPS the volumes
+```
+
+CI runs `make check` rather than its own list of steps, so what runs there is
+exactly what you can run before pushing.
+
+**Working on loon or loon-plugins at the same time?** Copy `go.work.example` to
+`go.work` and your sibling checkouts take over from the pinned versions. The
+file is gitignored, and the container build sets `GOWORK=off`, so a workspace
+cannot leak into an image or into CI.
+
+**Working on the UI?** Templates and CSS are compiled into the binary, which is
+what lets the image be distroless — but it means a one-line CSS change would
+otherwise cost a rebuild:
+
+```sh
 docker compose -f docker-compose.yml -f compose.dev.yml up -d
 ```
 
-That mounts `web/` and re-parses templates per request, so edits under
-`web/templates/` and `web/static/` show up on refresh. See `compose.dev.yml`.
+## What we check, and what we do not
 
-### Index some Usenet
+Trust is easier to give when the gaps are stated, so:
 
-1. Log in as **alice** → **Usenet** (`/admin/p/usenet` — providers, indexing,
-   newsgroups, crawler dashboard, per-job status, filters, on its own tabs).
-2. Enter an NNTP server → **Test connection** → **Fetch group list**.
-3. Enable a low-volume group → **Crawl now**.
-4. Watch **Jobs** (`/admin/jobs`), then **Search** for a title and download the `.nzb`.
+- **`make sql`** refuses SQL assembled from anything but constants — the way
+  parameterisation gets lost is always a concatenated or formatted fragment, so
+  that is what it looks for. It is tested against a real injection, not only
+  against a clean tree. An exception needs `// sqllint:allow <reason>`, and the
+  reason is part of the syntax.
+- **Coverage is 15%**, with a floor in CI so it cannot fall. That is low, and
+  the shape is lopsided: `sanitize` is at 93%, `storage` at 3%. The tests that
+  exist are mostly regression tests for bugs that actually happened, which is
+  where they earn the most; broad coverage of the handler layer is not there yet.
+- **CI proves the README's first claim** by cloning the repository and running
+  `docker compose up` with nothing else present, then failing if the first boot
+  logs a single error. That check exists because a first-boot bug did ship: a
+  shared settings table was created only when an unrelated plugin was enabled,
+  so a default deployment logged two errors and silently fell back to defaults.
+- **No dependency scanning or signed releases yet.** Worth having; not there.
 
-The indexer keeps only the last few days of posts (configurable), assembles
-multi-file releases into a single NZB, and parses quality tags
-(resolution / source / codec / audio / language) shown as badges in search.
+## Contributing
 
-#### When the crawler stops
-
-The symptom is every job idle with `crawl paused: staging N% full` and
-`backfill paused: staging pressure N%` in the job logs, and the builder
-reporting `built 0 of N candidate set(s) — N incomplete`.
-
-That gauge is **`usenet.articles` row count / `staging_max_rows`**, and the row
-count is `pg_class.reltuples` — the *planner's estimate*, not a `COUNT(*)`
-(`maintenance_store.go`: an exact count of a multi-million-row table on every
-pass is not worth it). On a table this write-heavy the estimate drifts high, so
-check it against reality before changing any knob:
-
-```
-select reltuples::bigint from pg_class where oid = to_regclass('usenet.articles');
-select count(*) from usenet.articles;
-```
-
-Estimate far above the count (it was 12.4M against 6.8M here) means the crawler
-is pausing on a table that is not actually full. `VACUUM (ANALYZE, PARALLEL 0)
-usenet.articles` corrects it immediately. To stop it recurring, make autovacuum
-keep up with the churn:
-
-```sql
-ALTER TABLE usenet.articles SET (
-    autovacuum_vacuum_scale_factor  = 0.02,   -- default 0.2
-    autovacuum_analyze_scale_factor = 0.02,   -- default 0.1
-    autovacuum_vacuum_cost_delay    = 0
-);
-```
-
-Only once the estimate is honest is the soft cap worth judging —
-**Usenet → Indexing → Staging soft cap (rows)** (default 2,000,000; this deploy
-runs 30,000,000, about 26 GB of table).
-
-Size it against the **pending sets**, not against the article count. The gauge
-is a deadlock, not a queue: a set only completes when *more* of its articles
-arrive, so a cap that pauses the crawl while large sets are still assembling
-removes the very supply they are waiting on, and the builder then has nothing to
-drain. That is what a permanent stall looks like — every job idle, article and
-NZB counts frozen, and the builder reporting `built 0 of N — N incomplete`.
-The worker telemetry names the sets that are short:
-
-```
-select value::json->'pending' from usenet.settings where key = 'worker_telemetry';
-```
-
-Entries like `have=113 need=511` over 47k segments are the ones setting the
-floor. 2,000,000 was far under it here, and even 10,000,000 re-wedged at 95%;
-30,000,000 leaves the room those sets need to finish. Watch for `crawl paused`
-turning into `pass budget reached` and the NZB count climbing again.
-
-Note that **Redis is not involved**: `USENET_STAGING` defaults to `pg`, so Redis
-holds the page cache only and sits around a megabyte with no `maxmemory` set.
-Growing it does nothing for a staging stall.
-
-## What's wired
-
-- **Auth** — username/password login (bcrypt-verified) over a signed session
-  cookie; the login form is the only way in.
-- **Admin** — `/admin/plugins` + `/admin/jobs` (both from loon) + the
-  setup wizard inside `/admin/settings`.
-- **Plugins** (from loon-plugins) — `usenet` (the indexer), `scraper`, `catalog`,
-  `backups`, `stats`, `dailyreward`, `pointstore` — plus the local `guestbook`
-  demo plugin.
-
-## What to read
-
-- `main.go` — the host: builds `core.Deps` from adapters, uses loon's scheduler
-  (`schedule.CoreScheduler`), then `core.New` → `core.Boot`.
-- `views.go` / `usenet_web.go` — the host-side pages, the session cookie, and the
-  usenet capability wiring.
-- `plugins/guestbook/` — the smallest possible plugin (own schema, routes, points,
-  a job): the hello-world for writing your own.
-
-The reference production instance (ameNZB) is private; this demo tracks the same
-framework version via the sibling-checkout `replace` in `go.mod`.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

@@ -177,6 +177,7 @@ func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 		   FROM usenet.nzbs n
 		   LEFT JOIN catalog.release_cover rc ON rc.release_id = n.id
 		  WHERE rc.release_id IS NULL
+		    // sqllint:allow catWhere is a constant in the linkSpecs table above; no request value reaches it
 		    AND `+spec.catWhere+`
 		    AND n.id < $1::bigint
 		  ORDER BY n.id DESC

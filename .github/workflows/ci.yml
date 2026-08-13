@@ -1,0 +1,100 @@
+# Continuous integration.
+#
+# The job calls `make check`, not its own list of steps, so what runs here is
+# exactly what a contributor can run before pushing. A check that lives only in
+# a workflow file cannot be tried locally; one that lives only in a Makefile
+# does not stop anybody. The same target, both places.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Weekly, because the interesting failures on a small project are not the
+  # ones a commit causes — they are a dependency moving, a base image changing,
+  # or the Go toolchain deprecating something. Those arrive on their own
+  # schedule and are cheapest to find before somebody needs to ship.
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # No go.work here, and none is created. CI must see what a clone sees:
+      # the module versions in go.mod, not somebody's sibling checkouts.
+      - name: Verify a clone builds on its own
+        run: |
+          test ! -f go.work || { echo "go.work is committed; it must not be"; exit 1; }
+          go build ./...
+
+      - name: Checks
+        run: make check
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          go tool cover -func=coverage.out > /tmp/cover.txt || exit 0
+          {
+            echo "### Test coverage"
+            echo
+            echo '```'
+            tail -1 /tmp/cover.txt
+            echo '```'
+            echo
+            echo "<details><summary>Per function</summary>"
+            echo
+            echo '```'
+            sort -k3 -r /tmp/cover.txt | head -40
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage profile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+          if-no-files-found: ignore
+
+  # The claim the README makes — clone it, run one command, get a site — is
+  # worth testing, because it is the first thing a stranger does and the
+  # easiest thing to break without noticing. Everything above this point can
+  # pass while `docker compose up` fails for want of a sibling checkout.
+  out-of-the-box:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: docker compose up, from nothing
+        run: docker compose up -d --build
+
+      - name: The site answers, and its schema is there
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/ || true)
+            [ "$code" = "200" ] && break
+            sleep 5
+          done
+          test "$code" = "200" || { echo "site did not come up"; docker compose logs app | tail -40; exit 1; }
+          # A first boot that logs errors is not a working first boot, whatever
+          # the home page returns — this is how the site_settings migration
+          # being hidden behind a feature flag was found.
+          errs=$(docker compose logs app | grep -c 'level=ERROR' || true)
+          test "$errs" = "0" || { echo "$errs error(s) on first boot"; docker compose logs app | grep 'level=ERROR' | head; exit 1; }
+          echo "first boot clean, HTTP 200"
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail=100

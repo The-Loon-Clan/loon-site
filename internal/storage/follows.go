@@ -63,10 +63,10 @@ func (st *Store) ToggleFollow(ctx context.Context, followerID, followeeID int64)
 // ListFollowers returns the people following userID, newest first.
 //
 // Followers and following are the same query against opposite ends of the same
-// row, which is why both go through FollowQuery rather than duplicating the
+// row, which is why both go through followQuery rather than duplicating the
 // join and the avatar/role/since projection the template needs.
 func (st *Store) ListFollowers(ctx context.Context, userID int64) []FollowList {
-	return st.FollowQuery(ctx,
+	return st.followQuery(ctx,
 		`SELECT u.username, u.role, COALESCE(u.avatar_path, '') AS avatar_path,
 		        to_char(f.created_at, 'Mon YYYY') AS since
 		   FROM user_follow f JOIN users u ON u.id = f.follower_id
@@ -75,7 +75,7 @@ func (st *Store) ListFollowers(ctx context.Context, userID int64) []FollowList {
 
 // ListFollowing returns the people userID follows, newest first.
 func (st *Store) ListFollowing(ctx context.Context, userID int64) []FollowList {
-	return st.FollowQuery(ctx,
+	return st.followQuery(ctx,
 		`SELECT u.username, u.role, COALESCE(u.avatar_path, '') AS avatar_path,
 		        to_char(f.created_at, 'Mon YYYY') AS since
 		   FROM user_follow f JOIN users u ON u.id = f.followee_id
@@ -99,7 +99,7 @@ func (st *Store) ListFollowing(ctx context.Context, userID int64) []FollowList {
 // `since` is the LATER of the two follows — the friendship began when the
 // second person reciprocated, not when the first one started reading.
 func (st *Store) ListFriends(ctx context.Context, userID int64) []FollowList {
-	return st.FollowQuery(ctx,
+	return st.followQuery(ctx,
 		`SELECT u.username, u.role, COALESCE(u.avatar_path, '') AS avatar_path,
 		        to_char(GREATEST(mine.created_at, theirs.created_at), 'Mon YYYY') AS since
 		   FROM user_follow mine
@@ -136,13 +136,18 @@ type FollowKind string
 // account is the query nobody notices until there is one.
 const FollowPageRows = 200
 
-// FollowQuery runs one of the follow-list queries above and scans the result.
+// followQuery runs one of the three follow-list queries in this file.
 //
-// The SQL is passed in rather than built here because the three lists differ
-// only in which side of user_follow they join on; the projection, the limit and
-// the error handling are identical and belong in one place. Exported because
-// the profile page composes its own variant.
-func (st *Store) FollowQuery(ctx context.Context, q string, userID int64) []FollowList {
+// The SQL is a parameter because the lists differ only in which side of
+// user_follow they join on; the projection, the limit and the error handling
+// are identical and belong in one place.
+//
+// UNEXPORTED, and that is the whole safety argument. A function that executes
+// a caller-supplied statement is safe exactly as far as its callers can be
+// enumerated — here they are the three above, each passing a literal. Exported,
+// it would be an open door with a polite sign on it, and scripts/sqllint.py
+// flagged it as one.
+func (st *Store) followQuery(ctx context.Context, q string, userID int64) []FollowList {
 	if userID <= 0 {
 		return nil
 	}
@@ -152,6 +157,7 @@ func (st *Store) FollowQuery(ctx context.Context, q string, userID int64) []Foll
 		Since    string `st.db:"since"`
 		Avatar   string `st.db:"avatar_path"`
 	}
+	// sqllint:allow q is one of the three literals above; followQuery is unexported so callers cannot supply their own
 	if err := st.db.SelectContext(ctx, &rows, q, userID, FollowPageRows); err != nil {
 		return nil
 	}
