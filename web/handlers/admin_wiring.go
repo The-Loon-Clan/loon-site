@@ -62,6 +62,11 @@ func wireAdminAndViews(
 	staffOnly := wsrv.auth.Require(core.RoleMod)
 	moderation.GET("/avatars", append(staffOnly, wsrv.avatarModPage)...)
 	moderation.POST("/avatars", append(staffOnly, wsrv.avatarModAction)...)
+	// The cheat-detection queue, beside the avatar queue on purpose: a queue
+	// is only worked if it is somewhere a moderator already goes. Same staff
+	// gate — reading a flag is a moderation act, and the flags name members.
+	moderation.GET("/cheat", append(staffOnly, wsrv.cheatQueuePage)...)
+	moderation.POST("/cheat/clear", append(staffOnly, wsrv.cheatQueueClear)...)
 
 	admin := engine.Group("/admin", wsrv.auth.Require(core.RoleAdmin)...)
 	// Access modes + the page map (accessadmin_web.go).

@@ -130,7 +130,7 @@ var pageTemplates = []string{
 	"credits.html",
 	// Moderation is not under /admin (it gates at RoleMod) but is the same
 	// kind of page — see avatarmod_web.go.
-	"moderation_avatars.html", "moderation_community.html",
+	"moderation_avatars.html", "moderation_community.html", "cheat_queue.html",
 	// Fixed host pages — UNIT3D's page/* and stats/index (pages_web.go).
 	"staff.html", "stats.html", "rules.html", "faq.html", "about.html",
 	"sitemap.html",

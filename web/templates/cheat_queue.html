@@ -1,0 +1,92 @@
+{{/* Cheat-detection queue (cheatqueue_web.go). .Flags, .Detection, .TrackerOff, .Err.
+
+     A TABLE, unlike the avatar queue's grid, because the judgement is
+     different: an avatar asks "look at it and decide", a flag asks "does this
+     reading make sense for this member on this torrent" — which is numbers
+     read against each other, and numbers belong in columns.
+
+     Nothing here punishes anybody. The flag says a human should look; clearing
+     says a human did. What to DO about a member stays on the pages that
+     already exist for it. */}}
+{{define "content"}}
+<header class="mb-3">
+    <h1 class="h3 m-0">Cheat flags</h1>
+    <p class="text-muted small m-0 mt-1">
+        Readings the sweep could not explain — an upload rate no client produces, or a
+        ratio no swarm supports. Records only: clearing one records that somebody looked.
+    </p>
+</header>
+
+{{if .TrackerOff}}
+{{/* Not an empty queue. "No flags" and "nothing is watching" look identical
+     and mean opposite things to somebody deciding whether to trust this page. */}}
+<div class="notice">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>The tracker is switched off, so nothing is being sampled. Start the site with
+        <code>LOON_TRACKER=1</code> to run it, and <code>LOON_CHEATCHECK=1</code> to judge what it records.</span>
+</div>
+{{else}}
+
+{{with .Err}}
+<div class="notice notice--danger">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#shield"></use></svg>
+    <span>{{.}}</span>
+</div>
+{{end}}
+
+{{if not .Detection}}
+{{/* The tracker runs and SAMPLES either way — the snapshots a later judgement
+     needs cannot be recovered retroactively — but nothing is being judged. */}}
+<div class="notice">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>Detection is off, so no new flags are being raised. Sampling continues either way:
+        the readings a later judgement needs cannot be recovered after the fact.
+        Set <code>LOON_CHEATCHECK=1</code> to judge them.</span>
+</div>
+{{end}}
+
+{{if .Flags}}
+<div class="panelV2">
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <caption class="visually-hidden">Open cheat flags</caption>
+            <thead>
+                <tr>
+                    <th>Member</th>
+                    <th>Torrent</th>
+                    <th class="data-table__nowrap">Kind</th>
+                    <th>What was read</th>
+                    <th class="data-table__nowrap">Raised</th>
+                    <th class="data-table__shrink"><span class="visually-hidden">Clear</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Flags}}
+                <tr>
+                    <td><a href="/u/{{.UserID}}">#{{.UserID}}</a></td>
+                    <td>{{if .Name}}{{.Name}}{{else}}<span class="text-muted">{{slice .InfoHash 0 12}}…</span>{{end}}</td>
+                    <td class="data-table__nowrap"><span class="badge">{{.Kind}}</span></td>
+                    {{/* The detail is the plugin's own sentence about what it
+                         measured. Shown verbatim: a moderator judging a reading
+                         needs the reading, not a paraphrase of it. */}}
+                    <td class="text-muted small">{{.Detail}}</td>
+                    <td class="data-table__nowrap text-muted small">{{.CreatedAt.Format "2 Jan 15:04"}}</td>
+                    <td class="data-table__shrink">
+                        <form method="post" action="/moderation/cheat/clear">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <button class="button button--sm" type="submit">Clear</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{else}}
+<p class="text-muted">Nothing flagged.</p>
+{{end}}
+
+{{end}}
+{{end}}
