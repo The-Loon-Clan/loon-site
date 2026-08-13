@@ -82,37 +82,17 @@ func (w *web) invitesCreate(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/invites?err=could+not+create+a+code")
 		return
 	}
-	// Spend the balance and mint the code in ONE transaction. Decrementing
-	// outside it loses an invite when the insert fails; inserting outside it
-	// mints a code the member never paid for.
-	tx, err := w.db().BeginTxx(ctx, nil)
+	// Spending the balance and minting the code is one transaction, and the
+	// race guard is inside it — see MintInviteCode. A false with no error is
+	// "you have none left", which is a refusal rather than a failure.
+	ok2, err := w.data.MintInviteCode(ctx, u.ID, code, inviteCodeTTL.String())
 	if err != nil {
+		w.log.Error("mint invite code", "user", u.ID, "err", err)
 		c.Redirect(http.StatusFound, "/invites?err=could+not+create+a+code")
 		return
 	}
-	defer tx.Rollback() //nolint:errcheck // no-op after a successful Commit
-	// The WHERE invites > 0 is the check: two clicks racing cannot both take
-	// the last invite, because the second updates no rows.
-	res, err := tx.ExecContext(ctx,
-		`UPDATE users SET invites = invites - 1 WHERE id = $1 AND invites > 0`, u.ID)
-	if err != nil {
-		c.Redirect(http.StatusFound, "/invites?err=could+not+create+a+code")
-		return
-	}
-	if n, _ := res.RowsAffected(); n != 1 {
+	if !ok2 {
 		c.Redirect(http.StatusFound, "/invites?err=you+have+no+invites+left")
-		return
-	}
-	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO invite_codes (code, created_by, expires_at) VALUES ($1, $2, now() + $3::interval)`,
-		code, u.ID, inviteCodeTTL.String()); err != nil {
-		w.log.Error("insert invite code", "err", err)
-		c.Redirect(http.StatusFound, "/invites?err=could+not+create+a+code")
-		return
-	}
-	if err := tx.Commit(); err != nil {
-		w.log.Error("commit invite code", "err", err)
-		c.Redirect(http.StatusFound, "/invites?err=could+not+create+a+code")
 		return
 	}
 	c.Redirect(http.StatusFound, "/invites")

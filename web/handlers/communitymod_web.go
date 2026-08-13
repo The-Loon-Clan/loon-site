@@ -350,9 +350,8 @@ func (w *web) communityModVote(c *gin.Context) {
 
 	// The subject does not vote on themselves. Enforced here as well as hidden
 	// in the template, because a hidden control is not an absent one.
-	var subject int64
-	if err := w.db().GetContext(ctx, &subject,
-		`SELECT subject_user_id FROM moderation_items WHERE id = $1 AND resolved_at IS NULL`, id); err != nil {
+	subject, openItem := w.data.ModerationSubject(ctx, id)
+	if !openItem {
 		c.Redirect(http.StatusFound, "/moderation")
 		return
 	}

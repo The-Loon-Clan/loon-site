@@ -81,19 +81,6 @@ func notificationPrefs(ctx context.Context, db *sqlx.DB, userID int64) map[strin
 	return out
 }
 
-// isPrivateProfile reports whether a subject has hidden their profile.
-func (w *web) isPrivateProfile(ctx context.Context, userID int64) bool {
-	if w.db() == nil {
-		return false
-	}
-	var private bool
-	if err := w.data.DB().GetContext(ctx, &private,
-		`SELECT COALESCE(private_profile, false) FROM users WHERE id = $1`, userID); err != nil {
-		return false
-	}
-	return private
-}
-
 // ── pages ───────────────────────────────────────────────────────────
 
 func (w *web) settingsPrivacy(c *gin.Context) {
@@ -103,7 +90,7 @@ func (w *web) settingsPrivacy(c *gin.Context) {
 	}
 	w.render(c, "settings_privacy.html", map[string]any{
 		"Title":          "Privacy",
-		"PrivateProfile": w.isPrivateProfile(c.Request.Context(), u.ID),
+		"PrivateProfile": w.data.IsPrivateProfile(c.Request.Context(), u.ID),
 		"Saved":          c.Query("saved") == "1",
 	})
 }
@@ -114,9 +101,8 @@ func (w *web) settingsPrivacySave(c *gin.Context) {
 		return
 	}
 	private := c.PostForm("private_profile") == "1"
-	if w.data.DB() != nil {
-		if _, err := w.data.DB().ExecContext(c.Request.Context(),
-			`UPDATE users SET private_profile = $2 WHERE id = $1`, u.ID, private); err != nil {
+	if w.data != nil {
+		if err := w.data.SetPrivateProfile(c.Request.Context(), u.ID, private); err != nil {
 			w.log.Error("privacy save", "err", err)
 		}
 	}
@@ -155,10 +141,7 @@ func (w *web) settingsNotificationsSave(c *gin.Context) {
 	// user just turned off still enabled.
 	for _, k := range notifiableKinds {
 		enabled := c.PostForm(k.Kind) == "1"
-		if _, err := w.data.DB().ExecContext(ctx,
-			`INSERT INTO notification_prefs (user_id, kind, enabled) VALUES ($1,$2,$3)
-			 ON CONFLICT (user_id, kind) DO UPDATE SET enabled = EXCLUDED.enabled`,
-			u.ID, k.Kind, enabled); err != nil {
+		if err := w.data.SetNotificationPref(ctx, u.ID, k.Kind, enabled); err != nil {
 			w.log.Error("notification pref save", "kind", k.Kind, "err", err)
 		}
 	}

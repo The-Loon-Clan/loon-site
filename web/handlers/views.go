@@ -861,7 +861,7 @@ func (w *web) profilePage(c *gin.Context) {
 		isSelf, isStaff = false, false
 	}
 
-	private := !isSelf && !isStaff && w.isPrivateProfile(c.Request.Context(), subject.ID)
+	private := !isSelf && !isStaff && w.data.IsPrivateProfile(c.Request.Context(), subject.ID)
 	data := map[string]any{
 		"Title":   subject.Username,
 		"Subject": subj,
@@ -902,7 +902,7 @@ func (w *web) profilePage(c *gin.Context) {
 	// profilebio_web.go. AFTER the privacy gate above on purpose: a private
 	// profile shows its identity card and nothing else, and the text a member
 	// wrote about themselves is exactly what that setting is for.
-	if bio := renderBio(w.readBio(ctx, subject.ID)); bio != "" {
+	if bio := renderBio(w.data.ReadBio(ctx, subject.ID)); bio != "" {
 		data["Bio"] = bio
 	}
 	if w.points != nil {

@@ -163,3 +163,36 @@ type InviteTreeTotals struct {
 // doing a lot of work in a recursive query against a table anybody with an
 // invite can add rows to. Five generations is far past what an operator reads.
 const InviteTreeDepth = 5
+
+// MintInviteCode spends one invite and creates a code, atomically.
+//
+// Returns (false, nil) when the member has none left — a refusal, not a
+// failure, and the caller says so differently.
+//
+// Both statements are in ONE transaction because either alone is wrong:
+// decrementing outside it loses an invite when the insert fails, and inserting
+// outside it mints a code nobody paid for. The `WHERE invites > 0` is the check
+// itself — two clicks racing cannot both take the last invite, because the
+// second updates no rows, which is why the row count is examined rather than
+// the balance being read first.
+func (st *Store) MintInviteCode(ctx context.Context, userID int64, code, ttl string) (bool, error) {
+	tx, err := st.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	res, err := tx.ExecContext(ctx,
+		`UPDATE users SET invites = invites - 1 WHERE id = $1 AND invites > 0`, userID)
+	if err != nil {
+		return false, err
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		return false, nil // no invites left
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO invite_codes (code, created_by, expires_at) VALUES ($1, $2, now() + $3::interval)`,
+		code, userID, ttl); err != nil {
+		return false, err
+	}
+	return true, tx.Commit()
+}

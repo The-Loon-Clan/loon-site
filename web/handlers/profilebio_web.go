@@ -34,20 +34,6 @@ import (
 // loads, and an unbounded field is rendered on every view.
 const bioMaxLen = 4000
 
-// readBio returns a member's raw markdown, or "" when unset or unavailable.
-// Best effort: a profile must still render when this read fails.
-func (w *web) readBio(ctx context.Context, userID int64) string {
-	if w.db() == nil || userID <= 0 {
-		return ""
-	}
-	var bio string
-	if err := w.data.DB().GetContext(ctx, &bio,
-		`SELECT COALESCE(bio, '') FROM users WHERE id = $1`, userID); err != nil {
-		return ""
-	}
-	return bio
-}
-
 // renderBio turns stored markdown into safe HTML for the profile.
 //
 // Rendered at READ time rather than stored as HTML, so a change to the
@@ -86,7 +72,7 @@ func (w *web) settingsProfile(c *gin.Context) {
 	if !ok {
 		return
 	}
-	bio := w.readBio(c.Request.Context(), u.ID)
+	bio := w.data.ReadBio(c.Request.Context(), u.ID)
 	w.render(c, "settings_profile.html", map[string]any{
 		"Title": "About you",
 		"Bio":   bio,
@@ -139,9 +125,8 @@ func (w *web) settingsProfileSave(c *gin.Context) {
 		// a profile with no warning and no copy of what was there, which is the
 		// same irreversibility an avatar removal has and the reason both are
 		// undoable while bookmarks and follows are not.
-		previous := w.readBio(c.Request.Context(), u.ID)
-		if _, err := w.data.DB().ExecContext(c.Request.Context(),
-			`UPDATE users SET bio = $1 WHERE id = $2`, bio, u.ID); err != nil {
+		previous := w.data.ReadBio(c.Request.Context(), u.ID)
+		if err := w.data.SetBio(c.Request.Context(), u.ID, bio); err != nil {
 			w.log.Error("save bio", "user", u.ID, "err", err)
 		} else if previous != "" && previous != bio {
 			token = w.recordUndo(c.Request.Context(), u.ID, undoKindBio,
