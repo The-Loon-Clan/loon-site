@@ -1,6 +1,6 @@
 module github.com/the-loon-clan/loon-site
 
-go 1.26.5
+go 1.26.6
 
 // loon, loon-plugins and loon-baseline are fetched like any other dependency,
 // so a clone of THIS repository builds on its own — see go.work.example for

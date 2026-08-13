@@ -53,6 +53,11 @@ project and one.
   trusts nothing until `LOON_TRUSTED_PROXIES` names a proxy.
   **If you run behind a proxy, set that variable or every request will be
   logged as coming from the proxy's own address.**
+- Seven reachable vulnerabilities in the Go standard library at 1.26.5 —
+  recursion-depth guards in `encoding/xml` and `encoding/asn1`, and Punycode
+  label handling in `net/http`. Fixed by moving to Go 1.26.6. Caught by CI's
+  own vulnerability step on a push that changed none of the affected code,
+  which is the case that scan exists for.
 - Seven reachable vulnerabilities, four of them in `golang.org/x/net/html` —
   the parser the HTML sanitiser is built on. All fixed; `make vuln` runs in CI.
 - `make fmt` reported "gofmt clean" when the formatter failed to run at all,
