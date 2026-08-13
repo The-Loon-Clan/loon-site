@@ -35,6 +35,18 @@ func testStore(t *testing.T) *Store {
 	t.Helper()
 	dsn := os.Getenv("LOON_TEST_DSN")
 	if dsn == "" {
+		if os.Getenv("CI") != "" {
+			// In CI an absent DSN is a broken workflow, not a laptop without a
+			// database, and skipping there would be the worst available
+			// outcome: these tests are the difference between 3.6% and 38%
+			// coverage of the storage layer, and losing all of them still
+			// clears the coverage floor — which is set for the laptop case. So
+			// nothing would report the loss. The service container could be
+			// deleted and CI would stay green.
+			t.Fatal("LOON_TEST_DSN is unset in CI: the postgres service container " +
+				"is missing from .github/workflows/ci.yml, and these tests have " +
+				"been silently skipping")
+		}
 		t.Skip("set LOON_TEST_DSN to run storage integration tests")
 	}
 	db, err := sqlx.Connect("postgres", dsn)

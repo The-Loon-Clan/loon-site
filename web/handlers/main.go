@@ -163,42 +163,9 @@ func Main() {
 	// core Redis seam (core.Redis) that Redis-capable plugins consume — e.g. the
 	// usenet plugin's staging: redis mode. In-memory cache + no Redis seam by
 	// default (Redis stays nil); set REDIS_ADDR to enable both at once.
-	var redisClient *goredis.Client
-	if addr := os.Getenv("REDIS_ADDR"); addr != "" {
-		client := goredis.NewClient(&goredis.Options{Addr: addr})
-		// PING before adopting it. Without this check the site technically
-		// stays up when Redis is gone and is unusable anyway: every cache read
-		// dials, retries five times and fails, so a page that reads four keys
-		// spent TEN SECONDS before rendering — long enough that the browser
-		// had already hung up. A degraded cache has to be fast about being
-		// degraded.
-		//
-		// One short timeout, once, at boot. Redis dying LATER is a different
-		// problem and not one a boot probe can answer; this only stops the
-		// site adopting a backend that is already unreachable.
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		err := client.Ping(ctx).Err()
-		cancel()
-		switch {
-		case err != nil:
-			// Loud, and naming the address: an operator who set REDIS_ADDR
-			// expects Redis, and silently running on an in-process cache is
-			// how a two-replica deployment starts serving two different
-			// versions of every cached page.
-			logger.Error("redis unreachable — falling back to the in-memory cache; "+
-				"pages are still cached, but per-process and not shared",
-				"addr", addr, "err", err)
-			_ = client.Close()
-			wsrv.cache = cachememory.New()
-		default:
-			redisClient = client
-			wsrv.cache = cacheredis.New(client)
-			logger.Info("cache backend", "kind", "redis", "addr", addr)
-		}
-	} else {
-		wsrv.cache = cachememory.New()
-		logger.Info("cache backend", "kind", "memory")
-	}
+	backend, redisClient := chooseCache(os.Getenv("REDIS_ADDR"), logger)
+	wsrv.cache = backend
+
 	// Reset/verify flow. The demo "mailer" just logs the message (link included)
 	// so you can follow it in the logs; a real host sends via SMTP.
 	wsrv.resetFlow = authtoken.Flow{
@@ -718,6 +685,50 @@ func connect(dsn string) (*sqlx.DB, error) {
 		time.Sleep(2 * time.Second)
 	}
 	return nil, fmt.Errorf("after 10 attempts: %w", err)
+}
+
+// chooseCache picks the page-cache backend, and returns the Redis client to
+// share with the core.Redis seam when there is one.
+//
+// PING before adopting it. Without that check the site technically stays up
+// when Redis is gone and is unusable anyway: every cache read dials, retries
+// five times and fails, so a page reading four keys spent TEN SECONDS before
+// rendering — long enough that the browser had already hung up. A degraded
+// cache has to be fast about being degraded.
+//
+// One short timeout, once, at boot. Redis dying LATER is a different problem
+// and not one a boot probe can answer; this only stops the site adopting a
+// backend that is already unreachable.
+//
+// A nil client is returned alongside the memory cache, and callers must treat
+// it as "no Redis seam" — the fallback has to be total. Handing back a live
+// client for a Redis that failed its ping would leave plugins talking to a
+// server the cache had already given up on.
+//
+// Extracted from Main so it can be tested: this is a decision with three
+// outcomes, two of which only happen when something is wrong.
+func chooseCache(addr string, logger *slog.Logger) (cache.Cache, *goredis.Client) {
+	if addr == "" {
+		logger.Info("cache backend", "kind", "memory")
+		return cachememory.New(), nil
+	}
+	client := goredis.NewClient(&goredis.Options{Addr: addr})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	err := client.Ping(ctx).Err()
+	cancel()
+	if err != nil {
+		// Loud, and naming the address: an operator who set REDIS_ADDR expects
+		// Redis, and silently running on an in-process cache is how a
+		// two-replica deployment starts serving two different versions of
+		// every cached page.
+		logger.Error("redis unreachable — falling back to the in-memory cache; "+
+			"pages are still cached, but per-process and not shared",
+			"addr", addr, "err", err)
+		_ = client.Close()
+		return cachememory.New(), nil
+	}
+	logger.Info("cache backend", "kind", "redis", "addr", addr)
+	return cacheredis.New(client), client
 }
 
 func getenvDefault(key, def string) string {

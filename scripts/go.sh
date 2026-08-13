@@ -41,5 +41,14 @@ MSYS_NO_PATHCONV=1 exec docker run --rm \
   -w /app \
   -e GOWORK=off \
   -e GOFLAGS=-buildvcs=false \
+  `# Forwarded, not inherited. A container gets none of the host's environment` \
+  `# unless it is named here, so LOON_TEST_DSN=... scripts/go.sh test would set` \
+  `# the variable in the SHELL and not in the process that reads it — and the` \
+  `# integration tests would skip while looking like they ran.` \
+  -e LOON_TEST_DSN \
+  -e REDIS_TEST_ADDR \
+  -e CI \
+  `# --network host so the container can reach a throwaway Postgres or Redis` \
+  `# published on the host by 'make itest'.` \
   --network host \
   "$IMAGE" go "$@"

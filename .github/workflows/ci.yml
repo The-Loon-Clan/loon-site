@@ -40,8 +40,24 @@ jobs:
           --health-cmd pg_isready --health-interval 5s
           --health-timeout 5s --health-retries 10
 
+      # A Redis, for the same reason. The cache backend chooses between Redis
+      # and an in-process map at boot, and the branch worth checking is that a
+      # cache calling itself Redis really is Redis — a memory cache under that
+      # name is invisible on one process and serves two different versions of
+      # every cached page across two.
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+
     env:
       LOON_TEST_DSN: postgres://demo:demo@localhost:5432/loon_test?sslmode=disable
+      # REDIS_TEST_ADDR, not REDIS_ADDR: the latter is the operator's switch and
+      # is set in every compose file here, so reusing it would have the test
+      # quietly exercise whatever Redis happened to be running.
+      REDIS_TEST_ADDR: localhost:6379
 
     steps:
       - uses: actions/checkout@v4

@@ -114,7 +114,7 @@ routes, points, a job — the hello-world for writing your own).
 make check      # gofmt, build, vet, golangci-lint, sqllint, tests, coverage floor
 make golint     # golangci-lint alone (slow the first time, seconds after)
 make vuln       # known vulnerabilities in code this project actually calls
-make itest      # storage tests against a throwaway Postgres
+make itest      # the tests needing real services (throwaway Postgres + Redis)
 make run        # the site, detached
 make clean      # stop it — KEEPS the volumes
 ```
@@ -172,15 +172,24 @@ Trust is easier to give when the gaps are stated, so:
   ones were not the unchecked errors: three doc comments described symbols that
   had been renamed or had moved to another package during a restructure, and
   one of them documented a handler that no longer lived in that file at all.
-- **Coverage is 18.5%**, with a floor in CI so it cannot fall. That is low, and
-  the shape is lopsided: `config` is at 100% and `sanitize` at 93%, `storage` at
-  3.6% — and that last number is the misleading one. The storage tests exist and
-  run the real SQL, but they skip unless `LOON_TEST_DSN` is set, so the layer
-  where a mistake corrupts data is covered only when somebody runs `make itest`.
-  The tests that exist are mostly regression tests for bugs that actually
-  happened, plus the security-critical paths — whether a private site is
-  private, and what the avatar pipeline accepts from a stranger. Broad coverage
-  of the handler layer is not there yet.
+- **Coverage is 22.6%** with the Postgres and Redis that CI provides, and
+  **18.8%** on a laptop without them — the storage integration tests take that
+  package from 3.6% to 38%, and they skip when there is no database. Both
+  numbers are stated because only one of them is what CI measures, and quoting
+  the lower one as "our coverage" understates the storage layer while quoting
+  the higher one overstates what you will see locally. Run `make itest` to get
+  the CI number on your own machine.
+
+  The floor in CI is set for the laptop number, which means it cannot detect
+  the service containers going missing: every integration test would skip,
+  coverage would fall to 18.8%, and the floor would still pass. So the tests
+  fail rather than skip when `CI` is set and no DSN is present. The floor is for
+  gradual erosion; that guard is for the suite disappearing.
+
+  The shape is still lopsided — `config` 100%, `sanitize` 93%, `web/handlers`
+  19.3%. The tests that exist are mostly regression tests for bugs that actually
+  happened, plus the security-critical paths: whether a private site is private,
+  and what the avatar pipeline accepts from a stranger.
 - **CI proves the README's first claim** by cloning the repository and running
   `docker compose up` with nothing else present, then failing if the first boot
   logs a single error. That check exists because a first-boot bug did ship: a
