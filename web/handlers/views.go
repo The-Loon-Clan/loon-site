@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
+
 	site "github.com/the-loon-clan/loon-demo-site"
 
 	"context"
@@ -980,7 +982,7 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 			data["PendingAvatars"] = n
 		}
 	}
-	data["CSRFToken"] = csrfToken(c) // hidden _csrf field for every POST form
+	data["CSRFToken"] = middleware.Token(c) // hidden _csrf field for every POST form
 	if u != nil {
 		// Viewer identity bits the user panel + top bar show. Both come off the
 		// session-resolved user (no extra query): the rank label the role maps

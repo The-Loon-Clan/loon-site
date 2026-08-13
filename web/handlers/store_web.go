@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
+
 	"html/template"
 	"strings"
 
@@ -35,7 +37,7 @@ func wireStorePlugin(w *web) {
 		},
 		// Host-minted and host-validated: the plugin must never mint its own,
 		// or the token it embeds is not the one csrf.go will check.
-		CSRFToken: csrfToken,
+		CSRFToken: middleware.Token,
 		// The pager as ready HTML. A plugin fragment is rendered by the
 		// plugin's own template set and cannot reach the host's partials, so
 		// the host executes its own — one pager for the whole site rather than

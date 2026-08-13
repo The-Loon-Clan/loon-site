@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
+
 	"html/template"
 	"os"
 	"time"
@@ -73,7 +75,7 @@ func (w *web) wireTrackerPlugin() {
 		},
 		// The double-submit token for the passkey-rotate form. The host's
 		// session concern, which is why the plugin asks rather than invents.
-		CSRFToken: csrfToken,
+		CSRFToken: middleware.Token,
 		// Borrowed so the tracker's "last seen" column does not drift from
 		// every other relative time on the site.
 		//

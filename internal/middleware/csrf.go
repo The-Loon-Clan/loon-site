@@ -1,4 +1,4 @@
-package handlers
+package middleware
 
 import (
 	"crypto/rand"
@@ -24,11 +24,11 @@ const (
 	csrfContextKey = "csrf_token"
 )
 
-// csrfMiddleware must run AFTER the session middleware (it reads/writes the
+// CSRF must run AFTER the session middleware (it reads/writes the
 // session) and before the routes. The keyed Newznab API (/api, /rss)
 // authenticates by api_key, not the session cookie, so the CSRF gate is both
 // irrelevant and harmful there and is skipped.
-func csrfMiddleware() gin.HandlerFunc {
+func CSRF() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// /api, /rss authenticate by api_key (no session cookie). And
 		// /admin/jobs/config is rendered by loon/schedule's built-in handler,
@@ -82,9 +82,9 @@ func csrfMiddleware() gin.HandlerFunc {
 	}
 }
 
-// csrfToken returns the per-session token the middleware stashed in context, for
+// Token returns the per-session token the middleware stashed in context, for
 // templates to embed as the hidden _csrf field.
-func csrfToken(c *gin.Context) string {
+func Token(c *gin.Context) string {
 	t, _ := c.Get(csrfContextKey)
 	s, _ := t.(string)
 	return s

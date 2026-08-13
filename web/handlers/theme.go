@@ -54,7 +54,7 @@ const (
 	// because it is a per-VIEWER preference; /admin/settings is site config.
 	themeRoute = "/settings/theme"
 	// themeFormField / themeNextField are the POST inputs. The form also
-	// carries the usual hidden _csrf (csrfMiddleware gates every POST).
+	// carries the usual hidden _csrf (middleware.CSRF gates every POST).
 	themeFormField = "theme"
 	themeNextField = "next"
 )
@@ -120,7 +120,7 @@ func currentTheme(c *gin.Context) themeOption {
 }
 
 // setTheme is POST /settings/theme: the switcher's form target. CSRF is
-// enforced by the global csrfMiddleware (the form carries the hidden _csrf
+// enforced by the global middleware.CSRF (the form carries the hidden _csrf
 // every other POST in this demo carries), so this handler only has to decide
 // the cookie and where to send the browser back to.
 func (w *web) setTheme(c *gin.Context) {

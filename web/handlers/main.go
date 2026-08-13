@@ -9,6 +9,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
+
 	"context"
 	"errors"
 	"fmt"
@@ -343,7 +345,7 @@ func Main() {
 	engine.Use(sessions.Sessions(wsrv.auth.Session.Name, sessionStore))
 	// CSRF double-submit guard (after the session, which it reads/writes). Every
 	// state-changing POST must carry the _csrf token; templates embed it.
-	engine.Use(csrfMiddleware())
+	engine.Use(middleware.CSRF())
 	// Maintenance gate: while ON, visitor pages get the 503 page. Bypass /admin
 	// (so the operator can toggle it off), /login+/logout (sign in first),
 	// /static, /healthz — and /api+/rss, so the Newznab API keeps serving while

@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
+
 	"context"
 	"fmt"
 	"html/template"
@@ -116,7 +118,7 @@ func wireMessagesPlugin(c *core.Core, w *web) error {
 		RenderPage: func(gc *gin.Context, title string, body template.HTML) {
 			w.render(gc, "site_page.html", map[string]any{"Title": title, "Fragment": body})
 		},
-		CSRFToken:    csrfToken,
+		CSRFToken:    middleware.Token,
 		RelativeTime: relativeTime,
 		RenderEditor: w.renderEditor,
 		RenderPagination: func(page, pageSize, totalItems int, baseURL string) template.HTML {

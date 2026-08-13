@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-demo-site/internal/middleware"
+
 	"context"
 	"fmt"
 	"html/template"
@@ -214,7 +216,7 @@ func wirePerksPlugin(w *web) {
 		RenderPage: func(gc *gin.Context, title string, body template.HTML) {
 			w.render(gc, "site_page.html", map[string]any{"Title": title, "Fragment": body})
 		},
-		CSRFToken: csrfToken,
+		CSRFToken: middleware.Token,
 	})
 }
 
@@ -239,6 +241,6 @@ func wireSeedLockPlugin(w *web) {
 		RenderPage: func(gc *gin.Context, title string, body template.HTML) {
 			w.render(gc, "site_page.html", map[string]any{"Title": title, "Fragment": body})
 		},
-		CSRFToken: csrfToken,
+		CSRFToken: middleware.Token,
 	})
 }
