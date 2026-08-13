@@ -209,6 +209,14 @@ Trust is easier to give when the gaps are stated, so:
   stay two.
 - **No signed releases yet.** Worth having; not there.
 
+## How this compares
+
+[docs/BENCHMARK.md](docs/BENCHMARK.md) measures this project against UNIT3D,
+NNTmux and NexusPHP — structure, tests, tooling, service topology and features —
+and states where it leads, where it is behind, and what stands between it and a
+release. Short version: the best test ratio and the only measured coverage of
+the four, and the only one running everything in a single process.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).
