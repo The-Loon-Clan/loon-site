@@ -111,9 +111,18 @@ routes, points, a job — the hello-world for writing your own).
 
 ```sh
 make check      # gofmt, build, vet, sqllint, tests, coverage floor
+make vuln       # known vulnerabilities in code this project actually calls
+make itest      # storage tests against a throwaway Postgres
 make run        # the site, detached
 make clean      # stop it — KEEPS the volumes
 ```
+
+The Go toolchain runs **in a container** by default (`scripts/go.sh`), so
+nothing unsigned is written to your machine. That is not ceremony: on Windows an
+anti-virus quarantines freshly built test binaries, and the symptom is a
+toolchain reporting `no such tool "compile"` rather than anything that reads
+like a security product. Pass `GO=go` to any target to use the host toolchain
+instead.
 
 CI runs `make check` rather than its own list of steps, so what runs there is
 exactly what you can run before pushing.
@@ -149,7 +158,11 @@ Trust is easier to give when the gaps are stated, so:
   logs a single error. That check exists because a first-boot bug did ship: a
   shared settings table was created only when an unrelated plugin was enabled,
   so a default deployment logged two errors and silently fell back to defaults.
-- **No dependency scanning or signed releases yet.** Worth having; not there.
+- **`make vuln` reports vulnerabilities in code this project actually calls**,
+  not everything in the module graph — that distinction matters. Its first run
+  found seven reachable ones, four of them in `golang.org/x/net/html`, the
+  parser `internal/sanitize` is built on. All are fixed; the scan runs in CI.
+- **No signed releases yet.** Worth having; not there.
 
 ## Contributing
 

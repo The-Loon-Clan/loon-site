@@ -58,8 +58,17 @@ jobs:
           test ! -f go.work || { echo "go.work is committed; it must not be"; exit 1; }
           go build ./...
 
+      # GO=go: CI is already a clean Linux container, so running the toolchain
+      # inside another one buys nothing here. The Docker path exists for
+      # developer machines where an anti-virus quarantines freshly built
+      # binaries; the checks themselves are identical either way.
       - name: Checks
-        run: make check
+        run: make check GO=go
+
+      - name: Known vulnerabilities in code we call
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
 
       - name: Coverage summary
         if: always()
