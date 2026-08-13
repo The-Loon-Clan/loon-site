@@ -172,7 +172,7 @@ Trust is easier to give when the gaps are stated, so:
   ones were not the unchecked errors: three doc comments described symbols that
   had been renamed or had moved to another package during a restructure, and
   one of them documented a handler that no longer lived in that file at all.
-- **Coverage is 17.6%**, with a floor in CI so it cannot fall. That is low, and
+- **Coverage is 18.5%**, with a floor in CI so it cannot fall. That is low, and
   the shape is lopsided: `config` is at 100% and `sanitize` at 93%, `storage` at
   3.6% — and that last number is the misleading one. The storage tests exist and
   run the real SQL, but they skip unless `LOON_TEST_DSN` is set, so the layer
