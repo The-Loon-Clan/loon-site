@@ -145,67 +145,10 @@ type facetsVM struct {
 // base is the page path plus any params that are NOT facets (?q=, ?cat=), so a
 // facet link keeps the search or category it was clicked from.
 func buildFacets(rows []searchRow, f releaseFilter, base string, keep url.Values) facetsVM {
-	resCount, srcCount, grpCount := map[string]int{}, map[string]int{}, map[string]int{}
-	for _, r := range rows {
-		if r.Resolution != "" {
-			resCount[r.Resolution]++
-		}
-		if r.Source != "" {
-			srcCount[r.Source]++
-		}
-		if r.Group != "" {
-			grpCount[r.Group]++
-		}
-	}
-	link := func(param, value string) string {
-		v := url.Values{}
-		for k, vals := range keep {
-			for _, s := range vals {
-				v.Add(k, s)
-			}
-		}
-		// Carry the other facets so filters compose.
-		add := func(k, cur string) {
-			if k != param && cur != "" {
-				v.Set(k, cur)
-			}
-		}
-		add("res", f.Resolution)
-		add("source", f.Source)
-		add("group", f.Group)
-		add("sort", f.Sort)
-		// Clicking the active value clears it — the same control both ways, so
-		// there is no separate "remove" affordance to find.
-		cur := map[string]string{"res": f.Resolution, "source": f.Source, "group": f.Group, "sort": f.Sort}[param]
-		if !strings.EqualFold(cur, value) {
-			v.Set(param, value)
-		}
-		if q := v.Encode(); q != "" {
-			return base + "?" + q
-		}
-		return base
-	}
+	resCount, srcCount, grpCount := facetCounts(rows)
+	link := func(param, value string) string { return facetLink(base, keep, f, param, value) }
 	build := func(counts map[string]int, param, active string) []facet {
-		out := make([]facet, 0, len(counts))
-		for val, n := range counts {
-			out = append(out, facet{
-				Value: val, Count: n,
-				Active: strings.EqualFold(val, active),
-				Href:   link(param, val),
-			})
-		}
-		// Most common first, then alphabetically so the order is stable between
-		// requests with equal counts.
-		sort.Slice(out, func(i, j int) bool {
-			if out[i].Count != out[j].Count {
-				return out[i].Count > out[j].Count
-			}
-			return out[i].Value < out[j].Value
-		})
-		if len(out) > 8 {
-			out = out[:8] // a facet list longer than the results helps nobody
-		}
-		return out
+		return facetList(counts, param, active, link)
 	}
 	sorts := make([]facet, 0, len(sortOptions))
 	for _, o := range sortOptions {
@@ -225,6 +168,94 @@ func buildFacets(rows []searchRow, f releaseFilter, base string, keep url.Values
 		Active:      f.Active(),
 		ClearHref:   clear,
 	}
+}
+
+// facetCounts tallies each facet value across the unfiltered page.
+//
+// Empty values are skipped rather than counted under "": a release with no
+// parsed group is not a group anyone can filter by.
+func facetCounts(rows []searchRow) (res, src, grp map[string]int) {
+	res, src, grp = map[string]int{}, map[string]int{}, map[string]int{}
+	for _, r := range rows {
+		if r.Resolution != "" {
+			res[r.Resolution]++
+		}
+		if r.Source != "" {
+			src[r.Source]++
+		}
+		if r.Group != "" {
+			grp[r.Group]++
+		}
+	}
+	return res, src, grp
+}
+
+// facetLink builds the URL for one facet value.
+//
+// Three rules, and each one is a decision rather than a detail:
+//
+//   - Non-facet params (?q=, ?cat=) are carried through, so clicking a filter
+//     keeps the search or category it was clicked from.
+//   - The OTHER facets are carried too, so filters compose instead of
+//     replacing one another.
+//   - Clicking the ACTIVE value omits it, which clears it. The same control
+//     works both ways, so there is no separate "remove" affordance to find —
+//     and it is why this cannot simply Set(param, value).
+//
+// A package-level function rather than a closure because those three rules are
+// exactly what a facet UI gets wrong, and a closure over buildFacets' locals
+// cannot be tested without building a page of rows first.
+func facetLink(base string, keep url.Values, f releaseFilter, param, value string) string {
+	v := url.Values{}
+	for k, vals := range keep {
+		for _, s := range vals {
+			v.Add(k, s)
+		}
+	}
+	add := func(k, cur string) {
+		if k != param && cur != "" {
+			v.Set(k, cur)
+		}
+	}
+	add("res", f.Resolution)
+	add("source", f.Source)
+	add("group", f.Group)
+	add("sort", f.Sort)
+	cur := map[string]string{"res": f.Resolution, "source": f.Source, "group": f.Group, "sort": f.Sort}[param]
+	if !strings.EqualFold(cur, value) {
+		v.Set(param, value)
+	}
+	if q := v.Encode(); q != "" {
+		return base + "?" + q
+	}
+	return base
+}
+
+// facetList turns one tally into the sorted, capped list the template renders.
+//
+// Most common first, then alphabetically so the order is stable between
+// requests whose counts tie. Capped at eight: a facet list longer than the
+// results it filters helps nobody.
+func facetList(counts map[string]int, param, active string, link func(param, value string) string) []facet {
+	out := make([]facet, 0, len(counts))
+	for val, n := range counts {
+		out = append(out, facet{
+			Value: val, Count: n,
+			Active: strings.EqualFold(val, active),
+			Href:   link(param, val),
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Count != out[j].Count {
+			return out[i].Count > out[j].Count
+		}
+		return out[i].Value < out[j].Value
+	})
+	if len(out) > 8 {
+		out = out[:8]
+	}
+	return out
+
 }
 
 // keepParams returns the non-facet params for a request, for facet links to
