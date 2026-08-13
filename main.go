@@ -6,7 +6,7 @@
 // Everything in this file is the HOST side of the contract — the
 // part a real site implements over its own sessions, job registry,
 // and ledger. The plugin side lives in plugins/guestbook.
-package main
+package site
 
 import (
 	"context"
@@ -88,7 +88,15 @@ import (
 	_ "github.com/the-loon-clan/loon-demo-site/plugins/guestbook"
 )
 
-func main() {
+// Main boots the demo site.
+//
+// Exported, and called from cmd/loondemo, because the repository root is a
+// package rather than the command: //go:embed cannot reference a parent
+// directory, and web/templates and web/static are embedded (the runtime image
+// is distroless and contains no web/ directory at all). The asset root must
+// therefore be a package at the module root, so the command lives under cmd/
+// and this is the one symbol that crosses between them.
+func Main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	dsn := os.Getenv("LOON_DEMO_DSN")

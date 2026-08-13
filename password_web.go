@@ -1,4 +1,4 @@
-package main
+package site
 
 // The one password rule this site actually has, in one place.
 //

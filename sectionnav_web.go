@@ -1,4 +1,4 @@
-package main
+package site
 
 // The account area — its bar, and what the avatar menu keeps.
 //

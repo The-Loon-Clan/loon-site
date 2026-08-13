@@ -13,7 +13,9 @@ COPY --from=loon . /loon/
 COPY --from=loonplugins . /loon-plugins/
 COPY --from=loonbaseline . /loon-baseline/
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -o /loondemo .
+# ./cmd/loondemo, not . — the root is a library package now (it holds the
+# //go:embed of web/, which cannot be declared from a subdirectory).
+RUN CGO_ENABLED=0 go build -trimpath -o /loondemo ./cmd/loondemo
 
 # Static binary (CGO off); templates + static assets are embedded via embed.FS,
 # so the runtime image needs nothing but the binary + CA certs (for TLS NNTP).
