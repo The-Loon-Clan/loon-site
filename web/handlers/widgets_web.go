@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/the-loon-clan/loon-site/internal/storage"
 	"github.com/the-loon-clan/loon/core"
 )
 
@@ -58,56 +59,6 @@ func widgetRegionByKey(key string) (widgetRegion, bool) {
 
 // ── placements ──────────────────────────────────────────────────────────────
 
-// widgetPlacement is one arranged widget.
-type widgetPlacement struct {
-	Region   string `db:"region"`
-	Slug     string `db:"slug"`
-	Position int    `db:"position"`
-	Enabled  bool   `db:"enabled"`
-	Config   string `db:"config"`
-}
-
-// readPlacements returns a region's arrangement, in order.
-func (w *web) readPlacements(ctx context.Context, region string) []widgetPlacement {
-	if w.db() == nil {
-		return nil
-	}
-	var rows []widgetPlacement
-	if err := w.db().SelectContext(ctx, &rows,
-		`SELECT region, slug, position, enabled, config FROM widget_placement
-		  WHERE region = $1 ORDER BY position, slug`, region); err != nil {
-		return nil
-	}
-	return rows
-}
-
-// readAllPlacements returns every arrangement, grouped by region.
-//
-// One query rather than one per region. The chrome renders four regions on
-// every page — header bar, both sidebars, footer — and on a site that has
-// placed nothing, four queries per page view to learn that four times over is
-// a cost with no benefit. The whole table is tiny by construction: it holds one
-// row per placed widget, not per member or per release.
-func (w *web) readAllPlacements(ctx context.Context) map[string][]widgetPlacement {
-	if w.db() == nil {
-		return nil
-	}
-	var rows []widgetPlacement
-	if err := w.db().SelectContext(ctx, &rows,
-		`SELECT region, slug, position, enabled, config FROM widget_placement
-		  ORDER BY region, position, slug`); err != nil {
-		return nil
-	}
-	if len(rows) == 0 {
-		return nil
-	}
-	out := make(map[string][]widgetPlacement, len(widgetRegions))
-	for _, r := range rows {
-		out[r.Region] = append(out[r.Region], r)
-	}
-	return out
-}
-
 // ── rendering ───────────────────────────────────────────────────────────────
 
 // renderedWidget is one widget's output, ready for a template.
@@ -134,7 +85,10 @@ type renderedWidget struct {
 // chrome of somebody else's page: a broken widget must cost its own box, never
 // the page it was placed on.
 func (w *web) renderRegion(c *gin.Context, region string) []renderedWidget {
-	return w.renderPlaced(c, region, w.readPlacements(c.Request.Context(), region))
+	if w.data == nil {
+		return nil // no store wired: a page with no widgets, not a 500
+	}
+	return w.renderPlaced(c, region, w.data.ReadPlacements(c.Request.Context(), region))
 }
 
 // renderRegions renders several regions from ONE read of the placement table.
@@ -144,7 +98,10 @@ func (w *web) renderRegion(c *gin.Context, region string) []renderedWidget {
 // is placed anywhere, so a template's {{range index .Widgets "footer"}} simply
 // does nothing.
 func (w *web) renderRegions(c *gin.Context, regions ...string) map[string][]renderedWidget {
-	all := w.readAllPlacements(c.Request.Context())
+	if w.data == nil {
+		return nil // see renderRegion: absence of a store is not an error here
+	}
+	all := w.data.ReadAllPlacements(c.Request.Context())
 	if len(all) == 0 {
 		return nil
 	}
@@ -163,7 +120,7 @@ func (w *web) renderRegions(c *gin.Context, regions ...string) map[string][]rend
 }
 
 // renderPlaced is the shared body: resolve, filter, render.
-func (w *web) renderPlaced(c *gin.Context, region string, placements []widgetPlacement) []renderedWidget {
+func (w *web) renderPlaced(c *gin.Context, region string, placements []storage.WidgetPlacement) []renderedWidget {
 	if w.rt == nil || len(placements) == 0 {
 		return nil
 	}
@@ -196,7 +153,7 @@ func (w *web) availableWidgets(ctx context.Context, region string) []core.Widget
 		return nil
 	}
 	placed := map[string]bool{}
-	for _, p := range w.readPlacements(ctx, region) {
+	for _, p := range w.data.ReadPlacements(ctx, region) {
 		placed[p.Slug] = true
 	}
 	var out []core.Widget

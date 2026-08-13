@@ -46,7 +46,7 @@ func (w *web) widgetsAdminPage(c *gin.Context) {
 		Config      string // what the operator typed for THIS placement
 	}
 	var placed []placedVM
-	for _, p := range w.readPlacements(ctx, region) {
+	for _, p := range w.data.ReadPlacements(ctx, region) {
 		vm := placedVM{Slug: p.Slug, Position: p.Position, Enabled: p.Enabled,
 			Title: p.Slug, Missing: true, Config: p.Config}
 		if wd, ok := w.rt.Core().WidgetBySlug(p.Slug); ok {
@@ -90,27 +90,20 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 		// Appended at the end: position is the count of what is already there.
 		// ON CONFLICT DO NOTHING makes a double-submit idempotent rather than
 		// moving a widget the operator did not touch.
-		_, _ = w.db().ExecContext(ctx,
-			`INSERT INTO widget_placement (region, slug, position, enabled)
-			 VALUES ($1, $2, coalesce((SELECT max(position)+1 FROM widget_placement WHERE region=$1), 0), TRUE)
-			 ON CONFLICT (region, slug) DO NOTHING`, region, slug)
+		_ = w.data.PlaceWidget(ctx, region, slug)
 	case "remove":
-		_, _ = w.db().ExecContext(ctx,
-			`DELETE FROM widget_placement WHERE region=$1 AND slug=$2`, region, slug)
+		_ = w.data.RemoveWidget(ctx, region, slug)
 	case "toggle":
 		// Off rather than removed keeps the position, so switching a widget
 		// back on puts it where it was instead of at the bottom.
-		_, _ = w.db().ExecContext(ctx,
-			`UPDATE widget_placement SET enabled = NOT enabled WHERE region=$1 AND slug=$2`, region, slug)
+		_ = w.data.ToggleWidget(ctx, region, slug)
 	case "configure":
 		// The setting for one placement. Stored verbatim — a widget decides
 		// what its own string means, and the host escaping or parsing it here
 		// would break every widget whose value is not what the host guessed.
 		// Whatever a widget does with it must be safe at RENDER; see the
 		// markdown widget, which runs the site's sanitising renderer.
-		_, _ = w.db().ExecContext(ctx,
-			`UPDATE widget_placement SET config=$3 WHERE region=$1 AND slug=$2`,
-			region, slug, c.PostForm("config"))
+		_ = w.data.ConfigureWidget(ctx, region, slug, c.PostForm("config"))
 	case "move":
 		delta, _ := strconv.Atoi(c.PostForm("delta"))
 		if delta != 0 {
@@ -120,15 +113,16 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 	c.Redirect(http.StatusSeeOther, "/admin/widgets?region="+region)
 }
 
-// moveWidget shifts one placement up or down by swapping it with its neighbour.
+// moveWidget shifts one placement up or down by swapping it with its
+// neighbour, then asks the store to renumber the region densely.
 //
-// Positions are rewritten densely first (0,1,2…). They drift: removing the
-// middle of three leaves 0 and 2, and a swap of stored values would then be a
-// no-op or a jump. Renumbering before every move is cheap on a table this size
-// and removes a whole class of "the button did nothing".
+// The swap is an ORDERING decision — what "up" means, and that the ends are
+// not an error — so it stays here. Writing the new order is the store's job;
+// see ReorderWidgets for why the whole region is renumbered rather than two
+// rows swapped.
 func (w *web) moveWidget(c *gin.Context, region, slug string, delta int) {
 	ctx := c.Request.Context()
-	rows := w.readPlacements(ctx, region)
+	rows := w.data.ReadPlacements(ctx, region)
 	idx := -1
 	for i, p := range rows {
 		if p.Slug == slug {
@@ -144,17 +138,9 @@ func (w *web) moveWidget(c *gin.Context, region, slug string, delta int) {
 		return // already at the end; not an error, just nothing to do
 	}
 	rows[idx], rows[target] = rows[target], rows[idx]
-	tx, err := w.db().BeginTxx(ctx, nil)
-	if err != nil {
-		return
-	}
-	defer func() { _ = tx.Rollback() }()
+	order := make([]string, len(rows))
 	for i, p := range rows {
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE widget_placement SET position=$3 WHERE region=$1 AND slug=$2`,
-			region, p.Slug, i); err != nil {
-			return
-		}
+		order[i] = p.Slug
 	}
-	_ = tx.Commit()
+	_ = w.data.ReorderWidgets(ctx, region, order)
 }
