@@ -54,7 +54,7 @@ func countBy(db storage.Conn, query storage.SQL) metricFunc {
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 		out := map[int64]int64{}
 		for rows.Next() {
 			var id, n int64

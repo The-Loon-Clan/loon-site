@@ -316,19 +316,6 @@ const (
 	siteStatsWidget    = "stats"
 )
 
-// hasSitePage reports whether a "/p/<slug>" page is registered, for deciding
-// whether to advertise it — a tab, a link. Registration only: whether THIS
-// viewer may open it is the page's own gate, and a tab a member cannot use is
-// a better failure than a feature nobody can find.
-func (w *web) hasSitePage(href string) bool {
-	for _, v := range w.sitePages {
-		if "/p/"+v.Slug == href {
-			return true
-		}
-	}
-	return false
-}
-
 // hasSiteWidget reports whether a slug is registered at all, without rendering
 // it. For deciding whether to OFFER a page — a nav entry or a tab — where
 // rendering the card just to count it would run the plugin's query for nothing.

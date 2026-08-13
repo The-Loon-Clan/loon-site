@@ -11,7 +11,7 @@ import "context"
 // a widget's setting verbatim — are about the DATA, and belong where the SQL
 // they are implemented in lives.
 
-// widgetPlacement is one arranged widget.
+// WidgetPlacement is one arranged widget.
 type WidgetPlacement struct {
 	Region   string `db:"region"`
 	Slug     string `db:"slug"`

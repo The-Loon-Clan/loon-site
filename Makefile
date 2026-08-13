@@ -27,10 +27,10 @@ export GOWORK = off
 # gets deleted rather than met. Raise it when the number rises.
 COVER_MIN ?= 15.0
 
-.PHONY: check build test itest cover lint fmt sql vuln run clean
+.PHONY: check build test itest cover lint golint fmt sql vuln run clean
 
 ## check: everything CI runs
-check: fmt build lint sql test cover
+check: fmt build lint golint sql test cover
 
 ## build: compile every package
 build:
@@ -63,9 +63,25 @@ cover:
 lint:
 	$(GO) vet ./...
 
+## golint: golangci-lint (errcheck, govet, ineffassign, staticcheck, unused).
+##
+## Its own target as well as part of `check` because the first run has to build
+## the linter and takes minutes, while every run after it is seconds — worth
+## being able to trigger deliberately rather than discovering mid-commit.
+golint:
+	@bash scripts/golangci.sh ./...
+
 ## fmt: fail if anything is unformatted, rather than reformatting silently
+##
+## The exit status is checked, not just the output. This target used to capture
+## stdout and call an empty result clean — so when the script itself failed to
+## run at all (`docker: not found`) it printed "gofmt clean" and `make check`
+## carried on. A check that reports success when it did not execute is worse
+## than no check, because it is the one nobody thinks to re-examine.
 fmt:
-	@out=$$(bash scripts/gofmt.sh | grep -v '^vendor/' || true); \
+	@out=$$(bash scripts/gofmt.sh); status=$$?; \
+	 if [ $$status -ne 0 ]; then echo "gofmt check could not run (exit $$status)"; exit $$status; fi; \
+	 out=$$(printf '%s' "$$out" | grep -v '^vendor/' || true); \
 	 if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi
 	@echo "gofmt clean"
 

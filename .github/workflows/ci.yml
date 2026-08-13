@@ -58,6 +58,17 @@ jobs:
           test ! -f go.work || { echo "go.work is committed; it must not be"; exit 1; }
           go build ./...
 
+      # Installed rather than run as its own step: scripts/golangci.sh prefers a
+      # golangci-lint on PATH, so putting one there is enough for `make check`
+      # to use it, and CI keeps running exactly the target a contributor runs.
+      #
+      # Built from source instead of pulling a release, because the published
+      # binaries are built against an older toolchain and refuse a newer target
+      # outright ("the Go language version used to build golangci-lint is lower
+      # than the targeted Go version").
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
       # GO=go: CI is already a clean Linux container, so running the toolchain
       # inside another one buys nothing here. The Docker path exists for
       # developer machines where an anti-virus quarantines freshly built

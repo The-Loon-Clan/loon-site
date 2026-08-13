@@ -194,12 +194,12 @@ func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 	for rows.Next() {
 		var c candidate
 		if err := rows.Scan(&c.id, &c.title); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return 0, err
 		}
 		pending = append(pending, c)
 	}
-	rows.Close()
+	_ = rows.Close()
 	if err := rows.Err(); err != nil {
 		return 0, err
 	}

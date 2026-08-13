@@ -122,18 +122,20 @@ type FollowList struct {
 	Avatar string
 }
 
-// followPage serves /u/:name/followers and /u/:name/following.
-//
-// One handler for both directions: the pages differ only in which side of the
-// edge they read and what the heading says, and two near-identical handlers is
-// how the two drift.
 // FollowKind is which of the three lists a request wants. A named kind rather
 // than the bool this started as: two lists take a bool, three take a lie.
+//
+// (The paragraph that used to sit here documented followPage, which moved to
+// web/handlers/follows_web.go when the handlers were lifted out of the root
+// package. The comment stayed behind and spent the interval describing a
+// function that is not in this file.)
 type FollowKind string
 
-// followers/following read the two directions of the same edge. Capped: these
-// are unbounded relations, and a page that renders every follower of a popular
-// account is the query nobody notices until there is one.
+// FollowPageRows caps a follow list.
+//
+// followers/following read the two directions of the same edge, and both are
+// unbounded relations: a page that renders every follower of a popular account
+// is the query nobody notices until there is one.
 const FollowPageRows = 200
 
 // followQuery runs one of the three follow-list queries in this file.

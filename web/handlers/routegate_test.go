@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -129,35 +127,28 @@ func underGatedPrefix(path string) bool {
 // end: that no handler reads the viewer without the route being gated — which
 // would turn that deliberate 401 into a page members see.
 func TestViewerIsOnlyReadBehindAGate(t *testing.T) {
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, ".", func(fi os.FileInfo) bool {
-		return !strings.HasSuffix(fi.Name(), "_test.go")
-	}, 0)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	fset, files := parseNonTestFiles(t)
 	var users []string
-	for _, pkg := range pkgs {
-		for name, file := range pkg.Files {
-			ast.Inspect(file, func(n ast.Node) bool {
-				fn, ok := n.(*ast.FuncDecl)
-				if !ok || fn.Body == nil {
+	for _, file := range files {
+		name := fset.Position(file.Pos()).Filename
+		ast.Inspect(file, func(n ast.Node) bool {
+			fn, ok := n.(*ast.FuncDecl)
+			if !ok || fn.Body == nil {
+				return true
+			}
+			ast.Inspect(fn.Body, func(n ast.Node) bool {
+				call, ok := n.(*ast.CallExpr)
+				if !ok {
 					return true
 				}
-				ast.Inspect(fn.Body, func(n ast.Node) bool {
-					call, ok := n.(*ast.CallExpr)
-					if !ok {
-						return true
-					}
-					sel, ok := call.Fun.(*ast.SelectorExpr)
-					if ok && sel.Sel.Name == "viewer" {
-						users = append(users, fn.Name.Name+" ("+filepath.Base(name)+")")
-					}
-					return true
-				})
+				sel, ok := call.Fun.(*ast.SelectorExpr)
+				if ok && sel.Sel.Name == "viewer" {
+					users = append(users, fn.Name.Name+" ("+filepath.Base(name)+")")
+				}
 				return true
 			})
-		}
+			return true
+		})
 	}
 	if len(users) == 0 {
 		t.Fatal("no callers of w.viewer found — the scan is broken, not the code")

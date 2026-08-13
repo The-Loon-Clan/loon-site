@@ -1,0 +1,46 @@
+# golangci-lint configuration.
+#
+# The linter set is deliberately small and all of it is enforced. A long list
+# with half of it excluded teaches people to read failures as noise, and the
+# check stops meaning anything the first time somebody merges through it.
+#
+# Run it with `make golint`. It runs in a container built from THIS project's
+# Go version — the published golangci-lint images are built against an older
+# toolchain and refuse a newer target outright, which is worth knowing before
+# spending an afternoon on it.
+
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # The default four, which is what `golangci-lint run` gives you bare.
+    - errcheck    # an unchecked error is the most common real bug it finds
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+  settings:
+    staticcheck:
+      checks:
+        - "all"
+        # QF1008: "could remove embedded field from selector". A style
+        # preference, and the opposite of one this codebase holds: writing
+        # detail.Release.Title rather than detail.Title says which struct the
+        # field comes from, which matters where a view model embeds a row type
+        # and both have a Title.
+        - "-QF1008"
+
+  exclusions:
+    # Zero exclusion presets. golangci-lint ships defaults that hide, among
+    # other things, unchecked errors in tests — the place a swallowed error is
+    # most likely to turn a failing test green.
+    presets: []
+
+issues:
+  # Report everything. The defaults cap output at 3 of a kind and 50 in total,
+  # which silently turns "13 issues" into "3 issues" and makes a clean run mean
+  # nothing until you have already fixed the first few.
+  max-issues-per-linter: 0
+  max-same-issues: 0

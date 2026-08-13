@@ -257,9 +257,16 @@ func TestInitialsAndHue(t *testing.T) {
 	if got := initials(""); got != "" {
 		t.Errorf("initials(\"\") = %q, want empty", got)
 	}
-	// The fallback tile must not change colour between page loads.
-	if hueBucket("a title") != hueBucket("a title") {
-		t.Error("hueBucket is not deterministic")
+	// The fallback tile must not change colour between page loads. Compared
+	// against a held value over repeated calls rather than against itself: a
+	// self-comparison reads as a tautology to anyone (and to staticcheck),
+	// while the thing actually worth ruling out is a hash that varies with map
+	// iteration order, which needs more than two calls to show up.
+	first := hueBucket("a title")
+	for range 100 {
+		if hueBucket("a title") != first {
+			t.Fatalf("hueBucket is not deterministic: %v then %v", first, hueBucket("a title"))
+		}
 	}
 	// The palette is components.css's .poster--h0 … .poster--h7 and nothing
 	// wider: a class with no matching rule is not a build or render error, it

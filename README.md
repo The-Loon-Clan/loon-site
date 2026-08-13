@@ -110,7 +110,8 @@ routes, points, a job — the hello-world for writing your own).
 ## Development
 
 ```sh
-make check      # gofmt, build, vet, sqllint, tests, coverage floor
+make check      # gofmt, build, vet, golangci-lint, sqllint, tests, coverage floor
+make golint     # golangci-lint alone (slow the first time, seconds after)
 make vuln       # known vulnerabilities in code this project actually calls
 make itest      # storage tests against a throwaway Postgres
 make run        # the site, detached
@@ -149,7 +150,13 @@ Trust is easier to give when the gaps are stated, so:
   that is what it looks for. It is tested against a real injection, not only
   against a clean tree. An exception needs `// sqllint:allow <reason>`, and the
   reason is part of the syntax.
-- **Coverage is 15%**, with a floor in CI so it cannot fall. That is low, and
+- **`make golint`** runs golangci-lint with every check enabled and nothing
+  excluded — a long linter list with half of it suppressed teaches people to
+  read failures as noise. Its first run found 21 issues, and the interesting
+  ones were not the unchecked errors: three doc comments described symbols that
+  had been renamed or had moved to another package during a restructure, and
+  one of them documented a handler that no longer lived in that file at all.
+- **Coverage is 16%**, with a floor in CI so it cannot fall. That is low, and
   the shape is lopsided: `sanitize` is at 93%, `storage` at 3%. The tests that
   exist are mostly regression tests for bugs that actually happened, which is
   where they earn the most; broad coverage of the handler layer is not there yet.

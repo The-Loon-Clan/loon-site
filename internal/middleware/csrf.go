@@ -1,3 +1,9 @@
+// Package middleware holds the gin middleware this site adds of its own.
+//
+// One thing so far: the CSRF gate. It sits here rather than in web/handlers
+// because it is decided entirely by the request — no view models, no store, no
+// knowledge of what any route does — and because a package with no reason to
+// import the handlers cannot accidentally acquire one.
 package middleware
 
 import (

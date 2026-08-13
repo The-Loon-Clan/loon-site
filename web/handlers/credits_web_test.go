@@ -147,9 +147,15 @@ func creditNames(cs []sourceCredit) string {
 // nothing, with no readable error.
 func TestNilSourceIsDetectedThroughTheInterface(t *testing.T) {
 	// A typed nil, exactly as tmdb.New("") returns when the key is unset.
+	//nolint:staticcheck // SA4023: the nil comparison below is the assertion
 	var typedNil *stubSource
 	if typedNil == nil { // true on the CONCRETE type ...
 		var asInterface catalog.MetadataSource = typedNil
+		// staticcheck is right that this comparison is never true, and that is
+		// precisely the assertion: it is the language behaviour that caused the
+		// crash loop above. Silencing the check here rather than deleting the
+		// line, because the line is the test.
+		//nolint:staticcheck // SA4023: never true is the property under test
 		if asInterface == nil { // ... and false through the interface.
 			t.Fatal("a typed nil compared equal to nil as an interface — " +
 				"the premise of this test is gone, re-read isNilSource")

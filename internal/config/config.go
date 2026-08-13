@@ -28,8 +28,7 @@ func on(name string) bool {
 // a member's downloads is not something a host should acquire by checking the
 // repository out.
 func HitRunEnabled() bool {
-	v := os.Getenv("LOON_HITRUN")
-	return v == "1" || v == "true" || v == "yes"
+	return on("LOON_HITRUN")
 }
 
 // SeedLockEnabled reports whether the operator asked for the one-host rule.
@@ -39,8 +38,7 @@ func HitRunEnabled() bool {
 // failure mode here — somebody locked out of their own torrent — deserves to be
 // switched on deliberately.
 func SeedLockEnabled() bool {
-	v := os.Getenv("LOON_SEEDLOCK")
-	return v == "1" || v == "true" || v == "yes"
+	return on("LOON_SEEDLOCK")
 }
 
 // TrackerEnabled reports whether the operator asked for the tracker.
@@ -49,8 +47,7 @@ func SeedLockEnabled() bool {
 // locally to read the code, and a private tracker answering announces is not
 // something to switch on by merely checking the repository out.
 func TrackerEnabled() bool {
-	v := os.Getenv("LOON_TRACKER")
-	return v == "1" || v == "true" || v == "yes"
+	return on("LOON_TRACKER")
 }
 
 // CheatCheckEnabled reports whether the operator asked for cheat detection.
@@ -63,12 +60,10 @@ func TrackerEnabled() bool {
 // The SAMPLING runs regardless — see the sweep. Only the judging is gated, so
 // switching this on starts working at the next sweep rather than the one after.
 func CheatCheckEnabled() bool {
-	v := os.Getenv("LOON_CHEATCHECK")
-	return v == "1" || v == "true" || v == "yes"
+	return on("LOON_CHEATCHECK")
 }
 
 // UIInspectEnabled reports whether the operator asked for the inspector.
 func UIInspectEnabled() bool {
-	v := os.Getenv("LOON_UI_INSPECT")
-	return v == "1" || v == "true" || v == "yes"
+	return on("LOON_UI_INSPECT")
 }

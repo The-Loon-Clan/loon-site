@@ -192,7 +192,7 @@ func (c *coverCache) reachable(ctx context.Context, remote string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<10))
 	return resp.StatusCode == http.StatusOK
 }
@@ -213,7 +213,7 @@ func (c *coverCache) fetch(ctx context.Context, remote, name string) (string, er
 	if err != nil {
 		return "", fmt.Errorf("cover fetch: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("cover fetch: status %d", resp.StatusCode)
 	}

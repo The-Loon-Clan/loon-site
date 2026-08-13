@@ -4,7 +4,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -23,6 +22,7 @@ import (
 // and in pageTemplates leaves the call site pointing at the old name, and the
 // two tests either side of this one both stay green: the file exists, the list
 // matches the directory, and the only broken thing is the sentence joining them.
+
 // pageNameWrappers are functions that take a page name and hand it to render.
 // The key is the function name, the value the argument index holding the page.
 //
@@ -40,19 +40,44 @@ var pageNameWrappers = map[string]int{
 
 func wrapper(name string) bool { _, ok := pageNameWrappers[name]; return ok }
 
+// parseNonTestFiles parses this package's non-test sources.
+//
+// Written out rather than using parser.ParseDir, which is deprecated: it
+// associates files with packages without considering build tags. That does not
+// bite here — this package has no tagged files — but the tests that read the
+// source are exactly the ones that must not quietly skip a file, so the
+// deprecation is worth taking seriously rather than silencing.
+func parseNonTestFiles(t *testing.T) (*token.FileSet, []*ast.File) {
+	t.Helper()
+	names, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	var files []*ast.File
+	for _, name := range names {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, name, nil, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatalf("parse %s: %v", name, err)
+		}
+		files = append(files, f)
+	}
+	if len(files) == 0 {
+		t.Fatal("no source files parsed — the scan is broken, not the code")
+	}
+	return fset, files
+}
+
 func TestEveryRenderedPageNameIsParsed(t *testing.T) {
 	parsed := map[string]bool{}
 	for _, p := range pageTemplates {
 		parsed[p] = true
 	}
 
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, ".", func(fi os.FileInfo) bool {
-		return !strings.HasSuffix(fi.Name(), "_test.go")
-	}, 0)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	fset, files := parseNonTestFiles(t)
 
 	// check reports one page name, wherever it was found.
 	var checked int
@@ -80,67 +105,65 @@ func TestEveryRenderedPageNameIsParsed(t *testing.T) {
 		return s, err == nil
 	}
 
-	for _, pkg := range pkgs {
-		for _, file := range pkg.Files {
-			// Walking FuncDecls rather than the whole file, because which
-			// function a computed name sits in is what decides whether it is
-			// covered elsewhere or is a new hole.
-			ast.Inspect(file, func(n ast.Node) bool {
-				fn, ok := n.(*ast.FuncDecl)
-				if !ok || fn.Body == nil {
+	for _, file := range files {
+		// Walking FuncDecls rather than the whole file, because which function a
+		// computed name sits in is what decides whether it is covered elsewhere
+		// or is a new hole.
+		ast.Inspect(file, func(n ast.Node) bool {
+			fn, ok := n.(*ast.FuncDecl)
+			if !ok || fn.Body == nil {
+				return true
+			}
+			ast.Inspect(fn.Body, func(n ast.Node) bool {
+				call, ok := n.(*ast.CallExpr)
+				if !ok {
 					return true
 				}
-				ast.Inspect(fn.Body, func(n ast.Node) bool {
-					call, ok := n.(*ast.CallExpr)
-					if !ok {
-						return true
-					}
-					sel, ok := call.Fun.(*ast.SelectorExpr)
-					if !ok {
-						return true
-					}
-					// A wrapper's own call sites carry the literal.
-					if arg, isWrapper := pageNameWrappers[sel.Sel.Name]; isWrapper {
-						if name, ok := literalArg(call, arg); ok {
-							check(name, fset.Position(call.Args[arg].Pos()),
-								" via "+sel.Sel.Name)
-						}
-						return true
-					}
-					// render(c, page, data), renderStatus(c, status, page, data).
-					var arg int
-					switch sel.Sel.Name {
-					case "render":
-						arg = 1
-					case "renderStatus":
-						arg = 2
-					default:
-						return true
-					}
+				sel, ok := call.Fun.(*ast.SelectorExpr)
+				if !ok {
+					return true
+				}
+				// A wrapper's own call sites carry the literal.
+				if arg, isWrapper := pageNameWrappers[sel.Sel.Name]; isWrapper {
 					if name, ok := literalArg(call, arg); ok {
-						check(name, fset.Position(call.Args[arg].Pos()), "")
-						return true
-					}
-					// Not a literal. Allowed only where the name provably comes
-					// from somewhere this test already checks.
-					pos := fset.Position(call.Pos())
-					switch {
-					case fn.Name.Name == "render":
-						// render forwarding to renderStatus — same argument.
-					case wrapper(fn.Name.Name):
-						// A wrapper; its call sites were checked above.
-					default:
-						t.Errorf("%s:%d in %s renders a computed page name that "+
-							"nothing checks:\n    either pass a literal, or add %s to "+
-							"pageNameWrappers with the argument index that holds the "+
-							"page, so its call sites are checked instead",
-							filepath.Base(pos.Filename), pos.Line, fn.Name.Name, fn.Name.Name)
+						check(name, fset.Position(call.Args[arg].Pos()),
+							" via "+sel.Sel.Name)
 					}
 					return true
-				})
+				}
+				// render(c, page, data), renderStatus(c, status, page, data).
+				var arg int
+				switch sel.Sel.Name {
+				case "render":
+					arg = 1
+				case "renderStatus":
+					arg = 2
+				default:
+					return true
+				}
+				if name, ok := literalArg(call, arg); ok {
+					check(name, fset.Position(call.Args[arg].Pos()), "")
+					return true
+				}
+				// Not a literal. Allowed only where the name provably comes
+				// from somewhere this test already checks.
+				pos := fset.Position(call.Pos())
+				switch {
+				case fn.Name.Name == "render":
+					// render forwarding to renderStatus — same argument.
+				case wrapper(fn.Name.Name):
+					// A wrapper; its call sites were checked above.
+				default:
+					t.Errorf("%s:%d in %s renders a computed page name that "+
+						"nothing checks:\n    either pass a literal, or add %s to "+
+						"pageNameWrappers with the argument index that holds the "+
+						"page, so its call sites are checked instead",
+						filepath.Base(pos.Filename), pos.Line, fn.Name.Name, fn.Name.Name)
+				}
 				return true
 			})
-		}
+			return true
+		})
 	}
 
 	if checked == 0 {
@@ -159,26 +182,18 @@ func TestEveryRenderedPageNameIsParsed(t *testing.T) {
 func TestParsedPagesThatNothingRenders(t *testing.T) {
 	rendered := map[string]bool{}
 
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, ".", func(fi os.FileInfo) bool {
-		return !strings.HasSuffix(fi.Name(), "_test.go")
-	}, 0)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	for _, pkg := range pkgs {
-		for _, file := range pkg.Files {
-			ast.Inspect(file, func(n ast.Node) bool {
-				lit, ok := n.(*ast.BasicLit)
-				if !ok || lit.Kind != token.STRING {
-					return true
-				}
-				if s, err := strconv.Unquote(lit.Value); err == nil {
-					rendered[s] = true
-				}
+	_, files := parseNonTestFiles(t)
+	for _, file := range files {
+		ast.Inspect(file, func(n ast.Node) bool {
+			lit, ok := n.(*ast.BasicLit)
+			if !ok || lit.Kind != token.STRING {
 				return true
-			})
-		}
+			}
+			if s, err := strconv.Unquote(lit.Value); err == nil {
+				rendered[s] = true
+			}
+			return true
+		})
 	}
 
 	var orphans []string

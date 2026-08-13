@@ -1,7 +1,10 @@
-// loon-demo-site is the smallest useful host for the loon
-// framework: it wires every core.Deps seam with an in-memory or
-// logging implementation, boots the plugin runtime against a real
-// Postgres, and serves one demo plugin (guestbook).
+// Package handlers is the HTTP layer of loon-site: routing, the auth gates,
+// the view models each page is rendered from, and the boot wiring that hands
+// the plugin runtime its host-side seams.
+//
+// Main below is the whole of what a host does at start-up — it wires every
+// core.Deps seam, boots the plugin runtime against Postgres, and mounts both
+// the site's own routes and whatever the plugins registered.
 //
 // Everything in this file is the HOST side of the contract — the
 // part a real site implements over its own sessions, job registry,
@@ -32,7 +35,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 
-	"github.com/the-loon-clan/loon/catalog"
 	"github.com/the-loon-clan/loon/core"
 	"github.com/the-loon-clan/loon/schedule"
 
@@ -702,21 +704,6 @@ func getenvDefault(key, def string) string {
 		return v
 	}
 	return def
-}
-
-// catalogLogSink is the demo's pluginapi.CatalogSink: a real host writes each
-// scraped entry into its unified catalog_entry table; the demo just logs. It's
-// never called until a MetadataSource is registered (Phase 3), but the scraper
-// plugin still boots and appears on the jobs page with it wired.
-type catalogLogSink struct{ log *slog.Logger }
-
-// Upsert logs the entry and discards it.
-//
-// The demo's stand-in for a real catalogue table: it shows WHAT a host would
-// persist without pretending to persist it. A host swaps in its own sink.
-func (s catalogLogSink) Upsert(_ context.Context, e catalog.CatalogEntry) error {
-	s.log.Info("catalog upsert", "kind", e.Ref.Kind, "id", e.Ref.ID, "title", e.Title)
-	return nil
 }
 
 // demoBackupOpener returns the backups plugin's OpenEntry seam, writing each

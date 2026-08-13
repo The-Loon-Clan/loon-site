@@ -1,3 +1,10 @@
+// Package markdown is the site's one prose renderer.
+//
+// One, deliberately: forum posts, wiki pages, release descriptions and plugin
+// output all come through here, so the answer to "what markup is allowed" is a
+// single place rather than a habit repeated per feature. Rendering always ends
+// in internal/sanitize, which means no caller can produce HTML that skipped the
+// allowlist by reaching for a different renderer.
 package markdown
 
 import (

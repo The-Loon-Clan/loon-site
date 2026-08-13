@@ -112,7 +112,7 @@ func (w *web) catalogCandidates(ctx context.Context) ([]scraper.Candidate, error
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	out := make([]scraper.Candidate, 0, candidateBatch)
 	var lowest int64

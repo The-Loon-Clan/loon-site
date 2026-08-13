@@ -311,9 +311,6 @@ func (w *web) baseURL() string { return getenvDefault("LOON_BASE_URL", "http://l
 
 // ── the login half ──────────────────────────────────────────────────────────
 
-// errTOTPRequired tells the login handler to stop short of issuing a session.
-var errTOTPRequired = errors.New("second factor required")
-
 // beginTOTPChallenge stamps the pending user and sends them to the second step.
 func beginTOTPChallenge(c *gin.Context, userID int64) {
 	s := sessions.Default(c)

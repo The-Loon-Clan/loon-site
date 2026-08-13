@@ -149,7 +149,7 @@ func isNilSource(s catalog.MetadataSource) bool {
 	}
 	v := reflect.ValueOf(s)
 	switch v.Kind() {
-	case reflect.Ptr, reflect.Interface, reflect.Map, reflect.Slice, reflect.Func:
+	case reflect.Pointer, reflect.Interface, reflect.Map, reflect.Slice, reflect.Func:
 		return v.IsNil()
 	}
 	return false

@@ -136,7 +136,7 @@ func (w *web) releaseExternals(ctx context.Context, coverURL string) []externalL
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	kind := ""
 	ids := map[string]string{}
