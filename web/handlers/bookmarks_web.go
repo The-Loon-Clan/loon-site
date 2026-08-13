@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -35,18 +36,49 @@ func (w *web) bookmarksPage(c *gin.Context) {
 	data := map[string]any{"Title": "Bookmarks", "Results": []searchRow{}}
 	rows := make([]searchRow, 0, bookmarkRows)
 	if w.usenet != nil {
-		for _, id := range w.data.BookmarkedIDs(ctx, u.ID, bookmarkRows) {
-			detail, found, err := w.usenet.ReleaseByID(ctx, id)
-			if err != nil || !found {
-				continue // retention removed it; a saved pointer can outlive its target
-			}
-			rows = append(rows, toSearchRows([]pluginapi.Release{detail.Release})[0])
-		}
+		rows = bookmarkedRows(ctx, w.data, w.usenet, u.ID, bookmarkRows)
 		w.attachCovers(ctx, rows)
 		rows = w.attachSwarm(ctx, w.attachGrabs(ctx, rows))
 	}
 	data["Results"] = rows
 	w.render(c, "bookmarks.html", data)
+}
+
+// bookmarkList is the one thing bookmarkedRows needs from storage.
+//
+// Declared HERE, at the consumer, and holding a single method — not exported
+// from internal/storage as a mirror of *Store. That is the Go convention and
+// it is load-bearing rather than decorative: *Store has around ninety methods,
+// so an interface shaped like it would be unimplementable by anything except
+// *Store, which is not swappability, only ceremony.
+//
+// The narrow version is what makes the function below testable without a
+// database, which is the actual reason the handler layer sat at 16% coverage.
+type bookmarkList interface {
+	BookmarkedIDs(ctx context.Context, userID int64, limit int) []int64
+}
+
+// bookmarkedRows resolves a member's saved ids into rows to render.
+//
+// Split out of the handler so the interesting half can be tested: a bookmark
+// can outlive the release it points at. Usenet retention removes posts, and the
+// saved pointer stays behind — so a bookmark list is always partly a list of
+// things that may no longer be there, and the resolution has to survive that
+// rather than error or render a blank row.
+//
+// It takes what it uses and nothing else. pluginapi.UsenetIndex is already an
+// interface, so the plugin side was swappable; this makes the storage side
+// match.
+func bookmarkedRows(ctx context.Context, list bookmarkList, index pluginapi.UsenetIndex, userID int64, limit int) []searchRow {
+	rows := make([]searchRow, 0, limit)
+	for _, id := range list.BookmarkedIDs(ctx, userID, limit) {
+		detail, found, err := index.ReleaseByID(ctx, id)
+		if err != nil || !found {
+			continue // retention removed it; a saved pointer can outlive its target
+		}
+		rows = append(rows, toSearchRows([]pluginapi.Release{detail.Release})[0])
+	}
+	return rows
 }
 
 // bookmarkToggle handles the button on the release page and returns to it.
