@@ -151,9 +151,17 @@ func alwaysPublic(p string) bool {
 		"/healthz", "/robots.txt", "/favicon.ico":
 		return true
 	}
+	// Exact match or a path SEGMENT, never a bare prefix.
+	//
+	// strings.HasPrefix(p, "/api") also matches /apikeys and /api-docs, which
+	// nothing here is called today — but it means the exemption is granted by
+	// spelling rather than by anybody deciding, and the day a route lands on
+	// the wrong side of that line it is readable on a members-only site with
+	// no symptom. The endpoints that exist (/api, /rss, /api/chat/…,
+	// /api/btcpay/webhook) all match this form.
 	return strings.HasPrefix(p, "/static/") ||
-		strings.HasPrefix(p, "/api") ||
-		strings.HasPrefix(p, "/rss") ||
+		p == "/api" || strings.HasPrefix(p, "/api/") ||
+		p == "/rss" || strings.HasPrefix(p, "/rss/") ||
 		strings.HasPrefix(p, "/verify/")
 }
 
@@ -165,21 +173,35 @@ func alwaysPublic(p string) bool {
 // deploy.
 func (w *web) requireLoginMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if browsingMode() != BrowseMembers || alwaysPublic(c.Request.URL.Path) {
-			c.Next()
+		u, ok := w.currentUser(c)
+		if allow, to := browsingGate(browsingMode(), c.Request.URL.Path,
+			c.Request.URL.RequestURI(), ok && u != nil); !allow {
+			c.Redirect(http.StatusFound, to)
+			c.Abort()
 			return
 		}
-		if u, ok := w.currentUser(c); ok && u != nil {
-			c.Next()
-			return
-		}
-		// ?next= so the door returns you where you were going. Query included:
-		// a private site turning away a deep link and then dumping you on the
-		// home page has lost the thing you came for.
-		next := c.Request.URL.RequestURI()
-		c.Redirect(http.StatusFound, "/login?next="+url.QueryEscape(next))
-		c.Abort()
+		c.Next()
 	}
+}
+
+// browsingGate is the whole decision: may this request proceed, and if not,
+// where does it go instead.
+//
+// Pulled out of the middleware so the truth table can be tested without a
+// session, a store or a request — this decides whether a private site is
+// actually private, and "we believe it works" is a poor guarantee for that.
+// The middleware above is now only the plumbing that carries the answer.
+//
+// requestURI is passed separately rather than derived, because the redirect has
+// to preserve the QUERY and path alone would silently drop it.
+func browsingGate(mode, path, requestURI string, signedIn bool) (allow bool, redirectTo string) {
+	if mode != BrowseMembers || alwaysPublic(path) || signedIn {
+		return true, ""
+	}
+	// ?next= so the door returns you where you were going. Query included: a
+	// private site turning away a deep link and then dumping you on the home
+	// page has lost the thing you came for.
+	return false, "/login?next=" + url.QueryEscape(requestURI)
 }
 
 // robotsTxt answers /robots.txt from the browsing mode.
