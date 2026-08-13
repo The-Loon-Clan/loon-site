@@ -86,8 +86,15 @@ fmt:
 	@echo "gofmt clean"
 
 ## sql: refuse SQL built from anything but constants
+##
+## python3 first, then python. Bare `python` does not exist on a lot of Linux
+## distributions and is not guaranteed on a CI runner that has not installed it
+## deliberately — and this target failing to run is indistinguishable, from the
+## outside, from it finding nothing wrong.
+PYTHON ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
+
 sql:
-	@python scripts/sqllint.py
+	@$(PYTHON) scripts/sqllint.py
 
 ## vuln: known vulnerabilities in anything this code actually calls
 vuln:
