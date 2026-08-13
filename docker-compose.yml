@@ -1,3 +1,12 @@
+# An EXPLICIT project name, not the one compose derives from the directory.
+#
+# Every unnamed volume is prefixed with the project name, so with the default
+# the data is tied to whatever the checkout happens to be called: rename the
+# directory and `up` silently creates a fresh, empty uploads volume while the
+# old one becomes an orphan nobody is looking for. Pinning the name here means
+# the directory can be called anything.
+name: loon-site
+
 services:
   db:
     image: postgres:16-alpine
@@ -144,9 +153,16 @@ volumes:
   # Named rather than a bind mount: the uploads belong to the deployment, not
   # to the checkout, and a bind mount would put user content inside the repo.
   uploads:
+    # Pinned to the name it ALREADY has, which is the compose-generated one
+    # from back when the project was called loon-demo-site. Renaming the
+    # project without this would point the site at a new empty volume and
+    # leave every existing upload orphaned. The value is data, not branding —
+    # it stays wrong-looking on purpose.
+    name: loon-demo-site_uploads
   # An explicit name, not the compose-generated one. It holds an index that was
   # crawled over days and cannot be regenerated without re-crawling, so it
   # should be recognisable in `docker volume ls` and hard to delete by accident
-  # while clearing up a project prefix.
+  # while clearing up a project prefix. Same reasoning as uploads above: the
+  # name records where the bytes are, so it does not follow the rename.
   dbdata:
     name: loon_demo_db
