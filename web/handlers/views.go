@@ -191,7 +191,7 @@ func newWeb(store users.Store, secret []byte, log *slog.Logger, data *storage.St
 			// every authenticated request. It is throttled to one write per
 			// user per interval (presence_web.go) — unthrottled it would put
 			// an UPDATE in front of every page load and sub-resource.
-			touchLastSeen(ctx, usersDB, id)
+			touchLastSeen(ctx, w.data.DB(), id)
 			return u.ToCore(), webauth.Meta{}, true
 		},
 	}
@@ -861,14 +861,14 @@ func (w *web) profilePage(c *gin.Context) {
 		isSelf, isStaff = false, false
 	}
 
-	private := !isSelf && !isStaff && isPrivateProfile(c.Request.Context(), subject.ID)
+	private := !isSelf && !isStaff && w.isPrivateProfile(c.Request.Context(), subject.ID)
 	data := map[string]any{
 		"Title":   subject.Username,
 		"Subject": subj,
 		// The subject's avatar, which is not the viewer's — chromeData's
 		// UserAvatar is whoever is logged in, and on someone else's profile
 		// those are different people.
-		"SubjectAvatar": readAvatarPath(c.Request.Context(), usersDB, subject.ID),
+		"SubjectAvatar": readAvatarPath(c.Request.Context(), w.data.DB(), subject.ID),
 		// Outcome of a report POST, round-tripped through the redirect.
 		"Report":  c.Query("report"),
 		"IsSelf":  isSelf,
@@ -902,7 +902,7 @@ func (w *web) profilePage(c *gin.Context) {
 	// profilebio_web.go. AFTER the privacy gate above on purpose: a private
 	// profile shows its identity card and nothing else, and the text a member
 	// wrote about themselves is exactly what that setting is for.
-	if bio := renderBio(readBio(ctx, subject.ID)); bio != "" {
+	if bio := renderBio(w.readBio(ctx, subject.ID)); bio != "" {
 		data["Bio"] = bio
 	}
 	if w.points != nil {
@@ -935,7 +935,7 @@ func (w *web) profilePage(c *gin.Context) {
 		data["SubjectFollowers"], data["SubjectFollowing"] = followers, following
 		data["HasSubjectFollows"] = true
 	}
-	if t, ok := lastSeenAt(ctx, usersDB, subject.ID); ok {
+	if t, ok := lastSeenAt(ctx, w.data.DB(), subject.ID); ok {
 		data["SubjectLastSeen"], data["HasSubjectLastSeen"] = t, true
 	}
 	// Operator-placed widgets for the profile region. After the private gate,
@@ -972,7 +972,7 @@ func (w *web) profilePage(c *gin.Context) {
 	// Invites are the viewer's own spendable balance, so they only show on
 	// your own profile — someone else's invite count is not your business.
 	if viewer != nil && viewer.ID == subject.ID {
-		if n, ok := inviteBalance(ctx, subject.ID); ok {
+		if n, ok := w.inviteBalance(ctx, subject.ID); ok {
 			data["Invites"], data["HasInvites"] = n, true
 		}
 	}
@@ -1014,7 +1014,7 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// looks like. Costs one indexed count per staff page view, nothing at all
 	// for everybody else.
 	if u != nil && u.AtLeast(core.RoleMod) {
-		if n := countPendingAvatars(c.Request.Context(), usersDB); n > 0 {
+		if n := countPendingAvatars(c.Request.Context(), w.data.DB()); n > 0 {
 			data["PendingAvatars"] = n
 		}
 	}
@@ -1028,7 +1028,7 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 		// The account menu's avatar, on every page. One indexed lookup by id
 		// — core.User carries no image field, and threading it through every
 		// handler instead would mean every new page remembering to.
-		data["UserAvatar"] = readAvatarPath(c.Request.Context(), usersDB, u.ID)
+		data["UserAvatar"] = readAvatarPath(c.Request.Context(), w.data.DB(), u.ID)
 		// HasPoints/HasUnread exist because a template cannot tell an ABSENT
 		// map key from a zero one: {{if .Points}} hid the tile both when the
 		// points service was unwired AND for a user whose balance is genuinely

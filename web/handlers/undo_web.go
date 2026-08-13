@@ -120,10 +120,15 @@ func (w *web) recordUndo(ctx context.Context, userID int64, kind string, payload
 // switch so a new kind is a registration next to the thing it undoes, instead
 // of an edit to a function in another file that its author has no reason to
 // open.
-var undoKinds = map[string]func(ctx context.Context, userID int64, payload []byte) error{}
+var undoKinds = map[string]func(ctx context.Context, db *sqlx.DB, userID int64, payload []byte) error{}
 
 // registerUndo wires one kind. Called from init() next to the action itself.
-func registerUndo(kind string, fn func(ctx context.Context, userID int64, payload []byte) error) {
+// The handler receives the database handle rather than reaching for a
+// package global. Undo handlers are registered from init(), where there is no
+// server to hang a method off, which is exactly why the global existed — and
+// exactly the sort of hidden dependency this refactor is removing. Passing it
+// at call time keeps registration free of any handle at all.
+func registerUndo(kind string, fn func(ctx context.Context, db *sqlx.DB, userID int64, payload []byte) error) {
 	undoKinds[kind] = fn
 }
 
@@ -160,7 +165,7 @@ func (w *web) performUndo(ctx context.Context, userID int64, token string) (stri
 		// consuming the token and doing nothing.
 		return "", fmt.Errorf("nothing knows how to undo %q", row.Kind)
 	}
-	if err := fn(ctx, userID, row.Payload); err != nil {
+	if err := fn(ctx, w.db(), userID, row.Payload); err != nil {
 		// Put the token back: the action was not reversed, so the offer should
 		// still stand.
 		_, _ = w.db().ExecContext(ctx,

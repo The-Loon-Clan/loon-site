@@ -43,12 +43,12 @@ func migrateProfileBio(db *sqlx.DB) error {
 
 // readBio returns a member's raw markdown, or "" when unset or unavailable.
 // Best effort: a profile must still render when this read fails.
-func readBio(ctx context.Context, userID int64) string {
-	if usersDB == nil || userID <= 0 {
+func (w *web) readBio(ctx context.Context, userID int64) string {
+	if w.db() == nil || userID <= 0 {
 		return ""
 	}
 	var bio string
-	if err := usersDB.GetContext(ctx, &bio,
+	if err := w.data.DB().GetContext(ctx, &bio,
 		`SELECT COALESCE(bio, '') FROM users WHERE id = $1`, userID); err != nil {
 		return ""
 	}
@@ -72,14 +72,14 @@ func renderBio(src string) template.HTML {
 const undoKindBio = "bio.replaced"
 
 func init() {
-	registerUndo(undoKindBio, func(ctx context.Context, userID int64, payload []byte) error {
+	registerUndo(undoKindBio, func(ctx context.Context, db *sqlx.DB, userID int64, payload []byte) error {
 		var p struct {
 			Previous string `json:"previous"`
 		}
 		if err := json.Unmarshal(payload, &p); err != nil {
 			return errUndoGone
 		}
-		if _, err := usersDB.ExecContext(ctx,
+		if _, err := db.ExecContext(ctx,
 			`UPDATE users SET bio = $1 WHERE id = $2`, p.Previous, userID); err != nil {
 			return fmt.Errorf("could not restore your profile text")
 		}
@@ -93,7 +93,7 @@ func (w *web) settingsProfile(c *gin.Context) {
 	if !ok {
 		return
 	}
-	bio := readBio(c.Request.Context(), u.ID)
+	bio := w.readBio(c.Request.Context(), u.ID)
 	w.render(c, "settings_profile.html", map[string]any{
 		"Title": "About you",
 		"Bio":   bio,
@@ -111,7 +111,7 @@ func (w *web) settingsProfile(c *gin.Context) {
 		"Saved": c.Query("saved") == "1",
 		// The avatar half of this page (avatar_web.go). Its own status keys so
 		// saving text does not report "avatar saved", and vice versa.
-		"Avatar": readAvatarPath(c.Request.Context(), usersDB, u.ID),
+		"Avatar": readAvatarPath(c.Request.Context(), w.data.DB(), u.ID),
 		// The initials fallback needs a name, and the partial takes it as a
 		// value rather than reading .User itself so it works on any page.
 		"Username":    u.Username,
@@ -141,13 +141,13 @@ func (w *web) settingsProfileSave(c *gin.Context) {
 		bio = string(r[:bioMaxLen])
 	}
 	token := ""
-	if usersDB != nil {
+	if w.data.DB() != nil {
 		// Read the old text BEFORE overwriting it. Saving an empty editor wipes
 		// a profile with no warning and no copy of what was there, which is the
 		// same irreversibility an avatar removal has and the reason both are
 		// undoable while bookmarks and follows are not.
-		previous := readBio(c.Request.Context(), u.ID)
-		if _, err := usersDB.ExecContext(c.Request.Context(),
+		previous := w.readBio(c.Request.Context(), u.ID)
+		if _, err := w.data.DB().ExecContext(c.Request.Context(),
 			`UPDATE users SET bio = $1 WHERE id = $2`, bio, u.ID); err != nil {
 			w.log.Error("save bio", "user", u.ID, "err", err)
 		} else if previous != "" && previous != bio {

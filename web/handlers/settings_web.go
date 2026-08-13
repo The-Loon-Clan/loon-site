@@ -104,12 +104,12 @@ func notificationPrefs(ctx context.Context, db *sqlx.DB, userID int64) map[strin
 }
 
 // isPrivateProfile reports whether a subject has hidden their profile.
-func isPrivateProfile(ctx context.Context, userID int64) bool {
-	if usersDB == nil {
+func (w *web) isPrivateProfile(ctx context.Context, userID int64) bool {
+	if w.db() == nil {
 		return false
 	}
 	var private bool
-	if err := usersDB.GetContext(ctx, &private,
+	if err := w.data.DB().GetContext(ctx, &private,
 		`SELECT COALESCE(private_profile, false) FROM users WHERE id = $1`, userID); err != nil {
 		return false
 	}
@@ -125,7 +125,7 @@ func (w *web) settingsPrivacy(c *gin.Context) {
 	}
 	w.render(c, "settings_privacy.html", map[string]any{
 		"Title":          "Privacy",
-		"PrivateProfile": isPrivateProfile(c.Request.Context(), u.ID),
+		"PrivateProfile": w.isPrivateProfile(c.Request.Context(), u.ID),
 		"Saved":          c.Query("saved") == "1",
 	})
 }
@@ -136,8 +136,8 @@ func (w *web) settingsPrivacySave(c *gin.Context) {
 		return
 	}
 	private := c.PostForm("private_profile") == "1"
-	if usersDB != nil {
-		if _, err := usersDB.ExecContext(c.Request.Context(),
+	if w.data.DB() != nil {
+		if _, err := w.data.DB().ExecContext(c.Request.Context(),
 			`UPDATE users SET private_profile = $2 WHERE id = $1`, u.ID, private); err != nil {
 			w.log.Error("privacy save", "err", err)
 		}
@@ -150,7 +150,7 @@ func (w *web) settingsNotifications(c *gin.Context) {
 	if !ok {
 		return
 	}
-	prefs := notificationPrefs(c.Request.Context(), usersDB, u.ID)
+	prefs := notificationPrefs(c.Request.Context(), w.data.DB(), u.ID)
 	type kindVM struct {
 		Kind, Label, Help string
 		Enabled           bool
@@ -177,10 +177,7 @@ func (w *web) settingsNotificationsSave(c *gin.Context) {
 	// user just turned off still enabled.
 	for _, k := range notifiableKinds {
 		enabled := c.PostForm(k.Kind) == "1"
-		if usersDB == nil {
-			continue
-		}
-		if _, err := usersDB.ExecContext(ctx,
+		if _, err := w.data.DB().ExecContext(ctx,
 			`INSERT INTO notification_prefs (user_id, kind, enabled) VALUES ($1,$2,$3)
 			 ON CONFLICT (user_id, kind) DO UPDATE SET enabled = EXCLUDED.enabled`,
 			u.ID, k.Kind, enabled); err != nil {

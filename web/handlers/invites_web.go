@@ -72,12 +72,12 @@ func wireInvites(c *core.Core, db *sqlx.DB) error {
 }
 
 // inviteBalance is the viewer's own invite count, for the profile tile.
-func inviteBalance(ctx context.Context, userID int64) (int, bool) {
-	if usersDB == nil {
+func (w *web) inviteBalance(ctx context.Context, userID int64) (int, bool) {
+	if w.db() == nil {
 		return 0, false
 	}
 	var n int
-	if err := usersDB.GetContext(ctx, &n,
+	if err := w.data.DB().GetContext(ctx, &n,
 		`SELECT COALESCE(invites, 0) FROM users WHERE id = $1`, userID); err != nil {
 		return 0, false
 	}

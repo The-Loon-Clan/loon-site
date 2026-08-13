@@ -118,10 +118,10 @@ var externalSites = []struct {
 // between a release and its entry — the same join releaseArt uses. It is a
 // weak key, so the newest entry wins rather than an arbitrary one.
 func (w *web) releaseExternals(ctx context.Context, coverURL string) []externalLink {
-	if coverURL == "" || usersDB == nil {
+	if coverURL == "" || w.data.DB() == nil {
 		return nil
 	}
-	rows, err := usersDB.QueryContext(ctx,
+	rows, err := w.data.DB().QueryContext(ctx,
 		`WITH e AS (
 		     SELECT id, kind, ext_namespace, ext_id
 		       FROM catalog.catalog_entry

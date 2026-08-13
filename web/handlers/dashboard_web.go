@@ -82,17 +82,17 @@ func (w *web) adminDashboard(c *gin.Context) {
 	}
 
 	// ── members ──
-	// usersDB is nil only in a test harness; a dash is honest there.
+	// w.data.DB() is nil only in a test harness; a dash is honest there.
 	vm.Tiles = append(vm.Tiles, statTile{
 		Label: "Members",
-		Value: countOrDash(ctx, `SELECT COUNT(*) FROM users`),
-		Sub:   plural7d(countOrDash(ctx, `SELECT COUNT(*) FROM users WHERE created_at > now() - interval '7 days'`)),
+		Value: w.countOrDash(ctx, `SELECT COUNT(*) FROM users`),
+		Sub:   plural7d(w.countOrDash(ctx, `SELECT COUNT(*) FROM users WHERE created_at > now() - interval '7 days'`)),
 	})
 
 	// ── support ──
 	// Open tickets are the one figure here that is a WORK QUEUE rather than a
 	// measurement, so it doubles as an alert when non-zero.
-	open := countOrDash(ctx, `SELECT COUNT(*) FROM support_tickets WHERE status <> 'closed'`)
+	open := w.countOrDash(ctx, `SELECT COUNT(*) FROM support_tickets WHERE status <> 'closed'`)
 	vm.Tiles = append(vm.Tiles, statTile{
 		Label: "Open tickets", Value: open, Href: "/admin/tickets",
 	})
@@ -161,12 +161,12 @@ func (w *web) adminDashboard(c *gin.Context) {
 // answered. Deliberately NOT 0: a missing table and an empty one are different
 // facts, and a staff page that renders "0 open tickets" because the ticket
 // plugin is unwired is worse than one that admits it does not know.
-func countOrDash(ctx context.Context, q string) string {
-	if usersDB == nil {
+func (w *web) countOrDash(ctx context.Context, q string) string {
+	if w.db() == nil {
 		return "—"
 	}
 	var n int
-	if err := usersDB.GetContext(ctx, &n, q); err != nil {
+	if err := w.data.DB().GetContext(ctx, &n, q); err != nil {
 		return "—"
 	}
 	return itoa(n)

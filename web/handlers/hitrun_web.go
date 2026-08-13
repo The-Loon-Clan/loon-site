@@ -114,7 +114,7 @@ func enforceHitRunBlock(w *web) gin.HandlerFunc {
 			return
 		}
 		u, ok := w.currentUser(c)
-		if !ok || u == nil || usersDB == nil {
+		if !ok || u == nil || w.data.DB() == nil {
 			c.Next()
 			return
 		}
@@ -122,7 +122,7 @@ func enforceHitRunBlock(w *web) gin.HandlerFunc {
 		// Expiry is applied in the QUERY as well as by the sweep. The sweep
 		// clears expired rows hourly, so between runs a member could otherwise
 		// still be blocked by a warning that lapsed twenty minutes ago.
-		err := usersDB.QueryRowContext(c.Request.Context(),
+		err := w.data.DB().QueryRowContext(c.Request.Context(),
 			`SELECT count(*) FROM hitrun.warnings
 			  WHERE user_id = $1 AND cleared_at IS NULL AND expires_at > now()`, u.ID).Scan(&active)
 		if err != nil {

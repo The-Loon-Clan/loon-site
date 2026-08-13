@@ -173,15 +173,15 @@ func markAvatarReviewed(ctx context.Context, db *sqlx.DB, userID int64) error {
 func (w *web) avatarModPage(c *gin.Context) {
 	ctx := c.Request.Context()
 	history := c.Query("reviewed") == "1"
-	rows := listPendingAvatars(ctx, usersDB)
+	rows := listPendingAvatars(ctx, w.data.DB())
 	if history {
-		rows = listReviewedAvatars(ctx, usersDB)
+		rows = listReviewedAvatars(ctx, w.data.DB())
 	}
 	w.render(c, "moderation_avatars.html", map[string]any{
 		"Title":   "New avatars",
 		"Rows":    rows,
 		"History": history,
-		"Pending": countPendingAvatars(ctx, usersDB),
+		"Pending": countPendingAvatars(ctx, w.data.DB()),
 		"Limit":   avatarModRows,
 		"Done":    c.Query("done"),
 	})
@@ -215,7 +215,7 @@ func (w *web) avatarModAction(c *gin.Context) {
 		// would let them restore a picture on an account that is not theirs.
 		// A moderator who clears the wrong one asks the member to upload it
 		// again, which is the honest cost of the action.
-		if _, err := w.clearAvatar(ctx, usersDB, id); err != nil {
+		if _, err := w.clearAvatar(ctx, w.data.DB(), id); err != nil {
 			w.log.Error("moderation clear avatar", "user", id, "by", actor.ID, "err", err)
 			c.Redirect(http.StatusFound, "/moderation/avatars")
 			return
@@ -224,12 +224,12 @@ func (w *web) avatarModAction(c *gin.Context) {
 		// calls, "an avatar disappeared" without a name attached is the report
 		// nobody can follow up.
 		w.log.Info("avatar cleared by moderator", "user", id, "by", actor.ID, "actor", actor.Username)
-		if err := markAvatarReviewed(ctx, usersDB, id); err != nil {
+		if err := markAvatarReviewed(ctx, w.data.DB(), id); err != nil {
 			w.log.Error("mark avatar reviewed", "user", id, "err", err)
 		}
 		c.Redirect(http.StatusFound, "/moderation/avatars?done=cleared")
 	default:
-		if err := markAvatarReviewed(ctx, usersDB, id); err != nil {
+		if err := markAvatarReviewed(ctx, w.data.DB(), id); err != nil {
 			w.log.Error("mark avatar reviewed", "user", id, "err", err)
 		}
 		w.log.Info("avatar approved", "user", id, "by", actor.ID, "actor", actor.Username)

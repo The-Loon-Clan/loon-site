@@ -295,7 +295,7 @@ const undoKindAvatar = "avatar.cleared"
 
 func init() {
 	// Registered beside the thing it reverses, so the two cannot drift.
-	registerUndo(undoKindAvatar, func(ctx context.Context, userID int64, payload []byte) error {
+	registerUndo(undoKindAvatar, func(ctx context.Context, db *sqlx.DB, userID int64, payload []byte) error {
 		var p struct {
 			Path string `json:"path"`
 		}
@@ -308,7 +308,7 @@ func init() {
 		if name := avatarBlobName(p.Path); name == "" {
 			return errUndoGone
 		}
-		if _, err := usersDB.ExecContext(ctx,
+		if _, err := db.ExecContext(ctx,
 			`UPDATE users SET avatar_path = $1, avatar_updated_at = now() WHERE id = $2`,
 			p.Path, userID); err != nil {
 			return fmt.Errorf("could not restore your avatar")
@@ -330,7 +330,7 @@ func (w *web) settingsAvatarSave(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	if c.PostForm("remove") != "" {
-		token, err := w.clearAvatar(ctx, usersDB, u.ID)
+		token, err := w.clearAvatar(ctx, w.data.DB(), u.ID)
 		if err != nil {
 			w.log.Error("clear avatar", "user", u.ID, "err", err)
 			c.Redirect(http.StatusFound, "/settings/profile?averr="+url.QueryEscape(err.Error()))
@@ -353,7 +353,7 @@ func (w *web) settingsAvatarSave(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/settings/profile?averr="+url.QueryEscape("choose an image first"))
 		return
 	}
-	if err := setAvatar(ctx, usersDB, u.ID, raw); err != nil {
+	if err := setAvatar(ctx, w.data.DB(), u.ID, raw); err != nil {
 		// The message is the one processAvatar wrote for the uploader; the
 		// detail goes to the log.
 		w.log.Info("avatar rejected", "user", u.ID, "reason", err)

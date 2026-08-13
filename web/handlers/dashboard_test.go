@@ -77,9 +77,11 @@ func TestDashboardRendersTilesFromTheHandler(t *testing.T) {
 // the site has no members, which is a different claim from "not measurable
 // here" — and on a staff page a wrong number is one that gets acted on.
 func TestDashboardShowsDashNotZeroForUnwiredSources(t *testing.T) {
-	if usersDB != nil {
-		t.Skip("a real users DB is wired; this asserts the unwired path")
-	}
+	// No skip any more. It existed because usersDB was a package global that
+	// another test could have set, so this one had to check whether it was
+	// looking at a wired site. The handle now arrives through the web struct,
+	// and dashWeb builds one with no data sources at all, so this test owns
+	// its own fixture and the unwired path is the only path it can take.
 	body := getDashboard(t, dashWeb(t))
 	for _, label := range []string{"Members", "Open tickets"} {
 		i := strings.Index(body, label)

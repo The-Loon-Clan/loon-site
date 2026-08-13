@@ -5,16 +5,9 @@ import (
 	"sort"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon/core"
 )
-
-// usersDB is the host's own users table, for the two reads no capability
-// covers: who is staff, and how many members there are. Same pattern as
-// w.db() — core has no "list users" method by design, so a host that wants
-// one owns the query AND the bound on it.
-var usersDB *sqlx.DB
 
 // Static site pages + the stats hub — UNIT3D's page/* and stats/index areas.
 //
@@ -75,7 +68,7 @@ func (w *web) staffGroups(ctx context.Context) ([]staffGroup, error) {
 	// Role >= RoleMod is the staff test the rest of the site uses (see
 	// chromeData's IsMod). Ordered highest-authority first so the page reads
 	// top-down like the org it describes.
-	if err := usersDB.SelectContext(ctx, &rows,
+	if err := w.data.DB().SelectContext(ctx, &rows,
 		`SELECT username, role, COALESCE(avatar_path, '') AS avatar_path,
 		        to_char(created_at, 'DD Mon YYYY') AS created_at
 		   FROM users WHERE role >= $1 ORDER BY role DESC, username ASC LIMIT 200`,
@@ -124,9 +117,9 @@ func (w *web) statsPage(c *gin.Context) {
 		}
 	}
 	// Member count is the host's own figure. Capped like the staff read.
-	if usersDB != nil {
+	if w.data.DB() != nil {
 		var n int
-		if err := usersDB.GetContext(ctx, &n, `SELECT COUNT(*) FROM users`); err == nil {
+		if err := w.data.DB().GetContext(ctx, &n, `SELECT COUNT(*) FROM users`); err == nil {
 			data["Members"], data["HasMembers"] = n, true
 		}
 	}

@@ -77,7 +77,7 @@ func (w *web) invitesPage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	balance, _ := inviteBalance(c.Request.Context(), u.ID)
+	balance, _ := w.inviteBalance(c.Request.Context(), u.ID)
 	tree := w.data.InviteTree(c.Request.Context(), u.ID)
 	w.render(c, "invites.html", map[string]any{
 		"Title":   "Invites",

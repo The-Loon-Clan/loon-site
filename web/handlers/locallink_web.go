@@ -159,7 +159,7 @@ func (w *web) linkFromCatalog(ctx context.Context) (int, error) {
 // side was created from that function's output, so a separate reduction would
 // drift, and the failure mode is a release wearing another title's poster.
 func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
-	if usersDB == nil || w.catalogCovers == nil {
+	if w.db() == nil || w.catalogCovers == nil {
 		return 0, nil
 	}
 	cursor, err := w.sweepCursor(ctx, spec.cursorKey)
@@ -172,7 +172,7 @@ func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 	// eventually fill it, at which point the pass runs every minute and links
 	// nothing while matchable releases sit below it. Same trap as
 	// catalogCandidates; same fix.
-	rows, err := usersDB.QueryContext(ctx,
+	rows, err := w.data.DB().QueryContext(ctx,
 		`SELECT n.id, n.title
 		   FROM usenet.nzbs n
 		   LEFT JOIN catalog.release_cover rc ON rc.release_id = n.id
@@ -227,7 +227,7 @@ func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 		var coverURL string
 		// Exact match on any acceptable form — never a prefix. Newest entry
 		// wins, matching releaseArt's tie-break.
-		err := usersDB.QueryRowContext(ctx,
+		err := w.data.DB().QueryRowContext(ctx,
 			`SELECT cover_url FROM catalog.catalog_entry
 			  WHERE kind = ANY($1) AND norm_title = ANY($2) AND cover_url <> ''
 			  ORDER BY updated_at DESC LIMIT 1`, pq.Array(spec.kinds), pq.Array(keys)).Scan(&coverURL)
@@ -250,7 +250,7 @@ func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 // BEFORE the network job gets its candidates, so the expensive pass is handed
 // the releases that genuinely need an API call.
 func (w *web) runLocalLinks(ctx context.Context, every time.Duration, log *slog.Logger) {
-	if usersDB == nil || w.catalogCovers == nil {
+	if w.db() == nil || w.catalogCovers == nil {
 		return
 	}
 	// A short first delay so a boot does not race the migrations, then settle

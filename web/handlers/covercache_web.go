@@ -270,7 +270,7 @@ func (w *web) backfillCovers(ctx context.Context, every time.Duration, log *slog
 			return
 		case <-tick.C:
 		}
-		id, remote, ok := nextRemoteCover(ctx, skip)
+		id, remote, ok := w.nextRemoteCover(ctx, skip)
 		if !ok {
 			if done > 0 || failed > 0 {
 				log.Info("cover backfill complete", "localised", done, "left_remote", failed)
@@ -299,12 +299,12 @@ func (w *web) backfillCovers(ctx context.Context, every time.Duration, log *slog
 // The catalog plugin owns this table and the host reads it directly, because
 // the capability exposes no "list by shape" call — and adding one to a shared
 // plugin for what is a one-time migration is the larger change.
-func nextRemoteCover(ctx context.Context, skip []int64) (int64, string, bool) {
+func (w *web) nextRemoteCover(ctx context.Context, skip []int64) (int64, string, bool) {
 	var (
 		id     int64
 		remote string
 	)
-	err := usersDB.QueryRowContext(ctx,
+	err := w.data.DB().QueryRowContext(ctx,
 		`SELECT release_id, cover_url FROM catalog.release_cover
 		  WHERE cover_url NOT LIKE '/uploads/%' AND NOT (release_id = ANY($1))
 		  ORDER BY release_id LIMIT 1`, pq.Array(skip)).Scan(&id, &remote)

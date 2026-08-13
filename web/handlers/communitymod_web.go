@@ -151,7 +151,7 @@ func (w *web) reportAvatar(ctx context.Context, subjectID, reporterID int64, rea
 	if subjectID == reporterID {
 		return false, errors.New("you cannot report your own avatar")
 	}
-	avatar := readAvatarPath(ctx, usersDB, subjectID)
+	avatar := readAvatarPath(ctx, w.data.DB(), subjectID)
 	if avatar == "" {
 		return false, errors.New("that member has no avatar")
 	}
@@ -273,7 +273,7 @@ func (w *web) applyResolution(ctx context.Context, kind string, subjectID int64)
 		// The undo token is discarded: this is a decision the community made,
 		// not a slip, and an undo offered to nobody in particular is an undo
 		// nobody can use. The subject can upload a new picture.
-		_, err := w.clearAvatar(ctx, usersDB, subjectID)
+		_, err := w.clearAvatar(ctx, w.data.DB(), subjectID)
 		return err
 	}
 	// An unknown kind must not be silently treated as done: that would close

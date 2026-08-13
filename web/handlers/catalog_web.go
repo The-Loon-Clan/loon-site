@@ -89,14 +89,11 @@ const candidateBatch = 3000
 // cursor steps past them; the wrap brings them round again later, which is
 // what retries a title that failed only because a source was down.
 func (w *web) catalogCandidates(ctx context.Context) ([]scraper.Candidate, error) {
-	if usersDB == nil {
-		return nil, nil
-	}
 	cursor, err := w.sweepCursor(ctx, candidateCursorKey)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := usersDB.QueryContext(ctx,
+	rows, err := w.data.DB().QueryContext(ctx,
 		`SELECT n.id, n.title, n.category_id
 		   FROM usenet.nzbs n
 		   LEFT JOIN catalog.release_cover rc ON rc.release_id = n.id
@@ -152,7 +149,7 @@ func nextCandidateCursor(returned, batch int, lowest int64) int64 {
 // would quietly stop agreeing.
 func (w *web) sweepCursor(ctx context.Context, key string) (int64, error) {
 	var v sql.NullString
-	err := usersDB.QueryRowContext(ctx,
+	err := w.data.DB().QueryRowContext(ctx,
 		`SELECT value FROM site_settings WHERE key = $1`, key).Scan(&v)
 	if err != nil && err != sql.ErrNoRows {
 		return 0, err
@@ -165,7 +162,7 @@ func (w *web) sweepCursor(ctx context.Context, key string) (int64, error) {
 }
 
 func (w *web) setSweepCursor(ctx context.Context, key string, id int64) error {
-	_, err := usersDB.ExecContext(ctx,
+	_, err := w.data.DB().ExecContext(ctx,
 		`INSERT INTO site_settings (key, value) VALUES ($1, $2)
 		 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
 		key, strconv.FormatInt(id, 10))
@@ -213,11 +210,11 @@ func (w *web) linkCover(ctx context.Context, releaseID int64, coverURL string) e
 // same empty result — the page renders without a backdrop, which is the normal
 // case for most of the catalogue.
 func (w *web) releaseArt(ctx context.Context, coverURL string) (banner, background string) {
-	if coverURL == "" || usersDB == nil {
+	if coverURL == "" || w.data.DB() == nil {
 		return "", ""
 	}
 	var b, bg sql.NullString
-	err := usersDB.QueryRowContext(ctx,
+	err := w.data.DB().QueryRowContext(ctx,
 		`SELECT fields->>'banner_url', fields->>'background_url'
 		   FROM catalog.catalog_entry
 		  WHERE cover_url = $1 AND fields IS NOT NULL
