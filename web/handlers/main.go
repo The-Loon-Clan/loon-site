@@ -121,7 +121,7 @@ func Main() {
 	// static assets, session cookie, and the public/login pages.
 	st := wireBaselineStores(db, logger)
 	migrateSiteTables(db, logger, st.users)
-	wsrv := newWeb(st.users, st.sessionSecret, logger)
+	wsrv := newWeb(st.users, st.sessionSecret, logger, storage.New(db))
 	wsrv.loginLog = st.loginLog
 	wsrv.ipSalt = string(st.sessionSecret) // demo salt; a real host uses a dedicated ip_salt secret
 	// Cloudflare Turnstile hook (loon-baseline). Disabled unless both keys are
@@ -272,14 +272,12 @@ func Main() {
 		logger.Error("grabs migrate", "err", err)
 		os.Exit(1)
 	}
-	storage.GrabsDB = db
 
 	// Bookmarks (bookmarks_web.go) — saved releases, retiring MOCKS M4.
 	if err := bookmarksMigrate(db); err != nil {
 		logger.Error("bookmarks migrate", "err", err)
 		os.Exit(1)
 	}
-	storage.BookmarksDB = db
 
 	// Widget placements (widgets_web.go) — WHERE an operator has put each
 	// registered widget. The widgets themselves come from plugins at boot and
@@ -300,10 +298,8 @@ func Main() {
 		logger.Error("follows migrate", "err", err)
 		os.Exit(1)
 	}
-	storage.FollowsDB = db
 	// Topics/Posts read forum_threads and forum_posts, which live in
 	// `public` and are the host's — no migration of its own to run.
-	storage.ForumActivityDB = db
 
 	points := pgPoints{db: db}
 	pointsSvc := core.NewPoints(points.adapter())
@@ -580,12 +576,10 @@ func Main() {
 		logger.Error("security migrate", "err", err)
 		os.Exit(1)
 	}
-	storage.WishlistDB = db
 	if err := wishlistMigrate(db); err != nil {
 		logger.Error("wishlist migrate", "err", err)
 		os.Exit(1)
 	}
-	storage.GiftsDB = db
 	if err := giftsMigrate(db); err != nil {
 		logger.Error("gifts migrate", "err", err)
 		os.Exit(1)

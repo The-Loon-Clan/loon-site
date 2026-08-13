@@ -68,7 +68,10 @@ type web struct {
 	cache     cache.Cache        // page cache (in-memory by default, redis if configured)
 	ipSalt    string             // salt for hashing client IPs before storing them
 	log       *slog.Logger
-	tmpls     map[string]*template.Template // page name -> parsed (base + page)
+	// data is the site's own SQL, behind one handle. It replaced eight
+	// package-level *sqlx.DB globals and the 44 nil guards that defended them.
+	data  *storage.Store
+	tmpls map[string]*template.Template // page name -> parsed (base + page)
 
 	// usenet plugin read capability, looked up on the extension registry after
 	// Boot (the plugin's ADMIN surface is no longer consumed here — the plugin
@@ -148,9 +151,10 @@ var sharedPartials = map[string][]string{
 	"bookmarks.html": {"listing.html"},
 }
 
-func newWeb(store users.Store, secret []byte, log *slog.Logger) *web {
+func newWeb(store users.Store, secret []byte, log *slog.Logger, data *storage.Store) *web {
 	w := &web{
 		store:  store,
+		data:   data,
 		flow:   authflow.Flow{Users: store, Hasher: password.Hasher{}, DefaultRole: core.RoleUser, MinPasswordLen: minPasswordLen},
 		log:    log,
 		tmpls:  map[string]*template.Template{},
@@ -894,7 +898,7 @@ func (w *web) profilePage(c *gin.Context) {
 	// Bookmarks are PUBLIC on a profile the way UNIT3D shows them — a count,
 	// not the list. Has* rather than a bare zero, so an unreachable table
 	// leaves the tile an em dash instead of claiming nobody saved anything.
-	if n, ok := storage.BookmarkCount(ctx, subject.ID); ok {
+	if n, ok := w.data.BookmarkCount(ctx, subject.ID); ok {
 		data["SubjectBookmarks"], data["HasSubjectBookmarks"] = n, true
 	}
 	// Achievements — MOCKS M2, retired. Public like the bookmark count: what
@@ -907,7 +911,7 @@ func (w *web) profilePage(c *gin.Context) {
 	// Followers/following (M3) and last seen (M1) — the last two placeholders
 	// on this page. Has* on each, so an unreachable table leaves an em dash
 	// rather than asserting a zero nobody measured.
-	if followers, following, ok := storage.FollowCounts(ctx, subject.ID); ok {
+	if followers, following, ok := w.data.FollowCounts(ctx, subject.ID); ok {
 		data["SubjectFollowers"], data["SubjectFollowing"] = followers, following
 		data["HasSubjectFollows"] = true
 	}
@@ -931,7 +935,7 @@ func (w *web) profilePage(c *gin.Context) {
 	//
 	// Reached only after the private gate, so a member who has hidden their
 	// profile hides this with it.
-	if tt, ok := storage.ReadTrackerTotals(ctx, usersDB, subject.ID); ok {
+	if tt, ok := w.data.ReadTrackerTotals(ctx, subject.ID); ok {
 		data["HasSubjectTracker"] = true
 		data["SubjectTrackerUp"] = humanBytes(tt.Uploaded)
 		data["SubjectTrackerDown"] = humanBytes(tt.Downloaded)
@@ -943,7 +947,7 @@ func (w *web) profilePage(c *gin.Context) {
 	// The follow button is for a signed-in viewer looking at SOMEONE ELSE.
 	if viewer != nil && viewer.ID != subject.ID {
 		data["CanFollow"] = true
-		data["Following"] = storage.IsFollowing(ctx, viewer.ID, subject.ID)
+		data["Following"] = w.data.IsFollowing(ctx, viewer.ID, subject.ID)
 	}
 	// Invites are the viewer's own spendable balance, so they only show on
 	// your own profile — someone else's invite count is not your business.
@@ -1269,14 +1273,14 @@ func (w *web) home(c *gin.Context) {
 		rows, hit := w.homeReleases(ctx)
 		c.Header("X-Cache", map[bool]string{true: "hit", false: "miss"}[hit])
 		if len(rows) > 0 {
-			content[blockLatestReleases] = attachSwarm(ctx, attachGrabs(ctx, capRows(rows, homeTableRows)))
+			content[blockLatestReleases] = w.attachSwarm(ctx, w.attachGrabs(ctx, capRows(rows, homeTableRows)))
 			content[blockFeatured] = featuredRows(rows, homeFeatured)
 		}
 		// Most-grabbed this week — UNIT3D's trending, now that grabs are
 		// recorded. Resolved from the rows already fetched rather than a second
 		// index read; an id that has aged out of the recent window simply does
 		// not appear, which is why the table stores no titles of its own.
-		if pop := popularRows(ctx, rows, homePopularRows); len(pop) > 0 {
+		if pop := w.popularRows(ctx, rows, homePopularRows); len(pop) > 0 {
 			content[blockPopular] = pop
 		}
 		if gs, ok := w.homeGroups(ctx); ok {
@@ -1370,7 +1374,7 @@ func (w *web) browse(c *gin.Context) {
 			f := parseFilter(c)
 			rows := toSearchRows(res)
 			w.attachCovers(ctx, rows) // one lookup for the page, not one per row
-			rows = attachSwarm(ctx, attachGrabs(ctx, rows))
+			rows = w.attachSwarm(ctx, w.attachGrabs(ctx, rows))
 			// Operator-placed widgets above the results.
 			if ws := w.renderRegion(c, "listing"); len(ws) > 0 {
 				data["RegionWidgets"] = ws
@@ -1435,7 +1439,7 @@ func (w *web) search(c *gin.Context) {
 			ctx := c.Request.Context()
 			rows := toSearchRows(res)
 			w.attachCovers(ctx, rows) // one lookup for the page
-			rows = attachSwarm(ctx, attachGrabs(ctx, rows))
+			rows = w.attachSwarm(ctx, w.attachGrabs(ctx, rows))
 			// Operator-placed widgets above the results.
 			if ws := w.renderRegion(c, "listing"); len(ws) > 0 {
 				data["RegionWidgets"] = ws
@@ -1523,7 +1527,7 @@ func (w *web) registerPost(c *gin.Context) {
 		})
 		return
 	case RegInvite:
-		if !storage.InviteCodeValid(c.Request.Context(), strings.TrimSpace(c.PostForm("invite"))) {
+		if !w.data.InviteCodeValid(c.Request.Context(), strings.TrimSpace(c.PostForm("invite"))) {
 			c.Status(http.StatusForbidden)
 			w.render(c, "register.html", map[string]any{
 				"Title": "Register", "RegMode": RegInvite,
@@ -1552,7 +1556,7 @@ func (w *web) registerPost(c *gin.Context) {
 	// After Register on purpose. Redeeming first would burn the code when
 	// registration then fails on a taken username — the visitor loses an invite
 	// they were given and has nothing to show for it.
-	if registrationMode() == RegInvite && !storage.RedeemInviteCode(c.Request.Context(), invite, u.ID) {
+	if registrationMode() == RegInvite && !w.data.RedeemInviteCode(c.Request.Context(), invite, u.ID) {
 		// The account exists and the code did not stick — a race with another
 		// registration on the same code. Say so rather than leaving them signed
 		// in via a gate that did not open.
@@ -1691,8 +1695,8 @@ const homePopularRows = 5
 //
 // Returns nothing when no row has a grab, so a site nobody has downloaded from
 // shows no block at all instead of a ranking of zeroes.
-func popularRows(ctx context.Context, rows []searchRow, limit int) []searchRow {
-	ids, counts := storage.PopularGrabs(ctx, 7, limit*4)
+func (w *web) popularRows(ctx context.Context, rows []searchRow, limit int) []searchRow {
+	ids, counts := w.data.PopularGrabs(ctx, 7, limit*4)
 	if len(ids) == 0 {
 		return nil
 	}

@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-site/internal/storage"
-
 	"context"
 	"fmt"
 	"net/http"
@@ -167,7 +165,7 @@ func (w *web) releasePage(c *gin.Context) {
 	// Absent for a release that has none — which is nearly all of them — so the
 	// page shows a swarm or says nothing, never "0 seeders", which reads as a
 	// dead torrent rather than no torrent.
-	if sw, okSwarm := storage.ReadTrackerSwarm(c.Request.Context(), usersDB, id); okSwarm {
+	if sw, okSwarm := w.data.ReadTrackerSwarm(c.Request.Context(), id); okSwarm {
 		data["Swarm"] = sw
 	}
 	// Tell widgets WHAT this page is about before rendering their region, so a
@@ -181,7 +179,7 @@ func (w *web) releasePage(c *gin.Context) {
 	// rather than rendered in a false "not saved" state for anonymous readers.
 	if u, okUser := w.currentUser(c); okUser && u != nil {
 		data["CanBookmark"] = true
-		data["Bookmarked"] = isBookmarked(c.Request.Context(), u.ID, id)
+		data["Bookmarked"] = w.data.IsBookmarked(c.Request.Context(), u.ID, id)
 	}
 	w.render(c, "release.html", data)
 }
@@ -251,7 +249,7 @@ func (w *web) nzbDownload(c *gin.Context) {
 	if u, ok := w.currentUser(c); ok && u != nil {
 		uid = u.ID
 	}
-	storage.RecordGrab(c.Request.Context(), id, uid)
+	w.data.RecordGrab(c.Request.Context(), id, uid)
 
 	c.Header("Content-Disposition", `attachment; filename="`+sanitizeFilename(filename)+`"`)
 	c.Data(http.StatusOK, "application/x-nzb", data)
@@ -296,7 +294,7 @@ type searchRow struct {
 // attachGrabs fills Grabs for a page of rows in ONE query. Rows with no
 // recorded grab keep 0 and their templates render nothing, which is the honest
 // state: the table stores downloads, not zeroes.
-func attachGrabs(ctx context.Context, rows []searchRow) []searchRow {
+func (w *web) attachGrabs(ctx context.Context, rows []searchRow) []searchRow {
 	if len(rows) == 0 {
 		return rows
 	}
@@ -304,7 +302,7 @@ func attachGrabs(ctx context.Context, rows []searchRow) []searchRow {
 	for _, r := range rows {
 		ids = append(ids, r.ID)
 	}
-	counts := storage.GrabCounts(ctx, ids)
+	counts := w.data.GrabCounts(ctx, ids)
 	if counts == nil {
 		return rows
 	}
@@ -320,7 +318,7 @@ func attachGrabs(ctx context.Context, rows []searchRow) []searchRow {
 // answer different questions from different plugins, and a host running the
 // indexer without the tracker should keep grabs and get nothing here. Returns
 // rows untouched when the tracker is off, so callers need no gate of their own.
-func attachSwarm(ctx context.Context, rows []searchRow) []searchRow {
+func (w *web) attachSwarm(ctx context.Context, rows []searchRow) []searchRow {
 	if len(rows) == 0 {
 		return rows
 	}
@@ -328,7 +326,7 @@ func attachSwarm(ctx context.Context, rows []searchRow) []searchRow {
 	for _, r := range rows {
 		ids = append(ids, r.ID)
 	}
-	swarms := storage.SwarmCounts(ctx, usersDB, ids)
+	swarms := w.data.SwarmCounts(ctx, ids)
 	if swarms == nil {
 		return rows
 	}

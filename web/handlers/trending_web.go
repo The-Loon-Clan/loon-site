@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
-	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // /trending — UNIT3D's trending page, over the one signal this indexer really
@@ -103,7 +102,7 @@ func (w *web) trendingRows(ctx context.Context, days, limit int) []searchRow {
 
 	// Over-fetch ids: some will have aged out of the index since they were
 	// grabbed, and those drop out silently rather than leaving gaps.
-	ids, counts := storage.PopularGrabs(ctx, days, limit*2)
+	ids, counts := w.data.PopularGrabs(ctx, days, limit*2)
 	rows := make([]searchRow, 0, limit)
 	for _, id := range ids {
 		detail, ok, err := w.usenet.ReleaseByID(ctx, id)

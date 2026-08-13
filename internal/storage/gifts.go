@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // TransferPoints moves points between two members atomically.
@@ -17,10 +15,8 @@ import (
 // IN the UPDATE, so a concurrent spend cannot slip a balance negative between a
 // read and a write -- and everything else rides in the same transaction behind
 // it.
-func TransferPoints(ctx context.Context, db *sqlx.DB, fromID, toID int64, amount int, note string) error {
+func (st *Store) TransferPoints(ctx context.Context, fromID, toID int64, amount int, note string) error {
 	switch {
-	case db == nil:
-		return errors.New("points are not available")
 	case fromID == toID:
 		return ErrGiftSelf
 	case amount < GiftMin:
@@ -34,7 +30,7 @@ func TransferPoints(ctx context.Context, db *sqlx.DB, fromID, toID int64, amount
 		note = string(r[:GiftNoteMax])
 	}
 
-	tx, err := db.BeginTxx(ctx, nil)
+	tx, err := st.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return errors.New("could not send that gift")
 	}
@@ -70,8 +66,8 @@ func TransferPoints(ctx context.Context, db *sqlx.DB, fromID, toID int64, amount
 	// Both ledger rows reference the gift, so the two halves of one transfer
 	// can be joined back together later. The ledger on its own has two
 	// unrelated rows and no way to say they were the same event.
-	from, _ := UsernameOf(ctx, db, fromID)
-	to, _ := UsernameOf(ctx, db, toID)
+	from, _ := st.UsernameOf(ctx, fromID)
+	to, _ := st.UsernameOf(ctx, toID)
 	for _, row := range []struct {
 		user int64
 		amt  int
@@ -97,19 +93,19 @@ func TransferPoints(ctx context.Context, db *sqlx.DB, fromID, toID int64, amount
 // UsernameOf resolves a name for the ledger description. Best effort: a
 // description reading "Gift to " is worse than one reading "Gift to bob" and
 // far better than a failed transfer.
-func UsernameOf(ctx context.Context, db *sqlx.DB, id int64) (string, error) {
+func (st *Store) UsernameOf(ctx context.Context, id int64) (string, error) {
 	var n string
-	err := db.GetContext(ctx, &n, `SELECT username FROM users WHERE id = $1`, id)
+	err := st.db.GetContext(ctx, &n, `SELECT username FROM users WHERE id = $1`, id)
 	return n, err
 }
 
 // ListGifts returns a member's transfers, both directions, newest first.
-func ListGifts(ctx context.Context, db *sqlx.DB, userID int64, limit int) []GiftRow {
-	if db == nil || userID <= 0 {
+func (st *Store) ListGifts(ctx context.Context, userID int64, limit int) []GiftRow {
+	if userID <= 0 {
 		return nil
 	}
 	var rows []GiftRow
-	if err := db.SelectContext(ctx, &rows, `
+	if err := st.db.SelectContext(ctx, &rows, `
 		SELECT CASE WHEN g.from_user = $1 THEN t.username ELSE f.username END AS other,
 		       g.amount,
 		       g.note,
@@ -129,16 +125,14 @@ func ListGifts(ctx context.Context, db *sqlx.DB, userID int64, limit int) []Gift
 
 // GiftRow is one transfer as either side sees it.
 type GiftRow struct {
-	Other  string `db:"other"`
-	Amount int    `db:"amount"`
-	Note   string `db:"note"`
-	When   string `db:"when_at"`
+	Other  string `st.db:"other"`
+	Amount int    `st.db:"amount"`
+	Note   string `st.db:"note"`
+	When   string `st.db:"when_at"`
 	// Sent is true when the viewer was the giver, which is the only thing
 	// distinguishing the two directions on the page.
-	Sent bool `db:"sent"`
+	Sent bool `st.db:"sent"`
 }
-
-var GiftsDB *sqlx.DB
 
 // ErrGiftSelf is separate from the rest because it is the one refusal that is
 // worth naming: it is a mistake, not an attack, and a member doing it has

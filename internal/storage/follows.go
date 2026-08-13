@@ -3,22 +3,21 @@ package storage
 import (
 	"context"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/the-loon-clan/loon/core"
 )
 
 // FollowCounts returns (followers, following) for one user in ONE round trip.
 // ok is false when the table cannot be read, so the tiles stay em dashes
 // rather than claiming a confident zero.
-func FollowCounts(ctx context.Context, userID int64) (followers, following int, ok bool) {
-	if FollowsDB == nil || userID <= 0 {
+func (st *Store) FollowCounts(ctx context.Context, userID int64) (followers, following int, ok bool) {
+	if userID <= 0 {
 		return 0, 0, false
 	}
 	var row struct {
-		Followers int `db:"followers"`
-		Following int `db:"following"`
+		Followers int `st.db:"followers"`
+		Following int `st.db:"following"`
 	}
-	if err := FollowsDB.GetContext(ctx, &row,
+	if err := st.db.GetContext(ctx, &row,
 		`SELECT (SELECT COUNT(*) FROM user_follow WHERE followee_id = $1) AS followers,
 		        (SELECT COUNT(*) FROM user_follow WHERE follower_id = $1) AS following`,
 		userID); err != nil {
@@ -28,12 +27,12 @@ func FollowCounts(ctx context.Context, userID int64) (followers, following int, 
 }
 
 // IsFollowing answers the profile button's question.
-func IsFollowing(ctx context.Context, followerID, followeeID int64) bool {
-	if FollowsDB == nil || followerID <= 0 || followeeID <= 0 {
+func (st *Store) IsFollowing(ctx context.Context, followerID, followeeID int64) bool {
+	if followerID <= 0 || followeeID <= 0 {
 		return false
 	}
 	var n int
-	if err := FollowsDB.GetContext(ctx, &n,
+	if err := st.db.GetContext(ctx, &n,
 		`SELECT COUNT(*) FROM user_follow WHERE follower_id = $1 AND followee_id = $2`,
 		followerID, followeeID); err != nil {
 		return false
@@ -42,11 +41,11 @@ func IsFollowing(ctx context.Context, followerID, followeeID int64) bool {
 }
 
 // ToggleFollow follows or unfollows, reporting the state AFTER the change.
-func ToggleFollow(ctx context.Context, followerID, followeeID int64) (following bool, err error) {
-	if FollowsDB == nil || followerID <= 0 || followeeID <= 0 || followerID == followeeID {
+func (st *Store) ToggleFollow(ctx context.Context, followerID, followeeID int64) (following bool, err error) {
+	if followerID <= 0 || followeeID <= 0 || followerID == followeeID {
 		return false, nil
 	}
-	res, err := FollowsDB.ExecContext(ctx,
+	res, err := st.db.ExecContext(ctx,
 		`DELETE FROM user_follow WHERE follower_id = $1 AND followee_id = $2`,
 		followerID, followeeID)
 	if err != nil {
@@ -55,22 +54,22 @@ func ToggleFollow(ctx context.Context, followerID, followeeID int64) (following 
 	if n, _ := res.RowsAffected(); n > 0 {
 		return false, nil
 	}
-	_, err = FollowsDB.ExecContext(ctx,
+	_, err = st.db.ExecContext(ctx,
 		`INSERT INTO user_follow (follower_id, followee_id) VALUES ($1, $2)
 		 ON CONFLICT DO NOTHING`, followerID, followeeID)
 	return err == nil, err
 }
 
-func ListFollowers(ctx context.Context, userID int64) []FollowList {
-	return FollowQuery(ctx,
+func (st *Store) ListFollowers(ctx context.Context, userID int64) []FollowList {
+	return st.FollowQuery(ctx,
 		`SELECT u.username, u.role, COALESCE(u.avatar_path, '') AS avatar_path,
 		        to_char(f.created_at, 'Mon YYYY') AS since
 		   FROM user_follow f JOIN users u ON u.id = f.follower_id
 		  WHERE f.followee_id = $1 ORDER BY f.created_at DESC LIMIT $2`, userID)
 }
 
-func ListFollowing(ctx context.Context, userID int64) []FollowList {
-	return FollowQuery(ctx,
+func (st *Store) ListFollowing(ctx context.Context, userID int64) []FollowList {
+	return st.FollowQuery(ctx,
 		`SELECT u.username, u.role, COALESCE(u.avatar_path, '') AS avatar_path,
 		        to_char(f.created_at, 'Mon YYYY') AS since
 		   FROM user_follow f JOIN users u ON u.id = f.followee_id
@@ -93,8 +92,8 @@ func ListFollowing(ctx context.Context, userID int64) []FollowList {
 //
 // `since` is the LATER of the two follows — the friendship began when the
 // second person reciprocated, not when the first one started reading.
-func ListFriends(ctx context.Context, userID int64) []FollowList {
-	return FollowQuery(ctx,
+func (st *Store) ListFriends(ctx context.Context, userID int64) []FollowList {
+	return st.FollowQuery(ctx,
 		`SELECT u.username, u.role, COALESCE(u.avatar_path, '') AS avatar_path,
 		        to_char(GREATEST(mine.created_at, theirs.created_at), 'Mon YYYY') AS since
 		   FROM user_follow mine
@@ -126,24 +125,22 @@ type FollowList struct {
 // than the bool this started as: two lists take a bool, three take a lie.
 type FollowKind string
 
-var FollowsDB *sqlx.DB
-
 // followers/following read the two directions of the same edge. Capped: these
 // are unbounded relations, and a page that renders every follower of a popular
 // account is the query nobody notices until there is one.
 const FollowPageRows = 200
 
-func FollowQuery(ctx context.Context, q string, userID int64) []FollowList {
-	if FollowsDB == nil || userID <= 0 {
+func (st *Store) FollowQuery(ctx context.Context, q string, userID int64) []FollowList {
+	if userID <= 0 {
 		return nil
 	}
 	var rows []struct {
-		Username string `db:"username"`
-		Role     int    `db:"role"`
-		Since    string `db:"since"`
-		Avatar   string `db:"avatar_path"`
+		Username string `st.db:"username"`
+		Role     int    `st.db:"role"`
+		Since    string `st.db:"since"`
+		Avatar   string `st.db:"avatar_path"`
 	}
-	if err := FollowsDB.SelectContext(ctx, &rows, q, userID, FollowPageRows); err != nil {
+	if err := st.db.SelectContext(ctx, &rows, q, userID, FollowPageRows); err != nil {
 		return nil
 	}
 	out := make([]FollowList, 0, len(rows))

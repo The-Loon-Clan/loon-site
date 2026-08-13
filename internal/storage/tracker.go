@@ -2,7 +2,7 @@
 // it scans into. Nothing here touches HTTP.
 //
 // The split is worth having for a reason that shows up immediately in this
-// first file — every function below already took (ctx, db, ...) and returned
+// first file — every function below already took (ctx, st.db, ...) and returned
 // values, so the query code was ALREADY independent of the request; it was
 // only filed next to the handlers that call it. 95 of the site's 108
 // SQL-bearing functions are like that. The other 13 have queries written
@@ -95,9 +95,9 @@ func (t TrackerTotals) RatioLabel() string {
 // This runs on EVERY page render for a signed-in viewer (see chromeData), so it
 // is one aggregate over the (user_id, last_seen) index and nothing else. If it
 // ever needs to be cheaper, cache it per request rather than making it cleverer.
-func ReadTrackerTotals(ctx context.Context, db *sqlx.DB, userID int64) (TrackerTotals, bool) {
+func (st *Store) ReadTrackerTotals(ctx context.Context, userID int64) (TrackerTotals, bool) {
 	var t TrackerTotals
-	if !config.TrackerEnabled() || db == nil || userID == 0 {
+	if !config.TrackerEnabled() || userID == 0 {
 		return t, false
 	}
 	var rows int
@@ -109,7 +109,7 @@ func ReadTrackerTotals(ctx context.Context, db *sqlx.DB, userID int64) (TrackerT
 	// counted as seeding it now. The plugin's own tracker/store_pg.go Totals is
 	// the authority on what its numbers mean, and a site showing two answers to
 	// "how many am I seeding" is how a figure stops being believed.
-	err := db.QueryRowContext(ctx, `
+	err := st.db.QueryRowContext(ctx, `
 		SELECT count(*),
 		       coalesce(sum(uploaded), 0),
 		       coalesce(sum(downloaded), 0),
@@ -147,12 +147,12 @@ type TrackerSiteStats struct {
 //
 // ok=false when the tracker is off or holds nothing, so /stats renders no
 // section rather than a table of zeroes claiming a dead tracker.
-func ReadTrackerSiteStats(ctx context.Context, db *sqlx.DB) (TrackerSiteStats, bool) {
+func (st *Store) ReadTrackerSiteStats(ctx context.Context) (TrackerSiteStats, bool) {
 	var s TrackerSiteStats
-	if !config.TrackerEnabled() || db == nil {
+	if !config.TrackerEnabled() {
 		return s, false
 	}
-	err := db.QueryRowContext(ctx, `
+	err := st.db.QueryRowContext(ctx, `
 		SELECT count(*),
 		       coalesce(sum(seeders), 0),
 		       coalesce(sum(leechers), 0),
@@ -166,7 +166,7 @@ func ReadTrackerSiteStats(ctx context.Context, db *sqlx.DB) (TrackerSiteStats, b
 	// Total uploaded is the members' side of the ledger and lives in user_stats.
 	// Best-effort: the torrent figures above are the section's substance, and
 	// losing one row of it is not a reason to drop the rest.
-	_ = db.QueryRowContext(ctx,
+	_ = st.db.QueryRowContext(ctx,
 		`SELECT coalesce(sum(uploaded), 0) FROM tracker.user_stats`).Scan(&s.Uploaded)
 	return s, true
 }
@@ -189,8 +189,8 @@ type TrackerSwarm struct {
 //
 // A release absent from the map has no torrent. That is most of them, which is
 // why the map holds only what exists rather than a zero for every id asked.
-func SwarmCounts(ctx context.Context, db *sqlx.DB, releaseIDs []int64) map[int64]TrackerSwarm {
-	if !config.TrackerEnabled() || db == nil || len(releaseIDs) == 0 {
+func (st *Store) SwarmCounts(ctx context.Context, releaseIDs []int64) map[int64]TrackerSwarm {
+	if !config.TrackerEnabled() || len(releaseIDs) == 0 {
 		return nil
 	}
 	seen := make(map[int64]bool, len(releaseIDs))
@@ -217,13 +217,13 @@ func SwarmCounts(ctx context.Context, db *sqlx.DB, releaseIDs []int64) map[int64
 		return nil
 	}
 	var rows []struct {
-		NzbID    int64  `db:"nzb_id"`
-		InfoHash string `db:"info_hash"`
-		Seeders  int    `db:"seeders"`
-		Leechers int    `db:"leechers"`
-		Snatches int    `db:"snatches"`
+		NzbID    int64  `st.db:"nzb_id"`
+		InfoHash string `st.db:"info_hash"`
+		Seeders  int    `st.db:"seeders"`
+		Leechers int    `st.db:"leechers"`
+		Snatches int    `st.db:"snatches"`
 	}
-	if err := db.SelectContext(ctx, &rows, db.Rebind(q), args...); err != nil {
+	if err := st.db.SelectContext(ctx, &rows, st.db.Rebind(q), args...); err != nil {
 		return nil
 	}
 	out := make(map[int64]TrackerSwarm, len(rows))
@@ -244,12 +244,12 @@ func SwarmCounts(ctx context.Context, db *sqlx.DB, releaseIDs []int64) map[int64
 // common case on an index of 137,000 releases and a tracker holding a handful —
 // so the caller renders nothing rather than "0 seeders", which would read as a
 // dead torrent rather than no torrent.
-func ReadTrackerSwarm(ctx context.Context, db *sqlx.DB, releaseID int64) (TrackerSwarm, bool) {
+func (st *Store) ReadTrackerSwarm(ctx context.Context, releaseID int64) (TrackerSwarm, bool) {
 	var s TrackerSwarm
-	if !config.TrackerEnabled() || db == nil || releaseID == 0 {
+	if !config.TrackerEnabled() || releaseID == 0 {
 		return s, false
 	}
-	err := db.QueryRowContext(ctx, `
+	err := st.db.QueryRowContext(ctx, `
 		SELECT info_hash, seeders, leechers, snatches
 		  FROM tracker.torrents
 		 WHERE nzb_id = $1

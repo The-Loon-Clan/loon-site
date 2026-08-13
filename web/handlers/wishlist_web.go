@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
-	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // The wishlist — what members want indexed that is not here yet.
@@ -71,17 +69,6 @@ func wishlistMigrate(db *sqlx.DB) error {
 	return nil
 }
 
-// countOpenWishes is the per-member cap check.
-func countOpenWishes(ctx context.Context, userID int64) int {
-	var n int
-	if storage.WishlistDB == nil {
-		return 0
-	}
-	_ = storage.WishlistDB.GetContext(ctx, &n,
-		`SELECT count(*) FROM wishlist_items WHERE user_id = $1 AND filled_at IS NULL`, userID)
-	return n
-}
-
 // wishlistPage serves GET /wishlist.
 func (w *web) wishlistPage(c *gin.Context) {
 	u, ok := w.viewer(c)
@@ -92,9 +79,9 @@ func (w *web) wishlistPage(c *gin.Context) {
 	mine := c.Query("all") != "1"
 	w.render(c, "wishlist.html", map[string]any{
 		"Title":    "Wishlist",
-		"Items":    storage.ListWishlist(ctx, u.ID, mine),
+		"Items":    w.data.ListWishlist(ctx, u.ID, mine),
 		"Mine":     mine,
-		"Open":     countOpenWishes(ctx, u.ID),
+		"Open":     w.data.CountOpenWishes(ctx, u.ID),
 		"Cap":      wishPerUser,
 		"TitleMax": wishTitleMax,
 		"NoteMax":  wishNoteMax,
@@ -121,12 +108,12 @@ func (w *web) wishlistAdd(c *gin.Context) {
 	if r := []rune(note); len(r) > wishNoteMax {
 		note = string(r[:wishNoteMax])
 	}
-	if countOpenWishes(ctx, u.ID) >= wishPerUser {
+	if w.data.CountOpenWishes(ctx, u.ID) >= wishPerUser {
 		c.Redirect(http.StatusSeeOther, "/wishlist?err="+
 			url.QueryEscape("that is your "+strconv.Itoa(wishPerUser)+" open entries; fill or remove one first"))
 		return
 	}
-	if _, err := storage.WishlistDB.ExecContext(ctx,
+	if _, err := w.data.DB().ExecContext(ctx,
 		`INSERT INTO wishlist_items (user_id, title, note) VALUES ($1,$2,$3)`,
 		u.ID, title, note); err != nil {
 		w.log.Error("wishlist add", "user", u.ID, "err", err)
@@ -164,7 +151,7 @@ func (w *web) wishlistUpdate(c *gin.Context) {
 	default:
 		q = `UPDATE wishlist_items SET filled_at = now() WHERE id = $1 AND user_id = $2`
 	}
-	if _, err := storage.WishlistDB.ExecContext(ctx, q, id, u.ID); err != nil {
+	if _, err := w.data.DB().ExecContext(ctx, q, id, u.ID); err != nil {
 		w.log.Error("wishlist update", "item", id, "user", u.ID, "err", err)
 	}
 	back := "/wishlist"
@@ -172,14 +159,4 @@ func (w *web) wishlistUpdate(c *gin.Context) {
 		back += "?all=1"
 	}
 	c.Redirect(http.StatusSeeOther, back)
-}
-
-// wishlistCount is the number of open entries site-wide, for the stats page.
-func wishlistCount(ctx context.Context) int {
-	var n int
-	if storage.WishlistDB == nil {
-		return 0
-	}
-	_ = storage.WishlistDB.GetContext(ctx, &n, `SELECT count(*) FROM wishlist_items WHERE filled_at IS NULL`)
-	return n
 }

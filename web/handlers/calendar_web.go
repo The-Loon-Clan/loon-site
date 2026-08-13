@@ -296,7 +296,7 @@ func (w *web) calBookmarks() calSource {
 				return nil
 			}
 			var out []calEvent
-			for _, id := range bookmarkedIDs(ctx, userID, calBookmarkScan) {
+			for _, id := range w.data.BookmarkedIDs(ctx, userID, calBookmarkScan) {
 				detail, found, err := w.usenet.ReleaseByID(ctx, id)
 				if err != nil || !found {
 					continue // retention removed it; a saved pointer outlives its target

@@ -10,23 +10,20 @@ import (
 // RecordGrab writes one row. Best-effort by design: a download that succeeded
 // must not fail because the counter did, so the caller ignores the error and
 // this never blocks the response.
-func RecordGrab(ctx context.Context, releaseID int64, userID int64) {
-	if GrabsDB == nil {
-		return
-	}
+func (st *Store) RecordGrab(ctx context.Context, releaseID int64, userID int64) {
 	var uid any
 	if userID > 0 {
 		uid = userID
 	}
-	_, _ = GrabsDB.ExecContext(ctx,
+	_, _ = st.db.ExecContext(ctx,
 		`INSERT INTO release_grab (release_id, user_id) VALUES ($1, $2)`, releaseID, uid)
 }
 
 // GrabCounts returns the grab tally for a set of releases in ONE query.
 // Releases with no grabs are simply absent from the map — a caller rendering
 // "N downloads" should show nothing rather than a zero it did not measure.
-func GrabCounts(ctx context.Context, releaseIDs []int64) map[int64]int {
-	if GrabsDB == nil || len(releaseIDs) == 0 {
+func (st *Store) GrabCounts(ctx context.Context, releaseIDs []int64) map[int64]int {
+	if len(releaseIDs) == 0 {
 		return nil
 	}
 	seen := make(map[int64]bool, len(releaseIDs))
@@ -44,10 +41,10 @@ func GrabCounts(ctx context.Context, releaseIDs []int64) map[int64]int {
 		return nil
 	}
 	var rows []struct {
-		ReleaseID int64 `db:"release_id"`
-		N         int   `db:"n"`
+		ReleaseID int64 `st.db:"release_id"`
+		N         int   `st.db:"n"`
 	}
-	if err := GrabsDB.SelectContext(ctx, &rows, GrabsDB.Rebind(q), args...); err != nil {
+	if err := st.db.SelectContext(ctx, &rows, st.db.Rebind(q), args...); err != nil {
 		return nil
 	}
 	out := make(map[int64]int, len(rows))
@@ -64,15 +61,12 @@ func GrabCounts(ctx context.Context, releaseIDs []int64) map[int64]int {
 // to releases through the usenet capability: this table stores no titles, so a
 // release deleted from the index simply drops out rather than lingering as a
 // stale row that outranks live ones.
-func PopularGrabs(ctx context.Context, days, limit int) ([]int64, map[int64]int) {
-	if GrabsDB == nil {
-		return nil, nil
-	}
+func (st *Store) PopularGrabs(ctx context.Context, days, limit int) ([]int64, map[int64]int) {
 	var rows []struct {
-		ReleaseID int64 `db:"release_id"`
-		N         int   `db:"n"`
+		ReleaseID int64 `st.db:"release_id"`
+		N         int   `st.db:"n"`
 	}
-	if err := GrabsDB.SelectContext(ctx, &rows,
+	if err := st.db.SelectContext(ctx, &rows,
 		`SELECT release_id, COUNT(*) AS n FROM release_grab
 		  WHERE created_at >= $1
 		  GROUP BY release_id ORDER BY n DESC, release_id DESC LIMIT $2`,
@@ -93,15 +87,12 @@ func PopularGrabs(ctx context.Context, days, limit int) ([]int64, map[int64]int)
 // no per-release uploader (releases come from crawling, not uploads), so the
 // plugin stays unwired — but the DATA it needs now exists, which is the half
 // that was actually missing.
-func UploaderGrabTotals(ctx context.Context, since time.Time) (map[int64]int, error) {
-	if GrabsDB == nil {
-		return nil, nil
-	}
+func (st *Store) UploaderGrabTotals(ctx context.Context, since time.Time) (map[int64]int, error) {
 	var rows []struct {
-		ReleaseID int64 `db:"release_id"`
-		N         int   `db:"n"`
+		ReleaseID int64 `st.db:"release_id"`
+		N         int   `st.db:"n"`
 	}
-	if err := GrabsDB.SelectContext(ctx, &rows,
+	if err := st.db.SelectContext(ctx, &rows,
 		`SELECT release_id, COUNT(*) AS n FROM release_grab
 		  WHERE created_at >= $1 GROUP BY release_id`, since); err != nil {
 		return nil, err
@@ -112,7 +103,3 @@ func UploaderGrabTotals(ctx context.Context, since time.Time) (map[int64]int, er
 	}
 	return out, nil
 }
-
-// GrabsDB is the handle for the grab table. Package-level for the same reason
-// forumDB and usersDB are: this is host-owned data with no plugin behind it.
-var GrabsDB *sqlx.DB

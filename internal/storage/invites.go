@@ -4,8 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"strings"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // InviteCodeValid reports whether a code may be redeemed right now.
@@ -13,15 +11,15 @@ import (
 // A READ only. Redemption happens in RedeemInviteCode, inside the same
 // transaction that consumes it, because checking and using in two steps is how
 // one code creates two accounts.
-func InviteCodeValid(ctx context.Context, code string) bool {
-	if InviteCodesDB == nil || code == "" {
+func (st *Store) InviteCodeValid(ctx context.Context, code string) bool {
+	if code == "" {
 		return false
 	}
 	var n int
-	if err := InviteCodesDB.GetContext(ctx, &n, `
+	if err := st.db.GetContext(ctx, &n, `
 		SELECT count(*) FROM invite_codes
 		 WHERE replace(upper(code), '-', '') = $1
-		   AND used_by IS NULL AND expires_at > now()`, NormaliseInviteCode(code)); err != nil {
+		   AND used_by IS NULL AND expires_at > now()`, st.NormaliseInviteCode(code)); err != nil {
 		return false
 	}
 	return n > 0
@@ -32,14 +30,14 @@ func InviteCodeValid(ctx context.Context, code string) bool {
 // The UPDATE ... WHERE used_by IS NULL is the whole safety argument: two
 // registrations racing on one code both run this, and exactly one updates a
 // row. Checking first and updating second would let both through.
-func RedeemInviteCode(ctx context.Context, code string, userID int64) bool {
-	if InviteCodesDB == nil || code == "" || userID <= 0 {
+func (st *Store) RedeemInviteCode(ctx context.Context, code string, userID int64) bool {
+	if code == "" || userID <= 0 {
 		return false
 	}
-	res, err := InviteCodesDB.ExecContext(ctx, `
+	res, err := st.db.ExecContext(ctx, `
 		UPDATE invite_codes SET used_by = $1, used_at = now()
 		 WHERE replace(upper(code), '-', '') = $2
-		   AND used_by IS NULL AND expires_at > now()`, userID, NormaliseInviteCode(code))
+		   AND used_by IS NULL AND expires_at > now()`, userID, st.NormaliseInviteCode(code))
 	if err != nil {
 		return false
 	}
@@ -48,12 +46,12 @@ func RedeemInviteCode(ctx context.Context, code string, userID int64) bool {
 }
 
 // ListInviteCodes returns the codes a member has issued, newest first.
-func ListInviteCodes(ctx context.Context, userID int64) []InviteCodeRow {
-	if InviteCodesDB == nil || userID <= 0 {
+func (st *Store) ListInviteCodes(ctx context.Context, userID int64) []InviteCodeRow {
+	if userID <= 0 {
 		return nil
 	}
 	var rows []InviteCodeRow
-	if err := InviteCodesDB.SelectContext(ctx, &rows, `
+	if err := st.db.SelectContext(ctx, &rows, `
 		SELECT i.code,
 		       to_char(i.created_at, 'DD Mon YYYY')      AS created,
 		       to_char(i.expires_at, 'DD Mon YYYY')      AS expires,
@@ -73,15 +71,13 @@ func ListInviteCodes(ctx context.Context, userID int64) []InviteCodeRow {
 
 // InviteCodeRow is one code as its owner sees it.
 type InviteCodeRow struct {
-	Code    string `db:"code"`
-	Created string `db:"created"`
-	Expires string `db:"expires"`
-	UsedBy  string `db:"used_by_name"`
-	Spent   bool   `db:"spent"`
-	Expired bool   `db:"expired"`
+	Code    string `st.db:"code"`
+	Created string `st.db:"created"`
+	Expires string `st.db:"expires"`
+	UsedBy  string `st.db:"used_by_name"`
+	Spent   bool   `st.db:"spent"`
+	Expired bool   `st.db:"expired"`
 }
-
-var InviteCodesDB *sqlx.DB
 
 // NormaliseInviteCode makes matching forgiving about how a code was typed.
 //
@@ -89,7 +85,7 @@ var InviteCodesDB *sqlx.DB
 // arrived lowercased by a chat client, with the dashes stripped, or wrapped in
 // whitespace by a copy-paste. Rejecting those is rejecting the right person for
 // the wrong reason.
-func NormaliseInviteCode(s string) string {
+func (st *Store) NormaliseInviteCode(s string) string {
 	return strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(s), "-", ""))
 }
 
@@ -98,12 +94,12 @@ func NormaliseInviteCode(s string) string {
 // Ordered by an accumulated PATH rather than by depth or date. Ordering by
 // depth prints every generation as a flat block and loses which parent each
 // child belongs to, which is the one thing a tree is for.
-func InviteTree(ctx context.Context, db *sqlx.DB, rootID int64) []InviteTreeRow {
-	if db == nil || rootID <= 0 {
+func (st *Store) InviteTree(ctx context.Context, rootID int64) []InviteTreeRow {
+	if rootID <= 0 {
 		return nil
 	}
 	var rows []InviteTreeRow
-	if err := db.SelectContext(ctx, &rows, `
+	if err := st.db.SelectContext(ctx, &rows, `
 		WITH RECURSIVE tree AS (
 		    SELECT ic.used_by       AS user_id,
 		           1                AS depth,
@@ -141,17 +137,17 @@ func InviteTree(ctx context.Context, db *sqlx.DB, rootID int64) []InviteTreeRow 
 
 // InviteTreeRow is one member in the chain.
 type InviteTreeRow struct {
-	Depth    int    `db:"depth"`
-	Username string `db:"username"`
-	Role     int    `db:"role"`
-	Joined   string `db:"joined"`
+	Depth    int    `st.db:"depth"`
+	Username string `st.db:"username"`
+	Role     int    `st.db:"role"`
+	Joined   string `st.db:"joined"`
 	// Invited is how many people this member has gone on to invite. Shown
 	// because it is the number that makes a tree worth reading: one account
 	// that brought thirty is a different fact from thirty accounts that brought
 	// one each.
-	Invited int `db:"invited"`
+	Invited int `st.db:"invited"`
 	// Indent is Depth-1, so the template can range without arithmetic.
-	Indent int `db:"-"`
+	Indent int `st.db:"-"`
 }
 
 // InviteTreeTotals summarises a tree for the line above it.

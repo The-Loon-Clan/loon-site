@@ -29,8 +29,6 @@ import (
 	"github.com/the-loon-clan/loon-baseline/users"
 
 	"github.com/the-loon-clan/loon/schedule"
-
-	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // baselineStores is what the first phase hands to the rest of boot.
@@ -63,7 +61,6 @@ func wireBaselineStores(db *sqlx.DB, logger *slog.Logger) baselineStores {
 	st.users = users.NewPGStore(db.DB)
 	// Host-owned reads for /staff and /stats — see usersDB in pages_web.go.
 	usersDB = db
-	storage.SubscriptionsDB = db // /subscriptions reads communities + bookmarks
 	if err := st.users.Migrate(context.Background()); err != nil {
 		logger.Error("users migrate", "err", err)
 		os.Exit(1)
@@ -167,7 +164,6 @@ func migrateSiteTables(db *sqlx.DB, logger *slog.Logger, users *users.PGStore) {
 		logger.Error("invite codes migrate", "err", err)
 		os.Exit(1)
 	}
-	storage.InviteCodesDB = db
 	if err := loadAccessSettings(context.Background(), db); err != nil {
 		logger.Error("load access settings", "err", err)
 	}

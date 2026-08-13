@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // /subscriptions — everything this member has chosen to keep up with, in one
@@ -37,12 +36,12 @@ func (w *web) subscriptionsPage(c *gin.Context) {
 	}
 	ctx := c.Request.Context()
 
-	bookmarks := storage.ListBookmarkSubs(ctx, u.ID, subscriptionsPreview+1)
+	bookmarks := w.data.ListBookmarkSubs(ctx, u.ID, subscriptionsPreview+1)
 	capped := len(bookmarks) > subscriptionsPreview
 	if capped {
 		bookmarks = bookmarks[:subscriptionsPreview]
 	}
-	communities := storage.ListCommunitySubs(ctx, u.ID)
+	communities := w.data.ListCommunitySubs(ctx, u.ID)
 
 	w.render(c, "subscriptions.html", map[string]any{
 		"Title":       "Subscriptions",

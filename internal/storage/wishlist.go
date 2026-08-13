@@ -3,24 +3,19 @@ package storage
 import (
 	"context"
 	"log/slog"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // ListWishlist returns either one member's entries or the whole site's.
 //
 // One function for both, because they differ by a WHERE clause and nothing
 // else; two would drift the moment either grew a column.
-func ListWishlist(ctx context.Context, viewerID int64, mineOnly bool) []WishRow {
-	if WishlistDB == nil {
-		return nil
-	}
+func (st *Store) ListWishlist(ctx context.Context, viewerID int64, mineOnly bool) []WishRow {
 	where := `w.filled_at IS NULL`
 	if mineOnly {
 		where = `w.user_id = $1`
 	}
 	var rows []WishRow
-	if err := WishlistDB.SelectContext(ctx, &rows, `
+	if err := st.db.SelectContext(ctx, &rows, `
 		SELECT w.id, w.title, w.note,
 		       u.username                                      AS owner,
 		       to_char(w.created_at, 'DD Mon YYYY')             AS added,
@@ -44,17 +39,30 @@ func ListWishlist(ctx context.Context, viewerID int64, mineOnly bool) []WishRow 
 	return rows
 }
 
-var WishlistDB *sqlx.DB
-
 // WishRow is one entry.
 type WishRow struct {
-	ID      int64  `db:"id"`
-	Title   string `db:"title"`
-	Note    string `db:"note"`
-	Owner   string `db:"owner"`
-	Added   string `db:"added"`
-	Filled  string `db:"filled"`
-	IsMine  bool   `db:"is_mine"`
-	IsOpen  bool   `db:"is_open"`
-	Wanters int    `db:"wanters"`
+	ID      int64  `st.db:"id"`
+	Title   string `st.db:"title"`
+	Note    string `st.db:"note"`
+	Owner   string `st.db:"owner"`
+	Added   string `st.db:"added"`
+	Filled  string `st.db:"filled"`
+	IsMine  bool   `st.db:"is_mine"`
+	IsOpen  bool   `st.db:"is_open"`
+	Wanters int    `st.db:"wanters"`
+}
+
+// CountOpenWishes is the per-member cap check.
+func (st *Store) CountOpenWishes(ctx context.Context, userID int64) int {
+	var n int
+	_ = st.db.GetContext(ctx, &n,
+		`SELECT count(*) FROM wishlist_items WHERE user_id = $1 AND filled_at IS NULL`, userID)
+	return n
+}
+
+// WishlistCount is the number of open entries site-wide, for the stats page.
+func (st *Store) WishlistCount(ctx context.Context) int {
+	var n int
+	_ = st.db.GetContext(ctx, &n, `SELECT count(*) FROM wishlist_items WHERE filled_at IS NULL`)
+	return n
 }

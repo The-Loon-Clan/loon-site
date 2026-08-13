@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
-	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // Site invite CODES — the thing invite-only registration actually needs.
@@ -79,11 +78,11 @@ func (w *web) invitesPage(c *gin.Context) {
 		return
 	}
 	balance, _ := inviteBalance(c.Request.Context(), u.ID)
-	tree := storage.InviteTree(c.Request.Context(), usersDB, u.ID)
+	tree := w.data.InviteTree(c.Request.Context(), u.ID)
 	w.render(c, "invites.html", map[string]any{
 		"Title":   "Invites",
 		"Balance": balance,
-		"Codes":   storage.ListInviteCodes(c.Request.Context(), u.ID),
+		"Codes":   w.data.ListInviteCodes(c.Request.Context(), u.ID),
 		// Said plainly, because a member holding invites on an OPEN site is
 		// reasonably confused about what they are for.
 		"RegMode": registrationMode(),
@@ -111,7 +110,7 @@ func (w *web) invitesCreate(c *gin.Context) {
 	// Spend the balance and mint the code in ONE transaction. Decrementing
 	// outside it loses an invite when the insert fails; inserting outside it
 	// mints a code the member never paid for.
-	tx, err := storage.InviteCodesDB.BeginTxx(ctx, nil)
+	tx, err := w.data.DB().BeginTxx(ctx, nil)
 	if err != nil {
 		c.Redirect(http.StatusFound, "/invites?err=could+not+create+a+code")
 		return

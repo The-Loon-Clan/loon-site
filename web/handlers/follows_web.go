@@ -60,7 +60,7 @@ func (w *web) followToggle(c *gin.Context) {
 		c.String(http.StatusNotFound, "no such user")
 		return
 	}
-	if _, err := storage.ToggleFollow(c.Request.Context(), viewer.ID, subject.ID); err != nil {
+	if _, err := w.data.ToggleFollow(c.Request.Context(), viewer.ID, subject.ID); err != nil {
 		w.log.Error("toggle follow", "followee", subject.ID, "err", err)
 	}
 	c.Redirect(http.StatusSeeOther, "/u/"+name)
@@ -82,12 +82,12 @@ func (w *web) followPage(kind storage.FollowKind) gin.HandlerFunc {
 			w.render(c, "follows.html", map[string]any{"Title": "Not found", "Missing": true, "People": []storage.FollowList{}})
 			return
 		}
-		people, title := storage.ListFollowers(ctx, subject.ID), "Followers"
+		people, title := w.data.ListFollowers(ctx, subject.ID), "Followers"
 		switch kind {
 		case followKindFollowing:
-			people, title = storage.ListFollowing(ctx, subject.ID), "Following"
+			people, title = w.data.ListFollowing(ctx, subject.ID), "Following"
 		case followKindFriends:
-			people, title = storage.ListFriends(ctx, subject.ID), "Friends"
+			people, title = w.data.ListFriends(ctx, subject.ID), "Friends"
 		}
 		w.render(c, "follows.html", map[string]any{
 			"Title":   title,

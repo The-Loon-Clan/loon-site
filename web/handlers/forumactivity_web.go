@@ -30,9 +30,9 @@ func (w *web) forumActivityPage(posts bool) gin.HandlerFunc {
 		}
 		ctx := c.Request.Context()
 
-		rows, title := storage.ListTopics(ctx, u.ID), "Topics"
+		rows, title := w.data.ListTopics(ctx, u.ID), "Topics"
 		if posts {
-			rows, title = storage.ListPosts(ctx, u.ID), "Posts"
+			rows, title = w.data.ListPosts(ctx, u.ID), "Posts"
 		}
 		w.render(c, "forum_activity.html", map[string]any{
 			"Title": title,

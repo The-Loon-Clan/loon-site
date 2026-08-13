@@ -62,8 +62,8 @@ func (w *web) giftsPage(c *gin.Context) {
 	ctx := c.Request.Context()
 	w.render(c, "gifts.html", map[string]any{
 		"Title":   "Gifts",
-		"Balance": pgPoints{db: storage.GiftsDB}.balance(ctx, u.ID),
-		"Gifts":   storage.ListGifts(ctx, storage.GiftsDB, u.ID, 50),
+		"Balance": pgPoints{db: w.data.DB()}.balance(ctx, u.ID),
+		"Gifts":   w.data.ListGifts(ctx, u.ID, 50),
 		"Max":     storage.GiftMax,
 		"NoteMax": storage.GiftNoteMax,
 		// Pre-filled when arriving from a profile's "Gift points" link, so the
@@ -97,7 +97,7 @@ func (w *web) giftsSend(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, back+"&err="+url.QueryEscape("there is nobody called "+name))
 		return
 	}
-	if err := storage.TransferPoints(ctx, storage.GiftsDB, u.ID, target.ID, amount, c.PostForm("note")); err != nil {
+	if err := w.data.TransferPoints(ctx, u.ID, target.ID, amount, c.PostForm("note")); err != nil {
 		c.Redirect(http.StatusSeeOther, back+"&err="+url.QueryEscape(err.Error()))
 		return
 	}

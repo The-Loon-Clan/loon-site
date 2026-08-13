@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
-	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // Bookmarks — saved releases. This retires docs/MOCKS.md M4, which stood in
@@ -51,34 +49,6 @@ func bookmarksMigrate(db *sqlx.DB) error {
 	return nil
 }
 
-// isBookmarked answers the release page's single question.
-func isBookmarked(ctx context.Context, userID, releaseID int64) bool {
-	if storage.BookmarksDB == nil || userID <= 0 || releaseID <= 0 {
-		return false
-	}
-	var n int
-	if err := storage.BookmarksDB.GetContext(ctx, &n,
-		`SELECT COUNT(*) FROM release_bookmark WHERE user_id = $1 AND release_id = $2`,
-		userID, releaseID); err != nil {
-		return false
-	}
-	return n > 0
-}
-
-// bookmarkedIDs lists one user's saved release ids, newest first.
-func bookmarkedIDs(ctx context.Context, userID int64, limit int) []int64 {
-	if storage.BookmarksDB == nil || userID <= 0 {
-		return nil
-	}
-	var ids []int64
-	if err := storage.BookmarksDB.SelectContext(ctx, &ids,
-		`SELECT release_id FROM release_bookmark
-		  WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2`, userID, limit); err != nil {
-		return nil
-	}
-	return ids
-}
-
 const bookmarkRows = 100
 
 // bookmarksPage renders /bookmarks — the viewer's own saved releases.
@@ -91,7 +61,7 @@ func (w *web) bookmarksPage(c *gin.Context) {
 	data := map[string]any{"Title": "Bookmarks", "Results": []searchRow{}}
 	rows := make([]searchRow, 0, bookmarkRows)
 	if w.usenet != nil {
-		for _, id := range bookmarkedIDs(ctx, u.ID, bookmarkRows) {
+		for _, id := range w.data.BookmarkedIDs(ctx, u.ID, bookmarkRows) {
 			detail, found, err := w.usenet.ReleaseByID(ctx, id)
 			if err != nil || !found {
 				continue // retention removed it; a saved pointer can outlive its target
@@ -99,7 +69,7 @@ func (w *web) bookmarksPage(c *gin.Context) {
 			rows = append(rows, toSearchRows([]pluginapi.Release{detail.Release})[0])
 		}
 		w.attachCovers(ctx, rows)
-		rows = attachSwarm(ctx, attachGrabs(ctx, rows))
+		rows = w.attachSwarm(ctx, w.attachGrabs(ctx, rows))
 	}
 	data["Results"] = rows
 	w.render(c, "bookmarks.html", data)
@@ -120,7 +90,7 @@ func (w *web) bookmarkToggle(c *gin.Context) {
 		c.String(http.StatusBadRequest, "invalid release id")
 		return
 	}
-	if _, err := storage.ToggleBookmark(c.Request.Context(), u.ID, id); err != nil {
+	if _, err := w.data.ToggleBookmark(c.Request.Context(), u.ID, id); err != nil {
 		w.log.Error("toggle bookmark", "release", id, "err", err)
 	}
 	// Back to whichever listing the button was pressed on, falling back to the

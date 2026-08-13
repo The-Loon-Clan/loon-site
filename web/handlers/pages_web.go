@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-site/internal/storage"
-
 	"context"
 	"sort"
 
@@ -146,7 +144,7 @@ func (w *web) statsPage(c *gin.Context) {
 	// The tracker, when there is one and it holds something. Absent otherwise,
 	// so a site without it reads exactly as it did rather than advertising a
 	// tracker with nothing on it.
-	if ts, ok := storage.ReadTrackerSiteStats(ctx, usersDB); ok {
+	if ts, ok := w.data.ReadTrackerSiteStats(ctx); ok {
 		data["HasTrackerStats"] = true
 		data["TrackerTorrents"] = ts.Torrents
 		data["TrackerSeeders"] = ts.Seeders

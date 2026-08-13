@@ -2,17 +2,15 @@ package storage
 
 import (
 	"context"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // ListTopics returns threads this member started, most recently active first.
-func ListTopics(ctx context.Context, userID int64) []ActivityRow {
-	if ForumActivityDB == nil || userID <= 0 {
+func (st *Store) ListTopics(ctx context.Context, userID int64) []ActivityRow {
+	if userID <= 0 {
 		return nil
 	}
 	var rows []ActivityRow
-	if err := ForumActivityDB.SelectContext(ctx, &rows, `
+	if err := st.db.SelectContext(ctx, &rows, `
 		SELECT t.id                              AS thread_id,
 		       t.title,
 		       COALESCE(c.name, '')              AS category,
@@ -34,12 +32,12 @@ func ListTopics(ctx context.Context, userID int64) []ActivityRow {
 //
 // Own threads are NOT excluded: a reply in your own thread is still a post,
 // and filtering it out would make the two pages disagree about the same row.
-func ListPosts(ctx context.Context, userID int64) []ActivityRow {
-	if ForumActivityDB == nil || userID <= 0 {
+func (st *Store) ListPosts(ctx context.Context, userID int64) []ActivityRow {
+	if userID <= 0 {
 		return nil
 	}
 	var rows []ActivityRow
-	if err := ForumActivityDB.SelectContext(ctx, &rows, `
+	if err := st.db.SelectContext(ctx, &rows, `
 		SELECT p.thread_id,
 		       t.title,
 		       COALESCE(c.name, '')             AS category,
@@ -68,15 +66,13 @@ func ListPosts(ctx context.Context, userID int64) []ActivityRow {
 // a reply landed in — and two near-identical structs is how the two templates
 // drift apart.
 type ActivityRow struct {
-	ThreadID int    `db:"thread_id"`
-	Title    string `db:"title"`
-	Category string `db:"category"`
-	Excerpt  string `db:"excerpt"`
-	Replies  int    `db:"replies"`
-	At       string `db:"at"`
+	ThreadID int    `st.db:"thread_id"`
+	Title    string `st.db:"title"`
+	Category string `st.db:"category"`
+	Excerpt  string `st.db:"excerpt"`
+	Replies  int    `st.db:"replies"`
+	At       string `st.db:"at"`
 }
-
-var ForumActivityDB *sqlx.DB
 
 // ForumActivityRows caps either listing. A prolific member's post history is
 // unbounded, and this is an account page, not an archive.

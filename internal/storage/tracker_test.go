@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/jmoiron/sqlx"
 	"github.com/the-loon-clan/loon-site/internal/config"
 
 	"testing"
@@ -65,26 +66,37 @@ func TestTrackerRatioLabel(t *testing.T) {
 // rather than return false, so the test fails loudly rather than passing for
 // the wrong reason.
 func TestTrackerReadsAreInertWhenDisabled(t *testing.T) {
+	// An UNUSABLE handle, deliberately: sqlx.NewDb(nil, ...) is a *sqlx.DB
+	// whose inner *sql.DB is nil, so any query through it panics. That is the
+	// proof. If the tracker gate were removed from these reads, they would
+	// reach the database and blow up rather than quietly returning false, so
+	// this test fails loudly instead of passing for the wrong reason.
+	//
+	// It used to pass nil for the pool and rely on a `db == nil` guard inside
+	// each read. Those guards are gone — storage.New refuses a nil handle, so
+	// the state they defended against cannot reach a method any more — and the
+	// guard's absence is exactly what this needs to keep proving.
+	st := &Store{db: sqlx.NewDb(nil, "postgres")}
+
 	t.Setenv("LOON_TRACKER", "")
 	if config.TrackerEnabled() {
 		t.Fatal("tracker reads as enabled with the flag cleared")
 	}
-	if _, ok := ReadTrackerTotals(t.Context(), nil, 1); ok {
+	if _, ok := st.ReadTrackerTotals(t.Context(), 1); ok {
 		t.Error("ReadTrackerTotals reported data with the tracker off")
 	}
-	if _, ok := ReadTrackerSwarm(t.Context(), nil, 1); ok {
+	if _, ok := st.ReadTrackerSwarm(t.Context(), 1); ok {
 		t.Error("ReadTrackerSwarm reported data with the tracker off")
 	}
-	// And with it ON but no pool — the state during boot, and after a database
-	// blip. Still no data, still no panic.
-	t.Setenv("LOON_TRACKER", "1")
-	if !config.TrackerEnabled() {
-		t.Fatal("tracker reads as disabled with the flag set")
-	}
-	if _, ok := ReadTrackerTotals(t.Context(), nil, 1); ok {
-		t.Error("ReadTrackerTotals reported data with no pool")
-	}
-	if _, ok := ReadTrackerSwarm(t.Context(), nil, 1); ok {
-		t.Error("ReadTrackerSwarm reported data with no pool")
-	}
+}
+
+// New is where a missing database handle is now caught — once, at boot, rather
+// than at 44 call sites that could only report it as an empty page.
+func TestNewRefusesANilHandle(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("storage.New accepted a nil handle; every method assumes it is not")
+		}
+	}()
+	New(nil)
 }

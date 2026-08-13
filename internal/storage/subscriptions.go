@@ -3,17 +3,15 @@ package storage
 import (
 	"context"
 	"log/slog"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // ListCommunitySubs returns the communities this member has joined.
-func ListCommunitySubs(ctx context.Context, userID int64) []SubscriptionRow {
-	if SubscriptionsDB == nil || userID <= 0 {
+func (st *Store) ListCommunitySubs(ctx context.Context, userID int64) []SubscriptionRow {
+	if userID <= 0 {
 		return nil
 	}
 	var rows []SubscriptionRow
-	if err := SubscriptionsDB.SelectContext(ctx, &rows, `
+	if err := st.db.SelectContext(ctx, &rows, `
 		SELECT c.name                                   AS title,
 		       '/c/' || c.slug                          AS href,
 		       (SELECT count(*)::text || ' member' ||
@@ -41,12 +39,12 @@ func ListCommunitySubs(ctx context.Context, userID int64) []SubscriptionRow {
 // Bookmarks already have their own page, and they are here too on purpose: this
 // page answers "what am I keeping up with", and a bookmark is one of the
 // answers. The link goes to the full list rather than duplicating it.
-func ListBookmarkSubs(ctx context.Context, userID int64, limit int) []SubscriptionRow {
-	if SubscriptionsDB == nil || userID <= 0 {
+func (st *Store) ListBookmarkSubs(ctx context.Context, userID int64, limit int) []SubscriptionRow {
+	if userID <= 0 {
 		return nil
 	}
 	var rows []SubscriptionRow
-	if err := SubscriptionsDB.SelectContext(ctx, &rows, `
+	if err := st.db.SelectContext(ctx, &rows, `
 		SELECT n.title                                  AS title,
 		       '/release/' || n.id::text                AS href,
 		       COALESCE(n.group_name, '')               AS sub,
@@ -64,13 +62,11 @@ func ListBookmarkSubs(ctx context.Context, userID int64, limit int) []Subscripti
 
 // SubscriptionRow is one thing being followed, whatever kind it is.
 type SubscriptionRow struct {
-	Title string `db:"title"`
-	Href  string `db:"href"`
-	Sub   string `db:"sub"` // the second line: members, category, size
-	Since string `db:"since"`
+	Title string `st.db:"title"`
+	Href  string `st.db:"href"`
+	Sub   string `st.db:"sub"` // the second line: members, category, size
+	Since string `st.db:"since"`
 }
-
-var SubscriptionsDB *sqlx.DB
 
 // SubsLog reports a failed read. Package-level so the two list functions stay
 // free of a *web receiver they need for nothing else.
