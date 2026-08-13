@@ -91,11 +91,66 @@ def score(got, want):
 BAND_TOP, BAND_BOT = 0.1225, 0.1495
 
 
+def clean_bands(im, n=4, max_spread=60, min_rows=8):
+    """The widest content-free row-run in each of n horizontal slices.
+
+    "Content-free" is judged by how much a row varies across the full width: a
+    row of pure canvas varies by the wash alone (30-40 levels here), a row
+    crossing a heading or a poster varies by hundreds. This is what stops a
+    band that looks like background from quietly containing a section title —
+    which happened, and ranked the wash already shipping as the best fit
+    because its bright corner sat under that title.
+    """
+    px = im.load()
+    out = []
+    for s in range(n):
+        lo = int(im.height * (s / n))
+        hi = int(im.height * ((s + 1) / n))
+        ok = []
+        for y in range(lo, hi):
+            v = [sum(px[x, y]) for x in range(0, im.width, 7)]
+            if max(v) - min(v) < max_spread:
+                ok.append(y)
+        best, cur = [], []
+        for y in ok:
+            if cur and y == cur[-1] + 1:
+                cur.append(y)
+            else:
+                if len(cur) > len(best):
+                    best = cur
+                cur = [y]
+        if len(cur) > len(best):
+            best = cur
+        if len(best) >= min_rows:
+            out.append((best[0], best[-1]))
+    return out
+
+
 def main():
-    ref = Image.open("refs/target_home.png").convert("RGB")
-    ry0, ry1 = int(ref.height * BAND_TOP), int(ref.height * BAND_BOT)
-    want = profile(ref.crop((0, ry0, ref.width, ry1)), 0, ry1 - ry0)
-    print(f"reference band y{ry0}..{ry1} of {ref.height}")
+    # A "foundation" reference — the design with its content removed, leaving
+    # only the canvas and empty containers — is worth far more here than the
+    # full screenshot, because the thing being fitted is the canvas and the
+    # content is pure interference. With one present the fit runs over several
+    # bands down the page instead of the single 22px strip the full screenshot
+    # leaves uncovered.
+    foundation = Path("refs/target_foundation.png")
+    ref_path = foundation if foundation.exists() else Path("refs/target_home.png")
+    ref = Image.open(ref_path).convert("RGB")
+    bands = clean_bands(ref) if foundation.exists() else []
+    if bands:
+        print(f"reference: {ref_path.name} — {len(bands)} clean bands "
+              f"{[f'y{a}..{b}' for a, b in bands]}")
+        want = [v for a, b in bands
+                for v in profile(ref.crop((0, a, ref.width, b)), 0, b - a)]
+        frac = [(a / ref.height, b / ref.height) for a, b in bands]
+    else:
+        ry0, ry1 = int(ref.height * BAND_TOP), int(ref.height * BAND_BOT)
+        print(f"reference: {ref_path.name} — single band y{ry0}..{ry1} "
+              f"of {ref.height} (no foundation layer; drop one at "
+              f"refs/target_foundation.png for a fuller fit)")
+        want = profile(ref.crop((0, ry0, ref.width, ry1)), 0, ry1 - ry0)
+        frac = [(BAND_TOP, BAND_BOT)]
+    globals()["FRACS"] = frac
     print("reference profile (relative, luma-sum):")
     print("   " + " ".join(f"{v:+6.1f}" for v in want))
     print()
@@ -161,7 +216,12 @@ def main():
     results = []
     for name, css in candidates.items():
         im = render(css, f"wash_{name}")
-        got = profile(im, int(H * BAND_TOP), int(H * BAND_BOT))
+        # Sampled at the same viewport FRACTIONS the reference bands sit at —
+        # the two images are different sizes and the wash is vh-sized, so the
+        # same fraction is the same place in the field and the same pixel row
+        # is not.
+        got = [v for f0, f1 in FRACS
+               for v in profile(im, int(H * f0), int(H * f1))]
         s = score(got, want)
         results.append((s, name))
         print(f"{name:10} score {s:6.1f}")
