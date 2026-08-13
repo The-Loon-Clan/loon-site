@@ -172,10 +172,15 @@ Trust is easier to give when the gaps are stated, so:
   ones were not the unchecked errors: three doc comments described symbols that
   had been renamed or had moved to another package during a restructure, and
   one of them documented a handler that no longer lived in that file at all.
-- **Coverage is 16%**, with a floor in CI so it cannot fall. That is low, and
-  the shape is lopsided: `sanitize` is at 93%, `storage` at 3%. The tests that
-  exist are mostly regression tests for bugs that actually happened, which is
-  where they earn the most; broad coverage of the handler layer is not there yet.
+- **Coverage is 17.6%**, with a floor in CI so it cannot fall. That is low, and
+  the shape is lopsided: `config` is at 100% and `sanitize` at 93%, `storage` at
+  3.6% — and that last number is the misleading one. The storage tests exist and
+  run the real SQL, but they skip unless `LOON_TEST_DSN` is set, so the layer
+  where a mistake corrupts data is covered only when somebody runs `make itest`.
+  The tests that exist are mostly regression tests for bugs that actually
+  happened, plus the security-critical paths — whether a private site is
+  private, and what the avatar pipeline accepts from a stranger. Broad coverage
+  of the handler layer is not there yet.
 - **CI proves the README's first claim** by cloning the repository and running
   `docker compose up` with nothing else present, then failing if the first boot
   logs a single error. That check exists because a first-boot bug did ship: a

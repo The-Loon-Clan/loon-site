@@ -25,7 +25,7 @@ export GOWORK = off
 # Coverage floor. Deliberately just under where the project stands rather than
 # an aspiration: its job is to stop a regression, and a floor nobody can meet
 # gets deleted rather than met. Raise it when the number rises.
-COVER_MIN ?= 15.0
+COVER_MIN ?= 17.0
 
 .PHONY: check build test itest cover lint golint fmt sql vuln run clean
 
