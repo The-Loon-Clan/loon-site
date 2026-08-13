@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"net/http"
 	"sort"
 	"strconv"
 	"time"
@@ -185,9 +184,8 @@ func calMonthParam(raw string, now time.Time) (int, time.Month) {
 // calendarPage serves /calendar.
 func (w *web) calendarPage(c *gin.Context) {
 	ctx := c.Request.Context()
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 

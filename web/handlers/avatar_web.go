@@ -323,9 +323,8 @@ func init() {
 // mean every bio save re-posts the file, and the "remove" button would have to
 // be distinguished from "save my text" by a hidden field.
 func (w *web) settingsAvatarSave(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	ctx := c.Request.Context()

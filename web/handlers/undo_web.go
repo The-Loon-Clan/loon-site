@@ -193,9 +193,8 @@ func purgeUndo(ctx context.Context) (int64, error) {
 // site-relative path: an open redirect on a POST that also changes state is
 // worth more to an attacker than either alone.
 func (w *web) undoPost(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	back := c.PostForm("next")

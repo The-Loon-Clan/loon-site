@@ -55,9 +55,8 @@ func giftsMigrate(db *sqlx.DB) error {
 
 // giftsPage serves GET /gifts.
 func (w *web) giftsPage(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	ctx := c.Request.Context()
@@ -77,9 +76,8 @@ func (w *web) giftsPage(c *gin.Context) {
 
 // giftsSend serves POST /gifts.
 func (w *web) giftsSend(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	ctx := c.Request.Context()

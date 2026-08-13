@@ -74,9 +74,8 @@ func newInviteCode() (string, error) {
 
 // invitesPage serves GET /invites.
 func (w *web) invitesPage(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	balance, _ := inviteBalance(c.Request.Context(), u.ID)
@@ -98,9 +97,8 @@ func (w *web) invitesPage(c *gin.Context) {
 
 // invitesCreate serves POST /invites — spend one balance, get one code.
 func (w *web) invitesCreate(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	ctx := c.Request.Context()

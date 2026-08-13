@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/the-loon-clan/loon-site/internal/storage"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // /trending — UNIT3D's trending page, over the one signal this indexer really

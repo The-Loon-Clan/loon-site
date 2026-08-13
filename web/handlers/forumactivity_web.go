@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 )
@@ -26,9 +24,8 @@ import (
 // the two drift.
 func (w *web) forumActivityPage(posts bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		u, ok := w.currentUser(c)
-		if !ok || u == nil {
-			c.Redirect(http.StatusFound, "/login")
+		u, ok := w.viewer(c)
+		if !ok {
 			return
 		}
 		ctx := c.Request.Context()

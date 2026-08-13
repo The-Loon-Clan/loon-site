@@ -84,9 +84,8 @@ func countOpenWishes(ctx context.Context, userID int64) int {
 
 // wishlistPage serves GET /wishlist.
 func (w *web) wishlistPage(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	ctx := c.Request.Context()
@@ -105,9 +104,8 @@ func (w *web) wishlistPage(c *gin.Context) {
 
 // wishlistAdd serves POST /wishlist.
 func (w *web) wishlistAdd(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	ctx := c.Request.Context()
@@ -144,9 +142,8 @@ func (w *web) wishlistAdd(c *gin.Context) {
 // question asked once: is this row yours? Splitting them into three routes
 // would mean asking it three times and getting it wrong once.
 func (w *web) wishlistUpdate(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)

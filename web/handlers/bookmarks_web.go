@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/the-loon-clan/loon-site/internal/storage"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // Bookmarks — saved releases. This retires docs/MOCKS.md M4, which stood in
@@ -84,9 +84,8 @@ const bookmarkRows = 100
 // bookmarksPage renders /bookmarks — the viewer's own saved releases.
 func (w *web) bookmarksPage(c *gin.Context) {
 	ctx := c.Request.Context()
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	data := map[string]any{"Title": "Bookmarks", "Results": []searchRow{}}
@@ -112,9 +111,8 @@ func (w *web) bookmarksPage(c *gin.Context) {
 // one prefetching browser or link-checker away from bookmarking a user's whole
 // history for them.
 func (w *web) bookmarkToggle(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)

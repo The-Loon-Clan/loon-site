@@ -89,9 +89,8 @@ func init() {
 
 // settingsProfile serves GET /settings/profile.
 func (w *web) settingsProfile(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	bio := readBio(c.Request.Context(), u.ID)
@@ -130,9 +129,8 @@ func (w *web) settingsProfile(c *gin.Context) {
 
 // settingsProfileSave serves POST /settings/profile.
 func (w *web) settingsProfileSave(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	bio := strings.TrimSpace(c.PostForm("bio"))

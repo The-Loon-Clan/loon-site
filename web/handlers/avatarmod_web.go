@@ -193,9 +193,10 @@ func (w *web) avatarModPage(c *gin.Context) {
 // was removed must not sit in the queue afterwards, and "reviewed" is the
 // honest record of what happened either way.
 func (w *web) avatarModAction(c *gin.Context) {
-	actor, ok := w.currentUser(c)
-	if !ok || actor == nil {
-		c.Redirect(http.StatusFound, "/login")
+	// Mounted behind staffOnly (auth.Require(core.RoleMod)), which has already
+	// resolved and rejected; this only reads what that gate put in context.
+	actor, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	ctx := c.Request.Context()

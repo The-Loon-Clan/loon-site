@@ -342,9 +342,8 @@ func listModItems(ctx context.Context, viewerID int64, history bool) []modItem {
 
 // communityModPage serves GET /moderation.
 func (w *web) communityModPage(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	history := c.Query("decided") == "1"
@@ -367,9 +366,8 @@ func (w *web) communityModPage(c *gin.Context) {
 
 // communityModVote serves POST /moderation/vote.
 func (w *web) communityModVote(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	ctx := c.Request.Context()
@@ -422,9 +420,8 @@ func (w *web) communityModVote(c *gin.Context) {
 
 // reportAvatarPost serves POST /u/:name/report-avatar.
 func (w *web) reportAvatarPost(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	name := c.Param("name")

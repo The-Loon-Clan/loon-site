@@ -50,9 +50,8 @@ func followsMigrate(db *sqlx.DB) error {
 // POST, like every other write on this site: a GET that mutates is one
 // prefetching browser away from following whoever a link happened to mention.
 func (w *web) followToggle(c *gin.Context) {
-	viewer, ok := w.currentUser(c)
-	if !ok || viewer == nil {
-		c.Redirect(http.StatusFound, "/login")
+	viewer, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	name := c.Param("name")

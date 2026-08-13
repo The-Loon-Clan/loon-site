@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,9 +20,8 @@ import (
 
 // rewardsPage serves /rewards.
 func (w *web) rewardsPage(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	_, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 

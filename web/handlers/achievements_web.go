@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/the-loon-clan/loon-plugins/rewards"
@@ -47,9 +45,8 @@ func achievementIcon(s rewards.AchievementState) string {
 
 // achievementsPage serves /achievements.
 func (w *web) achievementsPage(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 

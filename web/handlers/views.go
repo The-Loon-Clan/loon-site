@@ -659,6 +659,42 @@ func (w *web) currentUser(c *gin.Context) (*core.User, bool) {
 	return w.auth.Current(c)
 }
 
+// authed mounts a handler behind the shared sign-in gate.
+//
+// The gate belongs on the ROUTE, not at the top of the handler, and the
+// difference is not tidiness. Twenty-nine handlers each opened by resolving
+// the viewer and, failing that, issuing `c.Redirect(http.StatusFound,
+// "/login")` — unconditionally, to every caller. A fetch() or an API client
+// hitting a gated route therefore received a 302 and an HTML login page
+// instead of a status it could act on. The hand-rolled copies did not even
+// agree with each other: 29 used StatusFound (302), four StatusSeeOther (303).
+//
+// baseline's Require does the content negotiation properly — 303 to the login
+// page for a browser, a status code for anything else — and it is already in
+// the dependency. This is one line per route instead of five per handler, and
+// it is the version that answers an API client correctly.
+//
+// RoleUser is the floor: the default role of a new account, so this means
+// "any signed-in user". Anything needing more passes its own minimum.
+func (w *web) authed(h gin.HandlerFunc) gin.HandlersChain {
+	return append(w.auth.Require(core.RoleUser), h)
+}
+
+// viewer returns the signed-in user on a route mounted behind authed.
+//
+// The gate guarantees one, so a nil here is a MOUNTING mistake — a handler
+// wired without its gate — rather than a signed-out visitor. It fails with a
+// status rather than rendering a signed-out page, because a page that quietly
+// renders as though nobody is logged in is how such a mistake survives review.
+func (w *web) viewer(c *gin.Context) (*core.User, bool) {
+	u, ok := w.auth.Current(c)
+	if !ok || u == nil {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return nil, false
+	}
+	return u, true
+}
+
 // ── routes + rendering ──────────────────────────────────────────────
 
 func (w *web) mount(e *gin.Engine) {
@@ -675,44 +711,44 @@ func (w *web) mount(e *gin.Engine) {
 	// Bookmarks (bookmarks_web.go). The list is per-viewer and the toggle
 	// WRITES, so it is POST — a GET that mutates is one prefetching browser
 	// away from bookmarking somebody's whole history for them.
-	e.GET("/bookmarks", w.bookmarksPage)
+	e.GET("/bookmarks", w.authed(w.bookmarksPage)...)
 	// Calendar (calendar_web.go) — the member's own dated things, so it is
 	// login-gated inside the handler like /bookmarks rather than by role.
-	e.GET("/calendar", w.calendarPage)
+	e.GET("/calendar", w.authed(w.calendarPage)...)
 	// Achievements (achievements_web.go) and the two forum-activity
 	// listings (forumactivity_web.go). All account-scoped, so each gates
 	// on the viewer inside the handler rather than on a role.
-	e.GET("/achievements", w.achievementsPage)
-	e.GET("/p/topics", w.forumActivityPage(false))
-	e.GET("/p/posts", w.forumActivityPage(true))
+	e.GET("/achievements", w.authed(w.achievementsPage)...)
+	e.GET("/p/topics", w.authed(w.forumActivityPage(false))...)
+	e.GET("/p/posts", w.authed(w.forumActivityPage(true))...)
 	// Rewards (rewards_web.go) — the points area's third tab. Registered here
 	// rather than under /store/*, which the store plugin owns.
 	e.GET(storeRewardsPath, w.rewardsPage)
 	// Subscriptions (subscriptions_web.go) — one list of everything the viewer
 	// follows, read from the tables that already hold it.
-	e.GET("/subscriptions", w.subscriptionsPage)
+	e.GET("/subscriptions", w.authed(w.subscriptionsPage)...)
 	// Invite codes (invitecodes_web.go).
 	e.GET("/login/2fa", w.twoFactorPage)
 	e.POST("/login/2fa", w.twoFactorPost)
-	e.GET("/wishlist", w.wishlistPage)
-	e.POST("/wishlist", w.wishlistAdd)
-	e.POST("/wishlist/:id", w.wishlistUpdate)
-	e.GET("/gifts", w.giftsPage)
-	e.POST("/gifts", w.giftsSend)
-	e.GET("/invites", w.invitesPage)
-	e.POST("/invites", w.invitesCreate)
-	e.POST("/u/:name/follow", w.followToggle)
+	e.GET("/wishlist", w.authed(w.wishlistPage)...)
+	e.POST("/wishlist", w.authed(w.wishlistAdd)...)
+	e.POST("/wishlist/:id", w.authed(w.wishlistUpdate)...)
+	e.GET("/gifts", w.authed(w.giftsPage)...)
+	e.POST("/gifts", w.authed(w.giftsSend)...)
+	e.GET("/invites", w.authed(w.invitesPage)...)
+	e.POST("/invites", w.authed(w.invitesCreate)...)
+	e.POST("/u/:name/follow", w.authed(w.followToggle)...)
 	// Reporting an avatar opens (or votes on) a community moderation item —
 	// see communitymod_web.go.
-	e.POST("/u/:name/report-avatar", w.reportAvatarPost)
+	e.POST("/u/:name/report-avatar", w.authed(w.reportAvatarPost)...)
 	// Reverse the last destructive thing you did (undo_web.go).
-	e.POST("/undo", w.undoPost)
+	e.POST("/undo", w.authed(w.undoPost)...)
 	e.GET("/u/:name/followers", w.followPage(followKindFollowers))
 	e.GET("/u/:name/following", w.followPage(followKindFollowing))
 	// Mutual follows (follows_web.go). Derived from the same table, so this is
 	// a third READING of user_follow rather than a third feature.
 	e.GET("/u/:name/friends", w.followPage(followKindFriends))
-	e.POST("/release/:id/bookmark", w.bookmarkToggle)
+	e.POST("/release/:id/bookmark", w.authed(w.bookmarkToggle)...)
 	e.GET("/search", w.search)
 	e.GET("/browse", w.browse)
 	e.GET("/release/:id", w.releasePage)
@@ -736,7 +772,7 @@ func (w *web) mount(e *gin.Engine) {
 	e.GET("/verify", w.verifyEmail)
 	// State-changing: POST + CSRF. A GET logout/resend is forgeable via a
 	// cross-site top-level navigation (SameSite=Lax still sends the cookie).
-	e.POST("/verify/resend", w.resendVerify)
+	e.POST("/verify/resend", w.authed(w.resendVerify)...)
 	e.GET("/u/:name", w.profilePage)
 	e.POST("/logout", w.logout)
 	// Theme switcher (theme.go). POST + CSRF like every other state-changing
@@ -1590,9 +1626,8 @@ func (w *web) verifyEmail(c *gin.Context) {
 }
 
 func (w *web) resendVerify(c *gin.Context) {
-	u, ok := w.currentUser(c)
+	u, ok := w.viewer(c)
 	if !ok {
-		c.Redirect(http.StatusSeeOther, "/login")
 		return
 	}
 	if full, err := w.store.ByID(c.Request.Context(), u.ID); err == nil && full != nil {

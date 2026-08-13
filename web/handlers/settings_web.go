@@ -119,9 +119,8 @@ func isPrivateProfile(ctx context.Context, userID int64) bool {
 // ── pages ───────────────────────────────────────────────────────────
 
 func (w *web) settingsPrivacy(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	w.render(c, "settings_privacy.html", map[string]any{
@@ -132,9 +131,8 @@ func (w *web) settingsPrivacy(c *gin.Context) {
 }
 
 func (w *web) settingsPrivacySave(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	private := c.PostForm("private_profile") == "1"
@@ -148,9 +146,8 @@ func (w *web) settingsPrivacySave(c *gin.Context) {
 }
 
 func (w *web) settingsNotifications(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	prefs := notificationPrefs(c.Request.Context(), usersDB, u.ID)
@@ -170,9 +167,8 @@ func (w *web) settingsNotifications(c *gin.Context) {
 }
 
 func (w *web) settingsNotificationsSave(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	ctx := c.Request.Context()
@@ -197,21 +193,21 @@ func (w *web) settingsNotificationsSave(c *gin.Context) {
 // mountSettings wires the settings pages. Separate from mountSitePages because
 // these are all viewer-scoped and POST.
 func (w *web) mountSettings(e *gin.Engine) {
-	e.GET("/settings/privacy", w.settingsPrivacy)
-	e.POST("/settings/privacy", w.settingsPrivacySave)
-	e.GET("/settings/notifications", w.settingsNotifications)
-	e.POST("/settings/notifications", w.settingsNotificationsSave)
+	e.GET("/settings/privacy", w.authed(w.settingsPrivacy)...)
+	e.POST("/settings/privacy", w.authed(w.settingsPrivacySave)...)
+	e.GET("/settings/notifications", w.authed(w.settingsNotifications)...)
+	e.POST("/settings/notifications", w.authed(w.settingsNotificationsSave)...)
 	// The profile's free-text block (profilebio_web.go). A host page rather
 	// than part of the account plugin's form: the text is rendered by this
 	// site's markdown pipeline, so the editor belongs where that lives.
-	e.GET("/settings/profile", w.settingsProfile)
-	e.POST("/settings/profile", w.settingsProfileSave)
+	e.GET("/settings/profile", w.authed(w.settingsProfile)...)
+	e.POST("/settings/profile", w.authed(w.settingsProfileSave)...)
 	// Its own route rather than a mode flag on the one above: the avatar form
 	// is multipart and the bio form is not, and merging them would re-post the
 	// image on every text save. See avatar_web.go.
-	e.POST("/settings/avatar", w.settingsAvatarSave)
+	e.POST("/settings/avatar", w.authed(w.settingsAvatarSave)...)
 	// Second factor + email change (security_web.go).
-	e.GET("/settings/security", w.securityPage)
-	e.POST("/settings/security", w.securityAction)
+	e.GET("/settings/security", w.authed(w.securityPage)...)
+	e.POST("/settings/security", w.authed(w.securityAction)...)
 	e.GET("/settings/email/confirm", w.emailConfirm)
 }

@@ -189,9 +189,8 @@ func spendRecoveryCode(ctx context.Context, w *web, userID int64, code string) b
 
 // securityPage serves GET /settings/security.
 func (w *web) securityPage(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	ctx := c.Request.Context()
@@ -242,9 +241,8 @@ func siteName() string { return getenvDefault("LOON_SITE_NAME", "loon indexer") 
 
 // securityAction serves POST /settings/security.
 func (w *web) securityAction(c *gin.Context) {
-	u, ok := w.currentUser(c)
-	if !ok || u == nil {
-		c.Redirect(http.StatusFound, "/login")
+	u, ok := w.viewer(c)
+	if !ok {
 		return
 	}
 	ctx := c.Request.Context()
