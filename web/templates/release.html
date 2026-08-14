@@ -52,15 +52,13 @@
                          prefetching browser away from saving a reader's whole
                          history for them. $ because .Release is the dot here and
                          CSRFToken lives on the page data. */}}
+                    {{/* One definition, in bookmark_button.html, so the markup
+                         the handler swaps back in is the same markup drawn
+                         here. The dot it wants is not this one — .ID is the
+                         release, the rest lives on the page data — so it is
+                         built explicitly rather than passed $. */}}
                     {{if $.CanBookmark}}
-                    <form method="post" action="/release/{{.ID}}/bookmark" style="display:contents">
-                        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
-                        <input type="hidden" name="next" value="{{$.PathQuery}}">
-                        <button class="button button--outlined" type="submit"
-                                aria-pressed="{{if $.Bookmarked}}true{{else}}false{{end}}">
-                            <svg class="icon" aria-hidden="true"><use href="#star"></use></svg>{{if $.Bookmarked}}Saved{{else}}Save{{end}}
-                        </button>
-                    </form>
+                    {{template "bookmark-button" (dict "ID" .ID "Bookmarked" $.Bookmarked "CSRFToken" $.CSRFToken "PathQuery" $.PathQuery)}}
                     {{end}}
                     <a class="button button--filled" href="/nzb/{{.ID}}">
                         <svg class="icon" aria-hidden="true"><use href="#download"></use></svg>Download NZB

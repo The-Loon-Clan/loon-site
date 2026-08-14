@@ -1,0 +1,39 @@
+{{/* The Save/Saved toggle, in ONE place.
+
+     This markup is rendered from two directions — by the page that first draws
+     it, and by the POST handler answering htmx with a replacement — and the
+     whole reason it is a shared partial is that those two must be the same
+     bytes. A fragment that is a near-copy of the page's markup is the bug this
+     file prevents: it looks right until the day one of them gains a class.
+
+     Progressive enhancement, and it is load-bearing rather than a nicety:
+
+       - It is a real <form method="post"> with a real _csrf and a real next.
+         With JavaScript off it posts, the handler redirects, and the button
+         comes back in its new state. That is the behaviour that shipped before
+         htmx and it is still the behaviour underneath.
+
+       - The hx-* attributes only ADD. hx-post sends the same request the form
+         would have sent; hx-target="this" hx-swap="outerHTML" replaces this
+         form with the version the handler returns.
+
+     hx-disabled-elt="find button" is what stops a double toggle: the button is
+     disabled for the flight of the request, which matters here because the
+     endpoint TOGGLES rather than sets, so two clicks land back where they
+     started and look like nothing happened.
+
+     Expects: .ID .Bookmarked .CSRFToken .PathQuery */}}
+{{define "bookmark-button"}}
+<form method="post" action="/release/{{.ID}}/bookmark" style="display:contents"
+      hx-post="/release/{{.ID}}/bookmark"
+      hx-target="this"
+      hx-swap="outerHTML"
+      hx-disabled-elt="find button">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    <input type="hidden" name="next" value="{{.PathQuery}}">
+    <button class="button button--outlined" type="submit"
+            aria-pressed="{{if .Bookmarked}}true{{else}}false{{end}}">
+        <svg class="icon" aria-hidden="true"><use href="#star"></use></svg>{{if .Bookmarked}}Saved{{else}}Save{{end}}
+    </button>
+</form>
+{{end}}

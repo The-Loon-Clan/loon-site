@@ -42,6 +42,9 @@ var shellTemplates = map[string]bool{
 	"base.html": true, "site_chrome.html": true,
 	"listing.html": true, // shared partial, see sharedPartials in views.go
 	"facets.html":  true, // shared partial: the /browse + /search filter bar
+	// The Save/Saved toggle. A partial specifically so the page and the htmx
+	// handler that swaps it back cannot render different markup — see htmx.go.
+	"bookmark_button.html": true,
 	// The site's prose editor, rendered INTO plugin fragments through
 	// Deps.RenderEditor rather than being a page of its own — it is parsed by
 	// pluginTemplates(), not by newWeb.

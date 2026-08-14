@@ -96,12 +96,32 @@ func (w *web) bookmarkToggle(c *gin.Context) {
 		c.String(http.StatusBadRequest, "invalid release id")
 		return
 	}
-	if _, err := w.data.ToggleBookmark(c.Request.Context(), u.ID, id); err != nil {
+	on, err := w.data.ToggleBookmark(c.Request.Context(), u.ID, id)
+	if err != nil {
 		w.log.Error("toggle bookmark", "release", id, "err", err)
 	}
+	next, _ := readNextInput(c)
+
+	// htmx gets the button back in its new state; everyone else gets the
+	// redirect that has always happened here. This branch is the ONLY
+	// difference between the two paths, which is what keeps the no-JavaScript
+	// behaviour real rather than theoretical — see htmx.go.
+	//
+	// The state comes from ToggleBookmark's own return, not from a re-read: the
+	// toggle already knows which way it went, and asking the database again
+	// would answer a different question (what is true NOW, after any concurrent
+	// press) than the one the button is reporting.
+	if isHTMX(c) {
+		w.renderFragment(c, "release.html", "bookmark-button", map[string]any{
+			"ID":         id,
+			"Bookmarked": on,
+			"PathQuery":  next.Next,
+		})
+		return
+	}
+
 	// Back to whichever listing the button was pressed on, falling back to the
 	// release itself. Same-origin only — this is user input.
-	next, _ := readNextInput(c)
 	if back, okRef := sameOriginPath(next.Next, c.Request.Host); okRef {
 		c.Redirect(http.StatusSeeOther, back)
 		return

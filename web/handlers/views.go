@@ -152,6 +152,7 @@ var sharedPartials = map[string][]string{
 	"search.html":    {"listing.html", "facets.html"},
 	"trending.html":  {"listing.html"},
 	"bookmarks.html": {"listing.html"},
+	"release.html":   {"bookmark_button.html"},
 }
 
 func newWeb(store users.Store, secret []byte, log *slog.Logger, data *storage.Store) *web {

@@ -46,6 +46,7 @@ var logKeys = map[string]string{
 	"list":         "a named list (wishlist, bookmarks)",
 	"key":          "a settings or cache key",
 	"title":        "a release or thread title",
+	"fragment":     "a named template swapped in by htmx, within a page's set",
 	"page":         "a template page name",
 	"path":         "a URL path or file path",
 	"url":          "an absolute URL",
