@@ -46,6 +46,7 @@ var shellTemplates = map[string]bool{
 	// handler that swaps it back cannot render different markup — see htmx.go.
 	"bookmark_button.html": true,
 	"follow_button.html":   true,
+	"wishlist_item.html":   true,
 	// The site's prose editor, rendered INTO plugin fragments through
 	// Deps.RenderEditor rather than being a page of its own — it is parsed by
 	// pluginTemplates(), not by newWeb.

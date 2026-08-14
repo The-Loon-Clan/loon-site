@@ -70,36 +70,7 @@
         {{if .Items}}
         <ul class="wishlist">
             {{range .Items}}
-            <li class="wishlist__item{{if not .IsOpen}} wishlist__item--filled{{end}}">
-                <div class="wishlist__body">
-                    <span class="wishlist__title">{{.Title}}</span>
-                    {{with .Note}}<span class="text-muted small">{{.}}</span>{{end}}
-                    <span class="text-muted small">
-                        {{if not $.Mine}}<a href="/u/{{.Owner}}">{{.Owner}}</a> &middot; {{end}}added {{.Added}}
-                        {{if not .IsOpen}}&middot; filled {{.Filled}}{{end}}
-                        {{/* Only ever shown when somebody ELSE wants the same
-                             thing, so a lone entry does not read "1 person
-                             wants this" back at the person who asked. */}}
-                        {{if gt .Wanters 1}}&middot; <strong>{{.Wanters}} people want this</strong>{{end}}
-                    </span>
-                </div>
-                {{if .IsMine}}
-                <div class="wishlist__actions">
-                    <form method="post" action="/wishlist/{{.ID}}">
-                        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
-                        <input type="hidden" name="all" value="{{if $.Mine}}0{{else}}1{{end}}">
-                        <input type="hidden" name="action" value="{{if .IsOpen}}fill{{else}}reopen{{end}}">
-                        <button class="button button--text button--sm" type="submit">{{if .IsOpen}}Mark filled{{else}}Reopen{{end}}</button>
-                    </form>
-                    <form method="post" action="/wishlist/{{.ID}}">
-                        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
-                        <input type="hidden" name="all" value="{{if $.Mine}}0{{else}}1{{end}}">
-                        <input type="hidden" name="action" value="remove">
-                        <button class="button button--text button--sm text-danger" type="submit">Remove</button>
-                    </form>
-                </div>
-                {{end}}
-            </li>
+            {{template "wishlist-item" (dict "Item" . "Mine" $.Mine "CSRFToken" $.CSRFToken)}}
             {{end}}
         </ul>
         {{else}}

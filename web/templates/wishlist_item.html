@@ -1,0 +1,58 @@
+{{/* One wishlist row — the reference for the CONTAINER shape.
+
+     bookmark_button.html and follow_button.html replace themselves: the button
+     is the whole of what changes, so hx-target="this" is enough. This is the
+     other shape, and most of the remaining conversions are it. Pressing "Mark
+     filled" restyles the entire row and adds a date to it; pressing "Remove"
+     deletes the row outright. Neither is contained by the button, so the target
+     is the row.
+
+       hx-target="closest li"   the enclosing row, found from the button
+       hx-swap="outerHTML"      replaced entirely, including its own <li>
+
+     Remove is answered with an EMPTY body, which is how a swap deletes rather
+     than replaces. It has to be a 200 and not a 204: htmx does not swap at all
+     on 204, so the row would stay on screen and the member would press Remove
+     again on a row that is already gone.
+
+     Expects: .Item (a storage.WishRow) .Mine .CSRFToken */}}
+{{define "wishlist-item"}}
+{{$i := .Item}}
+<li class="wishlist__item{{if not $i.IsOpen}} wishlist__item--filled{{end}}">
+    <div class="wishlist__body">
+        <span class="wishlist__title">{{$i.Title}}</span>
+        {{with $i.Note}}<span class="text-muted small">{{.}}</span>{{end}}
+        <span class="text-muted small">
+            {{if not $.Mine}}<a href="/u/{{$i.Owner}}">{{$i.Owner}}</a> &middot; {{end}}added {{$i.Added}}
+            {{if not $i.IsOpen}}&middot; filled {{$i.Filled}}{{end}}
+            {{/* Only ever shown when somebody ELSE wants the same thing, so a
+                 lone entry does not read "1 person wants this" back at the
+                 person who asked. */}}
+            {{if gt $i.Wanters 1}}&middot; <strong>{{$i.Wanters}} people want this</strong>{{end}}
+        </span>
+    </div>
+    {{if $i.IsMine}}
+    <div class="wishlist__actions">
+        <form method="post" action="/wishlist/{{$i.ID}}"
+              hx-post="/wishlist/{{$i.ID}}" hx-target="closest li" hx-swap="outerHTML"
+              hx-disabled-elt="find button">
+            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+            <input type="hidden" name="all" value="{{if $.Mine}}0{{else}}1{{end}}">
+            <input type="hidden" name="action" value="{{if $i.IsOpen}}fill{{else}}reopen{{end}}">
+            <button class="button button--text button--sm" type="submit">{{if $i.IsOpen}}Mark filled{{else}}Reopen{{end}}</button>
+        </form>
+        {{/* Deleting is worth a confirm: it is the one action here that cannot
+             be undone from this page, and the button sits next to one that can. */}}
+        <form method="post" action="/wishlist/{{$i.ID}}"
+              hx-post="/wishlist/{{$i.ID}}" hx-target="closest li" hx-swap="outerHTML"
+              hx-confirm="Remove &ldquo;{{$i.Title}}&rdquo; from your wishlist?"
+              hx-disabled-elt="find button">
+            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+            <input type="hidden" name="all" value="{{if $.Mine}}0{{else}}1{{end}}">
+            <input type="hidden" name="action" value="remove">
+            <button class="button button--text button--sm text-danger" type="submit">Remove</button>
+        </form>
+    </div>
+    {{end}}
+</li>
+{{end}}

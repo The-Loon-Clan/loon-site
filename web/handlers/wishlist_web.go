@@ -125,6 +125,45 @@ func (w *web) wishlistUpdate(c *gin.Context) {
 	if err2 != nil {
 		w.log.Error("wishlist update", "item", id, "user", u.ID, "err", err2)
 	}
+
+	if isHTMX(c) {
+		// Removal is answered with an empty 200, which is how an outerHTML swap
+		// DELETES the row. Not 204: htmx does not swap on 204 at all, so the
+		// row would stay on screen and invite a second Remove on something that
+		// is already gone.
+		if act.Action == "remove" {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.Status(http.StatusOK)
+			return
+		}
+		// Fill and reopen re-read, which looks like a violation of rule 7
+		// ("report state from the write") and is not. That rule is about a
+		// toggle whose whole state is the boolean the write already returned.
+		// This row renders a filled-on date and a count of how many other
+		// people want the same thing, and neither of those is known to
+		// FillWish — they are computed by the list query. Reconstructing them
+		// here would be inventing the row rather than reading it.
+		//
+		// The same query the page uses, so the swapped row is byte-identical to
+		// what a reload would have drawn. O(n) over one member's own wishlist,
+		// which is the cheaper mistake than a second SQL statement that can
+		// disagree with the first.
+		for _, row := range w.data.ListWishlist(ctx, u.ID, !act.All) {
+			if row.ID == id {
+				w.renderFragment(c, "wishlist.html", "wishlist-item", map[string]any{
+					"Item": row,
+					"Mine": !act.All,
+				})
+				return
+			}
+		}
+		// Gone from the list entirely — treat it as removed rather than
+		// leaving a row the store no longer agrees exists.
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.Status(http.StatusOK)
+		return
+	}
+
 	back := "/wishlist"
 	if act.All {
 		back += "?all=1"
