@@ -2,9 +2,14 @@ package handlers
 
 import (
 	"go/ast"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/the-loon-clan/loon-site/internal/request"
 	"github.com/the-loon-clan/loon-site/internal/storage"
@@ -88,10 +93,11 @@ func TestEveryInputTypeStatesItsRules(t *testing.T) {
 
 func validRegister() registerInput {
 	return registerInput{
-		Username: "newmember",
-		Email:    "member@example.com",
-		Password: "correct horse battery",
-		RegMode:  RegOpen,
+		Username:        "newmember",
+		Email:           "member@example.com",
+		Password:        "correct horse battery",
+		PasswordConfirm: "correct horse battery",
+		RegMode:         RegOpen,
 	}
 }
 
@@ -111,6 +117,91 @@ func TestRegistrationRequiresAUsernameAndPassword(t *testing.T) {
 	}
 	if errs["password"] == "" {
 		t.Error("a blank password was accepted")
+	}
+}
+
+// The confirmation field, and the failure it exists for: the password is
+// stored hashed, so a typo in it is not readable, not resettable and not
+// reported. Registration succeeds, and the account is unreachable forever by
+// the person who just made it.
+
+func TestAMistypedConfirmationIsRejected(t *testing.T) {
+	in := validRegister()
+	in.PasswordConfirm = "correct horse batttery"
+
+	errs := request.Validate(in)
+	if errs["password_confirm"] == "" {
+		t.Error("a registration whose two passwords differ was accepted")
+	}
+}
+
+func TestAMissingConfirmationIsRejected(t *testing.T) {
+	// The case that matters most in practice: not a typo but a field nothing
+	// filled in — an old cached form, a script posting the fields it knew
+	// about last week. Comparing against an empty string has to fail, or the
+	// field is decorative for exactly the submitters who skip it.
+	in := validRegister()
+	in.PasswordConfirm = ""
+
+	if errs := request.Validate(in); errs["password_confirm"] == "" {
+		t.Error("a registration with no confirmation at all was accepted")
+	}
+}
+
+func TestABlankPasswordIsReportedOnceNotTwice(t *testing.T) {
+	// An empty form should say "a password is required", not that plus "the
+	// passwords do not match" — the second is true, useless, and points at the
+	// field below the one to fix.
+	in := validRegister()
+	in.Password, in.PasswordConfirm = "", ""
+
+	errs := request.Validate(in)
+	if errs["password"] == "" {
+		t.Fatal("a blank password was accepted")
+	}
+	if errs["password_confirm"] != "" {
+		t.Errorf("a blank form also complained about matching: %q", errs["password_confirm"])
+	}
+}
+
+func TestTheConfirmationIsComparedRaw(t *testing.T) {
+	// Both fields are `form:",raw"`. If either side were trimmed and the other
+	// not, two IDENTICAL entries would be reported as a mismatch and the
+	// member would have no way to get past a form that is wrong about them.
+	in := validRegister()
+	in.Password, in.PasswordConfirm = "  spaces both ends  ", "  spaces both ends  "
+	if errs := request.Validate(in); errs.Any() {
+		t.Errorf("two identical passwords with whitespace were rejected: %v", errs)
+	}
+
+	// And the other direction: a trailing space on one side IS a difference.
+	in.PasswordConfirm = "  spaces both ends "
+	if errs := request.Validate(in); errs["password_confirm"] == "" {
+		t.Error("passwords differing only by trailing whitespace were accepted")
+	}
+}
+
+func TestTheConfirmationBindsFromTheFormKeyTheTemplatePosts(t *testing.T) {
+	// The form key is DERIVED from the field name rather than declared, so
+	// nothing here fails loudly if the derivation changes — the field just
+	// arrives empty, and every registration on the site starts failing with
+	// "the passwords do not match". This is the test that names the key the
+	// template actually posts.
+	form := url.Values{
+		"username":         {"newmember"},
+		"password":         {"correct horse battery"},
+		"password_confirm": {"correct horse battery"},
+	}
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(form.Encode()))
+	c.Request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	in, err := readRegisterInput(c)
+	if err != nil {
+		t.Fatalf("bind: %v", err)
+	}
+	if in.PasswordConfirm != "correct horse battery" {
+		t.Errorf("password_confirm bound to %q; the template posts that key", in.PasswordConfirm)
 	}
 }
 

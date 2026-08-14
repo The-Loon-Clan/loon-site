@@ -62,6 +62,19 @@
                            aria-describedby="password-help">
                     <p class="form__help mt-1 mb-0" id="password-help">At least {{pwmin}} characters. Length beats symbols &mdash; a few ordinary words is a good password.</p>
                 </div>
+                {{/* No minlength on the confirmation, deliberately. The browser
+                     would say "at least N characters" at a half-typed second
+                     entry, which names the wrong problem: the only rule this
+                     field has is that it MATCHES, and that is stated properly
+                     by the server.
+
+                     data-pw-confirm keeps the strength meter off it — one meter,
+                     on the field where the choice is actually made. */}}
+                <div class="form__group">
+                    <label class="form__label" for="password_confirm">Confirm password</label>
+                    <input class="form__input" id="password_confirm" type="password" name="password_confirm"
+                           required autocomplete="new-password" data-pw-confirm>
+                </div>
                 {{/* Empty unless Turnstile is configured — no wrapper, see login.html. */}}
                 {{captcha}}
                 <button class="form__button form__button--filled justify-content-center" type="submit">

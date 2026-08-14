@@ -44,7 +44,18 @@ type registerInput struct {
 	// A password of spaces is a password. Trimming one signs somebody up with
 	// something other than what they typed, then refuses to let them back in.
 	Password string `form:",raw"`
-	Invite   string
+
+	// PasswordConfirm is the second box, and it exists because the failure it
+	// catches is silent and unrecoverable. The password is stored hashed, so a
+	// typo in it cannot be read back, cannot be reset by anybody, and produces
+	// no error at signup — the first sign of it is a login that will never
+	// work, on an account that was created successfully.
+	//
+	// Raw for the same reason as Password: trimming one side and not the other
+	// would report a mismatch between two identical entries.
+	PasswordConfirm string `form:",raw"`
+
+	Invite string
 
 	// Captcha's field name belongs to Cloudflare, so it comes from the
 	// library's own constant rather than being spelled out here.
@@ -80,6 +91,12 @@ func (in registerInput) Validate() request.Errors {
 	}
 	if request.Required(&e, "password", in.Password, "A password") {
 		request.MinRunes(&e, "password", in.Password, "A password", minPasswordLen)
+		// Only once there IS a password to confirm. "The passwords do not
+		// match" underneath an empty password field is a second message about
+		// a field the member has not filled in yet, and the first one already
+		// said what to do about it.
+		request.Matches(&e, "password_confirm", in.PasswordConfirm, in.Password,
+			"The passwords do not match.")
 	}
 	// Optional, and checked only if given: a blank email is a supported choice
 	// here, and the verification mail is simply not sent.
@@ -98,7 +115,7 @@ func (in registerInput) Validate() request.Errors {
 // rather than a message per input: the order the fields appear on the form, so
 // the message names the first thing the member would fix.
 func (in registerInput) fieldOrder() []string {
-	return []string{"username", "email", "password", "invite"}
+	return []string{"username", "email", "password", "password_confirm", "invite"}
 }
 
 // ── the door ────────────────────────────────────────────────────────────

@@ -1447,6 +1447,18 @@
                 input.focus();
             });
 
+            // A confirmation box stops here: reveal yes, meter no.
+            //
+            // It is a new-password field by rights — that is the value that
+            // makes a password manager offer the same generated password twice
+            // — so it arrives here with the rest, and it wants the reveal most
+            // of all, because seeing both entries is how somebody settles a
+            // mismatch without retyping the pair. What it must not have is a
+            // second meter: one decision scored twice reads as two decisions,
+            // and the score would lag the first field by a keystroke while
+            // saying the same thing.
+            if (input.hasAttribute('data-pw-confirm')) return;
+
             var meter = document.createElement('div');
             meter.className = 'pw-meter';
             meter.hidden = true;   // nothing to say about an empty field
