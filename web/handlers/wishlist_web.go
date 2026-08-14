@@ -106,6 +106,14 @@ func (w *web) wishlistUpdate(c *gin.Context) {
 	}
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
+		// Missed when this handler was converted, and found by
+		// TestAnHTMXRequestIsNeverAnsweredWithARedirect rather than by anybody
+		// clicking: it is only reachable from a form that did not come from
+		// the page, so no amount of using the site finds it.
+		if isHTMX(c) {
+			w.renderRefusal(c, "wishlist.html", "That form did not come from this page.")
+			return
+		}
 		c.Redirect(http.StatusSeeOther, "/wishlist")
 		return
 	}
