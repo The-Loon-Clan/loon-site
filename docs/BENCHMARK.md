@@ -305,7 +305,10 @@ Ordered so each step makes the next one safe.
 1. `CHANGELOG.md`, annotated tags, `docs/UPGRADING.md` with the migration guarantee.
 2. A release workflow publishing a versioned image to ghcr.io.
 3. ~~`LOON_ROLE=web|worker` so a scaled deployment does not run N schedulers.~~ (done)
-4. `make vuln` on the critical path in CI, plus a scheduled run.
+4. ~~`make vuln` on the critical path in CI, plus a scheduled run.~~ — both
+   were already true when this list was written; the claim they were missing
+   was wrong, and CI disproved it by failing a build over the Go 1.26.5
+   advisories.
 
 **Before calling it production-ready**
 5. `web/handlers` coverage past 40% via the consumer-interface pattern.
