@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -29,20 +30,38 @@ func (w *web) widgetsAdminPage(c *gin.Context) {
 	}
 	ctx := c.Request.Context()
 
-	// Placed widgets, resolved against the live registry so an operator can SEE
-	// that a placement has lost its widget. Rendering it as "missing" is the
-	// whole reason resolution reports rather than skips: a row that silently
-	// vanished would leave somebody wondering why their layout changed.
-	type placedVM struct {
-		Slug        string
-		Title       string
-		Position    int
-		Enabled     bool
-		Missing     bool
-		ConfigLabel string // non-empty when this widget takes a setting
-		ConfigHint  string
-		Config      string // what the operator typed for THIS placement
-	}
+	w.render(c, "admin_widgets.html", map[string]any{
+		"Title":     "Widgets",
+		"Regions":   widgetRegions,
+		"Region":    region,
+		"Placed":    w.placedWidgets(ctx, region),
+		"Available": w.availableWidgets(ctx, region),
+	})
+}
+
+// placedVM is one row of the placed-widgets table.
+//
+// Package level rather than declared inside the page handler, because the
+// action handler now renders the same table as a fragment and the two must
+// build identical rows — a second local struct with the same fields is exactly
+// how a fragment starts drifting from the page it replaces.
+type placedVM struct {
+	Slug        string
+	Title       string
+	Position    int
+	Enabled     bool
+	Missing     bool
+	ConfigLabel string // non-empty when this widget takes a setting
+	ConfigHint  string
+	Config      string // what the operator typed for THIS placement
+}
+
+// placedWidgets resolves a region's placements against the live registry so an
+// operator can SEE that a placement has lost its widget. Rendering it as
+// "missing" is the whole reason resolution reports rather than skips: a row
+// that silently vanished would leave somebody wondering why their layout
+// changed.
+func (w *web) placedWidgets(ctx context.Context, region string) []placedVM {
 	var placed []placedVM
 	for _, p := range w.data.ReadPlacements(ctx, region) {
 		vm := placedVM{Slug: p.Slug, Position: p.Position, Enabled: p.Enabled,
@@ -53,14 +72,7 @@ func (w *web) widgetsAdminPage(c *gin.Context) {
 		}
 		placed = append(placed, vm)
 	}
-
-	w.render(c, "admin_widgets.html", map[string]any{
-		"Title":     "Widgets",
-		"Regions":   widgetRegions,
-		"Region":    region,
-		"Placed":    placed,
-		"Available": w.availableWidgets(ctx, region),
-	})
+	return placed
 }
 
 // widgetsAdminAction applies one edit and returns to the same region.
@@ -73,6 +85,10 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 	in, _ := readWidgetActionInput(c)
 	region := in.Region
 	if _, ok := widgetRegionByKey(region); !ok || !w.db().Valid() {
+		if isHTMX(c) {
+			w.renderRefusal(c, "admin_widgets.html", "That form did not come from this page.")
+			return
+		}
 		c.Redirect(http.StatusSeeOther, "/admin/widgets")
 		return
 	}
@@ -107,6 +123,16 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 		if delta := in.Delta; delta != 0 {
 			w.moveWidget(c, region, slug, delta)
 		}
+	}
+	// The whole table, not the row: moving a widget up moves its neighbour
+	// down, and toggling one changes only that row but returns through the same
+	// path. Re-read through placedWidgets, the page's own builder, so the
+	// swapped table is what a reload would have drawn.
+	if isHTMX(c) {
+		w.renderFragmentWithNotice(c, http.StatusOK, "admin_widgets.html", "placed-widgets",
+			map[string]any{"Region": region, "Placed": w.placedWidgets(ctx, region)},
+			noticeOK("Layout updated."))
+		return
 	}
 	c.Redirect(http.StatusSeeOther, "/admin/widgets?region="+region)
 }
