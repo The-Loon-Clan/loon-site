@@ -137,10 +137,10 @@ theme, wishlist add/remove, moderation votes, admin widget reorder, avatar
 approve/reject, resend verification. Highest value, lowest risk. *(Bookmark is
 done; the rest follow the same shape.)*
 
-**Convert — browse/search/paginate.** The biggest win for an indexer: `/browse`
-is 48 KB and carries 42 category links, so changing one filter currently
-re-downloads the nav, the featured strip, the footer and all 42 facets to
-replace one table. Params in play: `page`, `cat`, `sort`, `q`, `group`, `days`.
+**Convert — browse/search filtering and sorting.** *(Done.)* Every facet pill
+and sortable column header now swaps `#results` instead of reloading. Note there
+is no pagination to convert: `/browse` caps at 50 rows with no page parameter,
+by an existing decision recorded at the top of `browse.html`.
 
 **Convert — settings (11 forms).** `settings_security.html` alone has six;
 saving any one of them reloads the other five.
@@ -152,16 +152,64 @@ move together, which is exactly what you want when it goes wrong.
 
 ## Measured effect
 
-The bookmark toggle, before and after, on the same release page:
+Measured against the running site, not estimated. The two conversions have
+very different profiles, and it is worth being straight about that.
+
+**Bookmark toggle** — the whole page was chrome around one button:
 
 ```
-full page reload   ~48,000 bytes
-htmx fragment           554 bytes      87x smaller
+full page reload   47,000 bytes
+htmx fragment           554 bytes      85x smaller
 ```
 
-Both paths verified against the running site: `HX-Request: true` returns 200
-with a bare fragment (no `<html>`, no `<nav>`); the same POST without the header
-returns 303 to the release page, exactly as it did before htmx existed.
+**Browse and search** — the saving is the chrome, which is a CONSTANT, so it
+shrinks as a percentage the more results there are:
+
+```
+/browse?cat=2000    174,553  ->  133,009      42 KB saved   (24%)
+/search?q=1080p     559,610  ->  516,621      42 KB saved   ( 8%)
+/search (0 results) 559,610  ->      245
+```
+
+So the honest case for converting a listing is not mainly bandwidth: it is ~42
+KB per click plus no full document re-parse, no scroll-position loss, and no
+blank flash between pages. The bandwidth argument is the toggle's.
+
+Paths verified for both:
+
+| request | response |
+| --- | --- |
+| `HX-Request: true` | the fragment — no `<html>`, no `<nav>` |
+| no header (JS off) | the full page, or the 303 it always sent |
+| `HX-History-Restore-Request: true` | the **full page** — see below |
+
+### The back button
+
+htmx sends `HX-Request: true` on history-restore requests too, so a handler
+checking only that header answers the back button with a fragment, and the
+browser paints a bare results table where the site used to be.
+
+Guarded twice: `historyRestoreAsHxRequest:false` in the meta config, and
+`isHTMX` refusing any request carrying `HX-History-Restore-Request`. The second
+does not depend on the client honouring the first.
+
+### Fragments must carry their own attributes
+
+The returned fragment contains the `hx-get` attributes again, because it is
+rendered from the same template. That is what makes the *second* filter click
+work, and it is the concrete payoff of rule 3 — a hand-written fragment that
+omitted them would work exactly once.
+
+Verified: the `/browse` fragment carries all 13 `hx-get` attributes the full
+page does.
+
+### A swap target must survive its own empty state
+
+`search-results` wraps all three shapes of the region — results, no results,
+nothing searched yet — in one `<div id="results">`. With the id on the
+`<section>` instead, filtering down to zero would replace the section with a
+notice carrying no id, and the filter bar would work once and then go dead.
+Verified: a zero-result search returns 245 bytes and still contains `#results`.
 
 ## Security
 

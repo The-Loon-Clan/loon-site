@@ -28,7 +28,62 @@
 </p>
 
 {{else if .CatID}}
-<section class="panelV2">
+{{template "browse-results" .}}
+
+{{else}}
+<h1 class="h3 m-0">Browse</h1>
+{{if .Categories}}
+<div class="grid grid--3">
+    {{range .Categories}}
+    <section class="panelV2 panel--grid-item">
+        <header class="panel__header">
+            <h2 class="panel__heading">
+                <svg class="icon panel__heading-icon" aria-hidden="true">{{template "cat-icon" .ID}}</svg>
+                {{.Name}}
+                {{if .Subcats}}<span class="panel__grouping">({{len .Subcats}})</span>{{end}}
+            </h2>
+            <a class="panel__header-link" href="/browse?cat={{.ID}}">Browse <svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-right"></use></svg></a>
+        </header>
+        <div class="panel__body">
+            {{if .Subcats}}
+            <ul class="pill-row">
+                {{range .Subcats}}
+                <li><a class="pill" href="/browse?cat={{.ID}}">{{.Name}}</a></li>
+                {{end}}
+            </ul>
+            {{else}}
+            <p class="m-0 small text-muted">No subcategories.</p>
+            {{end}}
+        </div>
+    </section>
+    {{end}}
+</div>
+{{else}}
+<p class="notice notice--info">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>No categories enabled.</span>
+</p>
+{{end}}
+{{end}}
+{{end}}
+
+{{/* The swappable region: everything a facet click or a column sort changes.
+
+     The whole <section>, not just the table, because the header shows the total
+     and the facet bar shows its own counts — both move when a filter does. The
+     boundary of a fragment is "what the interaction changes", and drawing it
+     any tighter leaves a stale count sitting above fresh rows.
+
+     id="results" is the swap target, and the same id is used on /search so the
+     shared facet-bar and sort-th partials can name one target without knowing
+     which page they are on.
+
+     Rendered from two directions — by the page, and by browse() answering htmx
+     — which is the point: the fragment is not a copy of this markup, it IS this
+     markup. That the returned HTML carries the hx-* attributes again is what
+     makes the SECOND filter click work. */}}
+{{define "browse-results"}}
+<section class="panelV2" id="results">
     <header class="panel__header">
         <h1 class="panel__heading">
             <svg class="icon panel__heading-icon" aria-hidden="true">{{template "cat-icon" .CatID}}</svg>
@@ -74,40 +129,4 @@
     </div>
     {{end}}
 </section>
-
-{{else}}
-<h1 class="h3 m-0">Browse</h1>
-{{if .Categories}}
-<div class="grid grid--3">
-    {{range .Categories}}
-    <section class="panelV2 panel--grid-item">
-        <header class="panel__header">
-            <h2 class="panel__heading">
-                <svg class="icon panel__heading-icon" aria-hidden="true">{{template "cat-icon" .ID}}</svg>
-                {{.Name}}
-                {{if .Subcats}}<span class="panel__grouping">({{len .Subcats}})</span>{{end}}
-            </h2>
-            <a class="panel__header-link" href="/browse?cat={{.ID}}">Browse <svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-right"></use></svg></a>
-        </header>
-        <div class="panel__body">
-            {{if .Subcats}}
-            <ul class="pill-row">
-                {{range .Subcats}}
-                <li><a class="pill" href="/browse?cat={{.ID}}">{{.Name}}</a></li>
-                {{end}}
-            </ul>
-            {{else}}
-            <p class="m-0 small text-muted">No subcategories.</p>
-            {{end}}
-        </div>
-    </section>
-    {{end}}
-</div>
-{{else}}
-<p class="notice notice--info">
-    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
-    <span>No categories enabled.</span>
-</p>
-{{end}}
-{{end}}
 {{end}}

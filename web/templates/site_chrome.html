@@ -86,7 +86,13 @@
          cost is one server request on a back-navigation instead of a restore
          from cache. Revisit deliberately if hx-push-url ever lands on a hot
          public path like /browse. */}}
-    <meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"disableSelector":"[hx-disable], [data-hx-disable], .prose","historyCacheSize":0}'>
+    {{/* historyRestoreAsHxRequest false: a back-navigation must fetch a WHOLE
+         page. Left at its default of true, htmx marks the restore request
+         HX-Request: true, the handler answers with the fragment it would send
+         for a filter click, and the browser paints a bare results table where
+         the site used to be. web/handlers/htmx.go refuses the same request a
+         second way, so this does not rely on the client honouring config. */}}
+    <meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"disableSelector":"[hx-disable], [data-hx-disable], .prose","historyCacheSize":0,"historyRestoreAsHxRequest":false}'>
     <link rel="stylesheet" href="{{asset "/static/css/bootstrap.min.css"}}">
     <link rel="stylesheet" href="{{asset "/static/css/tokens.css"}}">
     <link rel="stylesheet" href="{{asset .Theme.Href}}">

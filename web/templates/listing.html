@@ -133,7 +133,8 @@
 {{- $c := .Col}}
 <th {{with .Class}}class="{{.}}"{{end}}{{if $c.Active}} aria-sort="{{if $c.Down}}descending{{else}}ascending{{end}}"{{end}}{{with .Title}} title="{{.}}"{{end}}>
     {{- if $c.Sortable}}
-    <a class="data-table__sort{{if $c.Active}} data-table__sort--active{{end}}" href="{{$c.Href}}">
+    <a class="data-table__sort{{if $c.Active}} data-table__sort--active{{end}}" href="{{$c.Href}}"
+       hx-get="{{$c.Href}}" hx-target="#results" hx-swap="outerHTML" hx-push-url="true">
         {{$c.Label}}
         {{- if $c.Active}}
         <svg class="icon data-table__sort-arrow" aria-hidden="true"><use href="#{{if $c.Down}}chevron-down{{else}}chevron-up{{end}}"></use></svg>

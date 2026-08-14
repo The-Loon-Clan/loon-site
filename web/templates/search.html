@@ -63,6 +63,23 @@
     </div>
 </section>
 
+{{template "search-results" .}}
+{{end}}
+
+{{/* The swappable region, matching browse.html's — see the long note there.
+
+     One difference, and it is the reason the wrapper <div> exists rather than
+     the id sitting on the <section>: this region has three shapes. Results, no
+     results, and nothing searched for yet. Filtering down to zero replaces the
+     <section> with a <p class="notice">, and if the id lived on the section
+     there would be no #results left for the NEXT click to target — the filter
+     bar would work exactly once and then go dead.
+
+     class="stack" because main's children are a flex column with a 1rem gap;
+     the wrapper is one flex item either way, so the spacing above and below is
+     unchanged, and a second child here would be spaced like everything else. */}}
+{{define "search-results"}}
+<div id="results" class="stack">
 {{if .Results}}
 <section class="panelV2">
     <header class="panel__header">
@@ -106,4 +123,5 @@
     <span>Enter a title above, or browse a group from the <a href="/groups">Groups</a> page.</span>
 </p>
 {{end}}
+</div>
 {{end}}

@@ -60,8 +60,24 @@ import (
 // by the same template with the same authorisation already done above.
 const hxRequestHeader = "HX-Request"
 
+// hxHistoryRestoreHeader marks a request htmx makes to REBUILD a page it is
+// navigating back to, which is the one htmx request that must be answered with
+// a whole page.
+//
+// htmx sends HX-Request: true on these too (config historyRestoreAsHxRequest,
+// default true), so a handler that only checks that header answers the back
+// button with a fragment — and the browser then displays a bare table where the
+// site used to be. The config is set to false in site_chrome.html as well; this
+// is the half that does not depend on the client agreeing.
+const hxHistoryRestoreHeader = "HX-History-Restore-Request"
+
 // isHTMX reports whether this request wants a fragment rather than a page.
-func isHTMX(c *gin.Context) bool { return c.GetHeader(hxRequestHeader) == "true" }
+func isHTMX(c *gin.Context) bool {
+	if c.GetHeader(hxHistoryRestoreHeader) == "true" {
+		return false
+	}
+	return c.GetHeader(hxRequestHeader) == "true"
+}
 
 // renderFragment writes ONE named template from a page's set.
 //

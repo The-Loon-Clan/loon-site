@@ -22,7 +22,8 @@
         </h2>
         {{if .Active}}
         <div class="panel__actions">
-            <a class="panel__action" href="{{.ClearHref}}">Clear all</a>
+            <a class="panel__action" href="{{.ClearHref}}"
+               hx-get="{{.ClearHref}}" hx-target="#results" hx-swap="outerHTML" hx-push-url="true">Clear all</a>
         </div>
         {{end}}
     </header>
@@ -50,7 +51,12 @@
     <div class="pill-row">
         {{$noCount := .NoCount}}
         {{range .Facets}}
+        {{/* href and hx-get are the same URL, built in Go. The link works with
+             JavaScript off; hx-get fetches the same page and swaps only the
+             results panel, and hx-push-url keeps the address bar honest so the
+             filtered view is still linkable and bookmarkable. */}}
         <a class="pill{{if .Active}} pill--active{{end}}" href="{{.Href}}"
+           hx-get="{{.Href}}" hx-target="#results" hx-swap="outerHTML" hx-push-url="true"
            {{if .Active}}aria-current="true"{{end}}>
             {{.Value}}{{if and (not $noCount) .Count}} <span class="pill__count">{{.Count}}</span>{{end}}
         </a>

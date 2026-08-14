@@ -1001,6 +1001,14 @@ func (w *web) browse(c *gin.Context) {
 			data["Total"] = total
 		}
 	}
+	// A facet click or a column sort changes only the results panel, so htmx
+	// gets that panel and nothing else — see docs/ASYNC.md. Only the CatID
+	// branch has one: /browse with no category is the grid of categories, and
+	// there is no #results on that page to swap.
+	if isHTMX(c) && data["CatID"] != nil {
+		w.renderFragment(c, "browse.html", "browse-results", data)
+		return
+	}
 	w.render(c, "browse.html", data)
 }
 
@@ -1060,6 +1068,13 @@ func (w *web) search(c *gin.Context) {
 			data["Results"] = f.apply(rows)
 			data["Filter"] = f
 		}
+	}
+	// Same as browse. search-results wraps all three shapes of this region
+	// (results, no results, nothing searched yet) so the swap target survives
+	// a filter that matches nothing.
+	if isHTMX(c) {
+		w.renderFragment(c, "search.html", "search-results", data)
+		return
 	}
 	w.render(c, "search.html", data)
 }

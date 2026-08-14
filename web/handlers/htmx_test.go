@@ -37,6 +37,25 @@ func TestIsHTMXWantsTheLiteralTrue(t *testing.T) {
 	}
 }
 
+// The back button must get a whole page.
+//
+// htmx marks a history-restore request HX-Request: true as well, so a handler
+// that checks only that header answers a back-navigation with the fragment it
+// would send for a filter click — and the browser paints a bare results table
+// where the site used to be. The failure needs a real back button to reproduce,
+// which is exactly the interaction a test suite never performs.
+func TestAHistoryRestoreIsNotAFragmentRequest(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("GET", "/browse?cat=2000", nil)
+	c.Request.Header.Set(hxRequestHeader, "true")
+	c.Request.Header.Set(hxHistoryRestoreHeader, "true")
+
+	if isHTMX(c) {
+		t.Error("a history-restore request was treated as a fragment request; " +
+			"the back button would render a bare fragment as the whole page")
+	}
+}
+
 // A swappable partial must post to the same URL its form does.
 //
 // The two are written separately — action="..." for the no-JavaScript path,
