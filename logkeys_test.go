@@ -66,6 +66,7 @@ var logKeys = map[string]string{
 	"redis":        "the Redis address in play",
 	"http":         "an HTTP status",
 	"line":         "a line number",
+	"version":      "this build's version and revision, from BuildInfo",
 	"notification": "a notification id or type",
 	"registration": "a plugin registration",
 	"resolution":   "how a moderation item was settled",

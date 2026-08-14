@@ -105,14 +105,22 @@ ships something this does not: a documentation book (`book/`, mdBook) covering
 installation and upgrades, which is most of why people trust it enough to run
 it. Documentation is the release artefact that matters, and ours is one README.
 
-`CHANGELOG.md` now exists, with an Unreleased section carrying the behaviour
-changes that need stating — the trusted-proxy default in particular, which
+**Mostly done.** `CHANGELOG.md`, a release workflow publishing a versioned
+multi-arch image to ghcr.io with notes lifted from that changelog, a version
+stamped into the binary and reported by `/healthz` and the boot log, and
+`docs/UPGRADING.md` stating the guarantee. What remains is pushing a tag, which
+is a decision rather than a task.
+
+The changelog carries the behaviour changes that need stating — the trusted-proxy default in particular, which
 silently changes what a proxied deployment records until the operator sets
 `LOON_TRUSTED_PROXIES`.
 
-**Remaining, in order:** annotated tags; a release workflow building
-`ghcr.io/the-loon-clan/loon-site:<tag>`; `docs/UPGRADING.md` stating the
-migration guarantee. Still the single highest-value item on the list.
+Writing the workflow found a bug in the workflow: the first version of the
+release-notes extractor interpolated the version into an awk regex, and the
+escaped brackets were read as a character class — so every `## ` heading
+matched and the entire changelog, Unreleased section included, would have been
+published as the notes for v0.1.0. Found by running it against a fixture rather
+than by tagging something and reading the result.
 
 ### 3. Input validation is not a named thing
 
@@ -174,9 +182,20 @@ one-line change into a whole-file diff.
 
 ### 6. One CI workflow doing everything
 
-UNIT3D has nine workflows; this has one. Two are missing that matter: a
-scheduled dependency/vulnerability run separate from the push job, and CodeQL
-or equivalent. `make vuln` exists but is not in CI's critical path.
+UNIT3D has nine workflows; this has one.
+
+Two claims in the first draft of this section were wrong, and CI disproved them
+within the day. `govulncheck` **is** on the critical path — it runs with no
+`continue-on-error` and failed a build over seven standard-library advisories
+in Go 1.26.5, on a push that touched none of the affected code. And there **is**
+a scheduled run: the workflow carries `cron: "0 6 * * 1"`, so the same checks
+run weekly whether or not anybody pushed. That weekly run is the one that would
+have caught those advisories anyway.
+
+What is genuinely missing: a release workflow (below), CodeQL or an equivalent
+SAST pass, and automated dependency updates. One workflow doing everything is
+also a single point of failure for required-check configuration, but that is a
+convenience argument rather than a correctness one.
 
 ## Structure and Go standards
 

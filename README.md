@@ -235,6 +235,24 @@ and states where it leads, where it is behind, and what stands between it and a
 release. Short version: the best test ratio and the only measured coverage of
 the four, and the only one running everything in a single process.
 
+## Releases
+
+Tagging `v*` runs the full checks against that commit, publishes a multi-arch
+image, and writes the release notes from the changelog:
+
+```sh
+git tag -a v0.1.0 -m "…" && git push origin v0.1.0
+docker pull ghcr.io/the-loon-clan/loon-site:v0.1.0
+```
+
+Every build reports itself — `curl localhost:8090/healthz` answers `ok v0.1.0
+(a1b2c3d)`, and the same string is the first line of the boot log, ahead of
+anything that can fail. A build from a working tree says `dev`.
+
+Upgrading is `docker compose pull && docker compose up -d`; migrations run
+themselves at boot. See [docs/UPGRADING.md](docs/UPGRADING.md) for what is
+guaranteed, and for the fact that there is no downgrade path.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).

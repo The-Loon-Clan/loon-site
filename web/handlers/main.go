@@ -91,6 +91,12 @@ import (
 func Main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
+	// FIRST, before anything that can fail. This was logged further down, after
+	// the database connect — so a container that could not reach Postgres
+	// exited having never said what it was, which is the exact moment somebody
+	// wants to know whether they deployed the version they think they did.
+	logger.Info("loon-site starting", "version", BuildInfo())
+
 	dsn := os.Getenv("LOON_DSN")
 	if dsn == "" {
 		dsn = "postgres://demo:demo@localhost:5544/loon_demo?sslmode=disable"
@@ -137,7 +143,13 @@ func Main() {
 	// Registered before any middleware so it's always cheap and always answers —
 	// even while the site is in maintenance mode (the proxy needs a true "is the
 	// process up?" signal, independent of the app's maintenance flag).
-	engine.GET("/healthz", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
+	// "ok" plus the build, because this is the one endpoint reachable on a site
+	// that is otherwise refusing everybody — during maintenance, or behind a
+	// members-only gate — and "which version is that container running" is the
+	// question being asked when somebody is looking at it.
+	engine.GET("/healthz", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok %s", BuildInfo())
+	})
 
 	// --- Demo users + username/password login. A real host wires its session
 	// store + users table here; the demo keeps two in-memory users whose

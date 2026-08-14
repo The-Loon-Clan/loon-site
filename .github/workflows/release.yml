@@ -1,0 +1,159 @@
+# Publish a release when a version tag is pushed.
+#
+#   git tag -a v0.1.0 -m "…" && git push origin v0.1.0
+#
+# Produces a versioned image on ghcr.io and a GitHub Release whose notes are
+# lifted from CHANGELOG.md, so the changelog stays the single place a change is
+# described rather than being written twice and drifting.
+#
+# It deliberately runs the SAME checks as a push first. A tag is the one commit
+# people will actually pull, and "main was green when we tagged it" is a
+# different claim from "this tag is green" — the second is the one worth making.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # create the Release
+  packages: write # push to ghcr.io
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    # The same service containers the CI job uses: a tag whose storage
+    # integration tests were skipped has been checked less than an ordinary
+    # push, which is the wrong way round.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: demo
+          POSTGRES_PASSWORD: demo
+          POSTGRES_DB: loon_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+
+    env:
+      LOON_TEST_DSN: postgres://demo:demo@localhost:5432/loon_test?sslmode=disable
+      REDIS_TEST_ADDR: localhost:6379
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+      - name: Checks
+        run: make check GO=go
+
+      - name: Known vulnerabilities in code we call
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+      # A tag that does not match the changelog is a release whose notes are
+      # about something else. Cheap to check, and the failure mode without it is
+      # only visible to whoever reads the published notes.
+      - name: The changelog mentions this version
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          # grep -F: the version contains dots, and in a regex "0.1.0" also
+          # matches "0x1x0". Fixed-string matching removes the question.
+          if grep -Fq "## [$v]" CHANGELOG.md || grep -Fq "## $v" CHANGELOG.md; then
+            echo "CHANGELOG.md has a section for $v"
+          else
+            echo "CHANGELOG.md has no '## $v' section."
+            echo "Move the Unreleased entries under a heading for this version before tagging."
+            exit 1
+          fi
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Lower-cased, because ghcr.io rejects an image reference with capitals
+      # and this repository's owner has them. The failure is a push rejection
+      # at the very end of a long build.
+      - name: Image name
+        id: img
+        run: echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          # The tag and `latest`. No `main`-tracking tag: an image that moves
+          # under a fixed name is how a deployment changes version without
+          # anybody deciding to.
+          tags: |
+            ${{ steps.img.outputs.name }}:${{ github.ref_name }}
+            ${{ steps.img.outputs.name }}:latest
+          # Stamped, so `docker run … --help`-style questions and the boot log
+          # report the version rather than "dev". Without this the published
+          # image cannot say what it is.
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Notes come from CHANGELOG.md rather than from commit subjects. Commit
+      # subjects are written for reviewers; release notes are written for
+      # somebody deciding whether to upgrade, and they are not the same text.
+      - name: Extract this version's changelog section
+        id: notes
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          # index(), not a regex.
+          #
+          # The first draft built a pattern by interpolating the version into
+          # "^## \[?" ver "\]?" — and awk read the escaped brackets as a
+          # CHARACTER CLASS, so every "## " heading matched, `next` skipped the
+          # exit rule, and the whole changelog came out as the release notes,
+          # Unreleased section and all. Caught by running it against a fixture
+          # rather than by tagging something and reading the result.
+          awk -v ver="$v" '
+            index($0, "## [" ver "]") == 1 || index($0, "## " ver) == 1 { inside = 1; next }
+            inside && index($0, "## ") == 1 { exit }
+            inside { print }
+          ' CHANGELOG.md > /tmp/notes.md
+          if [ ! -s /tmp/notes.md ]; then
+            echo "No notes extracted for $v — refusing to publish an empty release."
+            exit 1
+          fi
+          echo "Release notes:"; cat /tmp/notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: /tmp/notes.md
+          # Anything with a suffix (v0.1.0-rc1, v0.1.0-beta) is a pre-release.
+          prerelease: ${{ contains(github.ref_name, '-') }}
