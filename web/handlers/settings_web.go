@@ -107,6 +107,13 @@ func (w *web) settingsPrivacySave(c *gin.Context) {
 			w.log.Error("privacy save", "err", err)
 		}
 	}
+	// Notice-only: nothing on the page needs replacing, because the member is
+	// looking at the controls they just set. See docs/ASYNC.md.
+	if isHTMX(c) {
+		w.renderFragmentWithNotice(c, http.StatusOK, "settings_privacy.html", "", nil,
+			noticeOK("Privacy settings saved."))
+		return
+	}
 	c.Redirect(http.StatusFound, "/settings/privacy?saved=1")
 }
 
@@ -145,6 +152,11 @@ func (w *web) settingsNotificationsSave(c *gin.Context) {
 		if err := w.data.SetNotificationPref(ctx, u.ID, k.Kind, in.Enabled[k.Kind]); err != nil {
 			w.log.Error("notification pref save", "kind", k.Kind, "err", err)
 		}
+	}
+	if isHTMX(c) {
+		w.renderFragmentWithNotice(c, http.StatusOK, "settings_notifications.html", "", nil,
+			noticeOK("Notification settings saved."))
+		return
 	}
 	c.Redirect(http.StatusFound, "/settings/notifications?saved=1")
 }

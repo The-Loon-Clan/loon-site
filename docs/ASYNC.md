@@ -92,6 +92,25 @@ restyles the whole row and adds a date; removing it deletes the row.
 
 Reference: `wishlist_item.html`.
 
+**Notice-only** — `hx-swap="none"`. Nothing on the page needs replacing,
+because the member is looking at the controls they just set; the only thing
+missing is the confirmation. The whole response is the out-of-band notice.
+
+```html
+<form hx-post="/settings/privacy" hx-swap="none">
+```
+
+```go
+w.renderFragmentWithNotice(c, http.StatusOK, page, "", nil, noticeOK("Privacy settings saved."))
+```
+
+htmx applies out-of-band swaps even when the primary swap is `none`. Reference:
+`settingsPrivacySave`.
+
+Use this only where the submitted form is already correct on screen. If the
+server normalises anything the member typed, the page is now lying and the
+container shape is the right one.
+
 Two traps in the container shape:
 
 - **Deleting is an empty `200`, never a `204`.** htmx does not swap on 204 at

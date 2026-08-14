@@ -21,7 +21,13 @@
         </div>
     </header>
     <div class="panel__body">
-        <form method="post" action="/settings/privacy" class="form">
+        <form method="post" action="/settings/privacy" class="form"
+              hx-post="/settings/privacy" hx-swap="none">
+        {{/* hx-swap="none" because there is nothing on this page to replace.
+             The member just set these controls, so the form already shows the
+             right values — the only thing missing is confirmation, and that
+             arrives as an out-of-band notice. htmx applies out-of-band swaps
+             even when the primary swap is none. */}}
             <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
             {{/* A hidden 0 before the checkbox so an unchecked box still posts
                  a value — otherwise turning the setting OFF would post nothing

@@ -158,6 +158,40 @@ func TestWithoutTheHeaderTheSameEndpointsStillRedirect(t *testing.T) {
 	}
 }
 
+// A settings save is notice-only: nothing on the page needs replacing, so the
+// entire response is the out-of-band confirmation. If that notice were missing
+// the member would press Save and see absolutely nothing happen — the worst
+// outcome of the three, because the setting DID save and they will press it
+// again.
+func TestASettingsSaveAnswersWithNothingButTheNotice(t *testing.T) {
+	ts := newTestSite(t)
+
+	for _, tc := range []struct {
+		path string
+		form url.Values
+	}{
+		{"/settings/privacy", url.Values{"private_profile": {"1"}}},
+		{"/settings/notifications", url.Values{}},
+	} {
+		rec := ts.postAs(t, ts.users.ID, tc.path, tc.form, hxHeader)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("POST %s = %d, want 200", tc.path, rec.Code)
+			continue
+		}
+		body := rec.Body.String()
+		for _, want := range []string{`hx-swap-oob="true"`, `id="notices"`, "notice--success"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("POST %s is missing %q — the member presses Save and "+
+					"sees nothing, having in fact saved:\n%s", tc.path, want, first(body, 200))
+			}
+		}
+		if looksLikeAWholePage(body) {
+			t.Errorf("POST %s returned the whole page", tc.path)
+		}
+	}
+}
+
 // ── the notice convention ───────────────────────────────────────────────
 
 // A refusal answers 422 and explains itself out-of-band.

@@ -22,7 +22,13 @@
         </div>
     </header>
     <div class="panel__body">
-        <form method="post" action="/settings/notifications" class="form">
+        <form method="post" action="/settings/notifications" class="form"
+              hx-post="/settings/notifications" hx-swap="none">
+        {{/* hx-swap="none" because there is nothing on this page to replace.
+             The member just set these controls, so the form already shows the
+             right values — the only thing missing is confirmation, and that
+             arrives as an out-of-band notice. htmx applies out-of-band swaps
+             even when the primary swap is none. */}}
             <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
             {{range .Kinds}}
             <div class="form__group form__group--inline">
