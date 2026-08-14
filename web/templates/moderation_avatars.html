@@ -55,13 +55,17 @@
                     </p>
                     {{if not $.History}}
                     <div class="avatar-queue__actions">
-                        <form method="post" action="/moderation/avatars">
+                        <form method="post" action="/moderation/avatars"
+                              hx-post="/moderation/avatars" hx-target="closest li" hx-swap="outerHTML"
+                              hx-disabled-elt="find button">
                             <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
                             <input type="hidden" name="id" value="{{.ID}}">
                             <input type="hidden" name="action" value="approve">
                             <button class="button button--outlined" type="submit">Approve</button>
                         </form>
-                        <form method="post" action="/moderation/avatars">
+                        <form method="post" action="/moderation/avatars"
+                              hx-post="/moderation/avatars" hx-target="closest li" hx-swap="outerHTML"
+                              hx-disabled-elt="find button">
                             <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
                             <input type="hidden" name="id" value="{{.ID}}">
                             <input type="hidden" name="action" value="clear">

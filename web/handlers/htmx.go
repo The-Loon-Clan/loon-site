@@ -79,6 +79,36 @@ func isHTMX(c *gin.Context) bool {
 	return c.GetHeader(hxRequestHeader) == "true"
 }
 
+// notice is a message an htmx response carries alongside its fragment.
+//
+// The problem it solves: a swap targets ONE card, and "you cannot vote on your
+// own avatar" does not belong inside that card. Before htmx these messages
+// travelled as ?err= on a redirect and the reloaded page rendered them; a
+// fragment response has no reload to carry them.
+//
+// Constructed only through noticeOK/noticeErr/noticeInfo so the kind and the
+// icon cannot disagree — a red notice with a tick in it is the kind of thing
+// that survives review because each half looks right on its own.
+type notice struct {
+	Kind string // maps to .notice--<kind>
+	Icon string // sprite id
+	Text string
+}
+
+func noticeOK(text string) notice   { return notice{Kind: "success", Icon: "check", Text: text} }
+func noticeErr(text string) notice  { return notice{Kind: "danger", Icon: "info", Text: text} }
+func noticeInfo(text string) notice { return notice{Kind: "info", Icon: "info", Text: text} }
+
+// statusRefused is the status a REFUSED action answers with.
+//
+// Not 200, which would tell every cache and scripted client that a rejected
+// vote was accepted, and not 400: the request was well-formed and the server
+// understood it, it was simply not allowed to happen. 422 also has a specific
+// meaning to htmx here — site_chrome.html configures it as a code that still
+// SWAPS, because the response body is the explanation and refusing to render it
+// would leave the member with a dead button and no reason.
+const statusRefused = http.StatusUnprocessableEntity
+
 // shellPage names a page whose template set is used to render a fragment that
 // is defined in the SHELL — base.html or site_chrome.html — rather than in a
 // page of its own.
@@ -110,21 +140,8 @@ func (w *web) renderFragment(c *gin.Context, page, fragment string, data map[str
 		data["CSRFToken"] = middleware.Token(c)
 	}
 
-	t := w.tmpls[page]
-	if site.DevReload {
-		// Same reasoning as renderStatus: re-read from disk so a template edit
-		// shows on refresh, and do NOT template.Must — a half-saved file must
-		// not kill the server mid-edit.
-		fresh, err := template.New(page).Funcs(w.tmplFuncs()).ParseFS(site.FS, pageFiles(page)...)
-		if err != nil {
-			w.log.Error("fragment parse", "page", page, "err", err)
-			c.String(http.StatusInternalServerError, "template %s: %v", page, err)
-			return
-		}
-		t = fresh
-	}
-	if t == nil {
-		c.String(http.StatusInternalServerError, "unknown page %q", page)
+	t, ok := w.fragmentSet(c, page)
+	if !ok {
 		return
 	}
 
@@ -133,4 +150,70 @@ func (w *web) renderFragment(c *gin.Context, page, fragment string, data map[str
 	if err := t.ExecuteTemplate(c.Writer, fragment, data); err != nil {
 		w.log.Error("render fragment", "page", page, "fragment", fragment, "err", err)
 	}
+}
+
+// renderFragmentWithNotice writes a fragment AND a message, in one response.
+//
+// The notice goes out FIRST and out-of-band: htmx applies an hx-swap-oob
+// element by its own id rather than into the request's target, so one response
+// updates the row that was clicked and the notice region above it.
+//
+// Ordering matters and is not arbitrary — htmx processes out-of-band elements
+// before swapping the remainder into the target, and putting the notice last
+// makes it part of the fragment on some swap styles, which would paste a site
+// notice inside a table row.
+func (w *web) renderFragmentWithNotice(c *gin.Context, status int, page, fragment string, data map[string]any, n notice) {
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Status(status)
+	t, ok := w.fragmentSet(c, page)
+	if !ok {
+		return
+	}
+	if err := t.ExecuteTemplate(c.Writer, "oob-notice", n); err != nil {
+		w.log.Error("render notice", "page", page, "err", err)
+		return
+	}
+	if fragment == "" {
+		return // notice only: nothing about the page changed
+	}
+	if data == nil {
+		data = map[string]any{}
+	}
+	if _, has := data["CSRFToken"]; !has {
+		data["CSRFToken"] = middleware.Token(c)
+	}
+	if err := t.ExecuteTemplate(c.Writer, fragment, data); err != nil {
+		w.log.Error("render fragment", "page", page, "fragment", fragment, "err", err)
+	}
+}
+
+// renderRefusal is the common case: nothing changed, and the member needs to be
+// told why.
+//
+// It answers 422 rather than 200 — see statusRefused. Kept as its own function
+// because "refused" is the outcome a handler is most likely to render with the
+// wrong status, there being no visible difference in a browser either way.
+func (w *web) renderRefusal(c *gin.Context, page, text string) {
+	w.renderFragmentWithNotice(c, statusRefused, page, "", nil, noticeErr(text))
+}
+
+// fragmentSet resolves a page's template set, re-reading from disk in dev.
+// Shared by renderFragment and renderFragmentWithNotice so the two cannot
+// diverge on which set they execute against.
+func (w *web) fragmentSet(c *gin.Context, page string) (*template.Template, bool) {
+	if site.DevReload {
+		fresh, err := template.New(page).Funcs(w.tmplFuncs()).ParseFS(site.FS, pageFiles(page)...)
+		if err != nil {
+			w.log.Error("fragment parse", "page", page, "err", err)
+			c.String(http.StatusInternalServerError, "template %s: %v", page, err)
+			return nil, false
+		}
+		return fresh, true
+	}
+	t := w.tmpls[page]
+	if t == nil {
+		c.String(http.StatusInternalServerError, "unknown page %q", page)
+		return nil, false
+	}
+	return t, true
 }

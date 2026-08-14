@@ -104,6 +104,61 @@ Two traps in the container shape:
   by hand is inventing the row rather than reading it. Re-read through the
   *same query the page uses* so the swapped row is what a reload would draw.
 
+### 2b. Messages travel out-of-band, and refusals answer 422
+
+A swap targets one card. "You cannot vote on your own avatar" does not belong
+inside that card. Before htmx these messages rode along as `?err=` on a redirect
+and the reloaded page rendered them; a fragment response has no reload.
+
+So every page carries one empty region, and a fragment response may update it
+without touching the request's target:
+
+```html
+<div id="notices" aria-live="polite"></div>     <!-- base.html, once -->
+```
+
+```html
+<div id="notices" hx-swap-oob="true">…</div>    <!-- the response -->
+<li class="avatar-queue__item">…</li>
+```
+
+`hx-swap-oob="true"` tells htmx to apply that element **by its own id** rather
+than into the target, so one response updates the row that was clicked *and* the
+notice above it. It goes **first** in the response: htmx processes out-of-band
+elements before swapping the remainder, and a notice placed last becomes part of
+the fragment on some swap styles — a site notice pasted inside a table row.
+
+Never write that markup by hand. Use the helpers:
+
+```go
+w.renderFragmentWithNotice(c, http.StatusOK, page, "card", data, noticeOK("Avatar approved."))
+w.renderRefusal(c, page, "That form did not come from this page.")
+```
+
+An empty `fragment` argument means notice-only — nothing about the page changed.
+
+**Refusals answer 422, not 200.** A rejected vote returning 200 tells every
+cache and scripted client it was accepted. Not 400 either: the request was
+well-formed and understood, it simply was not allowed. 422 is also configured in
+`htmx-config` as a code that still **swaps**, because the body *is* the
+explanation and htmx's default of ignoring 4xx would leave a dead button and no
+reason. `error:false` keeps it out of the console — a refusal the server
+intended is not a client error.
+
+Note `responseHandling` in the meta tag repeats htmx's own defaults: supplying
+the key replaces the whole array rather than adding to it, and first match wins,
+so the 422 rule sits before `[45]..`.
+
+### 2c. Every branch needs an htmx answer
+
+htmx follows redirects on its own request and swaps whatever comes back. A
+handler that answers *some* paths with a fragment and the rest with a redirect
+will paste an entire rendered page inside a `<li>` on those paths.
+
+So converting a handler means converting **every** `c.Redirect` in it, including
+the error paths nobody exercises. `avatarmod_web.go` has four and all four are
+converted; `communityModVote` has ten and is not converted yet.
+
 ### 3. A swappable region is a shared partial, used by both paths
 
 One `{{define}}`, in its own file, registered in `sharedPartials`. The page
@@ -190,32 +245,16 @@ by an existing decision recorded at the top of `browse.html`.
 **Convert — settings (11 forms).** `settings_security.html` alone has six;
 saving any one of them reloads the other five.
 
-**Blocked, not merely unconverted — the moderation surfaces.** These look like
-the container shape and are not safely convertible yet, for a reason worth
-writing down before somebody tries it and half-succeeds.
+**Avatar moderation is converted** — all four of its `c.Redirect` branches,
+including the two nobody exercises. It is the reference for a handler whose
+success case *removes* the row: the fragment is empty and the notice carries the
+outcome, which is exactly the case the out-of-band convention exists for, since
+an empty swap says nothing on its own.
 
-htmx follows redirects on its own request and swaps whatever comes back. A
-handler that answers *some* paths with a fragment and the rest with a redirect
-will therefore paste an entire rendered page inside a `<li>` on those paths.
-The conversion is only complete when **every** branch has an htmx answer:
-
-| handler | `c.Redirect` branches |
-| --- | --- |
-| `communityModVote` | **10** |
-| avatar moderation | 4 |
-
-Most of those branches carry a message — `?err=you+cannot+vote+on+your+own+avatar`,
-`?done=removed` — and the page renders it as a notice. A fragment swap has
-nowhere to put that: the target is one card, and the notice belongs outside it.
-
-**The missing piece is an error/notice convention**, and it does not exist in
-this document yet. htmx offers the machinery (an out-of-band swap at a notice
-region, or `HX-Retarget`); what is missing is the decision about which, applied
-once, so twenty handlers do not each invent it. Design that first, then
-moderation is mechanical.
-
-Until then these stay full page posts, which is correct behaviour rather than
-missing work.
+**`communityModVote` is not.** Ten redirect branches, several with distinct
+messages and one that resolves the item outright rather than recording a vote.
+The convention now exists to convert it with; the work is reading ten branches
+carefully, which is not the same as it being hard.
 
 **Do not convert — session transitions (7 forms).** `login`, `register`,
 `logout`, `reset`, `forgot`, `login_2fa`. These change who you are, and that

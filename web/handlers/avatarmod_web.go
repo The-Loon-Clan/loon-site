@@ -187,6 +187,10 @@ func (w *web) avatarModAction(c *gin.Context) {
 	in, _ := readAvatarModInput(c)
 	id := in.ID
 	if id <= 0 {
+		if isHTMX(c) {
+			w.renderRefusal(c, "moderation_avatars.html", "That form did not come from this page.")
+			return
+		}
 		c.Redirect(http.StatusFound, "/moderation/avatars")
 		return
 	}
@@ -202,6 +206,10 @@ func (w *web) avatarModAction(c *gin.Context) {
 		// again, which is the honest cost of the action.
 		if _, err := w.clearAvatar(ctx, w.data.DB(), id); err != nil {
 			w.log.Error("moderation clear avatar", "user", id, "actor", actor.ID, "err", err)
+			if isHTMX(c) {
+				w.renderRefusal(c, "moderation_avatars.html", "That avatar could not be cleared.")
+				return
+			}
 			c.Redirect(http.StatusFound, "/moderation/avatars")
 			return
 		}
@@ -212,12 +220,25 @@ func (w *web) avatarModAction(c *gin.Context) {
 		if err := markAvatarReviewed(ctx, w.data.DB(), id); err != nil {
 			w.log.Error("mark avatar reviewed", "user", id, "err", err)
 		}
+		// The row leaves the queue either way, so the fragment is empty and the
+		// notice carries the outcome — which is the whole point of the
+		// out-of-band convention: an empty swap says nothing on its own.
+		if isHTMX(c) {
+			w.renderFragmentWithNotice(c, http.StatusOK, "moderation_avatars.html", "", nil,
+				noticeOK("Avatar cleared."))
+			return
+		}
 		c.Redirect(http.StatusFound, "/moderation/avatars?done=cleared")
 	default:
 		if err := markAvatarReviewed(ctx, w.data.DB(), id); err != nil {
 			w.log.Error("mark avatar reviewed", "user", id, "err", err)
 		}
 		w.log.Info("avatar approved", "user", id, "actor", actor.ID, "actor_name", actor.Username)
+		if isHTMX(c) {
+			w.renderFragmentWithNotice(c, http.StatusOK, "moderation_avatars.html", "", nil,
+				noticeOK("Avatar approved."))
+			return
+		}
 		c.Redirect(http.StatusFound, "/moderation/avatars?done=approved")
 	}
 }

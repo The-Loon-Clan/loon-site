@@ -41,6 +41,12 @@
             {{/* A <div>, not a <p>: the resend <form> inside would auto-close a
                  paragraph and orphan the trailing text. */}}
             {{template "verify-notice" .}}
+            {{/* Where an htmx handler puts a message. Empty on a normal page
+                 load — the server-rendered notices elsewhere are unaffected —
+                 and filled by an out-of-band swap when a fragment response
+                 carries one. aria-live so a screen reader is told, since
+                 nothing navigated and there is no new page to announce. */}}
+            <div id="notices" aria-live="polite"></div>
             {{template "content" .}}
         </article>
         {{with $right}}<aside class="sidebar sidebar--right">{{template "widget-region" .}}</aside>{{end}}
@@ -89,4 +95,22 @@
     <span>Please verify your email &mdash; <form method="post" action="/verify/resend" style="display:inline;margin:0" hx-post="/verify/resend" hx-target="closest .notice" hx-swap="outerHTML" hx-disabled-elt="find button"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button type="submit" class="button button--text button--sm">resend link</button></form>.</span>
 </div>
 {{end}}
+{{end}}
+
+{{/* The out-of-band half of a fragment response.
+
+     hx-swap-oob="true" tells htmx to apply this element by its OWN id rather
+     than into the request's target — so one response updates the card that was
+     clicked AND the notice region above it. That is the whole reason this
+     convention exists: the swap target is one row, and "you cannot vote on your
+     own avatar" does not belong inside that row.
+
+     Rendered by renderFragmentWithNotice, never written by hand. */}}
+{{define "oob-notice"}}
+<div id="notices" aria-live="polite" hx-swap-oob="true">
+    <p class="notice notice--{{.Kind}}">
+        <svg class="icon notice__icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>
+        <span>{{.Text}}</span>
+    </p>
+</div>
 {{end}}

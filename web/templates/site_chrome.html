@@ -92,7 +92,17 @@
          for a filter click, and the browser paints a bare results table where
          the site used to be. web/handlers/htmx.go refuses the same request a
          second way, so this does not rely on the client honouring config. */}}
-    <meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"disableSelector":"[hx-disable], [data-hx-disable], .prose","historyCacheSize":0,"historyRestoreAsHxRequest":false}'>
+    {{/* responseHandling repeats htmx's defaults because supplying the key
+         REPLACES the whole array rather than adding to it — the 204 and [23]..
+         and [45].. rules below are htmx's own, unchanged, and only the 422 line
+         is ours. It sits before [45].. because the first match wins.
+
+         422 is what a REFUSED action answers with (web/handlers/htmx.go). It
+         has to swap: the body is the explanation, and htmx's default of not
+         rendering 4xx would leave the member with a button that did nothing and
+         no reason why. error:false keeps it off the console — a refusal the
+         server intended is not a client error to be reported. */}}
+    <meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"disableSelector":"[hx-disable], [data-hx-disable], .prose","historyCacheSize":0,"historyRestoreAsHxRequest":false,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"422","swap":true,"error":false},{"code":"[45]..","swap":false,"error":true}]}'>
     <link rel="stylesheet" href="{{asset "/static/css/bootstrap.min.css"}}">
     <link rel="stylesheet" href="{{asset "/static/css/tokens.css"}}">
     <link rel="stylesheet" href="{{asset .Theme.Href}}">
