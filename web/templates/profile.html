@@ -357,13 +357,7 @@
                     Community
                 </h2>
                 <div class="panel__actions">
-                    <form method="post" action="/u/{{$.Subject.Username}}/follow" style="display:contents">
-                        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
-                        <button class="button button--outlined button--sm" type="submit"
-                                aria-pressed="{{if $.Following}}true{{else}}false{{end}}">
-                            {{if $.Following}}Following{{else}}Follow{{end}}
-                        </button>
-                    </form>
+                    {{template "follow-button" (dict "Username" $.Subject.Username "Following" $.Following "CSRFToken" $.CSRFToken)}}
                 </div>
             </header>
         </section>

@@ -31,8 +31,17 @@ func (w *web) followToggle(c *gin.Context) {
 		c.String(http.StatusNotFound, "no such user")
 		return
 	}
-	if _, err := w.data.ToggleFollow(c.Request.Context(), viewer.ID, subject.ID); err != nil {
+	on, err := w.data.ToggleFollow(c.Request.Context(), viewer.ID, subject.ID)
+	if err != nil {
 		w.log.Error("toggle follow", "followee", subject.ID, "err", err)
+	}
+	// State from the write's own return, not a re-read — docs/ASYNC.md rule 7.
+	if isHTMX(c) {
+		w.renderFragment(c, "profile.html", "follow-button", map[string]any{
+			"Username":  name,
+			"Following": on,
+		})
+		return
 	}
 	c.Redirect(http.StatusSeeOther, "/u/"+name)
 }

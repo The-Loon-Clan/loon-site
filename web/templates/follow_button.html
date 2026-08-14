@@ -1,0 +1,19 @@
+{{/* The Follow/Following toggle. Same reasoning as bookmark_button.html: one
+     definition, rendered both by the profile page and by the POST handler
+     answering htmx, so the swapped-in markup cannot drift from the markup it
+     replaces.
+
+     Expects: .Username .Following .CSRFToken */}}
+{{define "follow-button"}}
+<form method="post" action="/u/{{.Username}}/follow" style="display:contents"
+      hx-post="/u/{{.Username}}/follow"
+      hx-target="this"
+      hx-swap="outerHTML"
+      hx-disabled-elt="find button">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    <button class="button button--outlined button--sm" type="submit"
+            aria-pressed="{{if .Following}}true{{else}}false{{end}}">
+        {{if .Following}}Following{{else}}Follow{{end}}
+    </button>
+</form>
+{{end}}
