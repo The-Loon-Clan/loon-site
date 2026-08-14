@@ -26,7 +26,7 @@ export GOWORK = off
 # an aspiration: its job is to stop a regression, and a floor nobody can meet
 # gets deleted rather than met. Raise it when the number rises.
 #
-# Set for a run with NO backing services — 22.3% on a laptop, ~26% with the
+# Set for a run with NO backing services — 23.0% on a laptop, 31.6% with the
 # Postgres and Redis that CI provides, because the storage integration tests
 # take that package from 3.6% to 38%.
 #

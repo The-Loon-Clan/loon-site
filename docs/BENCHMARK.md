@@ -235,8 +235,8 @@ The ratio is good; the distribution is not.
 | `internal/middleware` | 87% |
 | `internal/markdown` | 88% |
 | `internal/storage` | 38% (3.6% without a database) |
-| `web/handlers` | 19.5% |
-| **total** | **23.4% with services, 19.6% without** |
+| `web/handlers` | 31.0% (22.1% without a database) |
+| **total** | **31.6% with services, 23.0% without** |
 
 Both PHP projects separate `tests/Unit` from `tests/Feature`, and NNTmux adds
 `tests/Integration` and `tests/Install`. Here, unit and integration tests live
@@ -314,7 +314,10 @@ Ordered so each step makes the next one safe.
    advisories.
 
 **Before calling it production-ready**
-5. `web/handlers` coverage past 40% via the consumer-interface pattern.
+5. `web/handlers` coverage past 40%. 19.5% -> 31.0%, most of it from ONE
+   change: a harness that boots a real web against a real database, which is
+   where the uncovered mass always was. The remaining gap is the /admin and
+   /moderation trees, wired with the plugin runtime.
 6. Input validation as named, tested units — the mechanism is in place; the remaining endpoints are not.
 7. ~~`docs/adr/` for the decisions already argued in comments.~~ (done)
 8. ~~Split `views.go`.~~ (done — 1,750 → 1,149)
