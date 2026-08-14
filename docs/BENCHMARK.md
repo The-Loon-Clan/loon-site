@@ -302,8 +302,11 @@ reference host stop demonstrating what a host has to implement.
 Ordered so each step makes the next one safe.
 
 **Before a 0.1.0 tag**
-1. `CHANGELOG.md`, annotated tags, `docs/UPGRADING.md` with the migration guarantee.
-2. A release workflow publishing a versioned image to ghcr.io.
+1. ~~`CHANGELOG.md`, `docs/UPGRADING.md`, and a version the binary reports~~
+   (done). Remaining: push the first tag — a decision, not a task.
+2. ~~A release workflow publishing a versioned image to ghcr.io.~~ (done —
+   it also verifies the tag with the same service containers CI uses, and
+   lifts release notes from the changelog.)
 3. ~~`LOON_ROLE=web|worker` so a scaled deployment does not run N schedulers.~~ (done)
 4. ~~`make vuln` on the critical path in CI, plus a scheduled run.~~ — both
    were already true when this list was written; the claim they were missing
