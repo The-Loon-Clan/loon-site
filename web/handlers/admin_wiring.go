@@ -54,18 +54,10 @@ func wireAdminAndViews(
 	// page reports whether it is in play.
 	redisClient *goredis.Client,
 ) {
-	moderation := engine.Group("/moderation", wsrv.auth.Require(core.RoleUser)...)
-	adminOnly := wsrv.auth.Require(core.RoleAdmin)
-	moderation.GET("", append(adminOnly, wsrv.communityModPage)...)
-	moderation.POST("/vote", append(adminOnly, wsrv.communityModVote)...)
-	staffOnly := wsrv.auth.Require(core.RoleMod)
-	moderation.GET("/avatars", append(staffOnly, wsrv.avatarModPage)...)
-	moderation.POST("/avatars", append(staffOnly, wsrv.avatarModAction)...)
-	// The cheat-detection queue, beside the avatar queue on purpose: a queue
-	// is only worked if it is somewhere a moderator already goes. Same staff
-	// gate — reading a flag is a moderation act, and the flags name members.
-	moderation.GET("/cheat", append(staffOnly, wsrv.cheatQueuePage)...)
-	moderation.POST("/cheat/clear", append(staffOnly, wsrv.cheatQueueClear)...)
+	// Moderation is not administration — different gate, different nav — and
+	// keeping it here made the whole surface unreachable from any test. See
+	// moderation_wiring.go.
+	mountModeration(engine, wsrv)
 
 	admin := engine.Group("/admin", wsrv.auth.Require(core.RoleAdmin)...)
 	// Access modes + the page map (accessadmin_web.go).

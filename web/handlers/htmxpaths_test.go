@@ -115,10 +115,13 @@ func TestAnHTMXRequestIsNeverAnsweredWithARedirect(t *testing.T) {
 	}{
 		// Deliberately invalid input: these take the error branches, which are
 		// exactly the paths a manual click never reaches.
-		// NOTE: /moderation/* is deliberately absent. Those routes are not
-		// mounted by w.mount — they need the plugin runtime, as harness_test.go
-		// says — so a request here 404s and would assert nothing. Their branch
-		// coverage is the source-level count in htmx_test.go instead.
+		// /moderation/* is reachable now. It was not when this file was
+		// written — the routes lived inside wireAdminAndViews, which wants a
+		// plugin runtime — and the eleven branches converted there had never
+		// been exercised by a request. Extracting mountModeration fixed that;
+		// these are the refusal paths, which are the ones no click reaches.
+		{"moderation vote, bad id", "/moderation/vote", url.Values{"id": {"0"}, "vote": {"keep"}}},
+		{"avatar moderation, bad id", "/moderation/avatars", url.Values{"id": {"0"}, "action": {"approve"}}},
 		{"wishlist, bad id", "/wishlist/0", url.Values{"action": {"remove"}}},
 		{"undo, junk token", "/undo", url.Values{"token": {"not-a-token"}, "next": {"/"}}},
 		{"bookmark, unknown release", "/release/999999999/bookmark", url.Values{}},
@@ -147,6 +150,8 @@ func TestWithoutTheHeaderTheSameEndpointsStillRedirect(t *testing.T) {
 	for _, tc := range []struct{ name, path string }{
 		{"undo", "/undo"},
 		{"wishlist", "/wishlist/0"},
+		{"moderation vote", "/moderation/vote"},
+		{"avatar moderation", "/moderation/avatars"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := ts.postAs(t, ts.users.ID, tc.path, url.Values{"id": {"0"}, "token": {"x"}}, nil)

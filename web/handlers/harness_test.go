@@ -90,6 +90,11 @@ func newTestSite(t *testing.T) *testSite {
 	e.Use(sessions.Sessions(sessionCookieName, mustSessionStore(t, st.sessionSecret)))
 	e.Use(middleware.CSRF())
 	w.mount(e)
+	// The moderation surface, which w.mount does not register: it lived inside
+	// wireAdminAndViews until this test needed it, and that function wants a
+	// plugin runtime this harness has no business building. mountModeration
+	// needs neither — see moderation_wiring.go.
+	mountModeration(e, w)
 
 	// Registered ONCE, here. It was in getAs, which gin panics on the second
 	// call — a duplicate route is a programming error and gin says so loudly.
