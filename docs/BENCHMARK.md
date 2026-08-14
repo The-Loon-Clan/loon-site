@@ -208,10 +208,12 @@ directory. Nothing here needs rearranging.
 
 Three specific observations:
 
-- **`views.go` is 1,750 lines** and holds the `web` struct, the template set,
-  the gates, the helpers and several page handlers. It is the one file where
-  "what is this file about" has no single answer. Splitting it along the lines
-  already implied by its own section comments would cost nothing.
+- **`views.go` was 1,750 lines** and held the `web` struct, the template set,
+  the gates, the helpers and several page handlers — the one file where "what
+  is this file about" had no single answer. Split along its own section
+  comments into `tmplfuncs.go` (the template FuncMap and the pure helpers
+  behind it) and `auth_web.go` (the pages reachable without a session), leaving
+  1,149. Pure movement: 51 functions before, 51 after.
 - **Interfaces are correctly placed but rare.** Go convention is that the
   consumer declares the interface, and `bookmarkList` and `bookmarkedRows` now
   do exactly that. Two handlers follow the pattern; the rest take the concrete
@@ -309,7 +311,7 @@ Ordered so each step makes the next one safe.
 5. `web/handlers` coverage past 40% via the consumer-interface pattern.
 6. Input validation as named, tested units — the mechanism is in place; the remaining endpoints are not.
 7. ~~`docs/adr/` for the decisions already argued in comments.~~ (done)
-8. Split `views.go`.
+8. ~~Split `views.go`.~~ (done — 1,750 → 1,149)
 9. Requests/bounties, as the largest missing feature loop.
 
 **Ongoing**
