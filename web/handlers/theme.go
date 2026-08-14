@@ -137,6 +137,15 @@ func (w *web) setTheme(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(themeCookieName, theme.Key, themeCookieMaxAge, "/", "",
 		os.Getenv("SECURE_COOKIES") == "1", false)
+	// Notice-only. The page already shows the new theme — the switcher's own
+	// script swapped the stylesheet the moment Apply was pressed — so there is
+	// nothing to replace and a redirect would throw away a repaint that has
+	// already happened. See docs/ASYNC.md.
+	if isHTMX(c) {
+		w.renderFragmentWithNotice(c, http.StatusOK, shellPage, "", nil,
+			noticeOK("Theme set to "+theme.Label+"."))
+		return
+	}
 	c.Redirect(http.StatusSeeOther, backLink(c, in.Next))
 }
 
