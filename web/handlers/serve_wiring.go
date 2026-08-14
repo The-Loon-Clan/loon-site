@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	goredis "github.com/redis/go-redis/v9"
+	"github.com/the-loon-clan/loon-site/internal/config"
 	"github.com/the-loon-clan/loon/core"
 )
 
@@ -31,13 +32,21 @@ func serve(engine *gin.Engine, wsrv *web, rt *core.Runtime, ctx context.Context,
 			stop()
 		}
 	}()
-	// Pull down the art of releases matched before local caching existed. Slow
-	// on purpose and cancelled with the process — see backfillCovers.
-	go wsrv.backfillCovers(ctx, 2*time.Second, logger)
-	// Give cover art to releases whose SERIES is already in the catalog. Costs
-	// no API call, so it is not paced by anyone's rate limit — see
-	// linkFromCatalog for why this runs ahead of the scraper's match job.
-	go wsrv.runLocalLinks(ctx, time.Minute, logger)
+	// Background catch-up work, on whichever process owns jobs.
+	//
+	// These are jobs in everything but name: they run on a timer, they take as
+	// long as they take, and nothing about them needs to be in the process
+	// answering requests. Running them per web replica would also mean three
+	// replicas fetching the same cover art three times.
+	if config.RunsJobs() {
+		// Pull down the art of releases matched before local caching existed.
+		// Slow on purpose and cancelled with the process — see backfillCovers.
+		go wsrv.backfillCovers(ctx, 2*time.Second, logger)
+		// Give cover art to releases whose SERIES is already in the catalog.
+		// Costs no API call, so it is not paced by anyone's rate limit — see
+		// linkFromCatalog for why this runs ahead of the scraper's match job.
+		go wsrv.runLocalLinks(ctx, time.Minute, logger)
+	}
 
 	logger.Info("loon site up",
 		"url", "http://localhost:8090/",

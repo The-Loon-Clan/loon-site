@@ -11,6 +11,7 @@ import (
 
 	"github.com/the-loon-clan/loon-baseline/sitemap"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
+	"github.com/the-loon-clan/loon-site/internal/config"
 	"github.com/the-loon-clan/loon/schedule"
 )
 
@@ -89,9 +90,15 @@ func (w *web) wireSitemap(engine *gin.Engine, baseURL string) {
 		"Regenerates sitemap.xml and its sub-sitemaps from the site's content sources, cached for serving.")
 	job.IntervalMin = sitemapIntervalMin
 	job.SetTrigger(func() { go w.runSitemap(context.Background(), gen, job) })
-	go schedule.ServiceLoop(context.Background(), job,
-		sitemapBootDelay, sitemapIntervalMin*time.Minute,
-		func(ctx context.Context) { w.runSitemap(ctx, gen, job) })
+	// REGISTERED everywhere, RUN only where jobs run. The registration has to
+	// happen in the web process too or /admin/jobs cannot list the job, and the
+	// "Run now" button has nothing to enqueue against — but the loop that
+	// regenerates the file belongs with the other background work.
+	if config.RunsJobs() {
+		go schedule.ServiceLoop(context.Background(), job,
+			sitemapBootDelay, sitemapIntervalMin*time.Minute,
+			func(ctx context.Context) { w.runSitemap(ctx, gen, job) })
+	}
 
 	// Serving is a cache read. The generator never touches HTTP, so a slow or
 	// failed regen degrades to a stale sitemap rather than a slow request.

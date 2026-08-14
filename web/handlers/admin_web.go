@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/the-loon-clan/loon-site/internal/config"
 	"github.com/the-loon-clan/loon/schedule"
 )
 
@@ -116,7 +117,32 @@ func (w *web) adminJobsControl(c *gin.Context) {
 	name := c.PostForm("name")
 	switch c.PostForm("action") {
 	case "trigger":
-		schedule.TriggerJob(name)
+		// "Run now" has to reach the process that OWNS the job, which is not
+		// necessarily this one.
+		//
+		// This used to call TriggerJob unconditionally, and that was correct
+		// while one process did everything. Split the roles and it quietly
+		// stops being: the admin page lives in the web process, so a local
+		// trigger either runs the job THERE — the work landing in the process
+		// meant to be answering requests — or, for a worker-only plugin whose
+		// job was never registered here, does nothing at all while still
+		// redirecting back with every appearance of success.
+		//
+		// So a process that does not run jobs enqueues instead, and the worker's
+		// poller drains it. Found by splitting the roles and pressing the
+		// button: the redirect said 303 and the guestbook job ran in the web
+		// process.
+		if config.RunsJobs() {
+			schedule.TriggerJob(name)
+		} else if w.jobQueue != nil {
+			if err := w.jobQueue.Request(c.Request.Context(), name); err != nil {
+				w.log.Error("enqueue job trigger", "job", name, "err", err)
+			} else {
+				w.log.Info("job trigger enqueued for the worker", "job", name)
+			}
+		} else {
+			w.log.Warn("run now requested with no worker queue available", "job", name)
+		}
 	case "pause":
 		schedule.PauseJob(name)
 	case "resume":

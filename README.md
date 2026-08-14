@@ -62,6 +62,7 @@ Nothing below is required to run the site.
 | `LOON_SITE_URL` | Absolute base baked into generated `.torrent` files. |
 | `LOON_SESSION_SECRET` | Session signing key. **Set this for anything reachable.** |
 | `LOON_TRUSTED_PROXIES` | Whose `X-Forwarded-For` to believe. Empty (the default) trusts none. |
+| `LOON_ROLE` | `all` (default), `web` or `worker` — whether this process serves pages, runs jobs, or both. |
 | `REDIS_ADDR` | Use Redis for the page cache and sessions instead of memory. |
 | `LOON_TRACKER` | Run the BitTorrent tracker (announce endpoints, passkeys, ratio). |
 | `LOON_CHEATCHECK` | Judge tracker readings and raise flags for staff review. |
@@ -133,6 +134,23 @@ exactly what you can run before pushing.
 `go.work` and your sibling checkouts take over from the pinned versions. The
 file is gitignored, and the container build sets `GOWORK=off`, so a workspace
 cannot leak into an image or into CI.
+
+**Jobs in their own process?** The crawler, the scraper, the sitemap rebuild
+and everything else scheduled can move to a container that serves no traffic:
+
+```sh
+LOON_ROLE=web docker compose -f docker-compose.yml -f compose.worker.yml up --build -d
+```
+
+Same image both times; only `LOON_ROLE` differs. Plugins declare which process
+kinds they run in and the framework drops the ones that do not match, so the
+scraper (worker-only) and the tracker (web and api) simply land in different
+containers. `LOON_ROLE=web` on the app is not optional — without it the app
+stays `all` and crawls alongside the worker.
+
+This matters more once the web tier is scaled: with everything in one process,
+`--scale app=3` runs the scheduler three times, so three containers crawl the
+same groups and race to write the same rows.
 
 **Behind a load balancer?** Sessions live in Redis when `REDIS_ADDR` is set, so
 no request is tied to a process and replicas need no sticky rule:

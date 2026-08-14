@@ -4,6 +4,7 @@ import (
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"context"
+	"github.com/the-loon-clan/loon-site/internal/config"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -136,6 +137,12 @@ func (w *web) startAvatarSweep(ctx context.Context, db storage.Conn, log *slog.L
 		if n > 0 || purged > 0 {
 			log.Info("avatar sweep", "files_removed", n, "undo_records_purged", purged)
 		}
+	}
+	// Deleting orphaned avatar files and expired undo records is maintenance,
+	// not request handling. Two replicas racing to delete the same files is
+	// harmless but pointless.
+	if !config.RunsJobs() {
+		return
 	}
 	go func() {
 		sweep()

@@ -1,0 +1,48 @@
+# Jobs in their own process.
+#
+#   LOON_ROLE=web docker compose -f docker-compose.yml -f compose.worker.yml up --build -d
+#
+# The site keeps answering on 8090; the crawler, the scraper, the sitemap
+# regeneration and every other scheduled job move to a container that serves no
+# traffic. Both run the same image — the only difference is LOON_ROLE.
+#
+# WHY IT MATTERS more since the load balancer arrived: `--scale app=3` with
+# everything in one process runs the scheduler three times, so three containers
+# crawl the same groups and race each other to write the same rows. Splitting
+# the roles is what makes scaling the web tier safe.
+#
+# LOON_ROLE=web on the command line is not decoration. Without it the app stays
+# "all" and runs the jobs too — you would have a worker AND a web process both
+# crawling, which is the exact problem this file exists to solve. Compose cannot
+# set it conditionally from here, so it is stated at the call site where it can
+# be seen.
+
+services:
+  app:
+    environment:
+      # Defaults to "all" so plain `docker compose up` is unchanged. Set to web
+      # when running this overlay.
+      LOON_ROLE: "${LOON_ROLE:-all}"
+
+  worker:
+    # extends, rather than a second copy of the environment block. The app
+    # service carries ~15 environment variables, and a duplicated list is one
+    # that drifts: somebody adds TMDB_API_KEY to app, the worker does not get
+    # it, and the metadata job silently reports "not configured" on a site whose
+    # operator can see the key in their compose file.
+    extends:
+      file: docker-compose.yml
+      service: app
+    environment:
+      LOON_ROLE: worker
+    # NOT published. The worker still listens — /healthz has to answer, or an
+    # orchestrator cannot tell a wedged worker from a busy one — but nothing
+    # routes to it, and publishing 8090 twice is a port conflict.
+    ports: !override []
+    # extends deliberately does not copy depends_on, so it is restated. Without
+    # it the worker can start before Postgres accepts connections and die on
+    # first boot, which reads as a broken image rather than a race.
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped

@@ -349,8 +349,26 @@ func Main() {
 	}
 	logger.Info("usenet staging", "mode", usenetStaging, "redis", redisClient != nil)
 
+	// Which kind of process this is, and therefore which plugins provision here.
+	//
+	// core.Boot drops any plugin that does not run in this kind, so the scraper
+	// (worker-only) and the tracker (web and api) end up in different processes
+	// without either knowing about the other. "all" is the default and bypasses
+	// the filter entirely — one container that does everything, which is what
+	// `docker compose up` still gives you.
+	role := config.Role()
+	if !config.RoleIsValid() {
+		// Ignored, not fatal — but said out loud. A silently-ignored role is how
+		// a deployment ends up with two web processes and no worker, which looks
+		// exactly like a working site until somebody notices the crawler has not
+		// run for a week.
+		logger.Warn("LOON_ROLE is not one of all/web/worker — running as all",
+			"mode", os.Getenv("LOON_ROLE"))
+	}
+	logger.Info("process role", "mode", role, "runs_jobs", config.RunsJobs())
+
 	c, err := core.New(core.Deps{
-		Process:   "all",
+		Process:   role,
 		Users:     usersSvc,
 		Auth:      auth,
 		RBAC:      core.NewRBAC(),
@@ -543,14 +561,32 @@ func Main() {
 
 	// Drain the cross-process run-now queue: claim requests another process
 	// enqueued and run the job locally via schedule.TriggerJob.
-	go jobtrigger.StartPoller(ctx, st.jobTriggers, 3*time.Second, func(name string) bool {
-		ran := schedule.TriggerJob(name)
-		logger.Info("job trigger drained", "job", name, "ran", ran)
-		return ran
-	})
+	//
+	// WORKER SIDE ONLY, and this is the pairing that makes "Run now" work at
+	// all once the processes are split. The button lives on an admin page in
+	// the web process, where the job does not exist to be triggered; it enqueues
+	// instead, and the process that owns the job picks it up here. A web process
+	// draining this queue would claim the request and then find nothing to run,
+	// so the job would be marked handled and never execute.
+	if !config.RunsJobs() {
+		// This process serves the admin page but owns no jobs, so "Run now"
+		// hands the request to the one that does.
+		wsrv.jobQueue = st.jobTriggers
+	}
+	if config.RunsJobs() {
+		go jobtrigger.StartPoller(ctx, st.jobTriggers, 3*time.Second, func(name string) bool {
+			ran := schedule.TriggerJob(name)
+			logger.Info("job trigger drained", "job", name, "ran", ran)
+			return ran
+		})
+	}
 
-	// Beat this instance's presence every 15s (kind "all" — single-process demo).
-	go heartbeat.StartReporter(ctx, st.heartbeat, heartbeat.HostID("all"), "all", "loon-demo", 15*time.Second)
+	// Beat this instance's presence every 15s, under its own role, so the
+	// service-heartbeat table distinguishes a web replica from the worker. With
+	// every process reporting "all" they overwrite each other and the table
+	// answers "is something alive" when the question is "is the WORKER alive".
+	go heartbeat.StartReporter(ctx, st.heartbeat,
+		heartbeat.HostID(role), role, "loon-demo", 15*time.Second)
 
 	// user_display is the plugin-facing identity contract, and the baseline
 	// builds it with avatar_path and reputation_tier stubbed to constants until

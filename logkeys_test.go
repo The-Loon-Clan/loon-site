@@ -92,6 +92,7 @@ var logKeys = map[string]string{
 	// outcome
 	"err":                 "the error. ALWAYS this spelling, never \"error\"",
 	"ran":                 "whether something ran",
+	"runs_jobs":           "whether this process is the one running scheduled work",
 	"enabled":             "whether a feature is on",
 	"opened":              "whether something was opened",
 	"repeated":            "how many times an entry was suppressed",

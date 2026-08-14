@@ -17,6 +17,10 @@ project and one.
 
 ### Added
 
+- `LOON_ROLE=web|worker` and `compose.worker.yml`: scheduled work — the usenet
+  crawler, the scraper, sitemap regeneration, cover backfill, the avatar
+  sweep — can run in a container that serves no traffic. Default stays `all`,
+  so a plain `docker compose up` is unchanged.
 - Load-balancer example: `compose.lb.yml` runs nginx in front of N app
   replicas. Sessions live in Redis, so no sticky rule is needed.
 - `LOON_TRUSTED_PROXIES` — which proxy's `X-Forwarded-For` to believe. Empty by
@@ -60,6 +64,15 @@ project and one.
   which is the case that scan exists for.
 - Seven reachable vulnerabilities, four of them in `golang.org/x/net/html` —
   the parser the HTML sanitiser is built on. All fixed; `make vuln` runs in CI.
+- **"Run now" ran the job in the wrong process.** The admin button called
+  TriggerJob locally, which was right while one process did everything. With
+  the roles split it either ran the work inside the web process or, for a
+  worker-only plugin whose job was not registered there, did nothing at all
+  while still redirecting as though it had. A process that runs no jobs now
+  enqueues, and the worker drains it.
+- The guestbook example plugin declared no process kinds, so it defaulted to
+  web-only and started its stats loop inside the web process — the worked
+  example teaching the pattern that puts jobs where requests are served.
 - `make fmt` reported "gofmt clean" when the formatter failed to run at all,
   because the target captured stdout and ignored the exit status.
 - `make sql` called bare `python`, which does not exist on many Linux

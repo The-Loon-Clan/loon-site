@@ -58,6 +58,14 @@ const sessionCookieName = "mysession"
 // Users live in a real Postgres table (loon-baseline users.PGStore), seeded
 // with alice/bob (password == username).
 type web struct {
+	// jobQueue enqueues a "run now" for the process that owns the job.
+	//
+	// nil in a process that runs its own jobs, where triggering is a local
+	// call and no queue is needed — see adminJobsControl.
+	jobQueue interface {
+		Request(ctx context.Context, jobName string) error
+	}
+
 	store     users.Store    // loon-baseline user store (Postgres reference impl)
 	flow      authflow.Flow  // register / authenticate / change-password
 	resetFlow authtoken.Flow // password reset + email verification (token flows)

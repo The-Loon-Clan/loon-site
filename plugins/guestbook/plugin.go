@@ -61,6 +61,18 @@ func (p *Plugin) Metadata() core.Metadata {
 		Version:     "1.0.0",
 		Description: "Sign the guestbook, earn points. The loon hello-world.",
 		Migrations:  migrations,
+		// Both kinds, because this plugin does both things: it serves a page
+		// and it runs a job. Declaring nothing defaults to web-only, which is
+		// the right answer for a plugin that only draws UI and the WRONG one
+		// here — the stats loop would run inside the process answering
+		// requests, and once the web tier is scaled it would run once per
+		// replica.
+		//
+		// Declaring both is only half of it; see Provision and Start, where
+		// each half is guarded so neither runs in the process that should not
+		// have it. That pairing is the pattern every non-trivial plugin here
+		// follows, which is why the hello-world had better follow it too.
+		Processes: []string{"web", "worker"},
 	}
 }
 
@@ -71,22 +83,30 @@ func (p *Plugin) Provision(c *core.Core) error {
 		return fmt.Errorf("guestbook: config: %w", err)
 	}
 
-	g := c.Router.Mount("guestbook")
-	if g == nil {
-		return fmt.Errorf("guestbook: router not available")
+	// Routes only where there is somebody to serve them. A worker mounting
+	// routes is harmless but misleading: /admin/plugins would list endpoints on
+	// a process nothing can reach.
+	if c.Process == "web" || c.Process == "all" {
+		g := c.Router.Mount("guestbook")
+		if g == nil {
+			return fmt.Errorf("guestbook: router not available")
+		}
+		g.GET("", p.list)
+
+		signed := g.Group("")
+		signed.Use(c.Auth.RequireUser(core.RoleUser)...)
+		signed.POST("", p.sign)
+
+		// The browsable guestbook page (views.go) — grouped under Community in
+		// the site nav next to the stats plugin's page.
+		if err := p.registerViews(c); err != nil {
+			return err
+		}
 	}
-	g.GET("", p.list)
 
-	signed := g.Group("")
-	signed.Use(c.Auth.RequireUser(core.RoleUser)...)
-	signed.POST("", p.sign)
-
-	// The browsable guestbook page (views.go) — grouped under Community in
-	// the site nav next to the stats plugin's page.
-	if err := p.registerViews(c); err != nil {
-		return err
-	}
-
+	// Registered in EVERY process, run in only one. The admin jobs page lives
+	// in the web process, and it can only list a job — or offer a "run now"
+	// button to enqueue against — if the job exists there to be listed.
 	p.job = c.Scheduler.RegisterJob("guestbook: stats", "logs the entry count")
 	return nil
 }
@@ -95,7 +115,14 @@ func (p *Plugin) Start(ctx context.Context) error {
 	// A manual trigger so "run now" works — including a cross-process run-now
 	// drained from the jobtrigger queue by a worker (see the demo's poller).
 	p.job.SetTrigger(func() { go p.runStats(ctx) })
-	p.core.Scheduler.RunLoop(ctx, p.job, 5*time.Second, time.Minute, p.runStats)
+
+	// The LOOP belongs to whichever process owns jobs. Without this guard the
+	// stats job ran in the web process, which is how it was found: with the
+	// roles split, the worker ran eight jobs and the web process ran exactly
+	// one — this one.
+	if p.core.Process == "worker" || p.core.Process == "all" {
+		p.core.Scheduler.RunLoop(ctx, p.job, 5*time.Second, time.Minute, p.runStats)
+	}
 	return nil
 }
 

@@ -64,16 +64,21 @@ Every one of the three separates the web process from the work:
 | UNIT3D | nginx + php | queue | — | meilisearch | mailpit |
 | NNTmux | webapp | worker | scheduler | manticore + elasticsearch | mailpit |
 | NexusPHP | openresty + php | queue | scheduler + cleanup | — | — |
-| **loon-site** | **app (all of it)** | — | — | — | — |
+| **loon-site** | **app** | **worker** | **worker** | — | — |
 
-Jobs run in-process here. That is a defensible choice for a reference host and
-an indefensible one for an indexer that crawls NNTP: a long assembly job and a
-page request compete for the same process, and `docker compose up --scale app=3`
-now runs the scheduler three times. The load-balancer overlay added this session
-makes that concrete rather than theoretical.
+**Done.** `LOON_ROLE=web|worker` splits them; `compose.worker.yml` runs the
+second container off the same image. The default stays `all`, so a plain
+`docker compose up` is still one container that does everything.
 
-**What to do:** the seam for this is already built and already honoured — and
-the host opts out of it. Plugins declare `Processes: []string{"web", "api"}`,
+Verified by running both: the worker executed eight jobs including the usenet
+crawler, and the web process executed none. It also turned up two things that
+only appear once the roles are split — "Run now" was triggering jobs locally,
+so the button ran work inside the web process (or, for a worker-only plugin,
+silently did nothing while redirecting as though it had); and the guestbook
+example plugin declared no process kinds, so the hello-world was teaching the
+pattern that puts a job loop in the web process.
+
+The seam was already built and already honoured — the host was opting out of it. Plugins declare `Processes: []string{"web", "api"}`,
 and `core.Boot` drops any plugin that does not run in the current process kind.
 The host then passes `Process: "all"` ([main.go:353](../web/handlers/main.go)),
 which `boot.go` treats as the explicit bypass:
@@ -82,10 +87,12 @@ which `boot.go` treats as the explicit bypass:
 if c.Process != "" && c.Process != "all" {   // core/boot.go:56
 ```
 
-So the change is small and mostly compose-side: read the role from the
-environment, pass it through instead of the constant, and add a `worker`
-service to the compose file. The framework does the rest, and already logs each
-plugin it skips.
+That estimate held: the host reads the role from the environment and passes it
+through, and the framework does the rest — it logs each plugin it skips, and
+the plugins had already declared their kinds (the scraper worker-only, the
+tracker web and api). The host-side background loops needed the same gate:
+cover backfill, local-link matching, sitemap regeneration and the avatar sweep
+are jobs in everything but name.
 
 ### 2. No release engineering
 
@@ -274,7 +281,7 @@ Ordered so each step makes the next one safe.
 **Before a 0.1.0 tag**
 1. `CHANGELOG.md`, annotated tags, `docs/UPGRADING.md` with the migration guarantee.
 2. A release workflow publishing a versioned image to ghcr.io.
-3. `LOON_ROLE=web|worker` so a scaled deployment does not run N schedulers.
+3. ~~`LOON_ROLE=web|worker` so a scaled deployment does not run N schedulers.~~ (done)
 4. `make vuln` on the critical path in CI, plus a scheduled run.
 
 **Before calling it production-ready**
