@@ -109,6 +109,11 @@ Start reading at [`web/handlers/main.go`](web/handlers/main.go) (what a host
 does at boot), then [`plugins/guestbook/`](plugins/guestbook/) (own schema,
 routes, points, a job — the hello-world for writing your own).
 
+The decisions that make this tree look unusual are written down in
+[docs/adr/](docs/adr/): SQL as a defined type so injection is a compile error,
+`internal/` rather than `pkg/`, why the module root holds only the embed, and
+why no proxy is trusted by default.
+
 ## Development
 
 ```sh

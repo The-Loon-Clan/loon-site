@@ -162,10 +162,12 @@ in exceptional quantity, but it is distributed across comments and commit
 messages, so a decision can only be found by someone who already knows where to
 look.
 
-**What to do:** `docs/adr/`, retrofitting the four decisions already argued at
-length in the code — the defined `storage.SQL` type; `internal/` over `pkg/`;
-the embed pinning the asset package to the module root; trust-no-proxy by
-default.
+**Done.** [docs/adr/](adr/) holds the four, retrofitted from the arguments
+already in the code. Writing 0003 turned up a claim that was not true yet — it
+said a test asserts the module root holds nothing but the embed, and no such
+test existed. Rather than soften the sentence, the test now exists: the root is
+allowed exactly one non-test file, no functions but `init`, and an embedded tree
+containing only `web/templates` and `web/static`.
 
 ### 5. No git hooks, no editor config
 
@@ -306,7 +308,7 @@ Ordered so each step makes the next one safe.
 **Before calling it production-ready**
 5. `web/handlers` coverage past 40% via the consumer-interface pattern.
 6. Input validation as named, tested units — the mechanism is in place; the remaining endpoints are not.
-7. `docs/adr/` for the decisions already argued in comments.
+7. ~~`docs/adr/` for the decisions already argued in comments.~~ (done)
 8. Split `views.go`.
 9. Requests/bounties, as the largest missing feature loop.
 
