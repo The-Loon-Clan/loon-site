@@ -7,6 +7,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+
+	"github.com/the-loon-clan/loon-baseline/users"
 )
 
 // Storage tests against a real Postgres.
@@ -56,17 +58,16 @@ func testStore(t *testing.T) *Store {
 	t.Cleanup(func() { _ = db.Close() })
 
 	st := New(db)
-	// The site's own tables. Ordered as boot orders them: the users table has
-	// to exist before anything referencing it.
-	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS users (
-		id BIGSERIAL PRIMARY KEY,
-		username TEXT NOT NULL UNIQUE,
-		email TEXT NOT NULL DEFAULT '',
-		role INTEGER NOT NULL DEFAULT 1,
-		points BIGINT NOT NULL DEFAULT 0,
-		invites INTEGER NOT NULL DEFAULT 0,
-		created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-	)`); err != nil {
+	// The users table comes from the store that OWNS it, not from a copy.
+	//
+	// This used to hand-roll a CREATE TABLE IF NOT EXISTS with the columns
+	// these tests happened to need. That was fine while this was the only suite
+	// touching the database, and stopped being fine the moment the handler
+	// harness shared one: whichever suite ran first created `users`, the other
+	// one's IF NOT EXISTS did nothing, and the handler tests then failed on a
+	// missing password_hash. Two definitions of one table, and the order of the
+	// packages deciding which won.
+	if err := users.NewPGStore(db.DB).Migrate(t.Context()); err != nil {
 		t.Fatalf("users table: %v", err)
 	}
 	for name, fn := range map[string]func() error{
@@ -77,11 +78,15 @@ func testStore(t *testing.T) *Store {
 		"grabs":         st.MigrateGrabs,
 		"gifts":         st.MigrateGifts,
 		"invite codes":  st.MigrateInviteCodes,
-		"user display":  st.MigrateUserDisplay,
-		"security":      st.MigrateSecurity,
-		"settings":      st.MigrateSettings,
-		"profile bio":   st.MigrateProfileBio,
-		"points":        st.MigratePoints,
+		// Adds users.invites, which seedUser writes. The hand-rolled table used
+		// to declare that column itself; taking the table from the store that
+		// owns it means taking the host's additions from the host too.
+		"invites":      st.MigrateInvites,
+		"user display": st.MigrateUserDisplay,
+		"security":     st.MigrateSecurity,
+		"settings":     st.MigrateSettings,
+		"profile bio":  st.MigrateProfileBio,
+		"points":       st.MigratePoints,
 	} {
 		if err := fn(); err != nil {
 			t.Fatalf("%s migrate: %v", name, err)

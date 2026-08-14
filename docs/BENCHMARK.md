@@ -236,7 +236,7 @@ The ratio is good; the distribution is not.
 | `internal/markdown` | 88% |
 | `internal/storage` | 38% (3.6% without a database) |
 | `web/handlers` | 31.0% (22.1% without a database) |
-| **total** | **31.6% with services, 23.0% without** |
+| **total** | **34.2% with services, 23.0% without** |
 
 Both PHP projects separate `tests/Unit` from `tests/Feature`, and NNTmux adds
 `tests/Integration` and `tests/Install`. Here, unit and integration tests live
