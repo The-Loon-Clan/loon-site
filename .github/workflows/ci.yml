@@ -60,7 +60,7 @@ jobs:
       REDIS_TEST_ADDR: localhost:6379
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v5
         with:
@@ -146,7 +146,7 @@ jobs:
   out-of-the-box:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: docker compose up, from nothing
         run: docker compose up -d --build
