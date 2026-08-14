@@ -1,0 +1,105 @@
+{{/* One moderation card. The container shape (see wishlist_item.html), with
+     one wrinkle of its own: a vote may either UPDATE this card — the counts
+     move — or resolve the item and take it off the queue entirely. The
+     template does not know which; the handler re-reads and renders either this
+     or nothing.
+
+     {{with .Item}} rather than rewriting every field reference. Inside a with,
+     the dot is the item (so .SubjectRef reads as it always did) and $ is still
+     the dict (so $.Quorum, $.IsStaff and $.CSRFToken do too). The markup below
+     is therefore byte-identical to what the page carried before, apart from the
+     hx-* attributes — which is the whole point of a shared partial.
+
+     Expects: .Item (a modItem) .Quorum .IsStaff .CSRFToken */}}
+{{define "mod-item"}}
+{{with .Item}}
+            <li class="avatar-queue__item">
+                {{/* subject_ref, not the member's CURRENT avatar: the picture
+                     being voted on is the one that was reported, or somebody
+                     changes it mid-vote and half the votes are about a
+                     different image. */}}
+                <img class="avatar-queue__image" src="{{.SubjectRef}}"
+                     alt="Reported avatar for {{.Subject}}"
+                     width="128" height="128" loading="lazy" decoding="async">
+                <div class="avatar-queue__body">
+                    <a class="avatar-queue__name" href="/u/{{.Subject}}">{{.Subject}}</a>
+                    <p class="text-muted small m-0">
+                        Reported{{with .ReportedBy}} by {{.}}{{end}} · {{.Created}}
+                    </p>
+                    {{with .Reason}}<p class="small m-0 mt-1">&ldquo;{{.}}&rdquo;</p>{{end}}
+
+                    {{if $.History}}
+                    <p class="small m-0 mt-2">
+                        <strong>{{if eq .Resolution "removed"}}Removed{{else}}Kept{{end}}</strong>
+                        {{.Resolved}} ·
+                        {{/* An empty resolved_by is not missing data — it is
+                             the record that the VOTE decided it rather than a
+                             person, and saying so is the point of the column. */}}
+                        {{if .ResolvedBy}}by {{.ResolvedBy}}{{else}}by community vote{{end}}
+                        ({{.Removes}} remove / {{.Keeps}} keep)
+                    </p>
+                    {{else}}
+                    <p class="small m-0 mt-2">
+                        <strong>{{.Removes}}</strong> remove · <strong>{{.Keeps}}</strong> keep
+                        {{if .Needed}}<span class="text-muted"> — {{.Needed}} more vote{{if ne .Needed 1}}s{{end}} before this counts</span>{{end}}
+                    </p>
+
+                    {{if .IsSubject}}
+                    {{/* The person being voted on does not vote. Said out loud
+                         rather than just hiding the buttons, which reads as the
+                         page being broken. */}}
+                    <p class="text-muted small m-0 mt-2">This is your avatar. You cannot vote on it.</p>
+                    {{else}}
+                    <div class="avatar-queue__actions">
+                        <form method="post" action="/moderation/vote"
+                              hx-post="/moderation/vote" hx-target="closest li" hx-swap="outerHTML"
+                              hx-disabled-elt="find button">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <input type="hidden" name="vote" value="keep">
+                            <button class="button {{if and .YouVoted (not .YouedRemove)}}button--filled{{else}}button--outlined{{end}}" type="submit">
+                                Keep{{if and .YouVoted (not .YouedRemove)}} ✓{{end}}
+                            </button>
+                        </form>
+                        <form method="post" action="/moderation/vote"
+                              hx-post="/moderation/vote" hx-target="closest li" hx-swap="outerHTML"
+                              hx-disabled-elt="find button">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <input type="hidden" name="vote" value="remove">
+                            <button class="button button--danger" type="submit">
+                                Remove{{if and .YouVoted .YouedRemove}} ✓{{end}}
+                            </button>
+                        </form>
+                    </div>
+                    {{if .YouVoted}}<p class="text-muted small m-0 mt-1">You voted. Clicking the other one changes it.</p>{{end}}
+                    {{end}}
+
+                    {{if $.IsStaff}}
+                    {{/* Staff override. NOT a bigger vote — a different act,
+                         and recorded as one: these set resolved_by, where a
+                         community decision leaves it null. */}}
+                    <div class="avatar-queue__actions">
+                        <form method="post" action="/moderation/vote"
+                              hx-post="/moderation/vote" hx-target="closest li" hx-swap="outerHTML"
+                              hx-disabled-elt="find button">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <input type="hidden" name="staff" value="keep">
+                            <button class="button button--text button--sm" type="submit">Close as staff: keep</button>
+                        </form>
+                        <form method="post" action="/moderation/vote"
+                              hx-post="/moderation/vote" hx-target="closest li" hx-swap="outerHTML"
+                              hx-disabled-elt="find button">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <input type="hidden" name="staff" value="remove">
+                            <button class="button button--text button--sm text-danger" type="submit">Close as staff: remove</button>
+                        </form>
+                    </div>
+                    {{end}}
+                    {{end}}
+                </div>
+            </li>
+{{end}}
+{{end}}

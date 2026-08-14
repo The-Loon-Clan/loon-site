@@ -147,14 +147,15 @@ var pageTemplates = []string{
 // file both sets name. listing.html holds the release-row and cat-icon blocks
 // that /, /browse and /search render as one table.
 var sharedPartials = map[string][]string{
-	"home.html":      {"listing.html"},
-	"browse.html":    {"listing.html", "facets.html"},
-	"search.html":    {"listing.html", "facets.html"},
-	"trending.html":  {"listing.html"},
-	"bookmarks.html": {"listing.html"},
-	"release.html":   {"bookmark_button.html"},
-	"profile.html":   {"follow_button.html"},
-	"wishlist.html":  {"wishlist_item.html"},
+	"home.html":                 {"listing.html"},
+	"browse.html":               {"listing.html", "facets.html"},
+	"search.html":               {"listing.html", "facets.html"},
+	"trending.html":             {"listing.html"},
+	"bookmarks.html":            {"listing.html"},
+	"release.html":              {"bookmark_button.html"},
+	"profile.html":              {"follow_button.html"},
+	"wishlist.html":             {"wishlist_item.html"},
+	"moderation_community.html": {"mod_item.html"},
 }
 
 func newWeb(store users.Store, secret []byte, log *slog.Logger, data *storage.Store) *web {

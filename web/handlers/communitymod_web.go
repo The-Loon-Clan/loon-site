@@ -347,6 +347,10 @@ func (w *web) communityModVote(c *gin.Context) {
 	in, _ := readCommunityVoteInput(c)
 	id := in.ID
 	if id <= 0 {
+		if isHTMX(c) {
+			w.renderRefusal(c, "moderation_community.html", "That form did not come from this page.")
+			return
+		}
 		c.Redirect(http.StatusFound, "/moderation")
 		return
 	}
@@ -361,10 +365,21 @@ func (w *web) communityModVote(c *gin.Context) {
 		}
 		if err := w.resolveItem(ctx, id, res, u.ID); err != nil {
 			w.log.Error("staff resolve moderation item", "item", id, "err", err)
+			if isHTMX(c) {
+				w.renderRefusal(c, "moderation_community.html", "That item could not be resolved.")
+				return
+			}
 			c.Redirect(http.StatusFound, "/moderation?err=could+not+resolve+that")
 			return
 		}
 		w.log.Info("moderation item resolved by staff", "item", id, "resolution", res, "actor", u.ID, "actor_name", u.Username)
+		if isHTMX(c) {
+			// Resolved items leave the open queue, so the card goes and the
+			// notice carries the outcome.
+			w.renderFragmentWithNotice(c, http.StatusOK, "moderation_community.html", "", nil,
+				noticeOK("Closed as "+res+"."))
+			return
+		}
 		c.Redirect(http.StatusFound, "/moderation?done="+res)
 		return
 	}
@@ -373,20 +388,56 @@ func (w *web) communityModVote(c *gin.Context) {
 	// in the template, because a hidden control is not an absent one.
 	subject, openItem := w.data.ModerationSubject(ctx, id)
 	if !openItem {
+		if isHTMX(c) {
+			// Somebody else's vote closed it while this page sat open. Drop the
+			// stale card rather than leaving a control that cannot work.
+			w.renderFragmentWithNotice(c, http.StatusOK, "moderation_community.html", "", nil,
+				noticeInfo("That item has already been decided."))
+			return
+		}
 		c.Redirect(http.StatusFound, "/moderation")
 		return
 	}
 	if subject == u.ID {
+		if isHTMX(c) {
+			w.renderRefusal(c, "moderation_community.html", "You cannot vote on your own avatar.")
+			return
+		}
 		c.Redirect(http.StatusFound, "/moderation?err=you+cannot+vote+on+your+own+avatar")
 		return
 	}
 	if err := w.castVote(ctx, id, u.ID, in.Vote == "remove"); err != nil {
 		w.log.Error("cast moderation vote", "item", id, "err", err)
+		if isHTMX(c) {
+			w.renderRefusal(c, "moderation_community.html", "Your vote could not be recorded.")
+			return
+		}
 		c.Redirect(http.StatusFound, "/moderation?err=could+not+record+your+vote")
 		return
 	}
 	if err := w.decide(ctx, id); err != nil {
 		w.log.Error("apply moderation decision", "item", id, "err", err)
+	}
+
+	if isHTMX(c) {
+		// decide() may have just closed the item, so which answer is correct is
+		// not knowable without looking. Re-read through the SAME query the page
+		// uses — the card carries vote counts and a "3 more votes" line that
+		// only that query computes, and this vote may not be the only one cast
+		// since the page loaded.
+		for _, it := range w.listModItems(ctx, u.ID, false) {
+			if it.ID == id {
+				it.IsSubject = it.Subject == u.Username
+				w.renderFragmentWithNotice(c, http.StatusOK, "moderation_community.html", "mod-item",
+					map[string]any{"Item": it, "Quorum": voteQuorum, "IsStaff": u.AtLeast(core.RoleMod)},
+					noticeOK("Vote recorded."))
+				return
+			}
+		}
+		// Gone from the open queue: this vote carried it to quorum.
+		w.renderFragmentWithNotice(c, http.StatusOK, "moderation_community.html", "", nil,
+			noticeOK("Vote recorded — that decided it."))
+		return
 	}
 	c.Redirect(http.StatusFound, "/moderation?done=voted")
 }
