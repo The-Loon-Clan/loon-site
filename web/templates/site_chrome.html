@@ -54,6 +54,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="A demonstration Usenet indexer built on the loon framework.">
     <meta name="color-scheme" content="dark">
+    {{/* htmx configuration, as a meta tag rather than a script.
+
+         It has to be readable before htmx initialises, and htmx.min.js is
+         loaded with defer — so a script setting htmx.config would run too late
+         to matter for the first request. htmx reads this tag on load.
+
+         Each flag is off because the feature is unused, which is the only
+         honest reason to disable something:
+
+           allowEval        no hx-on:, no event filters, no dynamic values
+           allowScriptTags  no fragment this site returns contains a <script>
+
+         Turning them off means a response that somehow contained either could
+         not use it. htmx's own security guidance names both.
+
+         disableSelector adds .prose to htmx's default. That is the class every
+         host container of USER-WRITTEN prose carries — forum posts, wiki pages,
+         profile bios, messages — so htmx will not process attributes inside
+         any of them, and unlike the sanitizer this cannot be bypassed by
+         injected content.
+
+         It is defence in depth, not the defence: internal/sanitize allowlists
+         attributes, so hx-post never survives markdown in the first place, and
+         sanitize_test.go proves it. Note the gap this does NOT close — plugin
+         templates render prose without a consistent .prose container, so they
+         rely on the sanitizer alone. See docs/ASYNC.md.
+
+         historyCacheSize 0 keeps page snapshots out of localStorage. This site
+         has private profiles, members-only pages and an admin area, and the
+         cost is one server request on a back-navigation instead of a restore
+         from cache. Revisit deliberately if hx-push-url ever lands on a hot
+         public path like /browse. */}}
+    <meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"disableSelector":"[hx-disable], [data-hx-disable], .prose","historyCacheSize":0}'>
     <link rel="stylesheet" href="{{asset "/static/css/bootstrap.min.css"}}">
     <link rel="stylesheet" href="{{asset "/static/css/tokens.css"}}">
     <link rel="stylesheet" href="{{asset .Theme.Href}}">

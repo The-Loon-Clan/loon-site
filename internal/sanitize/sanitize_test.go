@@ -1,6 +1,9 @@
 package sanitize
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // HTML is the last stage of every path in this host that renders
 // stored input UNESCAPED.
@@ -102,6 +105,40 @@ func TestSafeURL(t *testing.T) {
 	for _, u := range unsafe {
 		if safeURL(u) {
 			t.Errorf("safeURL(%q) = true, want false", u)
+		}
+	}
+}
+
+// htmx attributes must not survive sanitisation.
+//
+// This became security-relevant the day the site loaded htmx. Before that,
+// an hx-post that slipped through was inert markup; now it is an instruction
+// the browser will carry out, on the reader's session, at whatever URL the
+// author of the prose chose. Stored, and fired by anyone who opens the page.
+//
+// The policy is an ALLOWLIST, so nothing here is a special case for htmx —
+// these attributes were already excluded by not being on the list. That is
+// precisely why this test is worth writing: the protection is a side effect of
+// a design decision made for other reasons, and a future "let's allow a few
+// more attributes through" would remove it without anybody connecting the two.
+func TestHTMXAttributesDoNotSurvive(t *testing.T) {
+	payloads := []string{
+		`<a hx-post="/admin/users/1/promote">click</a>`,
+		`<div hx-get="/settings/security" hx-trigger="load"></div>`,
+		`<button hx-delete="/release/1" hx-confirm="false">x</button>`,
+		`<p hx-on:click="alert(1)">x</p>`,
+		`<span data-hx-post="/logout"></span>`,
+		`<div hx-vals='{"role":"admin"}' hx-swap="outerHTML"></div>`,
+		// The trigger that needs no interaction at all: load-fired, on an
+		// element the reader never touches.
+		`<img src="/x.png" hx-trigger="load" hx-post="/gifts">`,
+	}
+	for _, in := range payloads {
+		got := HTML(in)
+		for _, bad := range []string{"hx-", "data-hx-"} {
+			if strings.Contains(got, bad) {
+				t.Errorf("sanitize.HTML(%q)\n  = %q\n  still contains %q", in, got, bad)
+			}
 		}
 	}
 }

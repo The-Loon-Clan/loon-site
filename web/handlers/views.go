@@ -309,6 +309,9 @@ func (w *web) viewer(c *gin.Context) (*core.User, bool) {
 
 func (w *web) mount(e *gin.Engine) {
 	sub, _ := fs.Sub(site.FS, "web/static")
+	// CSP and friends first, so they cover /static and every error path too —
+	// a policy that covers only the HTML is a map of where it is not.
+	e.Use(middleware.SecurityHeaders())
 	// Headers BEFORE the file handler: the embedded FS has no modtime, so
 	// without this nothing tells a browser when to look again.
 	e.Use(staticCacheHeaders())

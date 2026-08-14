@@ -163,6 +163,86 @@ Both paths verified against the running site: `HX-Request: true` returns 200
 with a bare fragment (no `<html>`, no `<nav>`); the same POST without the header
 returns 303 to the release page, exactly as it did before htmx existed.
 
+## Security
+
+Checked against htmx's own guidance, which this section follows.
+
+### Config, set in a meta tag
+
+`site_chrome.html` carries `<meta name="htmx-config">`. It has to be a meta tag
+rather than a script: `htmx.min.js` is `defer`red, so a script assigning
+`htmx.config` would run too late for the first request.
+
+| flag | value | why |
+| --- | --- | --- |
+| `allowEval` | `false` | no `hx-on:`, no event filters, no dynamic values |
+| `allowScriptTags` | `false` | no fragment here contains a `<script>` |
+| `disableSelector` | `…, .prose` | htmx will not process attributes inside user prose |
+| `historyCacheSize` | `0` | keeps page snapshots out of `localStorage` |
+
+`selfRequestsOnly` is left at its default of `true`.
+
+`historyCacheSize: 0` is the one with a cost — a back-navigation re-requests
+instead of restoring from cache. Taken because this site has private profiles,
+members-only pages and an admin area. Revisit deliberately if `hx-push-url`
+lands on a hot public path like `/browse`.
+
+### Injected attributes
+
+htmx changes what an injected attribute is worth. Before it, an `hx-post` that
+survived sanitisation was inert markup; now it is an instruction the browser
+carries out, on the reader's session, when the page loads.
+
+**The defence is `internal/sanitize`, which allowlists attributes** — `hx-post`
+never survives markdown, and `TestHTMXAttributesDoNotSurvive` proves it, mutation
+included.
+
+`disableSelector` adding `.prose` is defence in depth on top of that, and unlike
+the sanitizer it cannot be bypassed by injected content. **It does not cover
+everything:** plugin templates render prose without a consistent `.prose`
+container, so they rely on the sanitizer alone. Giving plugin prose a shared
+container class would close that, and is not done.
+
+### Content-Security-Policy
+
+`internal/middleware/csp.go`, applied to every response including `/static` and
+gin's own 404s.
+
+`script-src` carries `'unsafe-inline'`. That is a measured concession, not an
+oversight: there are 4 inline `<script>` blocks in host templates and **35 more
+across plugin templates**, and plugins are a published contract rendered into
+these pages by hosts this repo does not control. A nonce-based policy would
+silently blank every one of them.
+
+So this policy does not stop XSS — the sanitizer and `html/template`'s
+contextual escaping do. What it stops is the class of attack that works with no
+script execution at all:
+
+| directive | stops |
+| --- | --- |
+| `frame-ancestors 'none'` | clickjacking |
+| `form-action 'self'` | a rewritten form action posting a password off-site |
+| `base-uri 'self'` | an injected `<base>` re-pointing every relative URL |
+| `object-src 'none'` | `<object>`/`<embed>` execution paths |
+| `default-src 'self'` | external script, font, frame and connect origins |
+
+`img-src` stays permissive (`'self' data: https:`) because user prose may
+legitimately embed a remote image and an image cannot execute. Every image the
+host itself renders is local — covers are proxied.
+
+**To remove `'unsafe-inline'`:** move the host's four blocks into files under
+`/static`, and give plugins a way to declare a nonce. Real work, not yet done.
+
+`TestUnsafeInlineIsConfinedToScriptAndStyle` exists because `'unsafe-inline'`
+reads like a general fix for a blocked resource, and the next person to hit a
+CSP error is one paste away from putting it in `default-src`, where it would
+silence the whole policy.
+
+Verified on the running site: the JS-created password meter and both reveal
+buttons are present in the rendered DOM (so inline scripts still execute), and
+the bookmark toggle still returns its 554-byte fragment under `connect-src
+'self'`.
+
 ## Vendoring
 
 htmx 2.0.7, self-hosted at `web/static/js/htmx.min.js` (51 KB). Not a CDN:
