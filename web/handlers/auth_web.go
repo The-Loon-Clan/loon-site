@@ -249,5 +249,13 @@ func (w *web) resendVerify(c *gin.Context) {
 			w.log.Error("resend verify", "err", err)
 		}
 	}
+	// The banner replaces itself with the confirmation, and the reader stays on
+	// the page they were on. The redirect below is what a no-JavaScript client
+	// still gets, and it is why this one was worth converting: "/" is nowhere
+	// near where the button was pressed.
+	if isHTMX(c) {
+		w.renderFragment(c, shellPage, "verify-notice", map[string]any{"VerifySent": true})
+		return
+	}
 	c.Redirect(http.StatusSeeOther, "/")
 }

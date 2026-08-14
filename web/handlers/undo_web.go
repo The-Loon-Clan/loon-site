@@ -186,7 +186,17 @@ func (w *web) undoPost(c *gin.Context) {
 	}
 	if _, err := w.performUndo(c.Request.Context(), u.ID, in.Token); err != nil {
 		w.log.Info("undo refused", "user", u.ID, "err", err)
+		if isHTMX(c) {
+			w.renderFragment(c, shellPage, "undo-offer", map[string]any{"Failed": true})
+			return
+		}
 		c.Redirect(http.StatusSeeOther, back+sep+"undone=0")
+		return
+	}
+	// The offer becomes its own answer. Both outcomes render the SAME define,
+	// so a refused undo cannot end up looking like a successful one.
+	if isHTMX(c) {
+		w.renderFragment(c, shellPage, "undo-offer", map[string]any{"Done": true})
 		return
 	}
 	c.Redirect(http.StatusSeeOther, back+sep+"undone=1")

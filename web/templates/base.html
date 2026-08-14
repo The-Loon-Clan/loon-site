@@ -40,12 +40,7 @@
                  chrome and belongs against the nav. See site_chrome.html. */}}
             {{/* A <div>, not a <p>: the resend <form> inside would auto-close a
                  paragraph and orphan the trailing text. */}}
-            {{if .EmailUnverified}}
-            <div class="notice notice--warning">
-                <svg class="icon notice__icon" aria-hidden="true"><use href="#envelope"></use></svg>
-                <span>Please verify your email &mdash; <form method="post" action="/verify/resend" style="display:inline;margin:0"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button type="submit" class="button button--text button--sm">resend link</button></form>.</span>
-            </div>
-            {{end}}
+            {{template "verify-notice" .}}
             {{template "content" .}}
         </article>
         {{with $right}}<aside class="sidebar sidebar--right">{{template "widget-region" .}}</aside>{{end}}
@@ -73,4 +68,25 @@
         {{end}}
     </ul>
 </nav>
+{{end}}
+
+{{/* The unverified-email banner, and the one thing wrong with it before htmx:
+     resending bounced you to "/" from whatever page you were reading, because
+     a redirect is all a plain POST can answer with. Now the banner replaces
+     ITSELF with the confirmation and the page underneath stays put.
+
+     Two shapes, one define, so the swapped-in markup is this markup — the
+     warning with its form, or the success notice after sending. */}}
+{{define "verify-notice"}}
+{{if .VerifySent}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Verification link sent &mdash; check your email.</span>
+</div>
+{{else if .EmailUnverified}}
+<div class="notice notice--warning">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#envelope"></use></svg>
+    <span>Please verify your email &mdash; <form method="post" action="/verify/resend" style="display:inline;margin:0" hx-post="/verify/resend" hx-target="closest .notice" hx-swap="outerHTML" hx-disabled-elt="find button"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button type="submit" class="button button--text button--sm">resend link</button></form>.</span>
+</div>
+{{end}}
 {{end}}

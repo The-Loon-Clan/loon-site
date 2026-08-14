@@ -1026,11 +1026,26 @@
      not offer it. An Undo button that reports "that can no longer be undone" is
      worse than no button: it teaches people the offer is decorative. */}}
 {{define "undo-offer"}}
-{{if .Token}}
+{{/* Three shapes so the swap always lands somewhere: the offer, the result of
+     taking it, and nothing at all. Undoing used to redirect to ?undone=1 and
+     reload the page to say one word; now the offer becomes the answer. */}}
+{{if .Done}}
+<div class="notice notice--success undo-offer">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Undone.</span>
+</div>
+{{else if .Failed}}
+<div class="notice notice--warning undo-offer">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>That could not be undone &mdash; it may have expired.</span>
+</div>
+{{else if .Token}}
 <div class="notice notice--success undo-offer">
     <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
     <span>{{.Text}}</span>
-    <form method="post" action="/undo" class="undo-offer__form">
+    <form method="post" action="/undo" class="undo-offer__form"
+          hx-post="/undo" hx-target="closest .undo-offer" hx-swap="outerHTML"
+          hx-disabled-elt="find button">
         <input type="hidden" name="_csrf" value="{{.CSRF}}">
         <input type="hidden" name="token" value="{{.Token}}">
         <input type="hidden" name="next" value="{{.Next}}">

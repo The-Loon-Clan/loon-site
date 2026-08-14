@@ -79,6 +79,17 @@ func isHTMX(c *gin.Context) bool {
 	return c.GetHeader(hxRequestHeader) == "true"
 }
 
+// shellPage names a page whose template set is used to render a fragment that
+// is defined in the SHELL — base.html or site_chrome.html — rather than in a
+// page of its own.
+//
+// Every set parses the shell, so literally any page name would work, and that
+// is the awkwardness this constant exists to make visible rather than hide at a
+// call site. home.html is named because it is the one page that cannot be
+// deleted without the site losing its root, so the arbitrary choice is at least
+// the most stable one available.
+const shellPage = "home.html"
+
 // renderFragment writes ONE named template from a page's set.
 //
 // Not renderStatus with a different template name: that executes "base.html"
