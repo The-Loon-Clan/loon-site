@@ -254,3 +254,222 @@ func readSettingsNotificationsInput(c *gin.Context) (settingsNotificationsInput,
 // the map — the reader builds it from that list rather than from what was
 // posted.
 func (in settingsNotificationsInput) Validate() request.Errors { return nil }
+
+// ── account security ────────────────────────────────────────────────────
+
+// securityActionInput is POST /settings/security — one form, several buttons.
+//
+// Action selects which: begin, confirm, cancel, regenerate, disable, email. The
+// handler's switch is the check, and its default does nothing, which is the
+// right answer for a value that did not come from the page.
+type securityActionInput struct {
+	Action string
+	// Code is a TOTP code from an authenticator, or a recovery code. Not
+	// trimmed of internal spacing here — totpVerify handles the formatting
+	// authenticators use.
+	Code string
+	// Email is the NEW address for a change request. Confirmed at that address
+	// before it is applied, never on submit.
+	Email string
+}
+
+func readSecurityActionInput(c *gin.Context) (securityActionInput, error) {
+	var in securityActionInput
+	return in, request.Bind(c, &in)
+}
+
+// Validate: each action's own step checks what it needs — totpConfirm verifies
+// the code, requestEmailChange judges the address — and those checks sit beside
+// the state they act on.
+func (in securityActionInput) Validate() request.Errors { return nil }
+
+// twoFactorInput is POST /login/2fa — the second step, where a recovery code is
+// as welcome as a TOTP code because "I have lost my phone" is exactly when
+// somebody is looking at this form.
+type twoFactorInput struct {
+	Code string
+}
+
+func readTwoFactorInput(c *gin.Context) (twoFactorInput, error) {
+	var in twoFactorInput
+	return in, request.Bind(c, &in)
+}
+
+// Validate: an empty or wrong code is answered identically by twoFactorPost —
+// "that code did not match" — and deliberately so. Telling somebody they left
+// the box blank is a marginal improvement; telling them their code was
+// well-formed but wrong is an oracle.
+func (in twoFactorInput) Validate() request.Errors { return nil }
+
+// ── profile ─────────────────────────────────────────────────────────────
+
+// profileBioInput is POST for the profile's free-text block.
+type profileBioInput struct {
+	Bio string
+}
+
+func readProfileBioInput(c *gin.Context) (profileBioInput, error) {
+	var in profileBioInput
+	return in, request.Bind(c, &in)
+}
+
+// Validate: the handler truncates by RUNES where it stores, because cutting a
+// multi-byte character in half writes invalid UTF-8 and the first thing that
+// breaks is the page trying to show it. That is the right place for the rule.
+func (in profileBioInput) Validate() request.Errors { return nil }
+
+// ── small forms that carry only a return path ───────────────────────────
+
+// nextInput is the shape of a form whose only field is where to go afterwards —
+// the bookmark toggle is the one that matters, since it POSTs and returns you
+// to the release you were reading.
+type nextInput struct {
+	Next string
+}
+
+func readNextInput(c *gin.Context) (nextInput, error) {
+	var in nextInput
+	return in, request.Bind(c, &in)
+}
+
+func (in nextInput) Validate() request.Errors { return nil }
+
+// ── password reset ──────────────────────────────────────────────────────
+
+// forgotInput is POST /forgot — ask for a reset link.
+type forgotInput struct {
+	Email   string
+	Captcha string `form:"-"`
+}
+
+func readForgotInput(c *gin.Context) (forgotInput, error) {
+	var in forgotInput
+	err := request.Bind(c, &in)
+	in.Captcha = c.PostForm(captcha.FormField)
+	return in, err
+}
+
+// Validate checks presence and shape, and NOT whether the address is known.
+//
+// The handler answers the same way either way — see resetFlow.RequestReset —
+// because "no account has that address" is a fact about the member list, and a
+// forgot-password form is the easiest place in a site to ask that question a
+// thousand times.
+func (in forgotInput) Validate() request.Errors {
+	var e request.Errors
+	if request.Required(&e, "email", in.Email, "An email address") {
+		request.Email(&e, "email", in.Email, "Email")
+	}
+	return e
+}
+
+func (in forgotInput) fieldOrder() []string { return []string{"email"} }
+
+// resetInput is POST /reset — the token from the emailed link, and a new
+// password.
+type resetInput struct {
+	Token    string
+	Password string `form:",raw"`
+}
+
+func readResetInput(c *gin.Context) (resetInput, error) {
+	var in resetInput
+	return in, request.Bind(c, &in)
+}
+
+// Validate: the token's validity and the password's strength both belong to
+// authtoken.PerformReset — the token is single-use and time-limited, and both
+// facts live with the row rather than with the form.
+func (in resetInput) Validate() request.Errors { return nil }
+
+// ── theme, avatar, wishlist actions ─────────────────────────────────────
+
+// themeInput is POST for the theme picker.
+type themeInput struct {
+	Theme string
+	Next  string
+}
+
+func readThemeInput(c *gin.Context) (themeInput, error) {
+	var in themeInput
+	return in, request.Bind(c, &in)
+}
+
+// Validate: an unknown theme name resolves to the default in themeByName, which
+// is the right answer for a picker whose options come from the stylesheet list.
+func (in themeInput) Validate() request.Errors { return nil }
+
+// avatarSaveInput is POST /settings/profile's avatar form. The FILE is read
+// separately by readAvatarUpload — multipart is its own thing — and this is the
+// rest of the form.
+type avatarSaveInput struct {
+	// Remove is a submit button rather than a checkbox: present means "take my
+	// picture down", and its value is whatever the button carries.
+	Remove string
+}
+
+func readAvatarSaveInput(c *gin.Context) (avatarSaveInput, error) {
+	var in avatarSaveInput
+	return in, request.Bind(c, &in)
+}
+
+func (in avatarSaveInput) Validate() request.Errors { return nil }
+
+// wishActionInput is POST /wishlist's per-entry controls.
+type wishActionInput struct {
+	Action string
+	// All clears every filled entry at once, from the "clear filled" button.
+	All bool
+}
+
+func readWishActionInput(c *gin.Context) (wishActionInput, error) {
+	var in wishActionInput
+	return in, request.Bind(c, &in)
+}
+
+func (in wishActionInput) Validate() request.Errors { return nil }
+
+// ── the Newznab API ─────────────────────────────────────────────────────
+
+// newznabQueryInput is GET /api and GET /rss.
+//
+// The only struct here whose field names are all tagged, and the reason is that
+// these names are not ours: t, q, cat, apikey and the rest are the Newznab
+// spec, which Sonarr and Radarr send and which cannot be renamed to suit a Go
+// field. Where a wire name belongs to somebody else, the tag says so — that is
+// what tags are for, as against restating a name we chose ourselves.
+type newznabQueryInput struct {
+	Function string `form:"t"`
+	Query    string `form:"q"`
+	Cats     string `form:"cat"`
+	ID       string `form:"id"`
+	APIKey   string `form:"apikey"`
+	Limit    int    `form:"limit"`
+	Offset   int    `form:"offset"`
+}
+
+func readNewznabQueryInput(c *gin.Context) (newznabQueryInput, error) {
+	var in newznabQueryInput
+	return in, request.Bind(c, &in)
+}
+
+// Validate: nothing, deliberately. A downloader sending a malformed parameter
+// wants results or an empty feed, not a 400 it will report to its user as "the
+// indexer is broken" — see clamp, which brings paging into range instead.
+func (in newznabQueryInput) Validate() request.Errors { return nil }
+
+// clamp brings the paging parameters into range.
+//
+// A negative or enormous limit must not reach the query layer, and neither
+// should be an error: these arrive from tools this site does not control, and
+// the useful response to "limit=999999" is a hundred results rather than a
+// refusal.
+func (in newznabQueryInput) clamp() newznabQueryInput {
+	if in.Limit <= 0 || in.Limit > 200 {
+		in.Limit = 100
+	}
+	if in.Offset < 0 {
+		in.Offset = 0
+	}
+	return in
+}

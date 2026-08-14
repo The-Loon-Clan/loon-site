@@ -175,7 +175,8 @@ func (w *web) undoPost(c *gin.Context) {
 	if !ok {
 		return
 	}
-	back := c.PostForm(fieldNext)
+	in, _ := readUndoInput(c)
+	back := in.Next
 	if len(back) < 2 || back[0] != '/' || back[1] == '/' {
 		back = "/"
 	}
@@ -183,7 +184,7 @@ func (w *web) undoPost(c *gin.Context) {
 	if idx := len(back); idx > 0 && containsByte(back, '?') {
 		sep = "&"
 	}
-	if _, err := w.performUndo(c.Request.Context(), u.ID, c.PostForm("token")); err != nil {
+	if _, err := w.performUndo(c.Request.Context(), u.ID, in.Token); err != nil {
 		w.log.Info("undo refused", "user", u.ID, "err", err)
 		c.Redirect(http.StatusSeeOther, back+sep+"undone=0")
 		return

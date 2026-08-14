@@ -113,7 +113,8 @@ func (w *web) wishlistUpdate(c *gin.Context) {
 	// Which edit is an HTTP decision; each store method carries the ownership
 	// check in its own WHERE, so the viewer's id travels with the row id.
 	var err2 error
-	switch c.PostForm(fieldAction) {
+	act, _ := readWishActionInput(c)
+	switch act.Action {
 	case "remove":
 		err2 = w.data.RemoveWish(ctx, id, u.ID)
 	case "reopen":
@@ -125,7 +126,7 @@ func (w *web) wishlistUpdate(c *gin.Context) {
 		w.log.Error("wishlist update", "item", id, "user", u.ID, "err", err2)
 	}
 	back := "/wishlist"
-	if c.PostForm("all") == "1" {
+	if act.All {
 		back += "?all=1"
 	}
 	c.Redirect(http.StatusSeeOther, back)

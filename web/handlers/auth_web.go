@@ -3,12 +3,10 @@ package handlers
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/the-loon-clan/loon-baseline/authtoken"
-	"github.com/the-loon-clan/loon-baseline/captcha"
 	"github.com/the-loon-clan/loon-baseline/loginlog"
 	"github.com/the-loon-clan/loon-baseline/session"
 
@@ -181,14 +179,28 @@ func (w *web) forgotPage(c *gin.Context) {
 }
 
 func (w *web) forgotPost(c *gin.Context) {
-	if err := w.captcha.Verify(c.Request.Context(), c.PostForm(captcha.FormField), c.ClientIP()); err != nil {
+	in, _ := readForgotInput(c)
+	// The one validation here that is not a duplicate of something downstream.
+	// RequestReset is deliberately SILENT about whether an address is known —
+	// otherwise this form answers "does this person have an account" for
+	// anybody who asks — which also means a typo'd address produces the same
+	// cheerful confirmation as a real one. Checking the shape is the only
+	// feedback that can be given without giving the other thing away.
+	if errs := request.Validate(in); errs.Any() {
+		c.Status(http.StatusBadRequest)
+		w.render(c, "forgot.html", map[string]any{
+			"Title": "Reset password", "Error": errs.First(in.fieldOrder()...),
+		})
+		return
+	}
+	if err := w.captcha.Verify(c.Request.Context(), in.Captcha, c.ClientIP()); err != nil {
 		c.Status(http.StatusBadRequest)
 		w.render(c, "forgot.html", map[string]any{"Title": "Reset password", "Error": "Please complete the captcha."})
 		return
 	}
 	// RequestReset is deliberately silent about whether the email exists, so we
 	// always show the same confirmation.
-	if err := w.resetFlow.RequestReset(c.Request.Context(), strings.TrimSpace(c.PostForm("email"))); err != nil {
+	if err := w.resetFlow.RequestReset(c.Request.Context(), in.Email); err != nil {
 		w.log.Error("request reset", "err", err)
 	}
 	w.render(c, "forgot.html", map[string]any{"Title": "Reset password", "Sent": true})
@@ -199,8 +211,9 @@ func (w *web) resetPage(c *gin.Context) {
 }
 
 func (w *web) resetPost(c *gin.Context) {
-	token := c.PostForm("token")
-	err := w.resetFlow.PerformReset(c.Request.Context(), token, c.PostForm("password"))
+	in, _ := readResetInput(c)
+	token := in.Token
+	err := w.resetFlow.PerformReset(c.Request.Context(), token, in.Password)
 	if err != nil {
 		msg := "Could not reset your password."
 		switch {

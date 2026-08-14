@@ -35,26 +35,18 @@ func (w *web) newznabAPI(c *gin.Context) {
 		c.String(http.StatusServiceUnavailable, "indexer not configured")
 		return
 	}
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	offset, _ := strconv.Atoi(c.Query("offset"))
-	// Clamp untrusted paging params before handing them to the plugin — a
-	// negative or huge limit shouldn't reach the query layer.
-	if limit <= 0 || limit > 200 {
-		limit = 100
-	}
-	if offset < 0 {
-		offset = 0
-	}
+	in, _ := readNewznabQueryInput(c)
+	in = in.clamp()
 	req := pluginapi.NewznabRequest{
-		Function:   c.Query("t"),
-		Query:      c.Query("q"),
-		Categories: parseCats(c.Query("cat")),
-		Limit:      limit,
-		Offset:     offset,
-		ID:         c.Query(fieldID),
+		Function:   in.Function,
+		Query:      in.Query,
+		Categories: parseCats(in.Cats),
+		Limit:      in.Limit,
+		Offset:     in.Offset,
+		ID:         in.ID,
 		BaseURL:    requestBaseURL(c),
 		Title:      "loon indexer",
-		APIKey:     c.Query("apikey"),
+		APIKey:     in.APIKey,
 	}
 
 	// Cache read functions; t=get streams NZB bytes, don't hold those.

@@ -113,7 +113,8 @@ func (w *web) settingsProfileSave(c *gin.Context) {
 	if !ok {
 		return
 	}
-	bio := strings.TrimSpace(c.PostForm("bio"))
+	in, _ := readProfileBioInput(c)
+	bio := in.Bio // Bind trims
 	// Truncated by RUNES, not bytes: cutting a multi-byte character in half
 	// stores invalid UTF-8, and the first thing that breaks is the page trying
 	// to display it.

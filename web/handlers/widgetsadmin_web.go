@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -72,15 +70,16 @@ func (w *web) widgetsAdminPage(c *gin.Context) {
 // people arranging the same page would each overwrite the other's work with
 // whatever their browser last rendered.
 func (w *web) widgetsAdminAction(c *gin.Context) {
-	region := c.PostForm("region")
+	in, _ := readWidgetActionInput(c)
+	region := in.Region
 	if _, ok := widgetRegionByKey(region); !ok || !w.db().Valid() {
 		c.Redirect(http.StatusSeeOther, "/admin/widgets")
 		return
 	}
-	slug := strings.TrimSpace(c.PostForm("slug"))
+	slug := in.Slug
 	ctx := c.Request.Context()
 
-	switch c.PostForm(fieldAction) {
+	switch in.Action {
 	case "add":
 		// Refuse a slug that is not a registered widget. The dropdown only
 		// offers real ones, but a form post is not a promise.
@@ -103,10 +102,9 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 		// would break every widget whose value is not what the host guessed.
 		// Whatever a widget does with it must be safe at RENDER; see the
 		// markdown widget, which runs the site's sanitising renderer.
-		_ = w.data.ConfigureWidget(ctx, region, slug, c.PostForm("config"))
+		_ = w.data.ConfigureWidget(ctx, region, slug, in.Config)
 	case "move":
-		delta, _ := strconv.Atoi(c.PostForm("delta"))
-		if delta != 0 {
+		if delta := in.Delta; delta != 0 {
 			w.moveWidget(c, region, slug, delta)
 		}
 	}

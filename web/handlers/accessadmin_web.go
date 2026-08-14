@@ -122,8 +122,9 @@ func (w *web) adminAccess(c *gin.Context) {
 
 // adminAccessSave serves POST /admin/access.
 func (w *web) adminAccessSave(c *gin.Context) {
-	reg := c.PostForm("registration")
-	browse := c.PostForm("browsing")
+	in, _ := readAccessSaveInput(c)
+	reg := in.Registration
+	browse := in.Browsing
 	if err := saveAccessSettings(c.Request.Context(), reg, browse); err != nil {
 		w.log.Error("save access settings", "registration", reg, "browsing", browse, "err", err)
 		c.Redirect(http.StatusFound, "/admin/access?err=could+not+save")

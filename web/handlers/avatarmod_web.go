@@ -6,7 +6,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -183,15 +182,18 @@ func (w *web) avatarModAction(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	id, err := strconv.ParseInt(c.PostForm(fieldID), 10, 64)
-	if err != nil || id <= 0 {
+	// A missing or nonsense id binds to zero: the form did not come from the
+	// page, so redirect rather than report.
+	in, _ := readAvatarModInput(c)
+	id := in.ID
+	if id <= 0 {
 		c.Redirect(http.StatusFound, "/moderation/avatars")
 		return
 	}
 	// The id travels in the BODY, not the path — the same reason the reports
 	// plugin does it: an action route carrying :id would register a path
 	// parameter, and this group already has none.
-	switch c.PostForm(fieldAction) {
+	switch in.Action {
 	case "clear":
 		// No undo token kept: the record belongs to the SUBJECT, not to the
 		// moderator, and offering a moderator an undo for somebody else's row

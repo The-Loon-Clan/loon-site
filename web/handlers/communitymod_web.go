@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -345,8 +344,9 @@ func (w *web) communityModVote(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	id, err := strconv.ParseInt(c.PostForm(fieldID), 10, 64)
-	if err != nil || id <= 0 {
+	in, _ := readCommunityVoteInput(c)
+	id := in.ID
+	if id <= 0 {
 		c.Redirect(http.StatusFound, "/moderation")
 		return
 	}
@@ -354,7 +354,7 @@ func (w *web) communityModVote(c *gin.Context) {
 	// Staff may close an item outright. Not a bigger vote — a different act,
 	// and recorded as one: resolved_by carries their id where a community
 	// decision leaves it null.
-	if act := c.PostForm("staff"); act != "" && u.AtLeast(core.RoleMod) {
+	if act := in.Staff; act != "" && u.AtLeast(core.RoleMod) {
 		res := resolutionKept
 		if act == "remove" {
 			res = resolutionRemoved
@@ -380,7 +380,7 @@ func (w *web) communityModVote(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/moderation?err=you+cannot+vote+on+your+own+avatar")
 		return
 	}
-	if err := w.castVote(ctx, id, u.ID, c.PostForm("vote") == "remove"); err != nil {
+	if err := w.castVote(ctx, id, u.ID, in.Vote == "remove"); err != nil {
 		w.log.Error("cast moderation vote", "item", id, "err", err)
 		c.Redirect(http.StatusFound, "/moderation?err=could+not+record+your+vote")
 		return
@@ -403,7 +403,8 @@ func (w *web) reportAvatarPost(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	opened, err := w.reportAvatar(c.Request.Context(), subject.ID, u.ID, c.PostForm("reason"))
+	in, _ := readReportAvatarInput(c)
+	opened, err := w.reportAvatar(c.Request.Context(), subject.ID, u.ID, in.Reason)
 	if err != nil {
 		c.Redirect(http.StatusSeeOther, "/u/"+name+"?report="+url.QueryEscape(err.Error()))
 		return

@@ -21,20 +21,12 @@ const (
 	// each known key explicitly rather than iterate what arrived.
 	checked = "1"
 
-	// Shared control fields. These appear on many forms and mean the same
-	// thing on all of them.
-	fieldAction = "action" // which button was pressed
-	fieldID     = "id"     // the row a form acts on
-	fieldToken  = "token"  // a one-time token from a link or a form
-	fieldNext   = "next"   // where to return after this succeeds
-
-	// Single-field forms.
-	//
-	// private_profile is NOT here any more: settingsPrivacyInput.PrivateProfile
-	// declares it, and request.Bind derives the key from the field name. A
-	// constant beside it would be the same string written twice — which is what
-	// this file exists to stop.
-	fieldCode = "code" // a TOTP or recovery code
+	// The FORM-field constants are gone, all of them. Every one — action, id,
+	// token, next, code, private_profile — is now a field on the …Input struct
+	// for its endpoint, and request.Bind derives the wire name from the field
+	// name. A constant beside a struct field declaring the same string is the
+	// duplication this file exists to prevent, so when the structs arrived the
+	// constants stopped earning their place and the unused check said so.
 
 	// Query keys the templates read back to show the outcome of a redirect.
 	// A handler redirects with one of these and the page renders a banner.

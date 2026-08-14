@@ -36,7 +36,8 @@ func (w *web) adminCovers(c *gin.Context) {
 
 // adminCoversSave serves POST /admin/covers.
 func (w *web) adminCoversSave(c *gin.Context) {
-	mode := c.PostForm("mode")
+	in, _ := readCoverModeInput(c)
+	mode := in.Mode
 	if err := saveCoverMode(c.Request.Context(), mode); err != nil {
 		// An unknown mode is a bug in the form, not a state to adopt: storing
 		// it would leave covers behaving in a way nothing here describes.

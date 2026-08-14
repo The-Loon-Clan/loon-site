@@ -29,13 +29,9 @@ import (
 // Note: `checked` is not here. It is a VALUE a checkbox posts, not a key a
 // handler looks up, so it never appears as an accessor argument.
 var namedKeys = map[string]string{
-	"action": "fieldAction",
-	"id":     "fieldID",
-	"next":   "fieldNext",
-	"code":   "fieldCode",
-	"err":    "queryErr",
-	"saved":  "querySaved",
-	"done":   "queryDone",
+	"err":   "queryErr",
+	"saved": "querySaved",
+	"done":  "queryDone",
 }
 
 // accessorCalls are the calls whose FIRST argument is a form or query key.

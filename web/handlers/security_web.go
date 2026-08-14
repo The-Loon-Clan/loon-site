@@ -168,19 +168,20 @@ func (w *web) securityAction(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/settings/security?err="+url.QueryEscape(msg))
 	}
 
-	switch c.PostForm(fieldAction) {
+	in, _ := readSecurityActionInput(c)
+	switch in.Action {
 	case "begin":
-		w.totpBegin(c, ctx, u, fail)
+		w.totpBegin(c, ctx, u, in, fail)
 	case "confirm":
-		w.totpConfirm(c, ctx, u, fail)
+		w.totpConfirm(c, ctx, u, in, fail)
 	case "cancel":
-		w.totpCancel(c, ctx, u, fail)
+		w.totpCancel(c, ctx, u, in, fail)
 	case "regenerate":
-		w.totpRegenerate(c, ctx, u, fail)
+		w.totpRegenerate(c, ctx, u, in, fail)
 	case "disable":
-		w.totpDisable(c, ctx, u, fail)
+		w.totpDisable(c, ctx, u, in, fail)
 	case "email":
-		w.emailChangeRequest(c, ctx, u, fail)
+		w.emailChangeRequest(c, ctx, u, in, fail)
 	default:
 		c.Redirect(http.StatusSeeOther, "/settings/security")
 	}
@@ -190,7 +191,7 @@ func (w *web) securityAction(c *gin.Context) {
 //
 // The secret goes to the PENDING column: nothing about the account changes
 // until a code proves the authenticator holds the same secret.
-func (w *web) totpBegin(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
+func (w *web) totpBegin(c *gin.Context, ctx context.Context, u *core.User, in securityActionInput, fail func(string)) {
 	secret, err := totpSecret()
 	if err != nil {
 		fail("could not start setup")
@@ -211,13 +212,13 @@ func (w *web) totpBegin(c *gin.Context, ctx context.Context, u *core.User, fail 
 // rescan — a mismatch is usually a typo or a clock, not a different secret.
 // Recovery codes are written before the factor goes live, so there is no
 // window where the account is behind an app with no way back.
-func (w *web) totpConfirm(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
+func (w *web) totpConfirm(c *gin.Context, ctx context.Context, u *core.User, in securityActionInput, fail func(string)) {
 	st := w.data.ReadTOTPStatus(ctx, u.ID)
 	if st.Pending == "" {
 		fail("start the setup again")
 		return
 	}
-	if !totpVerify(st.Pending, c.PostForm(fieldCode), time.Now()) {
+	if !totpVerify(st.Pending, in.Code, time.Now()) {
 		// The pending secret is KEPT so the member can retype rather than
 		// rescan. A wrong code is usually a typo or a clock, not a
 		// different secret.
@@ -241,7 +242,7 @@ func (w *web) totpConfirm(c *gin.Context, ctx context.Context, u *core.User, fai
 }
 
 // totpCancel abandons a setup in progress, clearing the pending secret.
-func (w *web) totpCancel(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
+func (w *web) totpCancel(c *gin.Context, ctx context.Context, u *core.User, in securityActionInput, fail func(string)) {
 	_ = w.data.ClearPendingTOTP(ctx, u.ID)
 	c.Redirect(http.StatusSeeOther, "/settings/security")
 }
@@ -250,9 +251,9 @@ func (w *web) totpCancel(c *gin.Context, ctx context.Context, u *core.User, fail
 //
 // Shown once: they are stored hashed, so the site cannot show them again and
 // does not pretend it can.
-func (w *web) totpRegenerate(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
+func (w *web) totpRegenerate(c *gin.Context, ctx context.Context, u *core.User, in securityActionInput, fail func(string)) {
 	st := w.data.ReadTOTPStatus(ctx, u.ID)
-	if !st.Enabled || !totpVerify(w.data.TOTPSecret(ctx, u.ID), c.PostForm(fieldCode), time.Now()) {
+	if !st.Enabled || !totpVerify(w.data.TOTPSecret(ctx, u.ID), in.Code, time.Now()) {
 		fail("that code did not match")
 		return
 	}
@@ -270,11 +271,11 @@ func (w *web) totpRegenerate(c *gin.Context, ctx context.Context, u *core.User, 
 //
 // Requires a CODE, not merely a session — otherwise a stolen session removes
 // the factor in one click and it protected nothing.
-func (w *web) totpDisable(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
+func (w *web) totpDisable(c *gin.Context, ctx context.Context, u *core.User, in securityActionInput, fail func(string)) {
 	// A CODE, not just a session. Otherwise a stolen session removes the
 	// factor in one click and it protected nothing.
-	if !totpVerify(w.data.TOTPSecret(ctx, u.ID), c.PostForm(fieldCode), time.Now()) &&
-		!w.spendRecoveryCode(ctx, u.ID, c.PostForm(fieldCode)) {
+	if !totpVerify(w.data.TOTPSecret(ctx, u.ID), in.Code, time.Now()) &&
+		!w.spendRecoveryCode(ctx, u.ID, in.Code) {
 		fail("that code did not match")
 		return
 	}
@@ -293,8 +294,8 @@ func (w *web) totpDisable(c *gin.Context, ctx context.Context, u *core.User, fai
 // The demo's mailer logs the message rather than sending it, as the
 // password-reset flow does, so the link is followable from the container log
 // without an SMTP server.
-func (w *web) emailChangeRequest(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
-	link, err := w.requestEmailChange(ctx, u.ID, c.PostForm("email"), w.baseURL())
+func (w *web) emailChangeRequest(c *gin.Context, ctx context.Context, u *core.User, in securityActionInput, fail func(string)) {
+	link, err := w.requestEmailChange(ctx, u.ID, in.Email, w.baseURL())
 	if err != nil {
 		fail(err.Error())
 		return
@@ -365,7 +366,8 @@ func (w *web) twoFactorPost(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	code := c.PostForm(fieldCode)
+	tf, _ := readTwoFactorInput(c)
+	code := tf.Code
 
 	// A recovery code is accepted here too, because "I have lost my phone" is
 	// exactly when somebody is looking at this form.

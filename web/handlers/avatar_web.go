@@ -330,7 +330,8 @@ func (w *web) settingsAvatarSave(c *gin.Context) {
 	}
 	ctx := c.Request.Context()
 
-	if c.PostForm("remove") != "" {
+	av, _ := readAvatarSaveInput(c)
+	if av.Remove != "" {
 		token, err := w.clearAvatar(ctx, w.data.DB(), u.ID)
 		if err != nil {
 			w.log.Error("clear avatar", "user", u.ID, "err", err)

@@ -125,7 +125,8 @@ func currentTheme(c *gin.Context) themeOption {
 // the cookie and where to send the browser back to.
 func (w *web) setTheme(c *gin.Context) {
 	// The cookie is written from the ALLOWLIST entry, not from the form value.
-	theme := themeByName(c.PostForm(themeFormField))
+	in, _ := readThemeInput(c)
+	theme := themeByName(in.Theme)
 	// Lax: the cookie must survive a normal top-level navigation back to the
 	// site (that is the entire point of a persisted preference), and it carries
 	// nothing worth protecting cross-site beyond that. HttpOnly is off
@@ -136,7 +137,7 @@ func (w *web) setTheme(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(themeCookieName, theme.Key, themeCookieMaxAge, "/", "",
 		os.Getenv("SECURE_COOKIES") == "1", false)
-	c.Redirect(http.StatusSeeOther, backLink(c, c.PostForm(themeNextField)))
+	c.Redirect(http.StatusSeeOther, backLink(c, in.Next))
 }
 
 // backLink resolves "send the user back where they came from" to a path on THIS

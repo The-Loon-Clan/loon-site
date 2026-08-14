@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/the-loon-clan/loon-plugins/tracker"
@@ -85,8 +84,11 @@ func (w *web) cheatQueueClear(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/moderation/cheat")
 		return
 	}
-	id, err := strconv.ParseInt(c.PostForm(fieldID), 10, 64)
-	if err != nil || id <= 0 {
+	// A missing or nonsense id binds to zero, which means the form did not come
+	// from the page — redirect rather than report.
+	in, _ := readCheatFlagInput(c)
+	id := in.ID
+	if id <= 0 {
 		c.Redirect(http.StatusSeeOther, "/moderation/cheat")
 		return
 	}

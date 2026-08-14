@@ -46,16 +46,31 @@ func TestEveryInputTypeStatesItsRules(t *testing.T) {
 	// interface. A new *Input the scan finds but this list does not is reported
 	// below, which is what sends somebody back here to add it.
 	implemented := map[string]request.Input{
-		"registerInput": registerInput{},
-		"loginInput":    loginInput{},
-		"giftInput":     giftInput{},
-		"wishInput":     wishInput{},
-
-		// Checkbox-only forms. They validate nothing and still appear here,
-		// because the pattern is as much about naming the fields as about
-		// checking them — see settingsPrivacyInput.
-		"settingsPrivacyInput":       settingsPrivacyInput{},
+		"accessSaveInput":            accessSaveInput{},
+		"avatarModInput":             avatarModInput{},
+		"avatarSaveInput":            avatarSaveInput{},
+		"cheatFlagInput":             cheatFlagInput{},
+		"communityVoteInput":         communityVoteInput{},
+		"coverModeInput":             coverModeInput{},
+		"forgotInput":                forgotInput{},
+		"giftInput":                  giftInput{},
+		"jobControlInput":            jobControlInput{},
+		"loginInput":                 loginInput{},
+		"newznabQueryInput":          newznabQueryInput{},
+		"nextInput":                  nextInput{},
+		"profileBioInput":            profileBioInput{},
+		"registerInput":              registerInput{},
+		"reportAvatarInput":          reportAvatarInput{},
+		"resetInput":                 resetInput{},
+		"securityActionInput":        securityActionInput{},
 		"settingsNotificationsInput": settingsNotificationsInput{},
+		"settingsPrivacyInput":       settingsPrivacyInput{},
+		"themeInput":                 themeInput{},
+		"twoFactorInput":             twoFactorInput{},
+		"undoInput":                  undoInput{},
+		"widgetActionInput":          widgetActionInput{},
+		"wishActionInput":            wishActionInput{},
+		"wishInput":                  wishInput{},
 	}
 
 	for _, name := range found {
