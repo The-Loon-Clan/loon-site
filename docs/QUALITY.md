@@ -27,7 +27,7 @@ Numbers taken Aug 2026. Re-run them rather than trusting this table.
 | --- | --- | --- |
 | Build correctness | `go vet`, `staticcheck`, `unused` | clean |
 | Formatting | `scripts/gofmt.sh` | clean |
-| **Error handling** | `errorlint`, `wrapcheck`, `nilerr` | **not linted** |
+| Error handling | `errorlint` (enabled) | clean — 1 found, 1 fixed |
 | — explicit discards | `grep '^\s*_ = '` (non-test) | **34** |
 | — log-and-continue | `grep 'log.Error('` in web/handlers | **52** |
 | — wrapped with `%w` | `grep '%w'` | 28 |
@@ -143,9 +143,18 @@ numbers above can be regenerated rather than believed. Two constraints:
 
 ## Where to start
 
-`errorlint` and `wrapcheck` added to the existing golangci-lint run, then triage
-the 34 discards.
+**Done:** `errorlint` is enabled. It found one — `err == sql.ErrNoRows` in the
+donations settings store, where a wrapped error would have fallen through as a
+lookup failure instead of "not set", and would only have begun doing so the day
+something started wrapping.
 
-It is the only dimension with a hard number already showing a real gap, it is
-the cheapest to add, and it needs no new tooling in CI — the linter is already
-there and already running.
+`wrapcheck` was considered and **rejected**, for the reason .golangci.yml gives
+about itself: it flags every error crossing a package boundary unwrapped, which
+here is hundreds of sites, and a linter nobody can satisfy gets excluded — after
+which people skim failures. Revisit only alongside a decision about where this
+codebase wants wrapping to happen.
+
+**Next:** triage the 34 `_ =` discards. Each becomes one of: handled, discarded
+with a comment saying why, or wrapped and returned. That is reading, not
+linting — no tool can tell a deliberate best-effort write from a swallowed
+failure.

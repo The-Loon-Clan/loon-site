@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"context"
@@ -56,7 +57,11 @@ type siteSettings struct{ db storage.Conn }
 func (s siteSettings) GetSetting(ctx context.Context, key string) (string, error) {
 	var v string
 	err := s.db.GetContext(ctx, &v, `SELECT value FROM site_settings WHERE key = $1`, key)
-	if err == sql.ErrNoRows {
+	// errors.Is, not ==. A wrapped sql.ErrNoRows fails the equality check and
+	// falls through as a real error, so the plugin would see a lookup failure
+	// where it should see "not set" — and it would only start happening the
+	// day something in the driver or a helper began wrapping.
+	if errors.Is(err, sql.ErrNoRows) {
 		// Absent is not an error: the plugin reads keys that have never been
 		// set and expects "" for them.
 		return "", nil

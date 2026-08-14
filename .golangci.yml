@@ -21,6 +21,18 @@ linters:
     - staticcheck
     - unused
 
+    # errorlint. Added because errcheck reporting nothing was being read as
+    # "errors are handled", and it cannot see the two ways this codebase
+    # actually loses them: `_ = f()`, which silences errcheck by design, and
+    # comparing a wrapped error with == so the branch silently stops matching.
+    #
+    # Chosen over wrapcheck deliberately. wrapcheck flags every error crossing
+    # a package boundary unwrapped, which here is hundreds of sites and would
+    # arrive as noise — and this file's whole policy is that a linter nobody
+    # can satisfy gets excluded, and an excluded linter teaches people to skim
+    # failures. errorlint reports only things that are wrong.
+    - errorlint
+
   settings:
     staticcheck:
       checks:
