@@ -195,8 +195,8 @@ Trust is easier to give when the gaps are stated, so:
   ones were not the unchecked errors: three doc comments described symbols that
   had been renamed or had moved to another package during a restructure, and
   one of them documented a handler that no longer lived in that file at all.
-- **Coverage is 23.4%** with the Postgres and Redis that CI provides, and
-  **19.6%** on a laptop without them — the storage integration tests take that
+- **Coverage is ~24%** with the Postgres and Redis that CI provides, and
+  **20.8%** on a laptop without them — the storage integration tests take that
   package from 3.6% to 38%, and they skip when there is no database. Both
   numbers are stated because only one of them is what CI measures, and quoting
   the lower one as "our coverage" understates the storage layer while quoting
