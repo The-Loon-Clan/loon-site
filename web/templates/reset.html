@@ -27,6 +27,13 @@
                            aria-describedby="password-help">
                     <p class="form__help mt-1 mb-0" id="password-help">At least {{pwmin}} characters. Length beats symbols &mdash; a few ordinary words is a good password.</p>
                 </div>
+                {{/* No minlength, and data-pw-confirm to keep the strength meter
+                     off it — see the note in register.html. */}}
+                <div class="form__group">
+                    <label class="form__label" for="password_confirm">Confirm new password</label>
+                    <input class="form__input" id="password_confirm" type="password" name="password_confirm"
+                           required autocomplete="new-password" data-pw-confirm>
+                </div>
                 <button class="form__button form__button--filled justify-content-center" type="submit">
                     <svg class="icon" aria-hidden="true"><use href="#check"></use></svg>Update password
                 </button>

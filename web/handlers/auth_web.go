@@ -213,6 +213,18 @@ func (w *web) resetPage(c *gin.Context) {
 func (w *web) resetPost(c *gin.Context) {
 	in, _ := readResetInput(c)
 	token := in.Token
+
+	// Before PerformReset, which consumes the token on success OR failure. A
+	// mismatch caught afterwards would cost the member their one link.
+	if errs := request.Validate(in); errs.Any() {
+		c.Status(http.StatusBadRequest)
+		w.render(c, "reset.html", map[string]any{
+			"Title": "Set a new password", "Token": token,
+			"Error": errs.First(in.fieldOrder()...),
+		})
+		return
+	}
+
 	err := w.resetFlow.PerformReset(c.Request.Context(), token, in.Password)
 	if err != nil {
 		msg := "Could not reset your password."

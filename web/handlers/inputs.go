@@ -387,6 +387,15 @@ func (in forgotInput) fieldOrder() []string { return []string{"email"} }
 type resetInput struct {
 	Token    string
 	Password string `form:",raw"`
+
+	// PasswordConfirm exists for the same reason registerInput's does: the
+	// password is stored hashed, so a typo is unreadable, unresettable and
+	// unreported. The stakes are HIGHER here than at registration — this flow
+	// consumes a single-use token, so somebody who mistypes has locked
+	// themselves out AND spent the one link that could have let them back in.
+	// They must request another email and get it right the second time,
+	// without ever being told what went wrong the first.
+	PasswordConfirm string `form:",raw"`
 }
 
 func readResetInput(c *gin.Context) (resetInput, error) {
@@ -394,10 +403,25 @@ func readResetInput(c *gin.Context) (resetInput, error) {
 	return in, request.Bind(c, &in)
 }
 
-// Validate: the token's validity and the password's strength both belong to
+// Validate checks only what the form itself can settle: that the two entries
+// agree.
+//
+// The token's validity and the password's strength stay with
 // authtoken.PerformReset — the token is single-use and time-limited, and both
-// facts live with the row rather than with the form.
-func (in resetInput) Validate() request.Errors { return nil }
+// facts live with the row rather than with the form. Checking the match here
+// rather than there is deliberate: a mismatch must be caught BEFORE
+// PerformReset runs, because PerformReset consumes the token whether or not
+// the password was what the member meant to type.
+func (in resetInput) Validate() request.Errors {
+	var e request.Errors
+	if in.Password != "" {
+		request.Matches(&e, "password_confirm", in.PasswordConfirm, in.Password,
+			"The passwords do not match.")
+	}
+	return e
+}
+
+func (in resetInput) fieldOrder() []string { return []string{"password", "password_confirm"} }
 
 // ── theme, avatar, wishlist actions ─────────────────────────────────────
 

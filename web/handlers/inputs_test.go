@@ -409,3 +409,45 @@ func TestAWishTitleAtTheLimitIsFine(t *testing.T) {
 		t.Errorf("a title of exactly %d characters was refused: %v", wishTitleMax, errs)
 	}
 }
+
+// ── the reset form's confirmation ──
+//
+// Same failure as registration — a hashed password cannot be read back, so a
+// typo is unreadable, unresettable and unreported — with one difference that
+// makes it worse. This flow spends a single-use token. Mistype here and you
+// have locked yourself out AND used the one link that could have let you back
+// in, with nothing on screen saying so.
+
+func TestResetRequiresTheTwoEntriesToAgree(t *testing.T) {
+	in := resetInput{Token: "tok", Password: "correct horse battery", PasswordConfirm: "correct horse batttery"}
+	if errs := request.Validate(in); errs["password_confirm"] == "" {
+		t.Error("a reset whose two passwords differ was accepted")
+	}
+}
+
+func TestResetAcceptsAMatchingPair(t *testing.T) {
+	in := resetInput{Token: "tok", Password: "correct horse battery", PasswordConfirm: "correct horse battery"}
+	if errs := request.Validate(in); errs.Any() {
+		t.Errorf("a matching pair was rejected: %v", errs)
+	}
+}
+
+func TestResetLeavesStrengthToTheFlowThatOwnsIt(t *testing.T) {
+	// A short password is authtoken.PerformReset's business, not this form's:
+	// the rule lives with the row, and duplicating it here is two things to
+	// keep in step. Validate must not invent a second opinion about it.
+	in := resetInput{Token: "tok", Password: "short", PasswordConfirm: "short"}
+	if errs := request.Validate(in); errs.Any() {
+		t.Errorf("the form second-guessed the reset flow's strength rule: %v", errs)
+	}
+}
+
+func TestResetSaysNothingAboutAnEmptyPassword(t *testing.T) {
+	// Nothing typed at all is the browser's required attribute and the reset
+	// flow's job. Reporting "the passwords do not match" on a blank form would
+	// be true, useless, and about the wrong field.
+	in := resetInput{Token: "tok"}
+	if errs := request.Validate(in); errs.Any() {
+		t.Errorf("a blank form produced a message about matching: %v", errs)
+	}
+}
