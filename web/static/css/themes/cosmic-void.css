@@ -362,12 +362,40 @@
        where the reference is still darkening.
 
        Stops stay in vw/vh so the field still spans any viewport — see the
-       commit that removed the pixel anchoring. */
+       commit that removed the pixel anchoring.
+
+       ---- on the wash COLOUR, which the fit above never scored ----
+
+       washfit.py scores a light/dark field: it compares luminance profiles and
+       nothing else. So the tint was free to be anything, and it was a saturated
+       material blue — which got the brightness curve right and stained the top
+       left. Measured against this theme's own --bg, the corner rendered #292F34
+       on a #222222 base: eighteen points more blue than red, from a base that
+       is pure neutral grey.
+
+       That the other two themes carry a comparable wash without looking wrong
+       is the tell. Nord's base (#2e3440) and midnight's (#0a0e17) are already
+       blue; a blue wash there is in-family and reads as atmosphere. This is the
+       only theme whose canvas is R=G=B, so it is the only one where the wash
+       supplies the sole hue on the page, and a tint that is merely present
+       elsewhere is conspicuous here.
+
+       The tint is now a pale blue-white, and the alphas are re-derived to hold
+       the FITTED LUMINANCE CONSTANT so the profile above still stands. Per unit
+       alpha, rgb(33,149,243) lifts luminance by 97.1 and rgb(200,220,245) by
+       183.5, so each alpha is scaled by 97.1/183.5:
+
+           0.085 -> 0.045    0.06 -> 0.032    0.04 -> 0.021
+
+       Same field, same shape, ~2 points of blue over red at the corner instead
+       of ~18. Re-run washfit.py after any change here — and if the tint is ever
+       tuned again, keep this ratio or the fit silently stops describing the
+       file it is written above. */
     --body-wash:
         linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
-        radial-gradient(46vw 60vh at 14% 12%, rgba(33, 149, 243, 0.085), rgba(33, 149, 243, 0) 70%),
-        radial-gradient(34vw 46vh at 52% 22%, rgba(33, 149, 243, 0.06), rgba(33, 149, 243, 0) 68%),
-        radial-gradient(40vw 54vh at 86% 60%, rgba(33, 149, 243, 0.04), rgba(33, 149, 243, 0) 66%),
+        radial-gradient(46vw 60vh at 14% 12%, rgba(200, 220, 245, 0.045), rgba(200, 220, 245, 0) 70%),
+        radial-gradient(34vw 46vh at 52% 22%, rgba(200, 220, 245, 0.032), rgba(200, 220, 245, 0) 68%),
+        radial-gradient(40vw 54vh at 86% 60%, rgba(200, 220, 245, 0.021), rgba(200, 220, 245, 0) 66%),
         radial-gradient(52vw 66vh at 100% 16%, rgba(0, 0, 0, 0.13), rgba(0, 0, 0, 0) 76%);
 
     /* ── The featured strip ─────────────────────────────────────────────────
