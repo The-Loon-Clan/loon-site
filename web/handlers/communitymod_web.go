@@ -172,20 +172,38 @@ func (w *web) decide(ctx context.Context, itemID int64) error {
 		  FROM moderation_votes WHERE item_id = $1`, itemID); err != nil {
 		return err
 	}
-	total := t.Removes + t.Keeps
+	if out := voteOutcome(t.Removes, t.Keeps); out != "" {
+		return w.resolveItem(ctx, itemID, out, 0)
+	}
+	return nil
+}
+
+// voteOutcome is the rule itself: what a tally means.
+//
+// Separated from the query above so the arithmetic can be read and tested on
+// its own. It decides whether a member's picture comes down on the strength of
+// other members' votes, which is worth being able to check without a database
+// standing between the question and the answer.
+//
+// Returns "" for no decision, which covers two different situations that both
+// mean "leave it alone for now":
+//
+//   - not enough votes yet (below quorum), and
+//   - enough votes, no clear majority either way. Left open DELIBERATELY: a
+//     split community is a real answer, and the item stays for staff or for
+//     more votes rather than defaulting to whichever side is cheaper.
+func voteOutcome(removes, keeps int) string {
+	total := removes + keeps
 	if total < voteQuorum {
-		return nil
+		return ""
 	}
 	switch {
-	case t.Removes*voteMajorityDen >= total*voteMajorityNum:
-		return w.resolveItem(ctx, itemID, resolutionRemoved, 0)
-	case t.Keeps*voteMajorityDen >= total*voteMajorityNum:
-		return w.resolveItem(ctx, itemID, resolutionKept, 0)
+	case removes*voteMajorityDen >= total*voteMajorityNum:
+		return resolutionRemoved
+	case keeps*voteMajorityDen >= total*voteMajorityNum:
+		return resolutionKept
 	}
-	// Quorum reached, no majority either way. Left open deliberately: a split
-	// community is a real answer, and the item stays for staff or for more
-	// votes rather than defaulting to whichever side is cheaper.
-	return nil
+	return ""
 }
 
 // resolveItem closes an item and carries out what was decided.
