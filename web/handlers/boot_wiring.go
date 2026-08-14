@@ -15,7 +15,6 @@ package handlers
 import (
 	"context"
 	"log/slog"
-	"os"
 
 	"github.com/the-loon-clan/loon-baseline/apikey"
 	"github.com/the-loon-clan/loon-baseline/authtoken"
@@ -27,6 +26,7 @@ import (
 	"github.com/the-loon-clan/loon-baseline/users"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
+	"fmt"
 	"github.com/the-loon-clan/loon/schedule"
 )
 
@@ -51,7 +51,14 @@ type baselineStores struct {
 // Every failure here is fatal on purpose: a host that cannot create its own
 // users table has nothing to serve, and continuing would surface as confusing
 // per-request errors much later.
-func wireBaselineStores(db storage.Conn, logger *slog.Logger) baselineStores {
+// wireBaselineStores builds the loon-baseline stores this host owns.
+//
+// It RETURNS its errors rather than exiting, and that is not a style
+// preference: every step below is a migration or a store construction that a
+// test wants to run, and a helper that calls os.Exit cannot be called from a
+// test at all — the process dies and takes the run with it. Main does the
+// exiting, which is the one place that should.
+func wireBaselineStores(db storage.Conn, logger *slog.Logger) (baselineStores, error) {
 	var st baselineStores
 	st.sessionSecret = []byte(getenvDefault("LOON_SESSION_SECRET", "dev-insecure-demo-secret-change-me"))
 	// User store: loon-baseline's Postgres reference impl (a real host implements
@@ -60,21 +67,18 @@ func wireBaselineStores(db storage.Conn, logger *slog.Logger) baselineStores {
 	st.users = users.NewPGStore(db.Raw().DB)
 	// Host-owned reads for /staff and /stats — see w.data.DB() in pages_web.go.
 	if err := st.users.Migrate(context.Background()); err != nil {
-		logger.Error("users migrate", "err", err)
-		os.Exit(1)
+		return st, fmt.Errorf("users migrate: %w", err)
 	}
 	// Login-attempt audit (loon-baseline): the host records each attempt at its
 	// login handler; the store + views live in the baseline.
 	st.loginLog = loginlog.NewPGStore(db.Raw().DB)
 	if err := st.loginLog.Migrate(context.Background()); err != nil {
-		logger.Error("loginlog migrate", "err", err)
-		os.Exit(1)
+		return st, fmt.Errorf("loginlog migrate: %w", err)
 	}
 	// Password-reset + email-verification token store (loon-baseline).
 	st.tokens = authtoken.NewPGStore(db.Raw().DB)
 	if err := st.tokens.Migrate(context.Background()); err != nil {
-		logger.Error("authtoken migrate", "err", err)
-		os.Exit(1)
+		return st, fmt.Errorf("authtoken migrate: %w", err)
 	}
 	// Admin-editable job/service settings (loon-baseline). This is the
 	// persistence behind loon's schedule config vars. We register the "Search
@@ -85,16 +89,14 @@ func wireBaselineStores(db storage.Conn, logger *slog.Logger) baselineStores {
 	// cross-process settings path from LOON-DISTRIBUTED.
 	jobSettings := jobsettings.NewPGStore(db.Raw().DB)
 	if err := jobSettings.Migrate(context.Background()); err != nil {
-		logger.Error("jobsettings migrate", "err", err)
-		os.Exit(1)
+		return st, fmt.Errorf("jobsettings migrate: %w", err)
 	}
 	// Newznab API keys (loon-baseline): one per user, shown + regenerated on the
 	// self-service /p/api-key page. loon-api (against this same DB) validates the
 	// ?apikey= a client sends against this table.
 	st.apiKeys = apikey.NewPGStore(db.Raw().DB)
 	if err := st.apiKeys.Migrate(context.Background()); err != nil {
-		logger.Error("apikey migrate", "err", err)
-		os.Exit(1)
+		return st, fmt.Errorf("apikey migrate: %w", err)
 	}
 	// Planned-maintenance mode (loon-baseline): a persisted flag + a self-
 	// contained 503 page + an admin toggle. Restore the last state on boot so a
@@ -102,8 +104,7 @@ func wireBaselineStores(db storage.Conn, logger *slog.Logger) baselineStores {
 	// deliberately does NOT install this middleware, so it stays up.
 	maintStore := maintenance.NewPGStore(db.Raw().DB)
 	if err := maintStore.Migrate(context.Background()); err != nil {
-		logger.Error("maintenance migrate", "err", err)
-		os.Exit(1)
+		return st, fmt.Errorf("maintenance migrate: %w", err)
 	}
 	st.maint = maintenance.NewController(maintStore)
 	if err := st.maint.Restore(context.Background()); err != nil {
@@ -116,16 +117,14 @@ func wireBaselineStores(db storage.Conn, logger *slog.Logger) baselineStores {
 	// the demo (single process) only polls.
 	st.jobTriggers = jobtrigger.NewPGStore(db.Raw().DB)
 	if err := st.jobTriggers.Migrate(context.Background()); err != nil {
-		logger.Error("jobtrigger migrate", "err", err)
-		os.Exit(1)
+		return st, fmt.Errorf("jobtrigger migrate: %w", err)
 	}
 	// Process presence (loon-baseline): this instance beats a heartbeat on an
 	// interval; the admin "Services online" view lists who's checked in. One
 	// "all" process here; a split deployment would show web + worker rows.
 	st.heartbeat = heartbeat.NewPGStore(db.Raw().DB)
 	if err := st.heartbeat.Migrate(context.Background()); err != nil {
-		logger.Error("heartbeat migrate", "err", err)
-		os.Exit(1)
+		return st, fmt.Errorf("heartbeat migrate: %w", err)
 	}
 
 	apiSvc := schedule.RegisterService("Search API", "Newznab/Torznab read tier (runs in loon-api)")
@@ -142,31 +141,30 @@ func wireBaselineStores(db storage.Conn, logger *slog.Logger) baselineStores {
 			Description: "Contributors get this multiple of the base API limits; mods/admins are exempt entirely."},
 	)
 	apiSvc.MarkRemote() // its loop lives in loon-api; here it's a config stub
-	return st
+	return st, nil
 }
 
 // migrateSiteTables creates the tables and loads the settings this site owns,
 // as opposed to loon-baseline's. Runs after the user seed, because the forum's
 // starter threads attribute to the demo accounts.
-func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PGStore) {
+// migrateSiteTables runs the host's own migrations and seeds. Returns its
+// errors for the same reason as wireBaselineStores above.
+func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PGStore) error {
 	seedDemoUsers(users, logger)
 	// Forum tables + starter content (forum_web.go). After the user seed so
 	// the starter threads can attribute to the demo accounts.
 	if err := data.MigrateForum(); err != nil {
-		logger.Error("forum migrate", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("forum migrate: %w", err)
 	}
 	forumSeed(data.DB(), logger)
 	// Site access modes + invite codes (access_web.go, invitecodes_web.go).
 	if err := data.MigrateInviteCodes(); err != nil {
-		logger.Error("invite codes migrate", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("invite codes migrate: %w", err)
 	}
 	// Before the two loads below: they read this table, and it used to be
 	// created only when the donations plugin was enabled.
 	if err := data.MigrateSiteSettings(); err != nil {
-		logger.Error("site settings migrate", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("site settings migrate: %w", err)
 	}
 	if err := loadAccessSettings(context.Background(), data.DB()); err != nil {
 		logger.Error("load access settings", "err", err)
@@ -180,7 +178,7 @@ func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PG
 	// The profile's free-text block (profilebio_web.go). A users column, so it
 	// migrates with the other host-owned users work rather than in a plugin.
 	if err := data.MigrateProfileBio(); err != nil {
-		logger.Error("profile bio migrate", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("profile bio migrate: %w", err)
 	}
+	return nil
 }
