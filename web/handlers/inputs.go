@@ -1,72 +1,76 @@
 package handlers
 
 import (
-	"strconv"
-
 	"github.com/gin-gonic/gin"
+
+	"github.com/the-loon-clan/loon-baseline/captcha"
 
 	"github.com/the-loon-clan/loon-site/internal/request"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
-// One struct per endpoint that accepts input, each stating its own rules.
+// One struct per endpoint that accepts input.
 //
-// The pattern, and why it is worth the file:
+// The struct IS the declaration of the form. Field names are the wire names —
+// request.Bind derives private_profile from PrivateProfile — so there is no
+// mapping table, no tags in the ordinary case, and nothing to keep in step
+// between a handler, a struct and a template.
 //
-//	type xInput struct{ … }                       // what the form sends
-//	func readXInput(c *gin.Context) xInput        // parse, and ONLY parse
-//	func (in xInput) Validate() request.Errors    // the rules, in one place
-//
-// The rules become readable without reading the handler, and testable without
-// building a request — which is the whole difference between "we validate
-// carefully" and "here is what this endpoint accepts, and here is the test".
+//	type xInput struct{ … }                          // what the form sends
+//	func readXInput(c *gin.Context) (xInput, error)  // bind, and only bind
+//	func (in xInput) Validate() request.Errors       // the rules, in one place
 //
 // Validate is required by request.Input, and inputs_test.go asserts that every
 // type in this package named *Input satisfies it — so a struct added here
-// without rules fails the build's tests rather than quietly accepting anything.
+// without rules fails the tests rather than quietly accepting anything.
 //
 // What does NOT belong in Validate: anything needing the database or the
-// session. "Is this username taken" and "is this invite code real" are
-// questions for the handler, because they can be true when Validate runs and
-// false a moment later. Validate answers only what the request itself can
-// settle.
+// session. "Is this username taken", "is this invite code real", "do you have
+// enough points" are questions for the handler, because they can be true when
+// Validate runs and false a moment later. Validate answers only what the
+// request itself can settle.
+//
+// Two tags appear, and each is a decision rather than a mapping:
+//
+//	`form:",raw"`   keep exactly what was typed (passwords)
+//	`form:"-"`      the handler fills this, never the submitter
+
+// ── register ────────────────────────────────────────────────────────────
 
 // registerInput is POST /register.
 type registerInput struct {
 	Username string
 	Email    string // optional — an account without one simply gets no verification mail
-	Password string
+	// A password of spaces is a password. Trimming one signs somebody up with
+	// something other than what they typed, then refuses to let them back in.
+	Password string `form:",raw"`
 	Invite   string
-	Captcha  string
+
+	// Captcha's field name belongs to Cloudflare, so it comes from the
+	// library's own constant rather than being spelled out here.
+	Captcha string `form:"-"`
 
 	// RegMode is the site's registration mode at the moment of the request.
-	// Carried on the input because it changes what is REQUIRED: an invite code
-	// is mandatory on an invite-only site and meaningless on an open one, and
-	// that is a rule about this submission rather than a fact about the form.
-	RegMode string
+	// Filled by the handler, never by the form: it decides what is REQUIRED,
+	// and a value the submitter could set would let them choose their own
+	// rules.
+	RegMode string `form:"-"`
 }
 
-func readRegisterInput(c *gin.Context, captchaField string) registerInput {
-	return registerInput{
-		Username: request.Trim(c.PostForm("username")),
-		Email:    request.Trim(c.PostForm("email")),
-		// NOT trimmed. A password of spaces is a password, and trimming one
-		// silently signs the member up with something other than what they
-		// typed — then fails to let them back in.
-		Password: c.PostForm("password"),
-		Invite:   request.Trim(c.PostForm("invite")),
-		Captcha:  c.PostForm(captchaField),
-		RegMode:  registrationMode(),
-	}
+func readRegisterInput(c *gin.Context) (registerInput, error) {
+	var in registerInput
+	err := request.Bind(c, &in)
+	in.Captcha = c.PostForm(captcha.FormField)
+	in.RegMode = registrationMode()
+	return in, err
 }
 
 // Validate states what this endpoint accepts.
 //
 // Deliberately NOT stricter than the flow behind it. authflow.Register already
-// rejects an empty username, a short password and a taken name, and this is a
-// worked example rather than a change of policy — so the rules here are the
-// ones the handler was already enforcing by other means, plus the length
-// ceilings that were previously enforced nowhere at all.
+// rejects an empty username, a short password and a taken name, so the rules
+// here are the ones the handler was already enforcing by other means, plus the
+// length ceilings that were previously enforced nowhere at all.
 func (in registerInput) Validate() request.Errors {
 	var e request.Errors
 
@@ -102,17 +106,15 @@ func (in registerInput) fieldOrder() []string {
 // loginInput is POST /login.
 type loginInput struct {
 	Username string
-	Password string
-	Captcha  string
+	Password string `form:",raw"`
+	Captcha  string `form:"-"`
 }
 
-func readLoginInput(c *gin.Context, captchaField string) loginInput {
-	return loginInput{
-		Username: request.Trim(c.PostForm("username")),
-		// Never trimmed — a password of spaces is a password.
-		Password: c.PostForm("password"),
-		Captcha:  c.PostForm(captchaField),
-	}
+func readLoginInput(c *gin.Context) (loginInput, error) {
+	var in loginInput
+	err := request.Bind(c, &in)
+	in.Captcha = c.PostForm(captcha.FormField)
+	return in, err
 }
 
 // Validate deliberately checks presence and NOTHING else.
@@ -141,25 +143,12 @@ func (in loginInput) fieldOrder() []string { return []string{"username", "passwo
 type giftInput struct {
 	To     string
 	Amount int
-	// AmountRaw is what was typed, kept so a non-numeric entry can be reported
-	// as such rather than silently becoming 0 — which the storage layer would
-	// then refuse as "a gift has to be at least 1 point", an answer about the
-	// wrong thing.
-	AmountRaw string
-	Numeric   bool
-	Note      string
+	Note   string
 }
 
-func readGiftInput(c *gin.Context) giftInput {
-	raw := request.Trim(c.PostForm("amount"))
-	n, err := strconv.Atoi(raw)
-	return giftInput{
-		To:        request.Trim(c.PostForm("to")),
-		Amount:    n,
-		AmountRaw: raw,
-		Numeric:   err == nil,
-		Note:      c.PostForm("note"),
-	}
+func readGiftInput(c *gin.Context) (giftInput, error) {
+	var in giftInput
+	return in, request.Bind(c, &in)
 }
 
 // Validate covers what the REQUEST can settle, and stops there.
@@ -169,16 +158,14 @@ func readGiftInput(c *gin.Context) giftInput {
 // transaction that moves the points. That is the right place and this must not
 // duplicate them: a balance checked here is a balance that can change before
 // the UPDATE runs, and two copies of a rule are two things to keep in step.
-//
-// What is here is what a form can answer on its own: a recipient was named, and
-// the amount is a number at all.
 func (in giftInput) Validate() request.Errors {
 	var e request.Errors
 	request.Required(&e, "to", in.To, "A member to send to")
-	if in.AmountRaw == "" {
+	// Bind leaves an unparseable number at zero rather than failing: "abc" in a
+	// number box is the member's mistake, and this is where a member's mistake
+	// gets a message.
+	if in.Amount == 0 {
 		e.Add("amount", "How many points?")
-	} else if !in.Numeric {
-		e.Add("amount", "That is not a number of points.")
 	}
 	request.MaxRunes(&e, "note", in.Note, "A note", storage.GiftNoteMax)
 	return e
@@ -194,23 +181,17 @@ type wishInput struct {
 	Note  string
 }
 
-func readWishInput(c *gin.Context) wishInput {
-	return wishInput{
-		Title: request.Trim(c.PostForm("title")),
-		Note:  request.Trim(c.PostForm("note")),
-	}
+func readWishInput(c *gin.Context) (wishInput, error) {
+	var in wishInput
+	return in, request.Bind(c, &in)
 }
 
 // Validate reports what is wrong rather than quietly repairing it.
 //
 // The handler used to TRUNCATE an over-long title to wishTitleMax and carry on,
-// which stores something the member did not write and does not find out about
-// until they look at their own list. Telling them is both cheaper and more
-// honest; the truncation stays in place underneath as a backstop for anything
-// that reaches the store by another path.
-//
-// How many entries are already open is NOT here: that is a count over the
-// database, true when read and possibly false a moment later.
+// which stores something the member did not write and which they do not find
+// out about until they look at their own list. The truncation stays in place
+// underneath as a backstop for anything reaching the store by another path.
 func (in wishInput) Validate() request.Errors {
 	var e request.Errors
 	if request.Required(&e, "title", in.Title, "Say what you are looking for") {
@@ -226,57 +207,50 @@ func (in wishInput) fieldOrder() []string { return []string{"title", "note"} }
 
 // settingsPrivacyInput is POST /settings/privacy.
 //
-// A single checkbox, and it still gets a struct. There is nothing here to
-// validate — `== "1"` is already total, since every other value is false — so
-// the struct earns its place on the other half of the pattern: the handler
-// reads in.PrivateProfile rather than c.PostForm(fieldPrivateProfile), and the
-// form's field name is written down once, next to the type that models the
-// form, instead of appearing as a bare string in the middle of a handler.
-//
-// Cost: none. gin parses the body once into c.formCache and every PostForm
-// after that is a map lookup on url.Values, so reading fields into a struct is
-// the same work — done once, in one place, instead of wherever somebody
-// happened to need it.
+// One checkbox, and it still gets a struct: PrivateProfile is read as
+// private_profile with nothing written down anywhere else, and the handler
+// reads in.PrivateProfile rather than a quoted string in the middle of a
+// function.
 type settingsPrivacyInput struct {
 	PrivateProfile bool
 }
 
-func readSettingsPrivacyInput(c *gin.Context) settingsPrivacyInput {
-	return settingsPrivacyInput{
-		PrivateProfile: c.PostForm(fieldPrivateProfile) == checked,
-	}
+func readSettingsPrivacyInput(c *gin.Context) (settingsPrivacyInput, error) {
+	var in settingsPrivacyInput
+	return in, request.Bind(c, &in)
 }
 
 // Validate has nothing to say, and says so explicitly.
 //
 // A checkbox cannot be malformed: it is present or it is not. The method exists
-// because request.Input requires it, and returning nil here is a statement —
-// "this endpoint accepts anything a form can send" — rather than an omission
-// somebody has to go and check.
+// because request.Input requires it, and returning nil is a statement — "this
+// endpoint accepts anything a form can send" — rather than an omission somebody
+// has to go and check.
 func (in settingsPrivacyInput) Validate() request.Errors { return nil }
 
 // settingsNotificationsInput is POST /settings/notifications.
 //
-// A map rather than a field per kind, because the kinds are DATA: they live in
-// notifiableKinds, a plugin-facing list that grows. A struct with a field per
-// kind would have to be edited every time one is added, and the compiler would
-// not remind anybody — the new kind would simply never be readable.
+// The one form whose fields are DATA rather than a fixed shape: the kinds live
+// in notifiableKinds, a plugin-facing list that grows. A struct field per kind
+// would need editing every time one was added, and nothing would remind
+// anybody — the new kind would simply never be readable.
+//
+// So it is a map, filled from the KNOWN kinds rather than from what arrived. An
+// unticked checkbox posts nothing at all, so reading only what was sent would
+// silently leave a kind the member just switched off still enabled.
 type settingsNotificationsInput struct {
-	// Enabled holds every KNOWN kind, including the ones the form did not send.
-	// An unchecked box posts nothing at all, so reading only what arrived would
-	// silently leave a kind the member just switched off still enabled.
-	Enabled map[string]bool
+	Enabled map[string]bool `form:"-"`
 }
 
-func readSettingsNotificationsInput(c *gin.Context) settingsNotificationsInput {
+func readSettingsNotificationsInput(c *gin.Context) (settingsNotificationsInput, error) {
 	in := settingsNotificationsInput{Enabled: make(map[string]bool, len(notifiableKinds))}
 	for _, k := range notifiableKinds {
 		in.Enabled[k.Kind] = c.PostForm(k.Kind) == checked
 	}
-	return in
+	return in, nil
 }
 
 // Validate: the kinds come from notifiableKinds, so an unknown one cannot be in
-// the map — readSettingsNotificationsInput builds it from that list rather than
-// from what was posted.
+// the map — the reader builds it from that list rather than from what was
+// posted.
 func (in settingsNotificationsInput) Validate() request.Errors { return nil }

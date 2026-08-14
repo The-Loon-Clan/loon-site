@@ -234,13 +234,13 @@ func TestALoginPasswordOfSpacesIsAPassword(t *testing.T) {
 // ── giftInput ──
 
 func TestAGiftNeedsARecipientAndANumber(t *testing.T) {
-	if errs := request.Validate(giftInput{AmountRaw: "5", Amount: 5, Numeric: true}); errs["to"] == "" {
+	if errs := request.Validate(giftInput{Amount: 5}); errs["to"] == "" {
 		t.Error("a gift with no recipient was accepted")
 	}
 	if errs := request.Validate(giftInput{To: "bob"}); errs["amount"] == "" {
 		t.Error("a gift with no amount was accepted")
 	}
-	if errs := request.Validate(giftInput{To: "bob", AmountRaw: "lots"}); errs["amount"] == "" {
+	if errs := request.Validate(giftInput{To: "bob", Amount: 0}); errs["amount"] == "" {
 		t.Error("a non-numeric amount was accepted")
 	}
 }
@@ -254,18 +254,20 @@ func TestTheGiftLimitsStayWithTheTransaction(t *testing.T) {
 	//
 	// So a negative or enormous amount passes VALIDATION and is refused by the
 	// store. This test exists so that stays a decision rather than an oversight.
-	for _, raw := range []string{"-100", "0", "999999999"} {
-		n, _ := strconv.Atoi(raw)
-		in := giftInput{To: "bob", AmountRaw: raw, Amount: n, Numeric: true}
+	// Zero is excluded: Bind leaves an unparseable number at zero, so zero is
+	// how "abc" arrives and Validate reports it as "how many points?". The
+	// LIMITS are what stays with the transaction.
+	for _, n := range []int{-100, 1, 999999999} {
+		in := giftInput{To: "bob", Amount: n}
 		if errs := request.Validate(in); errs.Any() {
-			t.Errorf("amount %s was refused by Validate; the limits belong to "+
-				"TransferPoints, inside the transaction: %v", raw, errs)
+			t.Errorf("amount %d was refused by Validate; the limits belong to "+
+				"TransferPoints, inside the transaction: %v", n, errs)
 		}
 	}
 }
 
 func TestAnOverlongGiftNoteIsRefused(t *testing.T) {
-	in := giftInput{To: "bob", AmountRaw: "5", Amount: 5, Numeric: true,
+	in := giftInput{To: "bob", Amount: 5,
 		Note: strings.Repeat("x", storage.GiftNoteMax+1)}
 	if errs := request.Validate(in); errs["note"] == "" {
 		t.Errorf("a note over %d characters was accepted", storage.GiftNoteMax)

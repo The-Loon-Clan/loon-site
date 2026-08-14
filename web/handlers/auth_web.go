@@ -29,7 +29,10 @@ func (w *web) loginPage(c *gin.Context) {
 func (w *web) loginPost(c *gin.Context) {
 	// Captcha first — a bot shouldn't get to probe credentials. No-op when the
 	// Turnstile hook is unconfigured (demo default).
-	in := readLoginInput(c, captcha.FormField)
+	in, err := readLoginInput(c)
+	if err != nil {
+		w.log.Error("bind login", "err", err)
+	}
 
 	// Presence only, and ahead of the captcha because an empty box costs
 	// nothing to notice — see inputs.go for why nothing STRICTER belongs on a
@@ -93,7 +96,10 @@ func (w *web) registerPage(c *gin.Context) {
 }
 
 func (w *web) registerPost(c *gin.Context) {
-	in := readRegisterInput(c, captcha.FormField)
+	in, err := readRegisterInput(c)
+	if err != nil {
+		w.log.Error("bind register", "err", err)
+	}
 
 	// again re-renders the form with what was typed still in it. Losing a
 	// half-filled form to a validation message is its own small insult, and

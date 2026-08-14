@@ -101,7 +101,7 @@ func (w *web) settingsPrivacySave(c *gin.Context) {
 	if !ok {
 		return
 	}
-	in := readSettingsPrivacyInput(c)
+	in, _ := readSettingsPrivacyInput(c)
 	if w.data != nil {
 		if err := w.data.SetPrivateProfile(c.Request.Context(), u.ID, in.PrivateProfile); err != nil {
 			w.log.Error("privacy save", "err", err)
@@ -140,7 +140,7 @@ func (w *web) settingsNotificationsSave(c *gin.Context) {
 	// An unchecked box posts NOTHING, so every known kind must be written
 	// explicitly — reading only what was posted would silently leave a kind the
 	// user just turned off still enabled.
-	in := readSettingsNotificationsInput(c)
+	in, _ := readSettingsNotificationsInput(c)
 	for _, k := range notifiableKinds {
 		if err := w.data.SetNotificationPref(ctx, u.ID, k.Kind, in.Enabled[k.Kind]); err != nil {
 			w.log.Error("notification pref save", "kind", k.Kind, "err", err)

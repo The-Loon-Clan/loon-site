@@ -72,7 +72,7 @@ func (w *web) wishlistAdd(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	in := readWishInput(c)
+	in, _ := readWishInput(c)
 	// Reported rather than silently truncated — see inputs.go. Storing a title
 	// the member did not write is something they find out about by noticing it
 	// on their own list later.

@@ -29,8 +29,12 @@ const (
 	fieldNext   = "next"   // where to return after this succeeds
 
 	// Single-field forms.
-	fieldPrivateProfile = "private_profile"
-	fieldCode           = "code" // a TOTP or recovery code
+	//
+	// private_profile is NOT here any more: settingsPrivacyInput.PrivateProfile
+	// declares it, and request.Bind derives the key from the field name. A
+	// constant beside it would be the same string written twice — which is what
+	// this file exists to stop.
+	fieldCode = "code" // a TOTP or recovery code
 
 	// Query keys the templates read back to show the outcome of a redirect.
 	// A handler redirects with one of these and the page renders a banner.

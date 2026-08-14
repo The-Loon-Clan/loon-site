@@ -58,7 +58,7 @@ func (w *web) giftsSend(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	in := readGiftInput(c)
+	in, _ := readGiftInput(c)
 	name := in.To
 	back := "/gifts?to=" + url.QueryEscape(name)
 
