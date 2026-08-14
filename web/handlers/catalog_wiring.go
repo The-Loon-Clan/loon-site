@@ -22,8 +22,10 @@ import (
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/tmdb"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/tvmaze"
 	"github.com/the-loon-clan/loon-plugins/scraper/sources/wikipedia"
+	"github.com/the-loon-clan/loon-site/internal/catalogchain"
 	"github.com/the-loon-clan/loon/catalog"
 	"github.com/the-loon-clan/loon/core"
+	"strings"
 )
 
 // wireMetadataSources builds the shared catalog.Registry, registers whichever
@@ -65,6 +67,32 @@ func wireMetadataSources(c *core.Core, logger *slog.Logger) {
 		return true
 	}
 
+	// addChain registers several sources for ONE domain as a single source that
+	// tries them in order. Unconfigured sources drop out; a chain with nothing
+	// left registers nothing.
+	addChain := func(domain string, named map[string]catalog.MetadataSource, order ...string) {
+		live := map[string]catalog.MetadataSource{}
+		for name, src := range named {
+			if !isNilSource(src) {
+				live[name] = src
+			}
+		}
+		ch, err := catalogchain.New(live, order...)
+		if err != nil {
+			logger.Error("build catalog chain", "domain", domain, "err", err)
+			return
+		}
+		if ch == nil {
+			return // nothing configured for this domain
+		}
+		if err := reg.RegisterSource(ch); err != nil {
+			logger.Error("register catalog chain", "domain", domain, "err", err)
+			return
+		}
+		providers = append(providers, ch.Sources()...)
+		logger.Info("catalog chain", "domain", domain, "sources", strings.Join(ch.Sources(), " -> "))
+	}
+
 	add("theporndb", theporndb.New(os.Getenv("TPDB_API_KEY"), ""))
 
 	// TMDB when a key is set; the keyless pair when it is not.
@@ -79,26 +107,38 @@ func wireMetadataSources(c *core.Core, logger *slog.Logger) {
 	// covers film, so a host with no credentials at all still gets posters,
 	// summaries and dates across the two biggest categories on the index
 	// instead of blank cards — see docs/METADATA-SOURCES.md.
-	tmdbOn := false
-	for _, kind := range []tmdb.Kind{tmdb.KindMovie, tmdb.KindTV} {
-		if add("tmdb", tmdb.New(os.Getenv("TMDB_API_KEY"), kind, "")) {
-			tmdbOn = true
-		}
-	}
-	if !tmdbOn {
-		add("tvmaze", tvmaze.New(""))
-		add("wikipedia", wikipedia.New(""))
-	}
-	// AniDB when a client name is registered; AniList when it is not.
+	// Chains, not either/or.
 	//
-	// Both serve "anime" and the registry refuses a duplicate, so the choice is
-	// made explicitly rather than left to call order. AniDB returns nil without
-	// a client name, which is what makes this an if at all — it used to build
-	// itself regardless, hold the domain, and answer every lookup from an empty
-	// index, leaving anime at 6.2% cover art while television sat at 59%.
-	if !add("anidb", anidb.New(os.Getenv("ANIDB_CLIENT"), nil)) {
-		add("anilist", anilist.New(""))
-	}
+	// The registry refuses a duplicate domain, so this used to be a choice made
+	// at boot: TMDB when a key was set, TVmaze and Wikipedia when it was not.
+	// The fallbacks were registered INSTEAD of the primary, which meant a title
+	// TMDB had never heard of was simply not found — there was nothing behind
+	// it.
+	//
+	// A chain is several sources presented to the registry as one, so the
+	// one-per-domain rule is satisfied and the fallback happens inside. It also
+	// CONFIRMS a hit before accepting it, which is the step NNTmux's movie
+	// chain ends with and the one whose absence is invisible: a source that
+	// answered is not a source that was right, and a wrong poster looks exactly
+	// like a right one. See internal/catalogchain and docs/METADATA-METHODS.md.
+	key := os.Getenv("TMDB_API_KEY")
+	addChain("movie", map[string]catalog.MetadataSource{
+		"tmdb":      tmdb.New(key, tmdb.KindMovie, ""),
+		"wikipedia": wikipedia.New(""),
+	}, "tmdb", "wikipedia")
+	addChain("tv", map[string]catalog.MetadataSource{
+		"tmdb":   tmdb.New(key, tmdb.KindTV, ""),
+		"tvmaze": tvmaze.New(""),
+	}, "tmdb", "tvmaze")
+	// AniDB returns nil without a client name — which is what made this a
+	// choice at all. It used to build itself regardless, hold the domain, and
+	// answer every lookup from an empty index, leaving anime at 6.2% cover art
+	// while television sat at 59%. Now AniList sits behind it rather than
+	// replacing it.
+	addChain("anime", map[string]catalog.MetadataSource{
+		"anidb":   anidb.New(os.Getenv("ANIDB_CLIENT"), nil),
+		"anilist": anilist.New(""),
+	}, "anidb", "anilist")
 	// Open Library needs no credential, so it registers unconditionally and is
 	// the one source a fresh checkout actually exercises — every other source
 	// here is idle until an operator goes and gets a key, which meant the
