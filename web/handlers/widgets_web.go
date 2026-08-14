@@ -98,8 +98,16 @@ func (w *web) renderRegion(c *gin.Context, region string) []renderedWidget {
 // is placed anywhere, so a template's {{range index .Widgets "footer"}} simply
 // does nothing.
 func (w *web) renderRegions(c *gin.Context, regions ...string) map[string][]renderedWidget {
-	if w.data == nil {
-		return nil // see renderRegion: absence of a store is not an error here
+	// Absence of a store is not an error here — see renderRegion. Both halves
+	// of "absent" count: no Store at all, and a Store holding no connection.
+	//
+	// Only the first was checked, which made the intent above true for one of
+	// the two ways it can happen. It matters because this runs from chromeData,
+	// on EVERY page: the other two reads there (the avatar, the pending-avatar
+	// count) already guard on Valid(), so a partially-wired host degraded
+	// everywhere except here, where it took down every page at once.
+	if w.data == nil || !w.data.DB().Valid() {
+		return nil
 	}
 	all := w.data.ReadAllPlacements(c.Request.Context())
 	if len(all) == 0 {
