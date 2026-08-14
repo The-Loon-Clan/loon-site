@@ -279,6 +279,54 @@ the site of an incident.
 
 ---
 
+## 7. Dependency PRs waiting on a decision
+
+**Six Dependabot PRs are open** and have been since automation was switched on
+(Aug 2026). All six are green on `ci` and `codeql`.
+
+| PR | bump |
+| --- | --- |
+| #2 | Go modules, grouped: sqlx 1.3.5→1.4.0, go-redis 9.21→9.22, x/crypto 0.51→0.54, x/net 0.55→0.56 |
+| #1, #3, #4, #5, #6 | actions: checkout 4→7, upload-artifact 4→7, setup-buildx 3→4, setup-qemu 3→4, build-push 6→7 |
+
+**#2 was verified beyond its CI run**, because sqlx is what the whole storage
+layer is built on and a green workflow is not the same as a working site: the
+branch was checked out, run against a real Postgres and Redis (263 tests pass),
+and booted — `/`, `/browse`, `/login` and `/api?t=caps` all answer, no errors.
+
+**Why it is here rather than done:** merging is the maintainer's call. The cost
+of leaving them is that they rot — five action bumps and a grouped module bump
+will start conflicting with each other and with the next week's PRs, and a
+stale dependency PR gets closed rather than reviewed.
+
+---
+
+## 8. Requests and bounties
+
+**The largest feature gap against UNIT3D**, which has `Request`, `RequestFill`,
+`ApprovedRequestFill`, `Bounty`, `Claim` and `ClaimedPrize` controllers.
+
+A member asks for content nobody has indexed, other members put points behind
+the asking, and whoever fills it takes the pot. It is the social loop that makes
+a points economy mean something — without it points accumulate and buy nothing
+except the store's cosmetics.
+
+**Most of what it needs already exists.** The points ledger, the transfer
+mechanics (`storage.TransferPoints`, checked inside its transaction), gifting,
+and the wishlist — which is the single-member version of the same idea and would
+likely be subsumed by it.
+
+**What is genuinely new:** a request row with a bounty pot, contributions from
+several members, a fill claim pointing at a release, and staff approval before
+the pot pays out. The approval step is the part worth designing carefully — an
+unapproved auto-payout on "somebody said they filled it" is the obvious abuse.
+
+**Why it is here rather than done:** it is a feature, and the session it came up
+in was about engineering quality. It should be picked up deliberately rather
+than squeezed in.
+
+---
+
 ## Smaller, known, not urgent
 
 * The profile's plugin "Profile" widget shows Role and Joined, which the

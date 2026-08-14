@@ -8,6 +8,11 @@ Researched and recorded 8 Aug 2026. The scraper's source registry is in
 `main.go`; a source is idle until its credential is set, so an unconfigured
 source is silent rather than broken.
 
+> **How other indexers REACH these sources** — the matching chains, NFO
+> extraction, name recovery and preDB — is a separate survey:
+> [METADATA-METHODS.md](METADATA-METHODS.md). This page is which sources
+> exist and what they cost; that one is how you get to them.
+
 ## The landscape
 
 > **Attribution is a licence condition, not a courtesy.** TVmaze publishes under
