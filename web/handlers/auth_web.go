@@ -29,13 +29,25 @@ func (w *web) loginPage(c *gin.Context) {
 func (w *web) loginPost(c *gin.Context) {
 	// Captcha first — a bot shouldn't get to probe credentials. No-op when the
 	// Turnstile hook is unconfigured (demo default).
-	if err := w.captcha.Verify(c.Request.Context(), c.PostForm(captcha.FormField), c.ClientIP()); err != nil {
+	in := readLoginInput(c, captcha.FormField)
+
+	// Presence only, and ahead of the captcha because an empty box costs
+	// nothing to notice — see inputs.go for why nothing STRICTER belongs on a
+	// login form.
+	if errs := request.Validate(in); errs.Any() {
+		c.Status(http.StatusBadRequest)
+		w.render(c, "login.html", map[string]any{
+			"Title": "Log in", "Error": errs.First(in.fieldOrder()...), "Username": in.Username,
+		})
+		return
+	}
+	if err := w.captcha.Verify(c.Request.Context(), in.Captcha, c.ClientIP()); err != nil {
 		c.Status(http.StatusBadRequest)
 		w.render(c, "login.html", map[string]any{"Title": "Log in", "Error": "Please complete the captcha and try again."})
 		return
 	}
-	name := c.PostForm("username")
-	u, err := w.flow.Authenticate(c.Request.Context(), name, c.PostForm("password"))
+	name := in.Username
+	u, err := w.flow.Authenticate(c.Request.Context(), name, in.Password)
 	// Audit the attempt via loon-baseline's standard policy (hash the IP,
 	// attribute a failed attempt to the targeted account). One call — the
 	// policy lives in loginlog, not here.

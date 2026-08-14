@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/the-loon-clan/loon-site/internal/request"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // One struct per endpoint that accepts input, each stating its own rules.
@@ -93,3 +96,128 @@ func (in registerInput) Validate() request.Errors {
 func (in registerInput) fieldOrder() []string {
 	return []string{"username", "email", "password", "invite"}
 }
+
+// ── the door ────────────────────────────────────────────────────────────
+
+// loginInput is POST /login.
+type loginInput struct {
+	Username string
+	Password string
+	Captcha  string
+}
+
+func readLoginInput(c *gin.Context, captchaField string) loginInput {
+	return loginInput{
+		Username: request.Trim(c.PostForm("username")),
+		// Never trimmed — a password of spaces is a password.
+		Password: c.PostForm("password"),
+		Captcha:  c.PostForm(captchaField),
+	}
+}
+
+// Validate deliberately checks presence and NOTHING else.
+//
+// No length rule, no character rule, no "that is not a valid username". Every
+// one of those is a free oracle: a login form that rejects "abc" as too short
+// before checking it has told an attacker the account cannot be named "abc",
+// and one that answers differently for a well-formed unknown name than for a
+// malformed one has separated the two for them.
+//
+// Presence is different — an empty box is the member's own mistake, not a fact
+// about the account list, and saying so saves a round trip that would fail
+// anyway.
+func (in loginInput) Validate() request.Errors {
+	var e request.Errors
+	request.Required(&e, "username", in.Username, "A username")
+	request.Required(&e, "password", in.Password, "A password")
+	return e
+}
+
+func (in loginInput) fieldOrder() []string { return []string{"username", "password"} }
+
+// ── gifts ───────────────────────────────────────────────────────────────
+
+// giftInput is POST /gifts.
+type giftInput struct {
+	To     string
+	Amount int
+	// AmountRaw is what was typed, kept so a non-numeric entry can be reported
+	// as such rather than silently becoming 0 — which the storage layer would
+	// then refuse as "a gift has to be at least 1 point", an answer about the
+	// wrong thing.
+	AmountRaw string
+	Numeric   bool
+	Note      string
+}
+
+func readGiftInput(c *gin.Context) giftInput {
+	raw := request.Trim(c.PostForm("amount"))
+	n, err := strconv.Atoi(raw)
+	return giftInput{
+		To:        request.Trim(c.PostForm("to")),
+		Amount:    n,
+		AmountRaw: raw,
+		Numeric:   err == nil,
+		Note:      c.PostForm("note"),
+	}
+}
+
+// Validate covers what the REQUEST can settle, and stops there.
+//
+// The limits — at least GiftMin, at most GiftMax, not to yourself, and enough
+// points to cover it — live in storage.TransferPoints, checked inside the
+// transaction that moves the points. That is the right place and this must not
+// duplicate them: a balance checked here is a balance that can change before
+// the UPDATE runs, and two copies of a rule are two things to keep in step.
+//
+// What is here is what a form can answer on its own: a recipient was named, and
+// the amount is a number at all.
+func (in giftInput) Validate() request.Errors {
+	var e request.Errors
+	request.Required(&e, "to", in.To, "A member to send to")
+	if in.AmountRaw == "" {
+		e.Add("amount", "How many points?")
+	} else if !in.Numeric {
+		e.Add("amount", "That is not a number of points.")
+	}
+	request.MaxRunes(&e, "note", in.Note, "A note", storage.GiftNoteMax)
+	return e
+}
+
+func (in giftInput) fieldOrder() []string { return []string{"to", "amount", "note"} }
+
+// ── wishlist ────────────────────────────────────────────────────────────
+
+// wishInput is POST /wishlist.
+type wishInput struct {
+	Title string
+	Note  string
+}
+
+func readWishInput(c *gin.Context) wishInput {
+	return wishInput{
+		Title: request.Trim(c.PostForm("title")),
+		Note:  request.Trim(c.PostForm("note")),
+	}
+}
+
+// Validate reports what is wrong rather than quietly repairing it.
+//
+// The handler used to TRUNCATE an over-long title to wishTitleMax and carry on,
+// which stores something the member did not write and does not find out about
+// until they look at their own list. Telling them is both cheaper and more
+// honest; the truncation stays in place underneath as a backstop for anything
+// that reaches the store by another path.
+//
+// How many entries are already open is NOT here: that is a count over the
+// database, true when read and possibly false a moment later.
+func (in wishInput) Validate() request.Errors {
+	var e request.Errors
+	if request.Required(&e, "title", in.Title, "Say what you are looking for") {
+		request.MaxRunes(&e, "title", in.Title, "A title", wishTitleMax)
+	}
+	request.MaxRunes(&e, "note", in.Note, "A note", wishNoteMax)
+	return e
+}
+
+func (in wishInput) fieldOrder() []string { return []string{"title", "note"} }

@@ -4,9 +4,10 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/the-loon-clan/loon-site/internal/request"
 )
 
 // The wishlist — what members want indexed that is not here yet.
@@ -71,18 +72,15 @@ func (w *web) wishlistAdd(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	title := strings.TrimSpace(c.PostForm("title"))
-	if title == "" {
-		c.Redirect(http.StatusSeeOther, "/wishlist?err="+url.QueryEscape("say what you are looking for"))
+	in := readWishInput(c)
+	// Reported rather than silently truncated — see inputs.go. Storing a title
+	// the member did not write is something they find out about by noticing it
+	// on their own list later.
+	if errs := request.Validate(in); errs.Any() {
+		c.Redirect(http.StatusSeeOther, "/wishlist?err="+url.QueryEscape(errs.First(in.fieldOrder()...)))
 		return
 	}
-	if r := []rune(title); len(r) > wishTitleMax {
-		title = string(r[:wishTitleMax])
-	}
-	note := strings.TrimSpace(c.PostForm("note"))
-	if r := []rune(note); len(r) > wishNoteMax {
-		note = string(r[:wishNoteMax])
-	}
+	title, note := in.Title, in.Note
 	if w.data.CountOpenWishes(ctx, u.ID) >= wishPerUser {
 		c.Redirect(http.StatusSeeOther, "/wishlist?err="+
 			url.QueryEscape("that is your "+strconv.Itoa(wishPerUser)+" open entries; fill or remove one first"))

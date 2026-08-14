@@ -3,11 +3,11 @@ package handlers
 import (
 	"net/http"
 	"net/url"
-	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/the-loon-clan/loon-site/internal/storage"
+
+	"github.com/the-loon-clan/loon-site/internal/request"
 )
 
 // Gifts — points moving from one member to another.
@@ -58,14 +58,18 @@ func (w *web) giftsSend(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	name := strings.TrimSpace(c.PostForm("to"))
+	in := readGiftInput(c)
+	name := in.To
 	back := "/gifts?to=" + url.QueryEscape(name)
 
-	amount, err := strconv.Atoi(strings.TrimSpace(c.PostForm("amount")))
-	if err != nil {
-		c.Redirect(http.StatusSeeOther, back+"&err="+url.QueryEscape("that is not a number of points"))
+	// The endpoint's own rules — see inputs.go. The LIMITS (at least GiftMin,
+	// at most GiftMax, not to yourself, enough points) stay in
+	// storage.TransferPoints, inside the transaction that moves them.
+	if errs := request.Validate(in); errs.Any() {
+		c.Redirect(http.StatusSeeOther, back+"&err="+url.QueryEscape(errs.First(in.fieldOrder()...)))
 		return
 	}
+	amount := in.Amount
 	target, err := w.store.ByUsername(ctx, name)
 	if err != nil || target == nil {
 		// Named plainly. Hiding whether an account exists matters on a login
@@ -74,7 +78,7 @@ func (w *web) giftsSend(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, back+"&err="+url.QueryEscape("there is nobody called "+name))
 		return
 	}
-	if err := w.data.TransferPoints(ctx, u.ID, target.ID, amount, c.PostForm("note")); err != nil {
+	if err := w.data.TransferPoints(ctx, u.ID, target.ID, amount, in.Note); err != nil {
 		c.Redirect(http.StatusSeeOther, back+"&err="+url.QueryEscape(err.Error()))
 		return
 	}

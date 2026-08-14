@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"go/ast"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/the-loon-clan/loon-site/internal/request"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // Every *Input type in this package must state its rules.
@@ -45,6 +47,9 @@ func TestEveryInputTypeStatesItsRules(t *testing.T) {
 	// below, which is what sends somebody back here to add it.
 	implemented := map[string]request.Input{
 		"registerInput": registerInput{},
+		"loginInput":    loginInput{},
+		"giftInput":     giftInput{},
+		"wishInput":     wishInput{},
 	}
 
 	for _, name := range found {
@@ -179,5 +184,114 @@ func TestTheReportedErrorFollowsTheFormOrder(t *testing.T) {
 		if got := errs.First(in.fieldOrder()...); !strings.Contains(got, "username") {
 			t.Fatalf("First() returned %q, want the username message every time", got)
 		}
+	}
+}
+
+// ── loginInput: what a door may and may not say ──
+
+func TestTheLoginFormOnlyAsksThatTheBoxesAreFilled(t *testing.T) {
+	// Presence, and nothing else. A length or shape rule here is a free oracle:
+	// a form that rejects "ab" as too short has told an attacker no account is
+	// named "ab" without checking a single password, and one that answers
+	// differently for a malformed name than for a well-formed unknown one has
+	// separated those two groups for them.
+	//
+	// So these all pass validation and go on to fail authentication, which is
+	// the same answer an ordinary wrong password gets.
+	for _, name := range []string{"a", "ab", "!!!", strings.Repeat("x", 200), "robert'); DROP TABLE"} {
+		in := loginInput{Username: name, Password: "something"}
+		if errs := request.Validate(in); errs.Any() {
+			t.Errorf("login rejected username %q before checking it: %v", name, errs)
+		}
+	}
+}
+
+func TestAnEmptyLoginBoxIsReported(t *testing.T) {
+	// An empty box is the member's own mistake rather than a fact about the
+	// account list, so saying so gives nothing away and saves a round trip.
+	if errs := request.Validate(loginInput{Password: "x"}); errs["username"] == "" {
+		t.Error("an empty username was accepted")
+	}
+	if errs := request.Validate(loginInput{Username: "x"}); errs["password"] == "" {
+		t.Error("an empty password was accepted")
+	}
+}
+
+func TestALoginPasswordOfSpacesIsAPassword(t *testing.T) {
+	// Not trimmed, so it is not empty. Trimming would reject a legitimate
+	// password and, worse, would have accepted it at registration.
+	if errs := request.Validate(loginInput{Username: "someone", Password: "   "}); errs.Any() {
+		t.Errorf("a password of spaces was rejected as missing: %v", errs)
+	}
+}
+
+// ── giftInput ──
+
+func TestAGiftNeedsARecipientAndANumber(t *testing.T) {
+	if errs := request.Validate(giftInput{AmountRaw: "5", Amount: 5, Numeric: true}); errs["to"] == "" {
+		t.Error("a gift with no recipient was accepted")
+	}
+	if errs := request.Validate(giftInput{To: "bob"}); errs["amount"] == "" {
+		t.Error("a gift with no amount was accepted")
+	}
+	if errs := request.Validate(giftInput{To: "bob", AmountRaw: "lots"}); errs["amount"] == "" {
+		t.Error("a non-numeric amount was accepted")
+	}
+}
+
+func TestTheGiftLimitsStayWithTheTransaction(t *testing.T) {
+	// Deliberately NOT duplicated here. GiftMin, GiftMax, self-gifting and
+	// "do you have that many points" are checked inside storage.TransferPoints,
+	// in the transaction that moves them — a balance checked in a handler can
+	// change before the UPDATE runs, and two copies of a limit are two things
+	// to keep in step.
+	//
+	// So a negative or enormous amount passes VALIDATION and is refused by the
+	// store. This test exists so that stays a decision rather than an oversight.
+	for _, raw := range []string{"-100", "0", "999999999"} {
+		n, _ := strconv.Atoi(raw)
+		in := giftInput{To: "bob", AmountRaw: raw, Amount: n, Numeric: true}
+		if errs := request.Validate(in); errs.Any() {
+			t.Errorf("amount %s was refused by Validate; the limits belong to "+
+				"TransferPoints, inside the transaction: %v", raw, errs)
+		}
+	}
+}
+
+func TestAnOverlongGiftNoteIsRefused(t *testing.T) {
+	in := giftInput{To: "bob", AmountRaw: "5", Amount: 5, Numeric: true,
+		Note: strings.Repeat("x", storage.GiftNoteMax+1)}
+	if errs := request.Validate(in); errs["note"] == "" {
+		t.Errorf("a note over %d characters was accepted", storage.GiftNoteMax)
+	}
+}
+
+// ── wishInput ──
+
+func TestAWishNeedsATitle(t *testing.T) {
+	if errs := request.Validate(wishInput{Note: "please"}); errs["title"] == "" {
+		t.Error("a wish with no title was accepted")
+	}
+}
+
+func TestAnOverlongWishIsReportedRatherThanTruncated(t *testing.T) {
+	// The handler used to cut the title to wishTitleMax and carry on, storing
+	// something the member did not write. They found out by noticing it on
+	// their own list later, if at all.
+	in := wishInput{Title: strings.Repeat("x", wishTitleMax+1)}
+	errs := request.Validate(in)
+	if errs["title"] == "" {
+		t.Errorf("a title over %d characters was accepted and would be silently cut", wishTitleMax)
+	}
+	if !strings.Contains(errs["title"], strconv.Itoa(wishTitleMax)) {
+		t.Errorf("the message %q does not say what the limit is", errs["title"])
+	}
+}
+
+func TestAWishTitleAtTheLimitIsFine(t *testing.T) {
+	// Inclusive, so the member who used exactly the allowance is not told off.
+	in := wishInput{Title: strings.Repeat("x", wishTitleMax)}
+	if errs := request.Validate(in); errs.Any() {
+		t.Errorf("a title of exactly %d characters was refused: %v", wishTitleMax, errs)
 	}
 }
