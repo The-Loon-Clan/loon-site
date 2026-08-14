@@ -1,5 +1,47 @@
+# What the image build does NOT need.
+#
+# The Dockerfile does `COPY . .` and then builds ./cmd/loonsite, so everything
+# not excluded here is uploaded to the daemon as build context on every build.
+# That was ~35 MB of material the compiler never looks at — reference
+# screenshots and example sites — which is time on every `docker compose up
+# --build` and a larger cache layer to invalidate.
+#
+# web/ is NOT excluded and must not be: templates and static assets are
+# embedded into the binary from there.
+
 .git
+.github
+
+# Reference screenshots for the dev UI inspector, and the example indexer
+# sites read while writing docs/BENCHMARK.md. Neither is built or shipped.
+refs/
+examples/
+docs/
+
+# Local tooling: the checks run outside the image.
+scripts/
+Makefile
+.golangci.yml
+.editorconfig
+
+# Compose files and their overlays configure the image; they are not in it.
+docker-compose.yml
+compose.*.yml
+deploy/
+
+# Prose.
+*.md
+LICENSE
+
+# Build and test leftovers.
 *.exe
 *.exe~
 *.test
 *.out
+coverage.out
+
+# A developer's workspace file points at sibling checkouts that do not exist in
+# the container. GOWORK=off already protects the build; this keeps it out of
+# the context entirely.
+go.work
+go.work.sum

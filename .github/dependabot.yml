@@ -1,0 +1,48 @@
+# Automated dependency updates.
+#
+# Weekly rather than daily: this is a small project, and a pull request per
+# dependency per day is how dependency automation gets muted. Weekly arrives
+# often enough to keep a bump small, rarely enough to be read.
+#
+# Everything CI runs applies to these PRs too — including govulncheck, which
+# has already failed a build over standard-library advisories nobody had heard
+# about yet. That is the point of the whole arrangement: the update lands with
+# the checks that say whether it is safe.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the framework, because loon, loon-plugins and loon-baseline
+      # move together and three separate bumps of a set that must agree is
+      # three chances to merge a mismatched pair.
+      loon:
+        patterns:
+          - github.com/the-loon-clan/*
+      # Everything else, grouped by kind, so a routine patch sweep is one
+      # review rather than nine.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # The base images: golang and distroless in the Dockerfile, postgres and
+  # redis in compose. A CVE in a base image is invisible to govulncheck, which
+  # reads Go code and not the layers underneath it.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+
+  # The actions themselves. A pinned action that stops being maintained is a
+  # supply-chain problem in the one place that has write access to releases.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday

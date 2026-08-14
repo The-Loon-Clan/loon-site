@@ -33,6 +33,15 @@ project and one.
   of the default exclusion presets.
 - `make help`, `.editorconfig`, `CHANGELOG.md`, `CODE_OF_CONDUCT.md`, issue and
   pull-request templates.
+- A container health check. The runtime image is distroless — no shell, no
+  curl — so the binary checks itself: `loonsite -healthcheck` asks the local
+  server for `/healthz` and exits 0 when it answers. `docker compose ps` now
+  distinguishes "the container is up" from "the site is serving".
+- Dependabot (Go modules, base images, actions — weekly, grouped) and a CodeQL
+  workflow, kept out of `ci.yml` so the checks a contributor runs stay fast.
+- CI fails when `go.mod`/`go.sum` are not tidy. A stray requirement is
+  invisible locally, where the module cache papers over it, and breaks for
+  whoever clones next.
 - CI service containers for Postgres and Redis, so the integration tests run on
   every push rather than only when somebody remembers `make itest`.
 - Coverage reporting with a floor in CI.

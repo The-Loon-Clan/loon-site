@@ -74,6 +74,21 @@ jobs:
           test ! -f go.work || { echo "go.work is committed; it must not be"; exit 1; }
           go build ./...
 
+      # go.mod and go.sum must already be what `go mod tidy` produces. A stray
+      # requirement or a missing sum is invisible until somebody clones fresh —
+      # the local module cache papers over both, so it fails for the newcomer
+      # and nobody else.
+      - name: go.mod is tidy
+        run: |
+          cp go.mod /tmp/go.mod.bak; cp go.sum /tmp/go.sum.bak
+          go mod tidy
+          diff -u /tmp/go.mod.bak go.mod && diff -u /tmp/go.sum.bak go.sum || {
+            echo "go.mod/go.sum are not tidy — run 'go mod tidy' and commit the result"
+            exit 1
+          }
+        env:
+          GOWORK: "off"
+
       # Installed rather than run as its own step: scripts/golangci.sh prefers a
       # golangci-lint on PATH, so putting one there is enough for `make check`
       # to use it, and CI keeps running exactly the target a contributor runs.

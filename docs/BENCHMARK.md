@@ -194,8 +194,8 @@ a scheduled run: the workflow carries `cron: "0 6 * * 1"`, so the same checks
 run weekly whether or not anybody pushed. That weekly run is the one that would
 have caught those advisories anyway.
 
-What is genuinely missing: a release workflow (below), CodeQL or an equivalent
-SAST pass, and automated dependency updates. One workflow doing everything is
+~~What is genuinely missing: a release workflow (below), CodeQL or an equivalent
+SAST pass, and automated dependency updates.~~ All three now exist. One workflow doing everything is
 also a single point of failure for required-check configuration, but that is a
 convenience argument rather than a correctness one.
 

@@ -1,0 +1,52 @@
+# CodeQL: static analysis for security problems, as opposed to correctness.
+#
+# Separate from ci.yml on purpose. `make check` is what a contributor runs
+# before pushing and has to stay fast; CodeQL takes minutes and answers a
+# different question — not "is this correct" but "is this exploitable". Putting
+# it in the same job would slow every push to the speed of the slowest thing
+# nobody can run locally.
+#
+# It overlaps with govulncheck without replacing it: govulncheck asks whether
+# this code CALLS a known-vulnerable function, CodeQL asks whether this code
+# contains a vulnerable pattern of its own. The SQL type makes one class of
+# those unrepresentable (docs/adr/0001); this is the rest.
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, and deliberately not the same day as ci.yml's cron: two long jobs
+    # firing together on a free runner queue is one waiting on the other.
+    - cron: "0 6 * * 3"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: go
+          queries: security-extended
+
+      # Built explicitly rather than by autobuild: the root is a library
+      # package holding only the embed, and the binary is under cmd/. Autobuild
+      # guesses, and a guess that builds nothing analyses nothing while
+      # reporting success.
+      - name: Build
+        run: go build ./...
+        env:
+          GOWORK: "off"
+
+      - uses: github/codeql-action/analyze@v3

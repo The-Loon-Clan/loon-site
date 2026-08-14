@@ -141,6 +141,20 @@ services:
       - db
       - redis
     restart: unless-stopped
+    # /healthz has existed since the first reverse-proxy notes and nothing used
+    # it. With this, `docker compose ps` distinguishes "the container is up"
+    # from "the site is answering" — which are different for about fifteen
+    # seconds at every boot, and indefinitely if a migration wedges.
+    #
+    # start_period covers the first boot: migrations run before the listener
+    # opens, so a shorter grace marks a perfectly healthy first start as
+    # unhealthy and restarts it into the same delay.
+    healthcheck:
+      test: ["CMD", "/loonsite", "-healthcheck"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
 
 volumes:
   # Named rather than a bind mount: the uploads belong to the deployment, not
