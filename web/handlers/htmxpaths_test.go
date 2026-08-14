@@ -123,6 +123,11 @@ func TestAnHTMXRequestIsNeverAnsweredWithARedirect(t *testing.T) {
 		{"moderation vote, bad id", "/moderation/vote", url.Values{"id": {"0"}, "vote": {"keep"}}},
 		{"avatar moderation, bad id", "/moderation/avatars", url.Values{"id": {"0"}, "action": {"approve"}}},
 		{"wishlist, bad id", "/wishlist/0", url.Values{"action": {"remove"}}},
+		// The widget editor was the last surface with no request-level cover at
+		// all: its routes were inline in wireAdminAndViews AND placedWidgets
+		// panicked on a nil widget registry, so extraction alone would have
+		// turned a 404 into a crash.
+		{"widgets, no region", "/admin/widgets/apply", url.Values{"action": {"toggle"}}},
 		{"undo, junk token", "/undo", url.Values{"token": {"not-a-token"}, "next": {"/"}}},
 		{"bookmark, unknown release", "/release/999999999/bookmark", url.Values{}},
 		{"follow, unknown user", "/u/nobody-by-that-name/follow", url.Values{}},

@@ -69,8 +69,7 @@ func wireAdminAndViews(
 	admin.POST("/covers", wsrv.adminCoversSave)
 	// The page editor: where an operator puts registered widgets
 	// (widgetsadmin_web.go). One region at a time, chosen by ?region=.
-	admin.GET("/widgets", wsrv.widgetsAdminPage)
-	admin.POST("/widgets/apply", wsrv.widgetsAdminAction)
+	mountWidgetsAdmin(admin, wsrv)
 	admin.GET("/plugins", wsrv.adminPlugins)
 	admin.GET("/jobs", wsrv.adminJobs)
 	admin.POST("/jobs/control", wsrv.adminJobsControl)

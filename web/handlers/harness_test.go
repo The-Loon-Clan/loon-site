@@ -95,6 +95,11 @@ func newTestSite(t *testing.T) *testSite {
 	// plugin runtime this harness has no business building. mountModeration
 	// needs neither — see moderation_wiring.go.
 	mountModeration(e, w)
+	// The widget-layout editor, behind the same admin gate the real wiring
+	// uses. It needs no plugin runtime any more: placedWidgets treats a nil
+	// widget registry as "nothing resolves", which is what a host without a
+	// runtime should show anyway. See moderation_wiring.go.
+	mountWidgetsAdmin(e.Group("/admin", w.auth.Require(core.RoleAdmin)...), w)
 
 	// Registered ONCE, here. It was in getAs, which gin panics on the second
 	// call — a duplicate route is a programming error and gin says so loudly.

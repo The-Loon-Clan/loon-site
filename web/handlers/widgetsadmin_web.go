@@ -62,13 +62,23 @@ type placedVM struct {
 // that silently vanished would leave somebody wondering why their layout
 // changed.
 func (w *web) placedWidgets(ctx context.Context, region string) []placedVM {
+	// Runtime.Core() guards a nil receiver and returns nil; Core.WidgetBySlug
+	// does NOT — it takes a mutex on the receiver, so a nil Core panics rather
+	// than reporting "no such widget". Resolved once here instead of at every
+	// row, which also makes the no-runtime case say the true thing: with no
+	// registry there is nothing to resolve against, so every placement is
+	// unresolvable, which is exactly what Missing means.
+	reg := w.rt.Core()
+
 	var placed []placedVM
 	for _, p := range w.data.ReadPlacements(ctx, region) {
 		vm := placedVM{Slug: p.Slug, Position: p.Position, Enabled: p.Enabled,
 			Title: p.Slug, Missing: true, Config: p.Config}
-		if wd, ok := w.rt.Core().WidgetBySlug(p.Slug); ok {
-			vm.Title, vm.Missing = wd.Title, false
-			vm.ConfigLabel, vm.ConfigHint = wd.ConfigLabel, wd.ConfigHint
+		if reg != nil {
+			if wd, ok := reg.WidgetBySlug(p.Slug); ok {
+				vm.Title, vm.Missing = wd.Title, false
+				vm.ConfigLabel, vm.ConfigHint = wd.ConfigLabel, wd.ConfigHint
+			}
 		}
 		placed = append(placed, vm)
 	}

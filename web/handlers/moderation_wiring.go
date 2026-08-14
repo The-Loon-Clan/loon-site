@@ -41,3 +41,20 @@ func mountModeration(engine *gin.Engine, wsrv *web) {
 	moderation.GET("/cheat", append(staffOnly, wsrv.cheatQueuePage)...)
 	moderation.POST("/cheat/clear", append(staffOnly, wsrv.cheatQueueClear)...)
 }
+
+// mountWidgetsAdmin registers the widget-layout editor.
+//
+// Extracted for the same reason as mountModeration: the routes were inline in
+// wireAdminAndViews, so nothing could reach them without a plugin runtime. The
+// difference is that these DO use the runtime — placedWidgets resolves each
+// placement against the live widget registry — so extraction alone was not
+// enough. placedWidgets now treats a nil registry as "nothing resolves", which
+// is both true and the only sane rendering, and that is what lets the handler
+// harness exercise these paths without booting a plugin runtime.
+//
+// Takes the admin group rather than the engine, because the gate belongs to
+// the caller: this is administration, unlike moderation.
+func mountWidgetsAdmin(admin *gin.RouterGroup, wsrv *web) {
+	admin.GET("/widgets", wsrv.widgetsAdminPage)
+	admin.POST("/widgets/apply", wsrv.widgetsAdminAction)
+}
