@@ -69,6 +69,41 @@ The template exists. Use it. JSON is for the API (`/api`, Newznab) where a
 machine is the consumer — never for something a browser is about to turn back
 into markup.
 
+### 2a. Pick the right swap shape
+
+There are two, and choosing wrong is most of the difficulty in a conversion.
+
+**Self-replacing** — `hx-target="this"`. The control *is* the whole of what
+changes. A bookmark button becomes a different bookmark button.
+
+```html
+<form hx-post="…" hx-target="this" hx-swap="outerHTML">
+```
+
+Reference: `bookmark_button.html`, `follow_button.html`.
+
+**Container** — `hx-target="closest li"` (or `.card`, or an id). The control
+changes or removes something *around* it. Marking a wishlist row filled
+restyles the whole row and adds a date; removing it deletes the row.
+
+```html
+<form hx-post="…" hx-target="closest li" hx-swap="outerHTML">
+```
+
+Reference: `wishlist_item.html`.
+
+Two traps in the container shape:
+
+- **Deleting is an empty `200`, never a `204`.** htmx does not swap on 204 at
+  all, so the row stays on screen and invites a second click on something
+  already gone.
+- **The re-render may need a re-read.** Rule 7 says report state from the
+  write, and that holds for a toggle whose entire state is the boolean the
+  write returned. A row that renders a computed date or an aggregate count is
+  different: those are known only to the list query, and reconstructing them
+  by hand is inventing the row rather than reading it. Re-read through the
+  *same query the page uses* so the swapped row is what a reload would draw.
+
 ### 3. A swappable region is a shared partial, used by both paths
 
 One `{{define}}`, in its own file, registered in `sharedPartials`. The page
@@ -132,10 +167,20 @@ clicks land back where they started and look like nothing happened.
 Derived from the audit of all 52 templates / 49 forms, and cross-checked against
 UNIT3D, which spent ~40 of its 70 Livewire components on exactly one category.
 
-**Convert — toggles (~26 forms).** One boolean, no navigation: bookmark, follow,
-theme, wishlist add/remove, moderation votes, admin widget reorder, avatar
-approve/reject, resend verification. Highest value, lowest risk. *(Bookmark is
-done; the rest follow the same shape.)*
+**Converted so far.** Bookmark, follow, resend-verification and undo
+(self-replacing); wishlist fill/reopen/remove (container); browse and search
+filtering and sorting.
+
+Resend and undo were worth more than the others: each previously answered with
+a redirect that moved the reader somewhere else to read one sentence — resend
+to `/`, off whatever page the banner was on, and undo to `?undone=1` to say one
+word.
+
+**Not an htmx candidate — the theme switcher.** It swaps a stylesheet `<link>`,
+so there is no region to replace and no fragment to render. The right technique
+is the client-side preview `theme.go` already anticipates in its own comment,
+reading the deliberately non-HttpOnly cookie. Listed here because it looks like
+a toggle and will otherwise be picked up as one.
 
 **Convert — browse/search filtering and sorting.** *(Done.)* Every facet pill
 and sortable column header now swaps `#results` instead of reloading. Note there
@@ -144,6 +189,33 @@ by an existing decision recorded at the top of `browse.html`.
 
 **Convert — settings (11 forms).** `settings_security.html` alone has six;
 saving any one of them reloads the other five.
+
+**Blocked, not merely unconverted — the moderation surfaces.** These look like
+the container shape and are not safely convertible yet, for a reason worth
+writing down before somebody tries it and half-succeeds.
+
+htmx follows redirects on its own request and swaps whatever comes back. A
+handler that answers *some* paths with a fragment and the rest with a redirect
+will therefore paste an entire rendered page inside a `<li>` on those paths.
+The conversion is only complete when **every** branch has an htmx answer:
+
+| handler | `c.Redirect` branches |
+| --- | --- |
+| `communityModVote` | **10** |
+| avatar moderation | 4 |
+
+Most of those branches carry a message — `?err=you+cannot+vote+on+your+own+avatar`,
+`?done=removed` — and the page renders it as a notice. A fragment swap has
+nowhere to put that: the target is one card, and the notice belongs outside it.
+
+**The missing piece is an error/notice convention**, and it does not exist in
+this document yet. htmx offers the machinery (an out-of-band swap at a notice
+region, or `HX-Retarget`); what is missing is the decision about which, applied
+once, so twenty handlers do not each invent it. Design that first, then
+moderation is mechanical.
+
+Until then these stay full page posts, which is correct behaviour rather than
+missing work.
 
 **Do not convert — session transitions (7 forms).** `login`, `register`,
 `logout`, `reset`, `forgot`, `login_2fa`. These change who you are, and that
