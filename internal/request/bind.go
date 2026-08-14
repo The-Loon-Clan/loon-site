@@ -129,7 +129,7 @@ func setField(fv reflect.Value, s string, present bool) error {
 			// member did, and Validate is where a member's mistake gets a
 			// message. Bind reports only what the PROGRAM got wrong.
 			fv.SetInt(0)
-			return nil
+			return nil //nolint:nilerr // deliberate: see the comment above
 		}
 		fv.SetInt(n)
 	default:

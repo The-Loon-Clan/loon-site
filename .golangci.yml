@@ -33,6 +33,17 @@ linters:
     # failures. errorlint reports only things that are wrong.
     - errorlint
 
+    # nilerr: returning nil after checking err != nil. The branch reads as
+    # handling the failure and reports success, which is the one shape of error
+    # bug that survives review — the check is right there above it.
+    - nilerr
+
+    # bodyclose: an HTTP response body that is never closed. This site makes
+    # outbound calls on every metadata path (TMDB, TVmaze, AniDB, cover
+    # fetches) and they run on a schedule, so a leak here is not one connection
+    # — it is one per scrape, forever.
+    - bodyclose
+
   settings:
     staticcheck:
       checks:

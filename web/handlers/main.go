@@ -483,9 +483,19 @@ func Main() {
 			Store: core.NewMemEntitlementStore(),
 			RoleOf: func(ctx context.Context, userID int64) (core.Role, bool, error) {
 				u, err := st.users.ByID(ctx, userID)
-				if err != nil || u == nil {
-					// (0, false, nil) = "no such user, cacheable". Reserve the
-					// error return for transient failures, which are NOT cached.
+				if err != nil {
+					// Transient — a database blip, a closed pool. Returned as
+					// an error so it is NOT cached: the comment below always
+					// said to reserve the error return for these, but the code
+					// folded them in with "no such user" and cached them, so a
+					// momentary failure denied a real member their grants for
+					// a whole cache window and then healed itself. Found by
+					// nilerr; see docs/QUALITY.md.
+					return 0, false, err
+				}
+				if u == nil {
+					// (0, false, nil) = "no such user, cacheable". Genuinely
+					// absent, and it will stay absent.
 					return 0, false, nil
 				}
 				return u.ToCore().Role, true, nil

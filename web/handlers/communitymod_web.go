@@ -220,7 +220,7 @@ func (w *web) resolveItem(ctx context.Context, itemID int64, resolution string, 
 		itemID); err != nil {
 		// Already resolved, or gone. Not an error: two votes landing at once
 		// both call this and the second has nothing to do.
-		return nil
+		return nil //nolint:nilerr // deliberate: a lost race is not a failure
 	}
 	if resolution == resolutionRemoved {
 		if err := w.applyResolution(ctx, it.Kind, it.Subject); err != nil {

@@ -27,7 +27,7 @@ Numbers taken Aug 2026. Re-run them rather than trusting this table.
 | --- | --- | --- |
 | Build correctness | `go vet`, `staticcheck`, `unused` | clean |
 | Formatting | `scripts/gofmt.sh` | clean |
-| Error handling | `errorlint` (enabled) | clean — 1 found, 1 fixed |
+| Error handling | `errorlint`, `nilerr`, `bodyclose` (enabled) | clean — 4 found, 2 real bugs fixed |
 | — explicit discards | `grep '^\s*_ = '` (non-test) | **34** |
 | — log-and-continue | `grep 'log.Error('` in web/handlers | **52** |
 | — wrapped with `%w` | `grep '%w'` | 28 |
@@ -71,8 +71,16 @@ returned. A blanket rule would be wrong and would get reverted.
 
 ### Go
 
-Currently linted: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused` —
-5 of golangci-lint's ~100.
+Currently linted: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused`,
+`errorlint`, `nilerr`, `bodyclose` — 8 of golangci-lint's ~100.
+
+`bodyclose` came back clean on the first run, which is worth recording: every
+outbound call on the metadata paths already closes its body.
+
+`nilerr` found three and **one was real** — see below. The other two were
+deliberate and already carried prose comments saying so; they now carry
+`//nolint:nilerr` with the reason, which makes a decision that was only
+readable by humans visible to the tool as well.
 
 Highest value for the gaps above:
 
@@ -80,8 +88,6 @@ Highest value for the gaps above:
 | --- | --- |
 | `errorlint` | comparing errors with `==` instead of `errors.Is`; `%v` where `%w` belongs |
 | `wrapcheck` | errors returned across a package boundary without context |
-| `nilerr` | returning nil after checking `err != nil` |
-| `bodyclose` | unclosed HTTP response bodies |
 | `contextcheck` | a function that should take a `context.Context` and does not |
 | `godot`, `gocritic` | comment and idiom hygiene |
 | `cyclop` / `gocognit` | functions past a complexity budget |
@@ -153,6 +159,20 @@ about itself: it flags every error crossing a package boundary unwrapped, which
 here is hundreds of sites, and a linter nobody can satisfy gets excluded — after
 which people skim failures. Revisit only alongside a decision about where this
 codebase wants wrapping to happen.
+
+`nilerr` then found the bug that justifies the whole exercise. An entitlement
+lookup read:
+
+    if err != nil || u == nil {
+        // Reserve the error return for transient failures, which are NOT cached.
+        return 0, false, nil
+    }
+
+The comment states the intent exactly. The code never implemented it: a
+transient database failure took the same branch as a genuinely absent user and
+was cached as "no such user", so a momentary blip denied a real member their
+grants for a whole cache window and then healed itself — the hardest kind of
+bug to catch in the act. Split in two, and the error now propagates uncached.
 
 **Next:** triage the 34 `_ =` discards. Each becomes one of: handled, discarded
 with a comment saying why, or wrapped and returned. That is reading, not
