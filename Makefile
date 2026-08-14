@@ -38,6 +38,12 @@ export GOWORK = off
 # erosion; the guard is for the suite disappearing.
 COVER_MIN ?= 22.0
 
+# The floor for a run WITH backing services. A single floor has to be set for
+# the lower case, which makes it nearly meaningless in CI: at 22% CI could lose
+# twelve points of coverage and still pass. The floor follows the run instead —
+# LOON_TEST_DSN present means the substantial half is running.
+COVER_MIN_SERVICES ?= 33.0
+
 .PHONY: help check build test itest cover lint golint fmt sql vuln run clean
 
 # `make` on its own explains itself, rather than silently building the first
@@ -99,9 +105,11 @@ cover:
 	@$(GO) test ./... -coverprofile=coverage.out >/dev/null 2>&1 || true
 	@$(GO) tool cover -func=coverage.out | tail -1
 	@total=$$($(GO) tool cover -func=coverage.out | tail -1 | awk '{print $$3}' | tr -d '%'); \
-	 awk -v t="$$total" -v m="$(COVER_MIN)" 'BEGIN { \
-	   if (t+0 < m+0) { printf "coverage %.1f%% is below the %.1f%% floor\n", t, m; exit 1 } \
-	   printf "coverage %.1f%% (floor %.1f%%)\n", t, m }'
+	 if [ -n "$$LOON_TEST_DSN" ]; then min="$(COVER_MIN_SERVICES)"; kind="with services"; \
+	 else min="$(COVER_MIN)"; kind="no services"; fi; \
+	 awk -v t="$$total" -v m="$$min" -v k="$$kind" 'BEGIN { \
+	   if (t+0 < m+0) { printf "coverage %.1f%% is below the %.1f%% floor (%s)\n", t, m, k; exit 1 } \
+	   printf "coverage %.1f%% (floor %.1f%%, %s)\n", t, m, k }'
 
 ## lint: vet, plus gofmt as an error rather than a suggestion
 lint:

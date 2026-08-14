@@ -203,11 +203,14 @@ Trust is easier to give when the gaps are stated, so:
   the higher one overstates what you will see locally. Run `make itest` to get
   the CI number on your own machine.
 
-  The floor in CI is set for the laptop number, which means it cannot detect
-  the service containers going missing: every integration test would skip,
-  coverage would fall to 19.6%, and the floor would still pass. So the tests
-  fail rather than skip when `CI` is set and no DSN is present. The floor is for
-  gradual erosion; that guard is for the suite disappearing.
+  There are two floors, and the run picks one: with `LOON_TEST_DSN` set the
+  substantial half is running, so the higher floor applies. A single floor has
+  to be set for the lower case, which made it nearly meaningless in CI — at 22%
+  CI could have lost twelve points of coverage and still passed.
+  Neither floor can detect the service containers going missing altogether, so
+  the tests themselves fail rather than skip when `CI` is set and no DSN is
+  present. The floors are for gradual erosion; that guard is for the suite
+  disappearing.
 
   The shape is still lopsided — `config` and `request` 100%, `sanitize` 93%,
   `web/handlers` 19.5%. The tests that exist are mostly regression tests for bugs that actually
