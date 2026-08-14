@@ -26,7 +26,7 @@ export GOWORK = off
 # an aspiration: its job is to stop a regression, and a floor nobody can meet
 # gets deleted rather than met. Raise it when the number rises.
 #
-# Set for a run with NO backing services — 20.8% on a laptop, ~24% with the
+# Set for a run with NO backing services — 21.4% on a laptop, ~25% with the
 # Postgres and Redis that CI provides, because the storage integration tests
 # take that package from 3.6% to 38%.
 #
@@ -36,7 +36,7 @@ export GOWORK = off
 # and the floor would still pass. That job belongs to the tests themselves: with
 # CI set and no DSN they FAIL rather than skip. The floor is for gradual
 # erosion; the guard is for the suite disappearing.
-COVER_MIN ?= 20.0
+COVER_MIN ?= 21.0
 
 .PHONY: help check build test itest cover lint golint fmt sql vuln run clean
 
