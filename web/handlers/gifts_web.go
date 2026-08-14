@@ -47,7 +47,7 @@ func (w *web) giftsPage(c *gin.Context) {
 		// member does not retype a name they just clicked.
 		"To":   c.Query("to"),
 		"Sent": c.Query("sent"),
-		"Err":  c.Query("err"),
+		"Err":  c.Query(queryErr),
 	})
 }
 

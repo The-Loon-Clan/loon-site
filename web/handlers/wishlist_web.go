@@ -61,7 +61,7 @@ func (w *web) wishlistPage(c *gin.Context) {
 		"Cap":      wishPerUser,
 		"TitleMax": wishTitleMax,
 		"NoteMax":  wishNoteMax,
-		"Err":      c.Query("err"),
+		"Err":      c.Query(queryErr),
 	})
 }
 
@@ -113,7 +113,7 @@ func (w *web) wishlistUpdate(c *gin.Context) {
 	// Which edit is an HTTP decision; each store method carries the ownership
 	// check in its own WHERE, so the viewer's id travels with the row id.
 	var err2 error
-	switch c.PostForm("action") {
+	switch c.PostForm(fieldAction) {
 	case "remove":
 		err2 = w.data.RemoveWish(ctx, id, u.ID)
 	case "reopen":

@@ -88,7 +88,7 @@ func (w *web) settingsProfile(c *gin.Context) {
 			"Placeholder": "Say something about yourself…",
 		}),
 		"Max":   bioMaxLen,
-		"Saved": c.Query("saved") == "1",
+		"Saved": c.Query(querySaved) == "1",
 		// The avatar half of this page (avatar_web.go). Its own status keys so
 		// saving text does not report "avatar saved", and vice versa.
 		"Avatar": readAvatarPath(c.Request.Context(), w.data.DB(), u.ID),

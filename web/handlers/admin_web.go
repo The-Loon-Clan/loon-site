@@ -115,7 +115,7 @@ func fmtJobTime(t time.Time) string {
 // JobsControlHandler returns JSON, which is wrong for a browser form).
 func (w *web) adminJobsControl(c *gin.Context) {
 	name := c.PostForm("name")
-	switch c.PostForm("action") {
+	switch c.PostForm(fieldAction) {
 	case "trigger":
 		// "Run now" has to reach the process that OWNS the job, which is not
 		// necessarily this one.

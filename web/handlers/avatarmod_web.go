@@ -166,7 +166,7 @@ func (w *web) avatarModPage(c *gin.Context) {
 		"History": history,
 		"Pending": countPendingAvatars(ctx, w.data.DB()),
 		"Limit":   avatarModRows,
-		"Done":    c.Query("done"),
+		"Done":    c.Query(queryDone),
 	})
 }
 
@@ -183,7 +183,7 @@ func (w *web) avatarModAction(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	id, err := strconv.ParseInt(c.PostForm("id"), 10, 64)
+	id, err := strconv.ParseInt(c.PostForm(fieldID), 10, 64)
 	if err != nil || id <= 0 {
 		c.Redirect(http.StatusFound, "/moderation/avatars")
 		return
@@ -191,7 +191,7 @@ func (w *web) avatarModAction(c *gin.Context) {
 	// The id travels in the BODY, not the path — the same reason the reports
 	// plugin does it: an action route carrying :id would register a path
 	// parameter, and this group already has none.
-	switch c.PostForm("action") {
+	switch c.PostForm(fieldAction) {
 	case "clear":
 		// No undo token kept: the record belongs to the SUBJECT, not to the
 		// moderator, and offering a moderator an undo for somebody else's row

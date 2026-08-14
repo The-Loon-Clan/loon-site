@@ -221,3 +221,62 @@ func (in wishInput) Validate() request.Errors {
 }
 
 func (in wishInput) fieldOrder() []string { return []string{"title", "note"} }
+
+// ── settings ────────────────────────────────────────────────────────────
+
+// settingsPrivacyInput is POST /settings/privacy.
+//
+// A single checkbox, and it still gets a struct. There is nothing here to
+// validate — `== "1"` is already total, since every other value is false — so
+// the struct earns its place on the other half of the pattern: the handler
+// reads in.PrivateProfile rather than c.PostForm(fieldPrivateProfile), and the
+// form's field name is written down once, next to the type that models the
+// form, instead of appearing as a bare string in the middle of a handler.
+//
+// Cost: none. gin parses the body once into c.formCache and every PostForm
+// after that is a map lookup on url.Values, so reading fields into a struct is
+// the same work — done once, in one place, instead of wherever somebody
+// happened to need it.
+type settingsPrivacyInput struct {
+	PrivateProfile bool
+}
+
+func readSettingsPrivacyInput(c *gin.Context) settingsPrivacyInput {
+	return settingsPrivacyInput{
+		PrivateProfile: c.PostForm(fieldPrivateProfile) == checked,
+	}
+}
+
+// Validate has nothing to say, and says so explicitly.
+//
+// A checkbox cannot be malformed: it is present or it is not. The method exists
+// because request.Input requires it, and returning nil here is a statement —
+// "this endpoint accepts anything a form can send" — rather than an omission
+// somebody has to go and check.
+func (in settingsPrivacyInput) Validate() request.Errors { return nil }
+
+// settingsNotificationsInput is POST /settings/notifications.
+//
+// A map rather than a field per kind, because the kinds are DATA: they live in
+// notifiableKinds, a plugin-facing list that grows. A struct with a field per
+// kind would have to be edited every time one is added, and the compiler would
+// not remind anybody — the new kind would simply never be readable.
+type settingsNotificationsInput struct {
+	// Enabled holds every KNOWN kind, including the ones the form did not send.
+	// An unchecked box posts nothing at all, so reading only what arrived would
+	// silently leave a kind the member just switched off still enabled.
+	Enabled map[string]bool
+}
+
+func readSettingsNotificationsInput(c *gin.Context) settingsNotificationsInput {
+	in := settingsNotificationsInput{Enabled: make(map[string]bool, len(notifiableKinds))}
+	for _, k := range notifiableKinds {
+		in.Enabled[k.Kind] = c.PostForm(k.Kind) == checked
+	}
+	return in
+}
+
+// Validate: the kinds come from notifiableKinds, so an unknown one cannot be in
+// the map — readSettingsNotificationsInput builds it from that list rather than
+// from what was posted.
+func (in settingsNotificationsInput) Validate() request.Errors { return nil }

@@ -333,8 +333,8 @@ func (w *web) communityModPage(c *gin.Context) {
 		"History": history,
 		"Quorum":  voteQuorum,
 		"IsStaff": u.AtLeast(core.RoleMod),
-		"Done":    c.Query("done"),
-		"Err":     c.Query("err"),
+		"Done":    c.Query(queryDone),
+		"Err":     c.Query(queryErr),
 	})
 }
 
@@ -345,7 +345,7 @@ func (w *web) communityModVote(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	id, err := strconv.ParseInt(c.PostForm("id"), 10, 64)
+	id, err := strconv.ParseInt(c.PostForm(fieldID), 10, 64)
 	if err != nil || id <= 0 {
 		c.Redirect(http.StatusFound, "/moderation")
 		return

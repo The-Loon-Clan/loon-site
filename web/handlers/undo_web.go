@@ -175,7 +175,7 @@ func (w *web) undoPost(c *gin.Context) {
 	if !ok {
 		return
 	}
-	back := c.PostForm("next")
+	back := c.PostForm(fieldNext)
 	if len(back) < 2 || back[0] != '/' || back[1] == '/' {
 		back = "/"
 	}

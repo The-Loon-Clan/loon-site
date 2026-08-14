@@ -50,6 +50,12 @@ func TestEveryInputTypeStatesItsRules(t *testing.T) {
 		"loginInput":    loginInput{},
 		"giftInput":     giftInput{},
 		"wishInput":     wishInput{},
+
+		// Checkbox-only forms. They validate nothing and still appear here,
+		// because the pattern is as much about naming the fields as about
+		// checking them — see settingsPrivacyInput.
+		"settingsPrivacyInput":       settingsPrivacyInput{},
+		"settingsNotificationsInput": settingsNotificationsInput{},
 	}
 
 	for _, name := range found {

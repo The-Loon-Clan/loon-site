@@ -115,8 +115,8 @@ func (w *web) adminAccess(c *gin.Context) {
 		"Registration": registrationMode(),
 		"Browsing":     browsingMode(),
 		"Pages":        buildAccessMap(),
-		"Saved":        c.Query("saved") == "1",
-		"Err":          c.Query("err"),
+		"Saved":        c.Query(querySaved) == "1",
+		"Err":          c.Query(queryErr),
 	})
 }
 

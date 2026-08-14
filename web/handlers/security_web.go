@@ -119,8 +119,8 @@ func (w *web) securityPage(c *gin.Context) {
 		"Enabled":  st.Enabled,
 		"Recovery": st.RecoveryLeft,
 		"Email":    u.Email,
-		"Err":      c.Query("err"),
-		"Done":     c.Query("done"),
+		"Err":      c.Query(queryErr),
+		"Done":     c.Query(queryDone),
 		// Shown once, immediately after enabling or regenerating. Held in the
 		// session rather than the query string: a URL with ten working bypass
 		// codes in it lands in history, logs and anything watching referrers.
@@ -168,7 +168,7 @@ func (w *web) securityAction(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/settings/security?err="+url.QueryEscape(msg))
 	}
 
-	switch c.PostForm("action") {
+	switch c.PostForm(fieldAction) {
 	case "begin":
 		w.totpBegin(c, ctx, u, fail)
 	case "confirm":
@@ -217,7 +217,7 @@ func (w *web) totpConfirm(c *gin.Context, ctx context.Context, u *core.User, fai
 		fail("start the setup again")
 		return
 	}
-	if !totpVerify(st.Pending, c.PostForm("code"), time.Now()) {
+	if !totpVerify(st.Pending, c.PostForm(fieldCode), time.Now()) {
 		// The pending secret is KEPT so the member can retype rather than
 		// rescan. A wrong code is usually a typo or a clock, not a
 		// different secret.
@@ -252,7 +252,7 @@ func (w *web) totpCancel(c *gin.Context, ctx context.Context, u *core.User, fail
 // does not pretend it can.
 func (w *web) totpRegenerate(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
 	st := w.data.ReadTOTPStatus(ctx, u.ID)
-	if !st.Enabled || !totpVerify(w.data.TOTPSecret(ctx, u.ID), c.PostForm("code"), time.Now()) {
+	if !st.Enabled || !totpVerify(w.data.TOTPSecret(ctx, u.ID), c.PostForm(fieldCode), time.Now()) {
 		fail("that code did not match")
 		return
 	}
@@ -273,8 +273,8 @@ func (w *web) totpRegenerate(c *gin.Context, ctx context.Context, u *core.User, 
 func (w *web) totpDisable(c *gin.Context, ctx context.Context, u *core.User, fail func(string)) {
 	// A CODE, not just a session. Otherwise a stolen session removes the
 	// factor in one click and it protected nothing.
-	if !totpVerify(w.data.TOTPSecret(ctx, u.ID), c.PostForm("code"), time.Now()) &&
-		!w.spendRecoveryCode(ctx, u.ID, c.PostForm("code")) {
+	if !totpVerify(w.data.TOTPSecret(ctx, u.ID), c.PostForm(fieldCode), time.Now()) &&
+		!w.spendRecoveryCode(ctx, u.ID, c.PostForm(fieldCode)) {
 		fail("that code did not match")
 		return
 	}
@@ -353,7 +353,7 @@ func (w *web) twoFactorPage(c *gin.Context) {
 	}
 	w.render(c, "login_2fa.html", map[string]any{
 		"Title": "Two-factor",
-		"Err":   c.Query("err"),
+		"Err":   c.Query(queryErr),
 	})
 }
 
@@ -365,7 +365,7 @@ func (w *web) twoFactorPost(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	code := c.PostForm("code")
+	code := c.PostForm(fieldCode)
 
 	// A recovery code is accepted here too, because "I have lost my phone" is
 	// exactly when somebody is looking at this form.

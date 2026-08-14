@@ -61,7 +61,7 @@ func (w *web) invitesPage(c *gin.Context) {
 		// Said plainly, because a member holding invites on an OPEN site is
 		// reasonably confused about what they are for.
 		"RegMode": registrationMode(),
-		"Err":     c.Query("err"),
+		"Err":     c.Query(queryErr),
 		// The chain below this member (invitetree_web.go). Read from the same
 		// created_by/used_by columns the codes already carry.
 		"Tree":   tree,

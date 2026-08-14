@@ -51,7 +51,7 @@ func (w *web) newznabAPI(c *gin.Context) {
 		Categories: parseCats(c.Query("cat")),
 		Limit:      limit,
 		Offset:     offset,
-		ID:         c.Query("id"),
+		ID:         c.Query(fieldID),
 		BaseURL:    requestBaseURL(c),
 		Title:      "loon indexer",
 		APIKey:     c.Query("apikey"),

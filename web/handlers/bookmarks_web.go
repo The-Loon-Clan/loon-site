@@ -101,7 +101,7 @@ func (w *web) bookmarkToggle(c *gin.Context) {
 	}
 	// Back to whichever listing the button was pressed on, falling back to the
 	// release itself. Same-origin only — this is user input.
-	if back, okRef := sameOriginPath(c.PostForm("next"), c.Request.Host); okRef {
+	if back, okRef := sameOriginPath(c.PostForm(fieldNext), c.Request.Host); okRef {
 		c.Redirect(http.StatusSeeOther, back)
 		return
 	}

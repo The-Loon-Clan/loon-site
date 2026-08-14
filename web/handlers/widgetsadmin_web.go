@@ -80,7 +80,7 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 	slug := strings.TrimSpace(c.PostForm("slug"))
 	ctx := c.Request.Context()
 
-	switch c.PostForm("action") {
+	switch c.PostForm(fieldAction) {
 	case "add":
 		// Refuse a slug that is not a registered widget. The dropdown only
 		// offers real ones, but a form post is not a promise.

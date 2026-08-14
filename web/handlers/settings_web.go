@@ -92,7 +92,7 @@ func (w *web) settingsPrivacy(c *gin.Context) {
 	w.render(c, "settings_privacy.html", map[string]any{
 		"Title":          "Privacy",
 		"PrivateProfile": w.data.IsPrivateProfile(c.Request.Context(), u.ID),
-		"Saved":          c.Query("saved") == "1",
+		"Saved":          c.Query(querySaved) == "1",
 	})
 }
 
@@ -101,9 +101,9 @@ func (w *web) settingsPrivacySave(c *gin.Context) {
 	if !ok {
 		return
 	}
-	private := c.PostForm("private_profile") == "1"
+	in := readSettingsPrivacyInput(c)
 	if w.data != nil {
-		if err := w.data.SetPrivateProfile(c.Request.Context(), u.ID, private); err != nil {
+		if err := w.data.SetPrivateProfile(c.Request.Context(), u.ID, in.PrivateProfile); err != nil {
 			w.log.Error("privacy save", "err", err)
 		}
 	}
@@ -127,7 +127,7 @@ func (w *web) settingsNotifications(c *gin.Context) {
 	w.render(c, "settings_notifications.html", map[string]any{
 		"Title": "Notifications",
 		"Kinds": rows,
-		"Saved": c.Query("saved") == "1",
+		"Saved": c.Query(querySaved) == "1",
 	})
 }
 
@@ -140,9 +140,9 @@ func (w *web) settingsNotificationsSave(c *gin.Context) {
 	// An unchecked box posts NOTHING, so every known kind must be written
 	// explicitly — reading only what was posted would silently leave a kind the
 	// user just turned off still enabled.
+	in := readSettingsNotificationsInput(c)
 	for _, k := range notifiableKinds {
-		enabled := c.PostForm(k.Kind) == "1"
-		if err := w.data.SetNotificationPref(ctx, u.ID, k.Kind, enabled); err != nil {
+		if err := w.data.SetNotificationPref(ctx, u.ID, k.Kind, in.Enabled[k.Kind]); err != nil {
 			w.log.Error("notification pref save", "kind", k.Kind, "err", err)
 		}
 	}

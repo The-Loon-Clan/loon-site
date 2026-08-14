@@ -85,7 +85,7 @@ func (w *web) cheatQueueClear(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/moderation/cheat")
 		return
 	}
-	id, err := strconv.ParseInt(c.PostForm("id"), 10, 64)
+	id, err := strconv.ParseInt(c.PostForm(fieldID), 10, 64)
 	if err != nil || id <= 0 {
 		c.Redirect(http.StatusSeeOther, "/moderation/cheat")
 		return

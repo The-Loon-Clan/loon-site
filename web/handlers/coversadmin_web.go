@@ -29,8 +29,8 @@ func (w *web) adminCovers(c *gin.Context) {
 		"Title":   "Cover art",
 		"Modes":   modes,
 		"Current": cur,
-		"Saved":   c.Query("saved") == "1",
-		"Err":     c.Query("err"),
+		"Saved":   c.Query(querySaved) == "1",
+		"Err":     c.Query(queryErr),
 	})
 }
 
