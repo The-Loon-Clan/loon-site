@@ -22,3 +22,9 @@ refs/_focus.json
 # one would make everybody else's build depend on directories they do not have.
 go.work
 go.work.sum
+
+# Coverage profiles. `make cover` writes one on every run and `make clean`
+# removes it; one slipped into a commit because neither was true of a run done
+# by hand.
+coverage.out
+*.cover
