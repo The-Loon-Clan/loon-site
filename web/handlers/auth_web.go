@@ -72,7 +72,22 @@ func (w *web) loginPost(c *gin.Context) {
 	// right is worth recording as a success whether or not the second step
 	// follows, because "the password is known" is the fact a reader of that log
 	// needs. See security_web.go.
-	if w.data.TOTPSecret(c.Request.Context(), u.ID) != "" {
+	hasTOTP, err := w.data.HasTOTP(c.Request.Context(), u.ID)
+	if err != nil {
+		// Fail CLOSED. This used to read TOTPSecret() != "", where a failed
+		// database read returns "" and the account was let through on a
+		// password alone — an authentication downgrade that healed itself
+		// before anyone could see it. Refusing the login is the safe side of a
+		// question we could not answer.
+		w.log.Error("check second factor", "user", u.ID, "err", err)
+		c.Status(http.StatusServiceUnavailable)
+		w.render(c, "login.html", map[string]any{
+			"Title": "Log in",
+			"Error": "Could not complete sign-in just now. Please try again.",
+		})
+		return
+	}
+	if hasTOTP {
 		beginTOTPChallenge(c, u.ID)
 		return
 	}

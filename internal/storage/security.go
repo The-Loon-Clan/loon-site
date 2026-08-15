@@ -1,6 +1,9 @@
 package storage
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 // Account security: the two-factor columns, its recovery codes, and the
 // verified email-change tokens.
@@ -48,10 +51,45 @@ func (st *Store) ReadTOTPStatus(ctx context.Context, userID int64) TOTPStatus {
 }
 
 // TOTPSecret returns the live secret, or "" when the factor is off.
+//
+// The read error is discarded, and that is safe ONLY for verification: "" is
+// not a secret any code verifies against, so a failed read makes the check
+// fail. Do not use this to decide WHETHER a second factor is required — see
+// HasTOTP, which exists because that use was here and was wrong.
 func (st *Store) TOTPSecret(ctx context.Context, userID int64) string {
-	var s string
-	_ = st.db.GetContext(ctx, &s, `SELECT totp_secret FROM users WHERE id = $1`, userID)
+	s, _ := st.totpSecret(ctx, userID) //nolint:errcheck // see above: "" fails closed for verification
 	return s
+}
+
+// HasTOTP reports whether a second factor is in force, and says when it could
+// not find out.
+//
+// The distinction is the whole point. The login gate used TOTPSecret() != ""
+// to decide whether to challenge, and a failed database read returns "" — so a
+// transient error let an account with 2FA enabled through on a password alone.
+// Fail-open, invisible, and self-healing, which is the worst combination: by
+// the time anyone looked the symptom was gone.
+//
+// The caller is expected to refuse the login on error rather than guess.
+func (st *Store) HasTOTP(ctx context.Context, userID int64) (bool, error) {
+	s, err := st.totpSecret(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	return s != "", nil
+}
+
+func (st *Store) totpSecret(ctx context.Context, userID int64) (string, error) {
+	// A store with no connection is a failed read, not a panic. Every other
+	// read path in this codebase guards on Valid() before touching the handle
+	// — see renderRegions — and this one is reached from the login gate, which
+	// is the worst place to discover the exception.
+	if st == nil || !st.db.Valid() {
+		return "", errors.New("storage: no database connection")
+	}
+	var s string
+	err := st.db.GetContext(ctx, &s, `SELECT totp_secret FROM users WHERE id = $1`, userID)
+	return s, err
 }
 
 // SetPendingTOTP stores a secret that is not yet in force.
