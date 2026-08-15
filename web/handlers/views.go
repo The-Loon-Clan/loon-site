@@ -367,6 +367,10 @@ func (w *web) mount(e *gin.Engine) {
 	e.POST("/release/:id/bookmark", w.authed(w.bookmarkToggle)...)
 	e.GET("/search", w.search)
 	e.GET("/browse", w.browse)
+	// The category directory, which /browse used to be. Registered before the
+	// param route would matter if there were one; there is not, so the order
+	// here is only for reading.
+	e.GET("/browse/categories", w.browseCategories)
 	e.GET("/release/:id", w.releasePage)
 	e.GET("/nzb/:id", w.nzbDownload)
 	// Fixed host pages: /staff /stats /rules /faq /about (pages_web.go).
@@ -954,8 +958,34 @@ func (w *web) groups(c *gin.Context) {
 	w.render(c, "groups.html", data)
 }
 
-// browse renders the category grid (no cat) or the release list for one
-// category (?cat=N), reusing the usenet Feed capability + the catalog taxonomy.
+// browseCategories renders the category grid.
+//
+// Its own page since /browse became the newest-first list of everything. The
+// grid was what /browse showed when no category was chosen, which put a
+// directory in front of the thing people came for: on an indexer, "what is
+// new" is the question, and "what categories exist" is a way of narrowing it
+// afterwards.
+func (w *web) browseCategories(c *gin.Context) {
+	// Grid, not len(Categories): a catalog with nothing enabled must still
+	// render "no categories" on THIS page rather than falling through to a
+	// listing, and those are different states.
+	data := map[string]any{"Title": "Categories", "Grid": true}
+	if w.catalog == nil {
+		data["Unconfigured"] = true
+		w.render(c, "browse.html", data)
+		return
+	}
+	if cats, err := w.catalog.Enabled(c.Request.Context()); err == nil {
+		data["Categories"] = cats
+	}
+	w.render(c, "browse.html", data)
+}
+
+// browse lists releases newest first: everything, or one category with ?cat=N.
+//
+// Both paths render the same panel through the same code, which is the point —
+// "all releases" is not a special page, it is the listing with no category
+// filter, and Feed already takes an empty category set to mean exactly that.
 func (w *web) browse(c *gin.Context) {
 	data := map[string]any{"Title": "Browse"}
 	if w.catalog == nil {
@@ -964,25 +994,27 @@ func (w *web) browse(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
+
+	// cats stays nil for the unfiltered listing — see the Feed contract, where
+	// an empty set means every category.
+	var cats []int
 	catParam := strings.TrimSpace(c.Query("cat"))
-	if catParam == "" {
-		if cats, err := w.catalog.Enabled(ctx); err == nil {
-			data["Categories"] = cats
+	if catParam != "" {
+		catID, err := strconv.Atoi(catParam)
+		if err != nil || catID <= 0 {
+			// A malformed ?cat= used to fall through to an empty grid saying
+			// "No categories enabled", which blamed the operator for the
+			// reader's typo. Send them to the listing instead.
+			c.Redirect(http.StatusSeeOther, "/browse")
+			return
 		}
-		w.render(c, "browse.html", data)
-		return
+		data["CatID"] = catID
+		data["CatName"] = w.catalog.Name(catID)
+		cats = w.expandCats(ctx, catID)
 	}
-	catID, err := strconv.Atoi(catParam)
-	if err != nil || catID <= 0 {
-		// A malformed ?cat= would fall through to an empty categories grid
-		// ("No categories enabled") — send it back to the real grid instead.
-		c.Redirect(http.StatusSeeOther, "/browse")
-		return
-	}
-	data["CatID"] = catID
-	data["CatName"] = w.catalog.Name(catID)
+
 	if w.usenet != nil {
-		if res, total, err := w.usenet.Feed(ctx, w.expandCats(ctx, catID), listingLimit, 0); err == nil {
+		if res, total, err := w.usenet.Feed(ctx, cats, listingLimit, 0); err == nil {
 			f := parseFilter(c)
 			rows := toSearchRows(res)
 			w.attachCovers(ctx, rows) // one lookup for the page, not one per row
@@ -1008,7 +1040,10 @@ func (w *web) browse(c *gin.Context) {
 	// gets that panel and nothing else — see docs/ASYNC.md. Only the CatID
 	// branch has one: /browse with no category is the grid of categories, and
 	// there is no #results on that page to swap.
-	if isHTMX(c) && data["CatID"] != nil {
+	// Every path through THIS handler renders the results panel now, filtered
+	// or not — the categories grid moved to its own handler, which is what
+	// makes this unconditional where it used to test for a category.
+	if isHTMX(c) {
 		w.renderFragment(c, "browse.html", "browse-results", data)
 		return
 	}
