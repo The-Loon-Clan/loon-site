@@ -1349,6 +1349,135 @@ a.stat-tile:hover {
     min-width: 0;
 }
 
+/* --------------------------------------------------------- forum-post ----- */
+
+/* A forum post: author card down the left, the post down the right.
+ *
+ * Not .torrent-card, which is what this used to be. That grid puts its header
+ * and footer across BOTH columns — right for a release card, wrong here: the
+ * post's timestamp and its reply buttons belong to the post, and running them
+ * over the author column as well makes one band of chrome per post with the
+ * author floating in the middle of it. Here the author column is one unbroken
+ * card the full height, and the head/foot rules stop at its edge.
+ */
+.forum-post {
+    display: grid;
+    grid-template-columns: 152px minmax(0, 1fr);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--torrent-card-bg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.forum-post__author {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 16px 10px 12px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    /* A shade off the post beside it. The divider alone reads as a table rule;
+       the tint is what makes the column a card of its own. */
+    background: var(--torrent-card-head-bg);
+    min-width: 0;
+}
+
+.forum-post__name {
+    margin: 0;
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    line-height: 1.25;
+    /* A long username must wrap rather than widen the column or spill over the
+       divider — the column is a fixed 152px and some names are one token. */
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.forum-post__role {
+    padding: 2px 9px;
+    border-radius: var(--radius-pill);
+    background: var(--primary-soft);
+    color: var(--primary-tint);
+    font-size: var(--fs-3xs);
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+/* Joined / Posts. A label-value pair per row, the labels left and the figures
+ * right, so the numbers line up down the column instead of centring under
+ * labels of different widths. */
+.forum-post__stats {
+    width: 100%;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: space-between;
+    gap: 2px 8px;
+    font-size: var(--fs-3xs);
+    text-align: left;
+}
+.forum-post__stat-label { color: var(--muted); }
+.forum-post__stat-value { color: var(--text); font-variant-numeric: tabular-nums; text-align: right; }
+
+.forum-post__main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.forum-post__head,
+.forum-post__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 14px;
+    font-size: var(--fs-3xs);
+    color: var(--muted);
+}
+.forum-post__head { border-bottom: 1px solid var(--border); }
+.forum-post__foot { border-top: 1px solid var(--border); }
+
+.forum-post__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    min-width: 0;
+    color: var(--torrent-card-fg);
+}
+
+.forum-post__edited { font-size: var(--fs-3xs); color: var(--muted); }
+
+/* Stacked below the fold of a phone. The author column is 152px of a 320px
+ * screen — half the width for a name — so it becomes a row across the top,
+ * which is what every forum does at this size. */
+@media (max-width: 40rem) {
+    .forum-post { grid-template-columns: minmax(0, 1fr); }
+    .forum-post__author {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        text-align: left;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+    }
+    .forum-post__stats {
+        width: auto;
+        margin: 0 0 0 auto;
+        padding: 0;
+        border-top: 0;
+        grid-template-columns: auto auto;
+    }
+}
+
 /* --------------------------------------------------------- pagination ----- */
 
 .pagination {

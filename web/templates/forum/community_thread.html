@@ -83,30 +83,49 @@
 {{range .Posts}}
 {{$post := .}}
 {{$h := hue .Username}}
-<article class="torrent-card" id="post-{{.ID}}">
-    <header class="torrent-card__header flex-wrap">
-        <span>{{timeAgo .CreatedAt}} &middot; {{.CreatedAt.Format "2 Jan 2006 15:04"}}{{if .EditedAt}} &middot; edited{{end}}</span>
+<article class="forum-post" id="post-{{.ID}}">
+    {{/* The author card, down the left and the full height of the post. */}}
+    <aside class="forum-post__author">
+        {{template "avatar" dict "Path" .AvatarPath "Name" .Username "Size" "lg" "Round" true "Px" 128}}
+        {{/* h2, not h3: the thread title above is the page's h1, and a jump
+             straight to h3 leaves a hole in the outline. This is the post
+             author, one level under the thread — which is what h2 says. The
+             SIZE is the class's job, not the level's. */}}
+        <h2 class="forum-post__name">{{template "user-tag" (dict "Name" .Username "Role" .UserRole "Icon" true)}}</h2>
+        {{if .UserRole}}<span class="forum-post__role">{{.UserRole}}</span>{{end}}
+        {{/* reputation_tier is a constant 0 in this host's user_display view,
+             so this stays hidden until a host fills it. */}}
+        {{if .ReputationTier}}<span class="forum-post__role">Tier {{.ReputationTier}}</span>{{end}}
+
+        {{/* Joined and Posts — each rendered only when it HAS a value, rather
+             than with a dash when it does not. The in-memory store populates
+             neither, and "Joined: Jan 1, 0001" is worse than a card that does
+             not claim to know. */}}
+        {{if or (not .UserJoinedAt.IsZero) .UserPostCount}}
+        <div class="forum-post__stats">
+            {{if not .UserJoinedAt.IsZero}}
+            <span class="forum-post__stat-label">Joined</span>
+            <span class="forum-post__stat-value">{{.UserJoinedAt.Format "Jan 2006"}}</span>
+            {{end}}
+            {{if .UserPostCount}}
+            <span class="forum-post__stat-label">Posts</span>
+            <span class="forum-post__stat-value">{{.UserPostCount}}</span>
+            {{end}}
+        </div>
+        {{end}}
+    </aside>
+
+    <div class="forum-post__main">
+    {{/* The post's own header — inside the post column, not across the card.
+         "4 days ago (22 Jul 2026)" the way the reference reads it: the relative
+         time answers "is this current", the absolute one is there when the
+         answer matters. */}}
+    <header class="forum-post__head">
+        <span>{{timeAgo .CreatedAt}} ({{.CreatedAt.Format "2 Jan 2006"}})</span>
         <a href="#post-{{.ID}}">#{{.ID}}</a>
     </header>
 
-    <aside class="torrent-card__aside">
-        <div class="torrent-card__figure p-2">
-            <div class="user-stat-card">
-                {{template "avatar" dict "Path" .AvatarPath "Name" .Username "Size" "lg" "Class" "user-stat-card__avatar" "Px" 128}}
-                {{/* h2, not h3: the thread title above is the page's h1, and a
-                     jump straight to h3 leaves a hole in the outline. This is
-                     the post author, one level under the thread — which is what
-                     h2 says. The SIZE is the class's job, not the level's. */}}
-                <h2 class="user-stat-card__username">{{template "user-tag" (dict "Name" .Username "Role" .UserRole "Icon" true)}}</h2>
-                {{if .UserRole}}<span class="user-stat-card__rank">{{.UserRole}}</span>{{end}}
-                {{/* reputation_tier is a constant 0 in this host's user_display
-                     view, so this badge stays hidden until a host fills it. */}}
-                {{if .ReputationTier}}<p class="user-stat-card__stat">Tier {{.ReputationTier}}</p>{{end}}
-            </div>
-        </div>
-    </aside>
-
-    <div class="torrent-card__body">
+    <div class="forum-post__body">
         {{if .QuotedHTML}}
         <blockquote class="border-start ps-2 small text-muted m-0">
             {{if .QuotedUsername}}<strong>{{.QuotedUsername}}</strong>{{end}}
@@ -136,9 +155,13 @@
             </form>
         </details>
         {{end}}{{end}}
+        {{/* Moved out of the header strip, where it read as part of the
+             timestamp. It is a fact about the BODY — who last changed it — so
+             it sits under the body. */}}
+        {{if .EditedAt}}<p class="forum-post__edited">Edited {{timeAgo .EditedAt}}</p>{{end}}
     </div>
 
-    <footer class="torrent-card__footer flex-wrap">
+    <footer class="forum-post__foot">
         <span class="tag-row">
             {{/* Existing tallies. MyReactions is the viewer's own subset, so a
                  chip the viewer contributed to is accent-tinted. */}}
@@ -171,6 +194,7 @@
             {{end}}
         </span>
     </footer>
+    </div>
 </article>
 {{end}}
 </div>

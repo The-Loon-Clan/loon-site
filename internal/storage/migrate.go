@@ -65,7 +65,18 @@ func (st *Store) MigrateUserDisplay() error {
 		           ELSE 'user'
 		       END AS role,
 		       COALESCE(avatar_path, '')::text        AS avatar_path,
-		       COALESCE(reputation_tier, 0)::smallint AS reputation_tier
+		       COALESCE(reputation_tier, 0)::smallint AS reputation_tier,
+		       -- Appended, and it has to stay appended. CREATE OR REPLACE VIEW
+		       -- lets you ADD columns at the end and nothing else, so a new
+		       -- field goes here, below the four above, or the replacement is
+		       -- rejected at boot.
+		       --
+		       -- For the "Joined" line on a forum post's author card. It is on
+		       -- the view rather than read from users directly because a plugin
+		       -- is what needs it, and this view is the contract that keeps a
+		       -- plugin off the users table — where role is an integer whose
+		       -- meaning lives up here.
+		       created_at                             AS joined_at
 		FROM users`)
 	return err
 }
