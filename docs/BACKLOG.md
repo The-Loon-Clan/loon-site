@@ -470,3 +470,25 @@ rather than a cleanup.
 Found while cleaning up the news feed, which is also where the shape of the
 problem is clearest: 90 lines of CSS in a template, re-sent on every page view,
 duplicated across the plugin's four pages.
+
+## 14. Spotnet import (spike done, design in SPOTNET.md)
+
+Design and live findings: [SPOTNET.md](SPOTNET.md).
+
+Spotnet is a decentralised index carried on Usenet itself: a human spots an
+upload and posts a signed description to `free.pt`, and every client builds its
+own copy of the index by reading the group. The provider this host is configured
+against carries it — 4.4M articles, live.
+
+It fits better than it looks. A spot points at a finished NZB in
+`alt.binaries.ftd`, and `usenet.nzbs.nzb_data` stores NZBs inline, so an
+importer skips the expensive half of the existing pipeline: no article table, no
+set resolution, no build outcomes. `loon/nntp` already has the transport.
+
+Blocked on nothing, but two decisions want making first — provenance (nzbs.source
+is the MEDIA source, so a spotted release has nowhere to say it was spotted) and
+moderation (regex-over-titles here vs key-and-reports there). One unknown needs
+Spotweb's source rather than a guess: which bytes the signature covers. That is
+the only part where being wrong is dangerous rather than broken — a verifier
+that accepts everything looks exactly like one that works, in front of a group
+anyone can post to.
