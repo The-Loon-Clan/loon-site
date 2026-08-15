@@ -70,3 +70,33 @@ turning into `pass budget reached` and the NZB count climbing again.
 Note that **Redis is not involved**: `USENET_STAGING` defaults to `pg`, so Redis
 holds the page cache only and sits around a megabyte with no `maxmemory` set.
 Growing it does nothing for a staging stall.
+
+## Profiling (pprof)
+
+Off unless `LOON_PPROF_TOKEN` is set. An unset token does not mean "no auth" —
+the listener never starts, so forgetting to configure it cannot leave it open.
+
+    LOON_PPROF_TOKEN=<a long random string>
+    LOON_PPROF_ADDR=127.0.0.1:6060      # default
+
+Three layers, and the first is the one that matters:
+
+1. **Bind it somewhere only you can reach.** `127.0.0.1` or a Tailscale
+   address. The two checks below are the second and third layers.
+2. **An IP allowlist** — loopback, RFC1918, and Tailscale's CGNAT range. The
+   private ranges are needed because Docker's userland proxy rewrites the
+   source address to the bridge gateway, so a request that genuinely arrived
+   over a private interface presents as `172.18.0.1`.
+3. **The token**, as `Authorization: Bearer` or `?token=`, compared in constant
+   time.
+
+A refusal is a **404**, never a 403 — a 403 confirms there is something there
+worth attacking. Every refusal is logged, so a scan is visible.
+
+    go tool pprof 'http://127.0.0.1:6060/debug/pprof/profile?seconds=30&token=TOKEN'
+    curl -H "Authorization: Bearer TOKEN" http://127.0.0.1:6060/debug/pprof/heap -o heap.out
+
+Why a separate listener rather than a route on the site: pprof on the main
+engine is one middleware-ordering mistake from being public, and it is the most
+useful thing to hand an attacker — heap dumps carry live data, and
+`/debug/pprof/profile` is a CPU denial of service anyone can start.

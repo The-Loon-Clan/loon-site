@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"github.com/the-loon-clan/loon-site/internal/debugserver"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -47,6 +49,14 @@ func serve(engine *gin.Engine, wsrv *web, rt *core.Runtime, ctx context.Context,
 		// linkFromCatalog for why this runs ahead of the scraper's match job.
 		go wsrv.runLocalLinks(ctx, time.Minute, logger)
 	}
+
+	// pprof, on a listener of its own and off unless a token is set. See
+	// internal/debugserver for why it is not a route on this engine.
+	debugserver.Start(debugserver.Config{
+		Addr:  getenvDefault("LOON_PPROF_ADDR", "127.0.0.1:6060"),
+		Token: os.Getenv("LOON_PPROF_TOKEN"),
+		Log:   logger,
+	})
 
 	logger.Info("loon site up",
 		"url", "http://localhost:8090/",
