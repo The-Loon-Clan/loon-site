@@ -230,7 +230,12 @@ func (w *web) robotsTxt(c *gin.Context) {
 		"Disallow: /rss",
 		"Allow: /",
 		"",
-		"Sitemap: /sitemap.xml",
+		// ABSOLUTE, not "/sitemap.xml". The Sitemap directive is specified as
+		// a full URL and a crawler is entitled to ignore a relative one —
+		// which is what Lighthouse reports as "robots.txt is not valid", and
+		// what would quietly mean the sitemap this site generates was never
+		// fetched by anything.
+		"Sitemap: " + strings.TrimRight(getenvDefault("LOON_BASE_URL", "http://localhost:8090"), "/") + "/sitemap.xml",
 		"",
 	}, "\n"))
 }

@@ -135,7 +135,9 @@
     --panel-head-fg: #ffffff;
     --panel-head-border: 1px solid var(--border);  /* the head is transparent now, so the rule separates it */
     --panel-action-fg: #aaaaaa;
-    --panel-group-fg: #888888;
+    /* 4.86:1 on --panel-bg. Was #888888 at 4.16, under the 4.5 WCAG AA
+       minimum for normal text — see scripts/contrast.py. */
+    --panel-group-fg: #949494;
 
     /* Density. Dense: UNIT3D's panel head is 7px tall padding, ours keeps the
        uppercase heading legible at 8px block / 12px inline. */

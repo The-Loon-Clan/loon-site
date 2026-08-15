@@ -54,6 +54,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="A demonstration Usenet indexer built on the loon framework.">
     <meta name="color-scheme" content="dark">
+    {{/* Every browser asks for /favicon.ico unprompted, and this site answered
+         404 to all of them — a per-visitor error in the log and a console
+         error Lighthouse counts against the page. Declaring the icon stops the
+         guess; access_web.go already treats /favicon.ico as public. */}}
+    <link rel="icon" href="{{asset "/static/favicon.svg"}}" type="image/svg+xml">
     {{/* htmx configuration, as a meta tag rather than a script.
 
          It has to be readable before htmx initialises, and htmx.min.js is

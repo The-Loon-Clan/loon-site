@@ -30,7 +30,9 @@
     --text: #e6ecf7;
     --text-strong: #ffffff;
     --muted: #8b97b1;           /* secondary copy */
-    --muted-2: #5f6b85;         /* tertiary: timestamps, captions, disabled */
+    /* 4.86:1 on --surface, where --panel-group-fg puts it. Was #5f6b85 at
+       3.32 — see scripts/contrast.py. */
+    --muted-2: #7a86a0;         /* tertiary: timestamps, captions, disabled */
 
     --primary: #7c5cff;         /* indigo/violet — the one brand accent */
     --primary-strong: #6a45ff;

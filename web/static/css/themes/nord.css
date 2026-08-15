@@ -36,7 +36,9 @@
     --text: #d8dee9;            /* snow storm 0 */
     --text-strong: #eceff4;     /* snow storm 2 */
     /* Nord has no mid grey for text; these sit between nord3 and nord4. */
-    --muted: #9aa4b8;
+    /* 4.83:1 on --surface. Was #9aa4b8 at 4.01 — a failure Lighthouse never
+       reported, because it only ever loaded the default theme. */
+    --muted: #aab4c8;
     --muted-2: #7b869d;
 
     --primary: #88c0d0;         /* frost — UNIT3D's link + active-border colour */
@@ -117,7 +119,9 @@
     --panel-head-fg: #eceff4;
     --panel-head-border: none;
     --panel-action-fg: #9aa4b8;
-    --panel-group-fg: #7b869d;
+    /* 4.83:1 on --panel-bg. Was #7b869d at 2.75, the worst of the three
+       themes — see scripts/contrast.py. */
+    --panel-group-fg: #a9b4cb;
 
     /* Density. Dense, same proportions as cosmic-void. */
     --panel-head-padding-block: 0;

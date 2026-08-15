@@ -33,9 +33,11 @@ Numbers taken Aug 2026. Re-run them rather than trusting this table.
 | — wrapped with `%w` | `grep '%w'` | 28 |
 | Test depth | `make cover` | 34.7% with services / 23.0% without |
 | SQL safety | `scripts/sqllint.py` | clean |
-| Vulnerabilities | `scripts/govulncheck.sh` | 0 |
+| Vulnerabilities | `scripts/govulncheck.sh` | 0 — but it read 1 the day after this was written |
 | HTML validity | `scripts/htmlvalidate.sh` | 16 errors, all one cause (below) |
-| **Accessibility** | `pa11y-ci` / `axe-core` vs WCAG 2.2 AA | **never run** |
+| Accessibility | `scripts/lighthouse.sh` + `scripts/contrast.py` | **100** (was 90) |
+| SEO | `scripts/lighthouse.sh` | **100** (was 91) |
+| Best practices | `scripts/lighthouse.sh` | 78 — the rest is HTTPS, i.e. deployment |
 | **Performance** | Lighthouse CI (LCP/INP/CLS) | **never run** |
 | **Security posture** | OWASP ASVS L1 checklist | partial — CSRF, CSP, sanitiser, password rules done |
 | **Supply chain** | OpenSSF Scorecard | **never run** |

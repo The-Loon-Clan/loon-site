@@ -1,0 +1,17 @@
+<!-- The site mark, taken verbatim from the #logo symbol in site_chrome.html.
+
+     Not a new drawing: the tab icon and the header mark must be the same shape,
+     and the way that stays true is for one of them to be a copy of the other
+     rather than two independent attempts at the same idea.
+
+     currentColor is resolved here, because a favicon has no page to inherit
+     from. #2195f3 is cosmic-void's --primary, the site's one chromatic accent.
+
+     SVG rather than .ico: every browser this site targets supports it, it
+     scales to whatever size the tab strip wants, and it is 500 bytes. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+     stroke="#2195f3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 2.5 21.5 7 12 11.5 2.5 7z"/>
+  <path d="M2.5 12 12 16.5 21.5 12"/>
+  <path d="M2.5 17 12 21.5 21.5 17"/>
+</svg>

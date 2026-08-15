@@ -2960,3 +2960,27 @@ a.stat-figure:hover .stat-figure__value { text-decoration: underline; }
     box-shadow: none;
     padding: 0;
 }
+
+/* ---------------------------------------------------- links in prose ---- */
+
+/* A link inside a run of text must be distinguishable WITHOUT colour.
+   
+   WCAG 1.4.1: colour alone cannot be the only way to convey information, and a
+   link sitting in a sentence is exactly that case — a reader with a colour
+   vision deficiency sees the same grey twice. Lighthouse reports it as
+   "Links rely on color to be distinguishable", and it was the last accessibility
+   failure on /browse after the contrast tokens were fixed.
+   
+   Scoped to paragraphs and prose deliberately. A nav link, a pill, a button or
+   a table cell link is distinguishable by its POSITION and shape — it sits in a
+   row of its own kind, and underlining those would be visual noise that helps
+   nobody. The rule is about links a reader has to find inside a sentence.
+   
+   text-underline-offset because the site's line-height is tight and an
+   underline hard against the baseline reads as a strikethrough on the
+   descenders. */
+p a:not(.button):not(.pill),
+.prose a:not(.button):not(.pill) {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+}
