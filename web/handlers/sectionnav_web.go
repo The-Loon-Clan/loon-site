@@ -78,7 +78,6 @@ var accountMenu = []sectionTab{
 		{Label: "Topics", Href: "/p/topics"},
 		{Label: "Posts", Href: "/p/posts"},
 		{Label: "Bookmarks", Href: "/bookmarks"},
-		{Label: "Gifts", Href: "/gifts"},
 		{Label: "Wishlist", Href: "/wishlist"},
 		{Label: "Subscriptions", Href: "/subscriptions"},
 		{Label: "Calendar", Href: "/calendar"},
@@ -91,13 +90,12 @@ var accountMenu = []sectionTab{
 	// It is not right any more. The store is a place you spend YOUR points on
 	// YOUR invites and YOUR rank; nothing about it is communal, and it sat in
 	// Community only because that is where a shop sounds like it goes. Moved
-	// here it joins the ledger and the rewards it pays out, and the three of
+	// here it joins the ledger and the rewards it pays out, and the four of
 	// them are a group rather than a stray entry.
 	//
-	// Still NOT added to accountAreaPrefixes: these pages carry the points
-	// economy's own strip, and the account bar on top of that is the second tab
-	// row this file exists to avoid. Listed in the menu, not wrapped by the
-	// bar — those are different things.
+	// Every way points move is here, which is the test of whether the group is
+	// the right one: spend them, read what they did, claim more, hand some to
+	// somebody else.
 	{Label: "Bonus Points", Items: []sectionTab{
 		// "Points store" and not "Store", because the flair shop took that word
 		// in the site nav's Other menu. Redundant inside a group already called
@@ -107,6 +105,11 @@ var accountMenu = []sectionTab{
 		{Label: "Points store", Href: "/store"},
 		{Label: "History", Href: "/store/history"},
 		{Label: "Rewards", Href: "/rewards"},
+		// Moved out of Activity, where it was filed with Bookmarks and Wishlist
+		// as a thing you had DONE. It is not: /gifts is points moving from one
+		// member to another (gifts_web.go), so it debits the same balance the
+		// three entries above it do, and the ledger it lands in is History.
+		{Label: "Gifts", Href: "/gifts"},
 	}},
 	{Label: "Settings", Items: []sectionTab{
 		{Label: "Account", Href: "/p/account"},

@@ -168,6 +168,11 @@ func TestAccountMenuSelectsOneEntry(t *testing.T) {
 		{"/store", "Points store"},
 		{"/store/history", "History"},
 		{"/rewards", "Rewards"},
+		// In Bonus Points rather than Activity: gifting is points leaving your
+		// balance for someone else's, so it belongs with the rest of the
+		// economy. Listed here because the move is the kind a later edit
+		// reverses by tidying the menu alphabetically.
+		{"/gifts", "Gifts"},
 	} {
 		// The DESTINATION is what the reader is looking for, and most of the
 		// menu is grouped — so descend into a lit group and name its lit child,
