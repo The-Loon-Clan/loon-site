@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/lib/pq"
@@ -57,7 +59,7 @@ type linkSpec struct {
 	// keys returns the entry titles that would satisfy this release, already
 	// normalised, most specific first. More than one because Wikipedia titles
 	// carry a qualifier — see movieKeys.
-	keys func(releaseTitle string) []string
+	keys func(releaseTitle string) []catalogKey
 }
 
 func linkSpecs() []linkSpec {
@@ -87,22 +89,59 @@ func linkSpecs() []linkSpec {
 	}
 }
 
+// catalogKey is one acceptable form of a title, and what has to be true of the
+// entry that matches it.
+//
+// Year is a CONSTRAINT, not a hint: 0 means "any entry with this name", and a
+// non-zero value means only an entry whose own year agrees will do. That
+// distinction is the whole reason this is a struct rather than a string —
+// see seriesKeys.
+type catalogKey struct {
+	Norm string
+	Year int
+}
+
 // animeKeys reduces an anime release name to its series.
-func animeKeys(releaseTitle string) []string {
+func animeKeys(releaseTitle string) []catalogKey {
 	norm := catalog.DefaultNormalize(anilist.ParseReleaseName(releaseTitle).Title)
 	if norm == "" {
 		return nil
 	}
-	return []string{norm}
+	return []catalogKey{{Norm: norm}}
 }
 
+// sceneYearSuffix matches a trailing four-digit year on a normalised name.
+//
+// Anchored and four digits exactly, because the alternative eats real titles:
+// "Ben 10" is a series, "Ben 10 2016" is that series' reboot, and a rule that
+// strips any trailing number turns the first into "ben".
+var sceneYearSuffix = regexp.MustCompile(`^(.*?)[ ]((?:19|20)[0-9]{2})$`)
+
 // seriesKeys reduces a TV release name to its series.
-func seriesKeys(releaseTitle string) []string {
+//
+// Two forms, and the second is where most of the remaining gap was. A scene
+// series name often carries a disambiguating year — "Monk.2002.S06E09" — and
+// the catalogue does not: it holds "Monk" with 2002 in its year column. Of the
+// twelve largest TV series here with zero covered releases, eight were exactly
+// this, every one of them ALREADY in catalog_entry. Hundreds of releases sat
+// uncovered beside the poster that belonged to them, and no API call could have
+// helped, because nothing was wrong with either side — only with the key.
+//
+// The full form stays first: a catalogue that really does hold "Monk 2002"
+// under that name should win over the bare one. The bare form then carries the
+// year as a constraint rather than dropping it, because The Flash 1990 and The
+// Flash 2014 are different shows, and a wrong poster is worse than none.
+func seriesKeys(releaseTitle string) []catalogKey {
 	norm := catalog.DefaultNormalize(tvmaze.ParseReleaseName(releaseTitle).Title)
 	if norm == "" {
 		return nil
 	}
-	return []string{norm}
+	keys := []catalogKey{{Norm: norm}}
+	if m := sceneYearSuffix.FindStringSubmatch(norm); m != nil && m[1] != "" {
+		year, _ := strconv.Atoi(m[2])
+		keys = append(keys, catalogKey{Norm: m[1], Year: year})
+	}
+	return keys
 }
 
 // movieKeys reduces a film release name to the ways Wikipedia might have
@@ -115,15 +154,15 @@ func seriesKeys(releaseTitle string) []string {
 // The forms are ENUMERATED and matched exactly rather than approached with a
 // prefix or a LIKE, because "the crow" is a prefix of "the crow salvation" —
 // a different film, and a wrong poster is worse than no poster.
-func movieKeys(releaseTitle string) []string {
+func movieKeys(releaseTitle string) []catalogKey {
 	q := wikipedia.ParseReleaseName(releaseTitle)
 	norm := catalog.DefaultNormalize(q.Title)
 	if norm == "" {
 		return nil
 	}
-	keys := []string{norm, norm + " film"}
+	keys := []catalogKey{{Norm: norm}, {Norm: norm + " film"}}
 	if q.Year > 0 {
-		keys = append(keys, fmt.Sprintf("%s %d film", norm, q.Year))
+		keys = append(keys, catalogKey{Norm: fmt.Sprintf("%s %d film", norm, q.Year)})
 	}
 	return keys
 }
@@ -173,16 +212,31 @@ func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 	// eventually fill it, at which point the pass runs every minute and links
 	// nothing while matchable releases sit below it. Same trap as
 	// catalogCandidates; same fix.
-	rows, err := w.data.DB().QueryContext(ctx,
-		`SELECT n.id, n.title
+	// The suppression sits HERE, on the Go line, and not where it used to —
+	// inside the string, spelled "//".
+	//
+	// SQL comments are "--". Postgres read "// sqllint:allow catWhere is…" as
+	// statement text and stopped at the first thing it could not parse, which
+	// was the colon:
+	//
+	//	pq: syntax error at or near ":"
+	//
+	// So this query had not run since the directive was added. Every tick of
+	// the local-link sweep failed, once a minute, into a WARN that nothing
+	// reads — and the pass that fails is the one that gives a release a poster
+	// WITHOUT an API call, which is the cheapest coverage this site has.
+	//
+	// sqllint:allow catWhere is a constant in the linkSpecs table above; no request value reaches it
+	q := storage.SQL(`SELECT n.id, n.title
 		   FROM usenet.nzbs n
 		   LEFT JOIN catalog.release_cover rc ON rc.release_id = n.id
 		  WHERE rc.release_id IS NULL
-		    // sqllint:allow catWhere is a constant in the linkSpecs table above; no request value reaches it
-		    AND `+spec.catWhere+`
+		    AND `) + spec.catWhere + storage.SQL(`
 		    AND n.id < $1::bigint
 		  ORDER BY n.id DESC
-		  LIMIT $2`, cursor, localLinkBatch)
+		  LIMIT $2`)
+	// sqllint:allow q is the constant above with catWhere spliced in; no request value reaches it
+	rows, err := w.data.DB().QueryContext(ctx, q, cursor, localLinkBatch)
 	if err != nil {
 		return 0, err
 	}
@@ -230,13 +284,7 @@ func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 		if len(keys) == 0 {
 			continue
 		}
-		var coverURL string
-		// Exact match on any acceptable form — never a prefix. Newest entry
-		// wins, matching releaseArt's tie-break.
-		err := w.data.DB().QueryRowContext(ctx,
-			`SELECT cover_url FROM catalog.catalog_entry
-			  WHERE kind = ANY($1) AND norm_title = ANY($2) AND cover_url <> ''
-			  ORDER BY updated_at DESC LIMIT 1`, pq.Array(spec.kinds), pq.Array(keys)).Scan(&coverURL)
+		coverURL, err := w.coverForKeys(ctx, spec.kinds, keys)
 		if err != nil || coverURL == "" {
 			continue
 		}
@@ -246,6 +294,53 @@ func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 		linked++
 	}
 	return linked, nil
+}
+
+// coverForKeys picks the cover for the first key that a catalogue entry
+// satisfies, in the order the keys were offered.
+//
+// One query, then the choice in Go, rather than a query per key or one query
+// with ANY(): the year constraint cannot be expressed as a set membership, and
+// running the keys in order against the database would be several round trips
+// per release for the ones that match nothing — which is most of them, on a
+// sweep whose whole point is to be cheap.
+//
+// Exact match on the name, never a prefix: "the crow" is a prefix of "the crow
+// salvation", a different film, and a wrong poster is worse than no poster.
+func (w *web) coverForKeys(ctx context.Context, kinds []string, keys []catalogKey) (string, error) {
+	names := make([]string, 0, len(keys))
+	for _, k := range keys {
+		names = append(names, k.Norm)
+	}
+	type entry struct {
+		Norm  string `db:"norm_title"`
+		Year  int    `db:"year"`
+		Cover string `db:"cover_url"`
+	}
+	var found []entry
+	if err := w.data.DB().SelectContext(ctx, &found, `
+		SELECT norm_title, year, cover_url
+		  FROM catalog.catalog_entry
+		 WHERE kind = ANY($1) AND norm_title = ANY($2) AND cover_url <> ''
+		 ORDER BY updated_at DESC`, pq.Array(kinds), pq.Array(names)); err != nil {
+		return "", err
+	}
+	for _, k := range keys {
+		for _, e := range found {
+			if e.Norm != k.Norm {
+				continue
+			}
+			// A key with no year takes anything; a key WITH one requires the
+			// entry to agree, or to have no year of its own to disagree with.
+			// The Flash 1990 and The Flash 2014 are different shows, and this
+			// is the line that keeps one from wearing the other's poster.
+			if k.Year != 0 && e.Year != 0 && e.Year != k.Year {
+				continue
+			}
+			return e.Cover, nil
+		}
+	}
+	return "", nil
 }
 
 // runLocalLinks sweeps in the background for as long as the process lives.

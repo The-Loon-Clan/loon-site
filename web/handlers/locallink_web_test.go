@@ -13,7 +13,7 @@ func seriesKey(releaseTitle string) string {
 	if len(ks) == 0 {
 		return ""
 	}
-	return ks[0]
+	return ks[0].Norm
 }
 
 // Every episode of a show must reduce to the show — that is the whole basis for
@@ -100,8 +100,8 @@ func TestMovieKeysCoverWikipediaQualifiers(t *testing.T) {
 		t.Fatalf("movieKeys = %v, want %d forms", got, len(want))
 	}
 	for _, k := range got {
-		if !want[k] {
-			t.Errorf("unexpected key %q (all: %v)", k, got)
+		if !want[k.Norm] {
+			t.Errorf("unexpected key %q (all: %v)", k.Norm, got)
 		}
 	}
 
@@ -118,18 +118,18 @@ func TestMovieKeysCoverWikipediaQualifiers(t *testing.T) {
 // where no poster just leaves the page alone.
 func TestMovieKeysNeverInviteAPrefixMatch(t *testing.T) {
 	for _, k := range movieKeys("The.Crow.1994.1080p.BluRay.x264") {
-		if k == "the crow salvation" {
-			t.Fatalf("key %q would collide with a different film", k)
+		if k.Norm == "the crow salvation" {
+			t.Fatalf("key %q would collide with a different film", k.Norm)
 		}
 	}
 	// The keys for two genuinely different films must not overlap at all.
 	a := map[string]bool{}
 	for _, k := range movieKeys("The.Crow.1994.1080p.BluRay") {
-		a[k] = true
+		a[k.Norm] = true
 	}
 	for _, k := range movieKeys("The.Crow.Salvation.2000.1080p.BluRay") {
-		if a[k] {
-			t.Errorf("%q is a key for both The Crow and The Crow Salvation", k)
+		if a[k.Norm] {
+			t.Errorf("%q is a key for both The Crow and The Crow Salvation", k.Norm)
 		}
 	}
 }
@@ -159,7 +159,7 @@ func TestAnimeKeysUseTheFansubParser(t *testing.T) {
 		{"Crayon Shin-chan - 0059 - Hindi+Tamil+Telugu dub [ATTKC]", "crayon shin chan"},
 	} {
 		got := animeKeys(tc.release)
-		if len(got) != 1 || got[0] != tc.want {
+		if len(got) != 1 || got[0].Norm != tc.want {
 			t.Errorf("animeKeys(%q) = %v, want [%q]", tc.release, got, tc.want)
 		}
 	}
