@@ -410,3 +410,35 @@ rendering as free.
 
 The host needs no change, which is the test of whether the seam is in the right
 place.
+
+## 12. Two "Site stats" pages, and one of them is an estimate
+
+Both are now in Other (`/stats` "Stats", `/p/stats` "Site snapshot") — see
+`navPlacement` in admin_views.go. The placement is fixed; the numbers are not.
+
+They disagree, and a member has no way to tell which to believe:
+
+    host   /stats     Releases      160,692    <- exact, matches the table
+    plugin /p/stats   NZBs indexed  160,980    <- 288 high
+
+Neither is wrong. The host runs `COUNT(*)`. The plugin's figure comes from the
+usenet plugin's `est()` (usenet/store.go), which reads `pg_class.reltuples` — a
+PLANNER ESTIMATE — and only falls back to a bounded count when that is
+unusable. That is a sound choice for a 5-second liveness poll on a table with
+millions of rows; an exact count there would be a scan on every tick.
+
+The problem is presentational: both pages are headed "Site stats" and print
+their number the same way, so an estimate is displayed as a fact beside a fact.
+Both figures are also plausible, which is worse than one being obviously
+broken.
+
+Fix, in the shared tree:
+
+- `usenet/service.go:61` labels the metric "NZBs indexed". Saying "NZBs indexed
+  (approx.)" costs one word and removes the whole confusion.
+- Consider whether the snapshot page should show the exact count instead. It
+  refreshes hourly, not every five seconds, so it can afford one.
+
+Neither is the host's to change. Recorded here rather than worked around,
+because the host relabelling its own page would not help — the misleading
+number is on the other one.
