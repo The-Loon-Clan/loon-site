@@ -65,18 +65,34 @@ func (st *Store) MigrateUserDisplay() error {
 		           ELSE 'user'
 		       END AS role,
 		       COALESCE(avatar_path, '')::text        AS avatar_path,
-		       COALESCE(reputation_tier, 0)::smallint AS reputation_tier,
-		       -- Appended, and it has to stay appended. CREATE OR REPLACE VIEW
-		       -- lets you ADD columns at the end and nothing else, so a new
-		       -- field goes here, below the four above, or the replacement is
-		       -- rejected at boot.
-		       --
-		       -- For the "Joined" line on a forum post's author card. It is on
-		       -- the view rather than read from users directly because a plugin
-		       -- is what needs it, and this view is the contract that keeps a
-		       -- plugin off the users table — where role is an integer whose
-		       -- meaning lives up here.
-		       created_at                             AS joined_at
+		       COALESCE(reputation_tier, 0)::smallint AS reputation_tier
+		FROM users`)
+	if err != nil {
+		return err
+	}
+	return st.migrateUserStats()
+}
+
+// migrateUserStats publishes the per-user figures a PLUGIN needs and cannot
+// get: things that live on the users table but are not identity.
+//
+// A SECOND view, rather than two more columns on user_display, and that is not
+// a style choice. joined_at went on user_display first and the site would not
+// boot: loon-baseline's own migration runs earlier and issues its own CREATE OR
+// REPLACE VIEW user_display with the original four columns, which Postgres
+// rejects against a wider view —
+//
+//	users migrate: pq: cannot drop columns from view (42P16)
+//
+// So user_display's shape belongs to the baseline, and anything this host wants
+// to add to it has to live somewhere the baseline does not also write. The
+// existing comment above had it half right: it warned that a change to the
+// baseline's shape would fail loudly here. It fails just as loudly in the other
+// direction, one migration earlier, and takes the whole boot with it.
+func (st *Store) migrateUserStats() error {
+	_, err := st.db.Exec(`CREATE OR REPLACE VIEW user_stats AS
+		SELECT id,
+		       created_at AS joined_at
 		FROM users`)
 	return err
 }

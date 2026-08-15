@@ -28,19 +28,32 @@
 <div class="sidebar2">
     <div>
         <section class="panelV2">
-            <header class="panel__header">
-                <h1 class="panel__heading">
-                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#forums"></use></svg>
-                    Forums
-                    <span class="panel__grouping">{{.TotalThreads}} threads &middot; {{.TotalPosts}} posts</span>
-                </h1>
-                <div class="panel__actions">
+            {{/* The same masthead a category page gets — see community_category
+                 .html. Two pages one click apart that name the same kind of
+                 thing should introduce it the same way. */}}
+            <div class="forum-head">
+                <span class="forum-head__icon"><svg class="icon" aria-hidden="true"><use href="#forums"></use></svg></span>
+                <div class="forum-head__body">
+                    <h1 class="forum-head__title">Forums</h1>
+                    <p class="forum-head__desc">Discussion, questions and announcements.</p>
+                    <div class="forum-head__stats">
+                        {{/* No forum COUNT here. It was {{len .Categories}}, which
+                             blows up on a board with none — Categories is absent
+                             from the data map then, and len of a zero Value is an
+                             error that aborts the render mid-page. Caught by the
+                             empty-board case in templates_test.go, and not worth
+                             a guard: the list directly below is the count. */}}
+                        <span class="forum-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#forums"></use></svg><strong>{{.TotalThreads}}</strong> Threads</span>
+                        <span class="forum-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#comment"></use></svg><strong>{{.TotalPosts}}</strong> Posts</span>
+                    </div>
+                </div>
+                <div class="forum-head__actions">
                     {{/* /admin/forum-categories is gated at RoleMod (plugin.go),
                          so the link shows to the role that can actually use it. */}}
-                    {{if .IsMod}}<a class="panel__action" href="/admin/forum-categories">Manage</a>{{end}}
-                    {{if .User}}<a class="panel__action" href="/community/forums/new">New thread <svg class="icon icon--sm" aria-hidden="true"><use href="#plus"></use></svg></a>{{end}}
+                    {{if .IsMod}}<a class="button button--text button--sm" href="/admin/forum-categories">Manage</a>{{end}}
+                    {{if .User}}<a class="button button--primary button--sm" href="/community/forums/new"><svg class="icon icon--sm" aria-hidden="true"><use href="#plus"></use></svg>New thread</a>{{end}}
                 </div>
-            </header>
+            </div>
             {{if .Categories}}
             <div class="panel__body panel__body--flush">
                 <div class="data-table-wrapper">
@@ -49,8 +62,8 @@
                         <thead>
                             <tr>
                                 <th>Forum</th>
-                                <th class="data-table__num">Threads</th>
-                                <th class="data-table__num">Posts</th>
+                                <th class="thread-count">Threads</th>
+                                <th class="thread-count">Posts</th>
                                 <th>Latest post</th>
                             </tr>
                         </thead>
@@ -59,15 +72,23 @@
                             <tr>
                                 <td>
                                     <div class="data-table__name">
-                                        <svg class="icon data-table__name-icon" aria-hidden="true"><use href="#forums"></use></svg>
+                                        {{/* The same tile the masthead uses, so a forum
+                                             looks like itself in the list and on its own
+                                             page. ForumCategory.Icon is a Bootstrap Icons
+                                             NAME and .Color a palette key; this stack
+                                             ships neither, so every tile is #forums
+                                             rather than a guess at the admin's choice. */}}
+                                        <span class="forum-head__icon" style="width:34px;height:34px">
+                                            <svg class="icon icon--sm" aria-hidden="true"><use href="#forums"></use></svg>
+                                        </span>
                                         <div class="data-table__name-body">
                                             <a class="data-table__title" href="/community/forums/category/{{.ID}}">{{.Name}}</a>
                                             {{if .Description}}<div class="data-table__meta">{{.Description}}</div>{{end}}
                                         </div>
                                     </div>
                                 </td>
-                                <td class="data-table__num">{{.ThreadCount}}</td>
-                                <td class="data-table__num">{{.PostCount}}</td>
+                                <td class="thread-count"><strong>{{.ThreadCount}}</strong><span>{{if eq .ThreadCount 1}}Thread{{else}}Threads{{end}}</span></td>
+                                <td class="thread-count"><strong>{{.PostCount}}</strong><span>{{if eq .PostCount 1}}Post{{else}}Posts{{end}}</span></td>
                                 <td>
                                     {{/* LastThreadID/Title/User are *T from a LATERAL
                                          join — nil for an empty category, so every
@@ -76,7 +97,7 @@
                                     <div class="data-table__name-body">
                                         <a class="data-table__title" href="/community/forums/thread/{{.LastThreadID}}">{{.LastThreadTitle}}</a>
                                         <div class="data-table__meta">
-                                            {{if .LastPostUser}}<span>by {{.LastPostUser}}</span>{{end}}
+                                            {{if .LastPostUser}}<span>{{.LastPostUser}}</span><span>&middot;</span>{{end}}
                                             {{if .LastPostAt}}<span>{{timeAgo .LastPostAt}}</span>{{end}}
                                         </div>
                                     </div>

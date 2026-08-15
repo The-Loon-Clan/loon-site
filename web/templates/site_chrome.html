@@ -1040,8 +1040,20 @@
 {{- with .Size}}{{$cls = printf "%s avatar--%s" $cls .}}{{end -}}
 {{- if .Round}}{{$cls = printf "%s avatar--round" $cls}}{{end -}}
 {{- with .Class}}{{$cls = printf "%s %s" $cls .}}{{end -}}
-{{- if .Path -}}
-<img class="{{$cls}}" src="{{.Path}}" alt="" loading="lazy" decoding="async" width="{{.Px}}" height="{{.Px}}">
+{{/* Path through str, exactly as Name below already is. A caller may hand this
+     a *string — a nullable avatar_path off a LEFT JOIN — and a NON-NIL pointer
+     to "" is truthy in a template, so {{if .Path}} took the image branch and
+     wrote src="". That is a second request for the current page, which the
+     browser makes and then fails, and it is invalid HTML besides:
+
+       Bad value “” for attribute “src” on element “img”: Must be non-empty.
+
+     Found by vnu on the forum category page once the last-post column started
+     showing an avatar. The fix belongs here rather than at that one call site:
+     every caller passing a nullable path has the same bug waiting. */}}
+{{- $path := str .Path -}}
+{{- if $path -}}
+<img class="{{$cls}}" src="{{$path}}" alt="" loading="lazy" decoding="async" width="{{.Px}}" height="{{.Px}}">
 {{- else -}}
 {{- $name := str .Name -}}
 <span class="{{$cls}} poster--h{{hue $name}}"><span class="avatar__fallback">{{initials $name}}</span></span>

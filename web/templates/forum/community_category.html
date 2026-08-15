@@ -19,20 +19,33 @@
      initials. hue() buckets 0..7, matching the CSS's .poster--h0…h7. */}}{{template "fhead" .}}
 
 <section class="panelV2">
-    <header class="panel__header">
-        <h1 class="panel__heading">
-            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#forums"></use></svg>
-            {{.Category.Name}}
-            {{if not .AccessDenied}}<span class="panel__grouping">{{.Total}} threads</span>{{end}}
-        </h1>
-        <div class="panel__actions">
-            {{if .User}}<a class="panel__action" href="/community/forums/new?category={{.Category.ID}}">New thread <svg class="icon icon--sm" aria-hidden="true"><use href="#plus"></use></svg></a>{{end}}
+    {{/* A masthead, not a header strip. The reader chose this forum by name from
+         a list, so the name is the heading of the page they land on and the
+         description sits with it — rather than the name in a one-line strip and
+         the description as a first table row that scrolls away. */}}
+    <div class="forum-head">
+        <span class="forum-head__icon"><svg class="icon" aria-hidden="true"><use href="#forums"></use></svg></span>
+        <div class="forum-head__body">
+            <h1 class="forum-head__title">{{.Category.Name}}</h1>
+            {{if .Category.Description}}<p class="forum-head__desc">{{.Category.Description}}</p>{{end}}
+            {{if not .AccessDenied}}
+            <div class="forum-head__stats">
+                <span class="forum-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#forums"></use></svg><strong>{{.Category.ThreadCount}}</strong> Threads</span>
+                <span class="forum-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#comment"></use></svg><strong>{{.Category.PostCount}}</strong> Posts</span>
+            </div>
+            {{end}}
         </div>
-    </header>
+        {{if .User}}
+        <div class="forum-head__actions">
+            <a class="button button--primary button--sm" href="/community/forums/new?category={{.Category.ID}}">
+                <svg class="icon icon--sm" aria-hidden="true"><use href="#plus"></use></svg>New thread
+            </a>
+        </div>
+        {{end}}
+    </div>
 
     {{if .AccessDenied}}
     <div class="panel__body">
-        {{if .Category.Description}}<p class="text-muted small">{{.Category.Description}}</p>{{end}}
         <p class="notice notice--warning">
             <svg class="icon notice__icon" aria-hidden="true"><use href="#lock"></use></svg>
             This forum is restricted &mdash; your account doesn't meet its access requirements yet.
@@ -40,57 +53,78 @@
     </div>
     {{else}}
 
-    {{if .Category.Description}}
-    <div class="panel__body panel__body--tight"><p class="text-muted small m-0">{{.Category.Description}}</p></div>
-    {{end}}
-
     {{if .Threads}}
     <div class="panel__body panel__body--flush">
         <div class="data-table-wrapper">
             <table class="data-table">
+                <caption class="visually-hidden">Threads in this forum, with reply counts and their most recent post</caption>
                 <thead>
                     <tr>
-                        <th>Topic</th>
-                        <th class="data-table__num">Replies</th>
+                        {{/* The flag column's heading is for a screen reader only:
+                             sighted readers get an icon whose meaning is obvious in
+                             place, and a visible "Status" over 34px of pin glyphs
+                             is a column heading wider than its column. */}}
+                        <th class="thread-flag"><span class="visually-hidden">Status</span></th>
+                        <th>Thread</th>
+                        <th class="thread-count">Replies</th>
                         <th>Last post</th>
                     </tr>
                 </thead>
                 <tbody>
                 {{range .Threads}}
-                {{$h := hue .Username}}
                     <tr>
+                        <td class="thread-flag">
+                            {{/* One glyph, in its own column, so state reads down
+                                 the page instead of being hunted inside titles.
+                                 Pinned wins over locked when a thread is both —
+                                 pinned is why it is at the top, which is the thing
+                                 the position needs explaining for. */}}
+                            {{if .Pinned}}<svg class="icon thread-flag--pinned" aria-hidden="true"><use href="#star"></use></svg><span class="visually-hidden">Pinned</span>
+                            {{else if .Locked}}<svg class="icon" aria-hidden="true"><use href="#lock"></use></svg><span class="visually-hidden">Locked</span>
+                            {{end}}
+                        </td>
                         <td>
                             <div class="data-table__name">
-                                {{template "avatar" dict "Path" .AvatarPath "Name" .Username "Size" "sm" "Px" 60}}
+                                {{template "avatar" dict "Path" .AvatarPath "Name" .Username "Size" "sm" "Round" true "Px" 60}}
                                 <div class="data-table__name-body">
                                     <a class="data-table__title" href="/community/forums/thread/{{.ID}}">{{.Title}}</a>
                                     <div class="data-table__meta">
-                                        {{/* UNIT3D's topic tags, mapped onto the design
-                                             system's .tag variants: the old badge
-                                             colours (info / secondary / warning) are
-                                             preserved as source / codec / warning. */}}
-                                        {{if .Pinned}}<span class="tag tag--source"><svg class="icon icon--sm" aria-hidden="true"><use href="#star"></use></svg>Pinned</span>{{end}}
+                                        {{/* Locked keeps its tag as well as its flag: the
+                                             flag says which thread, the tag says what it
+                                             means, and "you cannot reply here" is worth
+                                             the words. Pinned does not — the glyph and
+                                             the position already say it twice. */}}
                                         {{if .Locked}}<span class="tag tag--codec"><svg class="icon icon--sm" aria-hidden="true"><use href="#lock"></use></svg>Locked</span>{{end}}
                                         {{if eq .ThreadType "recruitment"}}<span class="tag tag--warning">Recruitment</span>{{end}}
                                         {{/* user-tag, so a username is coloured by role
-                                             here exactly as it is inside the thread. The row
-                                             already carries .Role for the OP — the model
-                                             comment says it is there to drive this — it was
-                                             simply never read. */}}
-                                        <span>by {{template "user-tag" (dict "Name" .Username "Role" .Role)}}</span>
+                                             here exactly as it is inside the thread. */}}
+                                        <span>{{template "user-tag" (dict "Name" .Username "Role" .Role)}}</span>
+                                        <span>&middot;</span>
                                         <span>{{timeAgo .CreatedAt}}</span>
                                     </div>
                                 </div>
                             </div>
                         </td>
-                        <td class="data-table__num">{{.ReplyCount}}</td>
+                        <td class="thread-count">
+                            <strong>{{.ReplyCount}}</strong>
+                            <span>{{if eq .ReplyCount 1}}Reply{{else}}Replies{{end}}</span>
+                        </td>
                         <td>
-                            <div class="data-table__name-body">
-                                <span class="data-table__title">{{timeAgo .LastPostAt}}</span>
-                                {{/* LastPostUsername is nil until the thread has a
-                                     reply — the OP is then still the last post, so
-                                     the slot is left empty rather than repeated. */}}
-                                {{if .LastPostUsername}}<div class="data-table__meta"><span>by {{template "user-tag" (dict "Name" .LastPostUsername "Role" .LastPostRole)}}</span></div>{{end}}
+                            {{/* LastPostUsername is nil until the thread has a reply —
+                                 the OP is then still the last post, so the author
+                                 slot falls back to the OP rather than sitting empty
+                                 next to a date that clearly belongs to somebody. */}}
+                            <div class="thread-last">
+                                {{if .LastPostUsername}}
+                                {{template "avatar" dict "Path" .LastPostAvatarPath "Name" .LastPostUsername "Size" "sm" "Round" true "Px" 60}}
+                                {{else}}
+                                {{template "avatar" dict "Path" .AvatarPath "Name" .Username "Size" "sm" "Round" true "Px" 60}}
+                                {{end}}
+                                <span class="thread-last__body">
+                                    {{if .LastPostUsername}}{{template "user-tag" (dict "Name" .LastPostUsername "Role" .LastPostRole)}}
+                                    {{else}}{{template "user-tag" (dict "Name" .Username "Role" .Role)}}{{end}}
+                                    <span class="thread-last__when">{{timeAgo .LastPostAt}}</span>
+                                </span>
                             </div>
                         </td>
                     </tr>
@@ -98,6 +132,13 @@
                 </tbody>
             </table>
         </div>
+    </div>
+    {{/* How much of the list you are looking at. Counted off the rows on the
+         page rather than a page size, which this template is not given — and a
+         range computed from a size it had to guess would be wrong on the last
+         page, which is the one where it matters. */}}
+    <div class="list-foot">
+        <span>Showing {{len .Threads}} of {{.Total}} thread{{if ne .Total 1}}s{{end}}</span>
     </div>
     {{else}}
     <div class="panel__body">

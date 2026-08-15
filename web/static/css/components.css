@@ -1349,6 +1349,104 @@ a.stat-tile:hover {
     min-width: 0;
 }
 
+/* --------------------------------------------------------- forum-head ----- */
+
+/* The masthead on the forums index and on a category: what this board IS,
+ * before the list of what is in it.
+ *
+ * It replaces a panel__header, which is a one-line strip — fine for a table of
+ * releases, too small for a page whose subject is a place. A name a reader
+ * chose from a list deserves to be the heading of the page they land on, with
+ * its description beside it rather than as a first table row.
+ */
+.forum-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 16px 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* The glyph tile. ForumCategory.Icon is a Bootstrap Icons NAME and .Color a
+ * palette key, and this stack ships neither — so every tile is the sprite's
+ * #forums glyph rather than a guess at the admin's choice. */
+.forum-head__icon {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius);
+    background: var(--primary-soft);
+    color: var(--primary-tint);
+}
+.forum-head__icon .icon { width: 24px; height: 24px; }
+
+.forum-head__body { flex: 1; min-width: 0; }
+.forum-head__title { margin: 0; font-size: var(--fs-xl); font-weight: 700; line-height: 1.2; }
+.forum-head__desc { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--muted); }
+
+.forum-head__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 10px;
+    font-size: var(--fs-2xs);
+    color: var(--muted);
+}
+.forum-head__stat { display: inline-flex; align-items: center; gap: 6px; }
+.forum-head__stat strong { color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Actions sit top-right on a wide screen and wrap under the description on a
+ * narrow one, which is what the flex-wrap on the parent gives for free. */
+.forum-head__actions { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+
+@media (max-width: 40rem) {
+    .forum-head { flex-wrap: wrap; }
+    .forum-head__actions { width: 100%; }
+}
+
+/* ------------------------------------------------------- thread rows ------ */
+
+/* The narrow leading column: a thread's state as one glyph, so the eye runs
+ * down a single column instead of hunting tags inside titles. Only states with
+ * real data behind them — pinned and locked. There is no read tracking here, no
+ * solved flag and no hotness rule, so those cells stay empty rather than
+ * inventing a signal a reader would come to trust. */
+.thread-flag {
+    width: 34px;
+    text-align: center;
+    color: var(--muted);
+}
+.thread-flag .icon { width: 15px; height: 15px; vertical-align: middle; }
+.thread-flag--pinned { color: var(--primary-tint); }
+
+/* A count with its own label under it. The number alone needs the column
+ * heading to be read, which is fine while you are scanning ONE column and
+ * useless the moment the row is what you are reading. */
+.thread-count { text-align: center; white-space: nowrap; }
+.thread-count strong { display: block; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.thread-count span { font-size: var(--fs-3xs); color: var(--muted); }
+
+/* Last post: who, then when. The avatar is the fastest way to tell two
+ * consecutive rows apart when the same person answered both. */
+.thread-last { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.thread-last__body { min-width: 0; line-height: 1.3; }
+.thread-last__when { display: block; font-size: var(--fs-3xs); color: var(--muted); }
+
+/* The count line under a listing. Reads as a caption, not as a row. */
+.list-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    font-size: var(--fs-2xs);
+    color: var(--muted);
+}
+
 /* --------------------------------------------------------- forum-post ----- */
 
 /* A forum post: author card down the left, the post down the right.
