@@ -164,20 +164,30 @@ func TestABlankPasswordIsReportedOnceNotTwice(t *testing.T) {
 	}
 }
 
-func TestTheConfirmationIsComparedRaw(t *testing.T) {
-	// Both fields are `form:",raw"`. If either side were trimmed and the other
-	// not, two IDENTICAL entries would be reported as a mismatch and the
-	// member would have no way to get past a form that is wrong about them.
+// The two fields must be treated identically, whatever that treatment is.
+//
+// This test asserted the opposite of what it asserts now, and the rewrite is
+// the point. Both fields were `form:",raw"`, so it checked that a trailing
+// space on ONE side was a mismatch — true then, and unreachable now: Bind
+// trims both, so two entries differing only at the edges arrive here already
+// equal, and rejecting them would mean rejecting a member who typed the same
+// thing twice.
+//
+// What survives is the invariant underneath, which never depended on raw: the
+// two fields get the same treatment. Trimming one and not the other is the bug
+// in either direction.
+func TestTheTwoPasswordFieldsAreTreatedIdentically(t *testing.T) {
+	// Equal after binding: accepted.
 	in := validRegister()
-	in.Password, in.PasswordConfirm = "  spaces both ends  ", "  spaces both ends  "
+	in.Password, in.PasswordConfirm = "spaces both ends", "spaces both ends"
 	if errs := request.Validate(in); errs.Any() {
-		t.Errorf("two identical passwords with whitespace were rejected: %v", errs)
+		t.Errorf("two identical passwords were rejected: %v", errs)
 	}
 
-	// And the other direction: a trailing space on one side IS a difference.
-	in.PasswordConfirm = "  spaces both ends "
+	// Genuinely different in the middle, where trimming never reaches: rejected.
+	in.PasswordConfirm = "spaces  both ends"
 	if errs := request.Validate(in); errs["password_confirm"] == "" {
-		t.Error("passwords differing only by trailing whitespace were accepted")
+		t.Error("passwords differing by an internal space were accepted")
 	}
 }
 
@@ -449,5 +459,108 @@ func TestResetSaysNothingAboutAnEmptyPassword(t *testing.T) {
 	in := resetInput{Token: "tok"}
 	if errs := request.Validate(in); errs.Any() {
 		t.Errorf("a blank form produced a message about matching: %v", errs)
+	}
+}
+
+// ── whitespace in passwords ──
+
+// Leading and trailing whitespace must never be significant in a password.
+//
+// The bug this replaces was invisible and permanent: registering with
+// "secretpass " (a fat-fingered space bar, a copy-paste that caught one, a
+// phone keyboard adding one after autocomplete) created the account, and every
+// later attempt at "secretpass" was refused with nothing on screen able to
+// explain why. Confirmed against the running site before the change — 401 for
+// the password the member thought they chose, 303 for the stray space.
+//
+// The property that makes trimming safe is that it happens at EVERY point a
+// password is accepted. Trimming where it is set but not where it is checked,
+// or the reverse, is what locks people out — so this asserts all three
+// together rather than one at a time.
+func TestWhitespaceIsNeverSignificantInAPassword(t *testing.T) {
+	const typed = "  correct horse battery  "
+	const want = "correct horse battery"
+
+	post := func(t *testing.T, path string, form url.Values) *gin.Context {
+		t.Helper()
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodPost, path, strings.NewReader(form.Encode()))
+		c.Request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		return c
+	}
+
+	t.Run("register", func(t *testing.T) {
+		in, err := readRegisterInput(post(t, "/register", url.Values{
+			"username": {"newmember"}, "password": {typed}, "password_confirm": {typed},
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if in.Password != want {
+			t.Errorf("password bound as %q, want %q", in.Password, want)
+		}
+		if in.PasswordConfirm != want {
+			t.Errorf("confirmation bound as %q, want %q", in.PasswordConfirm, want)
+		}
+	})
+
+	t.Run("login", func(t *testing.T) {
+		in, err := readLoginInput(post(t, "/login", url.Values{
+			"username": {"newmember"}, "password": {typed},
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if in.Password != want {
+			t.Errorf("password bound as %q, want %q — an account created with the "+
+				"trimmed form could not be logged into", in.Password, want)
+		}
+	})
+
+	t.Run("reset", func(t *testing.T) {
+		in, err := readResetInput(post(t, "/reset", url.Values{
+			"token": {"t"}, "password": {typed}, "password_confirm": {typed},
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if in.Password != want || in.PasswordConfirm != want {
+			t.Errorf("reset bound %q / %q, want %q on both",
+				in.Password, in.PasswordConfirm, want)
+		}
+	})
+}
+
+// Internal spaces are the ones that carry the entropy, and they must survive.
+func TestInternalSpacesInAPasswordAreKept(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	form := url.Values{"username": {"u"}, "password": {"correct horse battery staple"}}
+	c.Request = httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	c.Request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	in, err := readLoginInput(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in.Password != "correct horse battery staple" {
+		t.Errorf("password bound as %q — a passphrase lost its spaces", in.Password)
+	}
+}
+
+// The username was already trimmed and must stay that way. Asserted because it
+// is the half of this that was NOT broken, and a change to the binder could
+// take it out without anything else noticing.
+func TestAUsernameIsTrimmed(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	form := url.Values{"username": {" alice "}, "password": {"x"}}
+	c.Request = httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	c.Request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	in, err := readLoginInput(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in.Username != "alice" {
+		t.Errorf("username bound as %q, want %q", in.Username, "alice")
 	}
 }

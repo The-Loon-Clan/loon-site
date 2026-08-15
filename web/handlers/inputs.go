@@ -32,8 +32,29 @@ import (
 //
 // Two tags appear, and each is a decision rather than a mapping:
 //
-//	`form:",raw"`   keep exactly what was typed (passwords)
+//	`form:",raw"`   keep exactly what was typed
 //	`form:"-"`      the handler fills this, never the submitter
+//
+// Passwords USED to be raw, with the reasoning that "a password of spaces is a
+// password" and trimming one signs somebody up with something other than what
+// they typed. The second half of that is true and the conclusion was backwards.
+//
+// Not trimming does not preserve the member's intent — it preserves an
+// INVISIBLE character they did not mean to type, permanently and
+// unrecoverably. Register with a trailing space (a fat-fingered space bar, a
+// copy-paste that caught one, a phone keyboard that adds one after
+// autocomplete) and the account is created; then every later attempt at the
+// password they think they chose is refused, with nothing on screen able to
+// show why, because the difference is a space.
+//
+// Reproduced before changing it: registering with "secretpass " and then
+// typing "secretpass" gave 401, while typing the stray space back gave 303.
+//
+// So leading and trailing whitespace is now NEVER significant in a password,
+// at every point one is accepted — set, reset, and checked. Consistency is
+// what makes it safe: trimming at one end and not the other is what locks
+// people out. Internal spaces are untouched, which is the case that actually
+// matters ("correct horse battery staple" keeps every one of its).
 
 // ── register ────────────────────────────────────────────────────────────
 
@@ -41,9 +62,7 @@ import (
 type registerInput struct {
 	Username string
 	Email    string // optional — an account without one simply gets no verification mail
-	// A password of spaces is a password. Trimming one signs somebody up with
-	// something other than what they typed, then refuses to let them back in.
-	Password string `form:",raw"`
+	Password string
 
 	// PasswordConfirm is the second box, and it exists because the failure it
 	// catches is silent and unrecoverable. The password is stored hashed, so a
@@ -51,9 +70,9 @@ type registerInput struct {
 	// no error at signup — the first sign of it is a login that will never
 	// work, on an account that was created successfully.
 	//
-	// Raw for the same reason as Password: trimming one side and not the other
-	// would report a mismatch between two identical entries.
-	PasswordConfirm string `form:",raw"`
+	// Trimmed like Password, and it must be: trimming one side and not the
+	// other would report a mismatch between two identical entries.
+	PasswordConfirm string
 
 	Invite string
 
@@ -123,7 +142,7 @@ func (in registerInput) fieldOrder() []string {
 // loginInput is POST /login.
 type loginInput struct {
 	Username string
-	Password string `form:",raw"`
+	Password string
 	Captcha  string `form:"-"`
 }
 
@@ -386,7 +405,7 @@ func (in forgotInput) fieldOrder() []string { return []string{"email"} }
 // password.
 type resetInput struct {
 	Token    string
-	Password string `form:",raw"`
+	Password string
 
 	// PasswordConfirm exists for the same reason registerInput's does: the
 	// password is stored hashed, so a typo is unreadable, unresettable and
@@ -395,7 +414,7 @@ type resetInput struct {
 	// themselves out AND spent the one link that could have let them back in.
 	// They must request another email and get it right the second time,
 	// without ever being told what went wrong the first.
-	PasswordConfirm string `form:",raw"`
+	PasswordConfirm string
 }
 
 func readResetInput(c *gin.Context) (resetInput, error) {

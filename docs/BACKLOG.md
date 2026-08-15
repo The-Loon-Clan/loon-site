@@ -360,3 +360,24 @@ Two halves, owned by different repositories:
 The host could also strip C1 controls at render, which fixes the invalid HTML
 without fixing the titles. Worth doing as a floor, not as the answer: a
 stripped title still reads as mojibake to the member, just legally.
+
+## 10. loon-baseline does not trim passwords
+
+loon-site now trims leading/trailing whitespace from every password it accepts
+— register, login, reset — so a stray space can never lock somebody out. See
+`web/handlers/inputs.go`.
+
+`loon-baseline` does not. `authflow` trims the username (authflow.go:47, :76)
+and passes the password through untouched, and the `account` package's
+change-password form does the same.
+
+The gap that leaves: a member who changes their password through
+`/p/account` **with** leading or trailing whitespace stores it padded, and
+loon-site's login — which now trims — will never match it. That is a lockout
+this repository created and cannot close on its own.
+
+Unlikely (it needs somebody to deliberately pad a password on one specific
+form) and worth closing anyway, because the fix is the same one line in
+`authflow.ChangePassword` and in `account`'s handler, and because "trimmed
+here, raw there" is exactly the inconsistency that made the original bug
+invisible.
