@@ -1361,6 +1361,110 @@ a.stat-tile:hover {
     .panel__header { flex-wrap: wrap; }
 }
 
+/* ------------------------------------------------------------ donate ------ */
+
+/* The donate page's layout, in this site's vocabulary.
+ *
+ * The shape is borrowed from a reference the site owner liked — goals side by
+ * side, one loud annual figure, then costs as cards rather than table rows.
+ * The LOOK is not borrowed: no hero artwork, no gradients, no mascot. What
+ * carries over is the order the page answers questions in, which is the part
+ * that was actually good: how close are we, what does it cost in total, and
+ * where does it go.
+ *
+ * Every rule below is layout. Colour, radius and type all come from the tokens
+ * the rest of the site uses, so this page inherits a theme change like any
+ * other page rather than needing its own pass.
+ */
+.donate-goals {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap: var(--space-4);
+}
+
+.donate-goal__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+.donate-goal__label { font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.donate-goal__pct { font-size: var(--fs-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
+.donate-goal__value { margin: 4px 0 10px; font-size: var(--fs-2xl); font-weight: 700; font-variant-numeric: tabular-nums; }
+.donate-goal__value small { font-size: var(--fs-sm); font-weight: 400; color: var(--muted); }
+.donate-goal__foot {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: var(--fs-2xs);
+    color: var(--muted);
+}
+
+/* The one figure the page exists to justify, given the room to be read as a
+   figure rather than as another table cell. */
+.donate-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px var(--space-5);
+}
+.donate-total__amount { font-size: var(--fs-2xl); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.donate-total__amount small { font-size: var(--fs-sm); font-weight: 400; color: var(--muted); }
+
+.donate-costs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: var(--space-3);
+}
+.donate-cost {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-3, var(--bg-elevated, transparent));
+}
+.donate-cost__icon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin-bottom: 6px;
+    border-radius: var(--radius-sm, 6px);
+    background: var(--primary-soft);
+    color: var(--primary-tint);
+}
+.donate-cost__label { font-weight: 700; }
+.donate-cost__note { font-size: var(--fs-2xs); color: var(--muted); }
+/* Pushed to the bottom so the prices line up across cards whose notes wrap to
+   different heights — a row of figures at different heights reads as noise. */
+.donate-cost__amount { margin-top: auto; padding-top: 8px; font-variant-numeric: tabular-nums; }
+.donate-cost__amount strong { font-size: var(--fs-lg); }
+.donate-cost__amount span { color: var(--muted); font-size: var(--fs-2xs); }
+
+/* A tier is a row, not a card: they are ordered by price and meant to be
+   compared down a column, which a grid of cards makes harder. */
+.donate-tier {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-3, var(--bg-elevated, transparent));
+}
+.donate-tier__name { font-weight: 700; }
+.donate-tier__reward { font-size: var(--fs-2xs); color: var(--muted); }
+.donate-tier__price { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
 /* -------------------------------------------------------------- fund ------ */
 
 /* A funding bar on the donate page.

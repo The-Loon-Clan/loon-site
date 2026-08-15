@@ -1,8 +1,8 @@
 {{/* Public donate page — UNIT3D's donation/index.blade.php equivalent.
 
      DEV-ONLY SURFACE. The route 404s for non-admins unless the host reports
-     IsDonateEnabled(), which is gated on LOON_DEMO_DONATIONS=1 (see
-     donations_web.go). Reaching this page at all means the flag is set.
+     IsDonateEnabled(), which is gated on LOON_DONATIONS=1 (donations_web.go).
+     Reaching this page at all means the flag is set.
 
      Keys (donations plugin, Handlers.DonatePage + Deps.BaseData):
        Groups          []*DonationGoalGroup — Name Locks MonthlyGoalUSD
@@ -14,41 +14,56 @@
        RecentDonations · TipJarGoals · Packages · FundedPackages
        TotalMonthlyUSD TotalYearlyUSD TotalAnnualUSD
 
-     This renders the cost breakdown and the wallet addresses honestly and
-     guards every optional key. It deliberately does NOT reproduce UNIT3D's
-     full donation-package storefront: this surface is dev-gated, and building
-     a payment funnel for a demo that cannot take payments would be theatre. */}}
+     THE LAYOUT is borrowed from a reference the site owner liked; the LOOK is
+     not. No hero artwork, no gradients, no mascot — every rule this page adds
+     is layout, and colour, radius and type come from the same tokens as every
+     other page, so a theme change reaches here without a second pass.
+
+     What carried over is the ORDER the page answers questions in, which was the
+     part worth taking: how close are we, what does the whole thing cost, where
+     does the money go, and only then what a donor gets out of it.
+
+     Most of it was already in the data and simply never rendered — the reset
+     dates, the per-item notes, the tip-jar percentages, the packages. The old
+     page showed a costs table and nothing else, and printed TipJarGoals with
+     {{"{{.}}"}} on a STRUCT, which renders its fields in braces; nobody saw that
+     because no goal is configured here. Every block below is guarded, because
+     on this deployment most of them are empty. */}}
 {{template "fhead" .}}
 
-{{/* The masthead the forum pages use — see .page-head in components.css. A
-     page asking for money should say what it is and what the money is for
-     before it shows a table of line items. */}}
 <div class="panelV2">
     <div class="page-head">
         <span class="page-head__icon"><svg class="icon" aria-hidden="true"><use href="#coin"></use></svg></span>
         <div class="page-head__body">
             <h1 class="page-head__title">Support the site</h1>
             <p class="page-head__desc">
-                What it costs to run this indexer, and where the money goes. Every
-                figure below is a real bill.
+                What it costs to run this indexer, and where the money goes.
+                Every figure on this page is a real bill.
             </p>
-            {{if .TotalMonthlyUSD}}
             <div class="page-head__stats">
-                <span class="page-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#coin"></use></svg><strong>${{printf "%.2f" .TotalMonthlyUSD}}</strong> per month</span>
+                {{if .TotalMonthlyUSD}}<span class="page-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#coin"></use></svg><strong>${{printf "%.2f" .TotalMonthlyUSD}}</strong> per month</span>{{end}}
                 {{if .TotalAnnualUSD}}<span class="page-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#calendar"></use></svg><strong>${{printf "%.2f" .TotalAnnualUSD}}</strong> per year</span>{{end}}
             </div>
-            {{end}}
         </div>
+        {{/* The CTA only appears when there is something behind it. A "Donate"
+             button that scrolls to an empty panel is worse than no button: it
+             spends the reader's one click on finding out there is nothing
+             there. */}}
+        {{if and (not .AddressesHidden) (or .BTCAddress .ETHAddress .XMRAddress)}}
+        <div class="page-head__actions">
+            <a class="button button--primary button--sm" href="#give"><svg class="icon icon--sm" aria-hidden="true"><use href="#coin"></use></svg>Donate</a>
+        </div>
+        {{end}}
     </div>
 </div>
 
-{{/* There is nothing to click unless an admin has published a wallet.
-     Said plainly rather than left to be inferred from a costs table with no
-     button under it: a page that asks for help and offers no way to give it
-     reads as broken, and the reader cannot tell whether they missed something.
+{{/* There is nothing to click unless an admin has published a wallet. Said
+     plainly rather than left to be inferred from a costs table with no button
+     under it: a page that asks for help and offers no way to give it reads as
+     broken, and the reader cannot tell whether they missed something.
 
-     AddressesHidden is the admin's own "do not display wallets" switch, so
-     both it and the absence of any address mean the same thing here. */}}
+     AddressesHidden is the admin's own "do not display wallets" switch, so both
+     it and the absence of any address mean the same thing here. */}}
 {{if or .AddressesHidden (not (or .BTCAddress .ETHAddress .XMRAddress))}}
 <p class="notice notice--info">
     <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
@@ -58,73 +73,192 @@
 </p>
 {{end}}
 
+{{/* ── how close are we ────────────────────────────────────────────────── */}}
+{{range .Groups}}
+{{if or .MonthlyGoalUSD .YearlyGoalUSD}}
+<div class="donate-goals">
+    {{if .MonthlyGoalUSD}}
+    <section class="panelV2">
+        <div class="panel__body">
+            <div class="donate-goal__head">
+                <span class="donate-goal__label">Monthly goal</span>
+                <span class="donate-goal__pct">{{percent (f2i .MonthlyRaisedUSD) (f2i .MonthlyGoalUSD)}}%</span>
+            </div>
+            <p class="donate-goal__value">${{printf "%.2f" .MonthlyRaisedUSD}} <small>/ ${{printf "%.2f" .MonthlyGoalUSD}}</small></p>
+            {{/* percent already clamps to 0..100, so an over-funded month reads
+                 as full rather than as a bar running off its track. */}}
+            <div class="fund__track" role="img" aria-label="${{printf "%.2f" .MonthlyRaisedUSD}} raised of ${{printf "%.2f" .MonthlyGoalUSD}} this month">
+                <div class="fund__fill" style="width:{{percent (f2i .MonthlyRaisedUSD) (f2i .MonthlyGoalUSD)}}%"></div>
+            </div>
+            <div class="donate-goal__foot">
+                <span>{{.Name}}{{if .Locks}} &middot; locks when funded{{end}}</span>
+                {{/* The reset date was in the data all along and never shown. It
+                     is the difference between "62% funded" and "62% funded with
+                     nine days left", which is the version a reader can do
+                     something about. */}}
+                {{with .MonthlyResetAt}}<span>resets {{shortDate .}}</span>{{end}}
+            </div>
+        </div>
+    </section>
+    {{end}}
+
+    {{if .YearlyGoalUSD}}
+    <section class="panelV2">
+        <div class="panel__body">
+            <div class="donate-goal__head">
+                <span class="donate-goal__label">Yearly goal</span>
+                <span class="donate-goal__pct">{{percent (f2i .YearlyRaisedUSD) (f2i .YearlyGoalUSD)}}%</span>
+            </div>
+            <p class="donate-goal__value">${{printf "%.2f" .YearlyRaisedUSD}} <small>/ ${{printf "%.2f" .YearlyGoalUSD}}</small></p>
+            <div class="fund__track" role="img" aria-label="${{printf "%.2f" .YearlyRaisedUSD}} raised of ${{printf "%.2f" .YearlyGoalUSD}} this year">
+                <div class="fund__fill" style="width:{{percent (f2i .YearlyRaisedUSD) (f2i .YearlyGoalUSD)}}%"></div>
+            </div>
+            <div class="donate-goal__foot">
+                <span>{{.Name}}</span>
+                {{with .YearlyResetAt}}<span>resets {{shortDate .}}</span>{{end}}
+            </div>
+        </div>
+    </section>
+    {{end}}
+</div>
+{{end}}
+{{end}}
+
+{{/* ── what the whole thing costs ──────────────────────────────────────── */}}
+{{if .TotalAnnualUSD}}
 <section class="panelV2">
+    <div class="donate-total">
+        <div>
+            <h2 class="h5 m-0">Total cost to run this site</h2>
+            <p class="text-muted small m-0">Servers, Usenet access, domains and backups.</p>
+        </div>
+        <span class="donate-total__amount">${{printf "%.2f" .TotalAnnualUSD}} <small>/ year</small></span>
+    </div>
+</section>
+{{end}}
+
+{{/* ── where it goes ───────────────────────────────────────────────────── */}}
+{{if .Groups}}
+<section class="panelV2" id="costs">
     <header class="panel__header">
         <h2 class="panel__heading">
             <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
-            Running costs
+            Where the money goes
         </h2>
+        <div class="panel__actions"><span class="panel__action">All amounts in USD</span></div>
     </header>
-
-    {{if .Groups}}
-    {{range .Groups}}
     <div class="panel__body">
-        <h3 class="h5 fund__name">{{.Name}}{{if .Locks}} <span class="tag">locks when funded</span>{{end}}</h3>
-        {{if .MonthlyGoalUSD}}
-        {{/* A bar, not just the pair of numbers. "$25.00 of $42.00" is
-             arithmetic the reader has to do to learn the one thing they came
-             for; the bar IS the answer, and the numbers stay beside it for
-             anyone who wants the exact figures.
-
-             percent is the plugin's own helper and already clamps to 0..100,
-             so an over-funded month reads as full rather than as a bar
-             running off its track. */}}
-        <div class="fund">
-            <div class="fund__track" role="img"
-                 aria-label="${{printf "%.2f" .MonthlyRaisedUSD}} raised of ${{printf "%.2f" .MonthlyGoalUSD}} monthly">
-                <div class="fund__fill" style="width:{{percent (f2i .MonthlyRaisedUSD) (f2i .MonthlyGoalUSD)}}%"></div>
-            </div>
-            <p class="fund__figures">
-                <span>${{printf "%.2f" .MonthlyRaisedUSD}} of ${{printf "%.2f" .MonthlyGoalUSD}} monthly</span>
-                {{if .YearlyGoalUSD}}<span class="text-muted">&middot; ${{printf "%.2f" .YearlyRaisedUSD}} of ${{printf "%.2f" .YearlyGoalUSD}} yearly</span>{{end}}
-            </p>
+        <div class="donate-costs">
+            {{range .Groups}}{{range .Items}}{{if .Active}}
+            <article class="donate-cost">
+                {{/* Category is a fixed set — server | url | usenet | other — so
+                     each gets its own glyph. Anything else falls back to a tag
+                     rather than to a server nobody promised. */}}
+                <span class="donate-cost__icon">
+                    <svg class="icon icon--sm" aria-hidden="true"><use href="#{{if eq .Category "server"}}server{{else if eq .Category "url"}}globe{{else if eq .Category "usenet"}}database{{else}}tag{{end}}"></use></svg>
+                </span>
+                <span class="donate-cost__label">{{.Label}}</span>
+                {{if .Notes}}<span class="donate-cost__note">{{.Notes}}</span>{{end}}
+                <span class="donate-cost__amount">
+                    <strong>${{printf "%.2f" .AmountUSD}}</strong> <span>/ {{.Period}}</span>
+                </span>
+            </article>
+            {{end}}{{end}}{{end}}
         </div>
-        {{end}}
-        {{if .Items}}
-        <div class="data-table-wrapper">
-            <table class="data-table">
-                <thead><tr><th>Item</th><th>Category</th><th>Period</th><th class="num">USD</th></tr></thead>
-                <tbody>
-                    {{range .Items}}{{if .Active}}
-                    <tr>
-                        <td>
-                            <div class="data-table__name-body">
-                                <span class="data-table__title">{{.Label}}</span>
-                                {{if .Notes}}<div class="data-table__meta">{{.Notes}}</div>{{end}}
-                            </div>
-                        </td>
-                        <td><span class="tag">{{.Category}}</span></td>
-                        <td>{{.Period}}</td>
-                        <td class="num">{{printf "%.2f" .AmountUSD}}</td>
-                    </tr>
-                    {{end}}{{end}}
-                </tbody>
-            </table>
+    </div>
+</section>
+{{else}}
+<section class="panelV2"><div class="panel__body">No costs published.</div></section>
+{{end}}
+
+{{/* ── what a donor gets ───────────────────────────────────────────────── */}}
+{{if .Packages}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#star"></use></svg>Tiers</h2>
+    </header>
+    <div class="panel__body stack">
+        {{range .Packages}}
+        <div class="donate-tier">
+            <div>
+                <div class="donate-tier__name">{{.Label}}</div>
+                {{with .Reward}}<div class="donate-tier__reward">{{.}}</div>{{end}}
+                {{with .Description}}<div class="donate-tier__reward">{{.}}</div>{{end}}
+            </div>
+            <div class="donate-tier__price">
+                ${{printf "%.2f" .AmountUSD}}
+                {{/* Stock is the honest half of a tier: a slot nobody can claim
+                     should say so rather than take a click to find out. */}}
+                {{if .Funded}}<span class="tag">claimed</span>
+                {{else if .StockTotal}}<span class="tag">{{.StockRemaining}} left</span>{{end}}
+            </div>
         </div>
         {{end}}
     </div>
-    {{end}}
-    {{else}}
-    <div class="panel__body">No costs published.</div>
-    {{end}}
 </section>
+{{end}}
 
-{{/* AddressesHidden is the admin's "do not display wallets" switch, so it
-     gates the whole panel rather than each address. */}}
+{{/* ── community goals ─────────────────────────────────────────────────── */}}
+{{if .TipJarGoals}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#groups"></use></svg>Tip jar</h2>
+    </header>
+    <div class="panel__body">
+        <div class="donate-goals">
+            {{range .TipJarGoals}}
+            <div>
+                <div class="donate-goal__head">
+                    <span class="donate-goal__label">{{.Name}}</span>
+                    <span class="donate-goal__pct">{{.PercentRound}}%</span>
+                </div>
+                <p class="donate-goal__value">${{printf "%.2f" .RaisedUSD}} <small>/ ${{printf "%.2f" .TargetUSD}}</small></p>
+                <div class="fund__track" role="img" aria-label="{{.Name}}: ${{printf "%.2f" .RaisedUSD}} of ${{printf "%.2f" .TargetUSD}}">
+                    <div class="fund__fill" style="width:{{.PercentRound}}%"></div>
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}
+
+{{/* ── who has given ───────────────────────────────────────────────────── */}}
+{{if .RecentDonations}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>Recent supporters</h2>
+    </header>
+    <div class="panel__body panel__body--flush">
+        <div class="data-table-wrapper">
+            <table class="data-table">
+                <caption class="visually-hidden">Recent donations</caption>
+                <thead><tr><th>Donor</th><th>When</th><th class="data-table__num">USD</th></tr></thead>
+                <tbody>
+                    {{range .RecentDonations}}
+                    <tr>
+                        {{/* DonorLabel is empty for an anonymous gift, and
+                             "Anonymous" is the truthful rendering of that — not
+                             a blank cell that reads as a bug. */}}
+                        <td>{{if .DonorLabel}}{{.DonorLabel}}{{else}}Anonymous{{end}}</td>
+                        <td>{{timeAgo .ReceivedAt}}</td>
+                        <td class="data-table__num">{{printf "%.2f" .AmountUSD}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{{end}}
+
+{{/* ── how to give ─────────────────────────────────────────────────────── */}}
 {{if not .AddressesHidden}}
 {{if or .BTCAddress .ETHAddress .XMRAddress}}
-<section class="panelV2">
-    <header class="panel__header"><h2 class="panel__heading">Direct donation</h2></header>
+<section class="panelV2" id="give">
+    <header class="panel__header">
+        <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#coin"></use></svg>How to donate</h2>
+    </header>
     <div class="panel__body">
         <dl class="key-value">
             {{if .BTCAddress}}<dt>Bitcoin</dt><dd><code>{{.BTCAddress}}</code></dd>{{end}}
@@ -138,19 +272,6 @@
     </div>
 </section>
 {{end}}
-{{end}}
-
-{{if .TipJarGoals}}
-<section class="panelV2">
-    <header class="panel__header"><h2 class="panel__heading">Tip jar</h2></header>
-    <div class="panel__body">
-        <ul class="list-rows">
-            {{range .TipJarGoals}}
-            <li><div class="list-row"><span class="list-row__body"><span class="list-row__title">{{.}}</span></span></div></li>
-            {{end}}
-        </ul>
-    </div>
-</section>
 {{end}}
 
 {{template "ffoot" .}}
