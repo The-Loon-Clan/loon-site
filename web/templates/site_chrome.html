@@ -489,7 +489,7 @@
             </li>
 
             {{/* Community — the social half. */}}
-            {{$com := or (hasPrefix $p "/community/forums") (hasPrefix $p "/c/") (eq $p "/c") (hasPrefix $p "/news") (hasPrefix $p "/store") (hasPrefix $p "/playlists") (inGroup $.SiteNavGroup "Community" $p)}}
+            {{$com := or (hasPrefix $p "/community/forums") (hasPrefix $p "/c/") (eq $p "/c") (hasPrefix $p "/news") (hasPrefix $p "/playlists") (inGroup $.SiteNavGroup "Community" $p)}}
             <li class="nav-tab">
                 <details class="dropdown">
                     <summary class="{{if $com}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
@@ -501,7 +501,6 @@
                         <a class="dropdown__item{{if or (eq $p "/c") (hasPrefix $p "/c/")}} active{{end}}" href="/c"{{if or (eq $p "/c") (hasPrefix $p "/c/")}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#users"></use></svg>Communities</a>
                         <a class="dropdown__item{{if hasPrefix $p "/news"}} active{{end}}" href="/news"{{if hasPrefix $p "/news"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#rss"></use></svg>News</a>
                         <a class="dropdown__item{{if hasPrefix $p "/playlists"}} active{{end}}" href="/playlists"{{if hasPrefix $p "/playlists"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#music"></use></svg>Playlists</a>
-                        <a class="dropdown__item{{if hasPrefix $p "/store"}} active{{end}}" href="/store"{{if hasPrefix $p "/store"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#store"></use></svg>Points store</a>
                         {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Community") "Path" $p)}}
                     </div>
                 </details>

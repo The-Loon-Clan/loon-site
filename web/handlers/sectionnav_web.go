@@ -83,10 +83,26 @@ var accountMenu = []sectionTab{
 		{Label: "Subscriptions", Href: "/subscriptions"},
 		{Label: "Calendar", Href: "/calendar"},
 	}},
-	// No Points entry. The ledger lives in the points area with its own strip
-	// (Store | History | Rewards) and is already one click from every page via
-	// the top nav's points pill — a third listing here is what gave
-	// /store/history two tab rows.
+	// UNIT3D calls this group Bonus Points and puts it beside Profile,
+	// Settings, Torrents and Activity. It was deliberately absent here, on the
+	// grounds that the ledger has its own strip and one destination has nothing
+	// to group — and that was right while the store sat in Community.
+	//
+	// It is not right any more. The store is a place you spend YOUR points on
+	// YOUR invites and YOUR rank; nothing about it is communal, and it sat in
+	// Community only because that is where a shop sounds like it goes. Moved
+	// here it joins the ledger and the rewards it pays out, and the three of
+	// them are a group rather than a stray entry.
+	//
+	// Still NOT added to accountAreaPrefixes: these pages carry the points
+	// economy's own strip, and the account bar on top of that is the second tab
+	// row this file exists to avoid. Listed in the menu, not wrapped by the
+	// bar — those are different things.
+	{Label: "Bonus Points", Items: []sectionTab{
+		{Label: "Store", Href: "/store"},
+		{Label: "History", Href: "/store/history"},
+		{Label: "Rewards", Href: "/rewards"},
+	}},
 	{Label: "Settings", Items: []sectionTab{
 		{Label: "Account", Href: "/p/account"},
 		{Label: "About you", Href: "/settings/profile"},
@@ -165,6 +181,37 @@ var accountAreaPrefixes = []string{
 	"/bookmarks", "/calendar", "/achievements", "/subscriptions", "/gifts", "/wishlist",
 	// The member's own tracker standing — see trackerAccountGroup.
 	"/hitrun", "/perks", "/seedlock",
+	// The points economy. In the AREA so the account menu may point at it —
+	// see stripOwners for why that does not give it the bar.
+	"/store", "/rewards",
+}
+
+// stripOwners are account-area paths that render their own tab strip, so the
+// account bar must stay off them.
+//
+// Two things were conflated until this existed: whether a path is part of the
+// account area, and whether the account bar renders on it. They were the same
+// question while every account page was the host's, and the points pages are
+// where they come apart — the store plugin ships its own Store | History |
+// Rewards strip in its templates, and the account bar on top of that is the
+// second tab row this file was written to prevent.
+//
+// So: in the area, so the menu can offer it and clicking does not feel like
+// leaving. No bar, because the page already carries an equivalent one.
+//
+// The end state UNIT3D has is the strip GONE and Bonus Points as a dropdown on
+// the account bar like Profile and Settings. That needs the store plugin to
+// stop rendering its own, which is a change in loon-plugins rather than here.
+// Until then this is the honest arrangement rather than the ideal one.
+var stripOwners = []string{"/store", "/rewards"}
+
+func ownsItsStrip(path string) bool {
+	for _, p := range stripOwners {
+		if path == p || strings.HasPrefix(path, p+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // inAccountArea reports whether the account bar belongs on a path.
@@ -201,6 +248,10 @@ func inAccountArea(path string) bool {
 // function, which is what TestAccountBarScope relies on.
 func accountBar(path string, signedIn, ownProfile bool) []sectionTab {
 	if !signedIn || !inAccountArea(path) {
+		return nil
+	}
+	// In the area, but it brought its own strip — see stripOwners.
+	if ownsItsStrip(path) {
 		return nil
 	}
 	// Someone else's profile is not your account area. The prefix earns its

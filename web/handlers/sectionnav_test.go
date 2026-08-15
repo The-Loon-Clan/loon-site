@@ -36,6 +36,10 @@ func TestAccountMenuEntriesAreReachable(t *testing.T) {
 		// deliberately absent: it is no longer registered, so a menu entry
 		// pointing at it would 404.
 		"/p/api-key": true,
+		// The points economy, served by the store plugin rather than by
+		// w.mount — same category as /p/api-key above: named by hand because
+		// the host cannot see the route, verified by hand because of that.
+		"/store": true, "/rewards": true, // /store/history is already listed above
 	}
 	// Walks GROUPS too. A group has no Href of its own, so checking only the
 	// top level would cover almost nothing — most of the menu is grouped.
@@ -156,6 +160,12 @@ func TestAccountMenuSelectsOneEntry(t *testing.T) {
 		{"/calendar", "Calendar"},
 		{"/p/inbox", "Notifications"},
 		{"/inbox", "Inbox"},
+		// Bonus Points, moved here out of Community. /store/history is the
+		// interesting one: a shorter /store must not steal it, which is the
+		// longest-match rule this menu shares with the site nav.
+		{"/store", "Store"},
+		{"/store/history", "History"},
+		{"/rewards", "Rewards"},
 	} {
 		// The DESTINATION is what the reader is looking for, and most of the
 		// menu is grouped — so descend into a lit group and name its lit child,
@@ -188,7 +198,10 @@ func TestAccountMenuSelectsOneEntry(t *testing.T) {
 // A page that is not on the menu at all must light nothing, rather than the
 // nearest thing that shares a few characters with it.
 func TestAccountMenuLightsNothingOffMenu(t *testing.T) {
-	for _, p := range []string{"/", "/browse", "/community/forums", "/admin/settings", "/store"} {
+	// /store used to be here and is not any more: it is a menu destination
+	// under Bonus Points, so lighting is what it is SUPPOSED to do. The
+	// positive case for it lives in the highlight table above.
+	for _, p := range []string{"/", "/browse", "/community/forums", "/admin/settings"} {
 		for _, tab := range accountNav(p) {
 			if tab.Active {
 				t.Errorf("%s: lit account entry %q", p, tab.Label)
