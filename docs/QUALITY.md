@@ -196,10 +196,13 @@ with nothing drained. The linter wants the cancelled context passed in. The
 remaining three are boot-time wiring and a fire-and-forget goroutine, where a
 request context would be the wrong lifetime.
 
-One of them is worth a MANUAL look rather than a linter: the render path
-reaches `renderRegions` through a background context. Whether that should carry
-the request's context is a real question; it just is not one contextcheck can
-answer here without four false positives alongside it.
+The fifth was checked by hand and is also a false positive: `renderRegions`
+reads `c.Request.Context()` directly. contextcheck flagged the *call chain*
+that reaches it, not the function, which already does the right thing.
+
+So the final count is five findings and **zero real ones**. That is the whole
+case against it here, and it is stronger than the "mostly annotations" argument
+first written: annotations at least mark real decisions. These marked nothing.
 
 **Next:** triage the 34 `_ =` discards. Each becomes one of: handled, discarded
 with a comment saying why, or wrapped and returned. That is reading, not
