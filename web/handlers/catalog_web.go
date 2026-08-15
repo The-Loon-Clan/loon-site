@@ -128,7 +128,14 @@ func (w *web) catalogCandidates(ctx context.Context) ([]scraper.Candidate, error
 		return nil, err
 	}
 
-	_ = w.setSweepCursor(ctx, candidateCursorKey, nextCandidateCursor(len(out), candidateBatch, lowest))
+	// Not advancing the cursor is not a lost write — it is a sweep that starts
+	// from the same place on every run, forever, doing the same work and never
+	// reaching the rest of the table. The symptom is a job that looks healthy
+	// and makes no progress, which nothing else here would report.
+	if err := w.setSweepCursor(ctx, candidateCursorKey,
+		nextCandidateCursor(len(out), candidateBatch, lowest)); err != nil {
+		w.log.Error("advance sweep cursor", "key", candidateCursorKey, "err", err)
+	}
 	return out, nil
 }
 

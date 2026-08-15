@@ -102,12 +102,17 @@ func (p *Plugin) actionSign(c *gin.Context) (template.HTML, error) {
 		"earn_guestbook_entry", "Signed the guestbook", 0); err != nil {
 		p.core.Errors.Report(ctx, "guestbook/award", err)
 	}
-	_ = p.core.Notifications.Notify(ctx, 1, core.Notification{
+	if err := p.core.Notifications.Notify(ctx, 1, core.Notification{
 		Kind:  "guestbook_signed",
 		Title: u.Username + " signed the guestbook",
 		Body:  msg, Link: "/p/guestbook",
 		ActorID: u.ID, ActorName: u.Username,
-	})
+	}); err != nil {
+		// Reported the same way the award failure above is: the entry is
+		// saved, only the owner's notice is lost, and it is lost silently at
+		// both ends unless something says so.
+		p.core.Errors.Report(ctx, "guestbook/notify", err)
+	}
 	c.Redirect(http.StatusSeeOther, "/p/guestbook?msg=signed+—+thanks!")
 	return "", nil
 }

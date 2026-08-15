@@ -792,6 +792,7 @@ func chooseCache(addr string, logger *slog.Logger) (cache.Cache, *goredis.Client
 		logger.Error("redis unreachable — falling back to the in-memory cache; "+
 			"pages are still cached, but per-process and not shared",
 			"addr", addr, "err", err)
+		//nolint:errcheck // the process is exiting; a close error changes nothing
 		_ = client.Close()
 		return cachememory.New(), nil
 	}

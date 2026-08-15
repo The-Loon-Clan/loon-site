@@ -265,6 +265,7 @@ func setAvatar(ctx context.Context, db storage.Conn, userID int64, raw []byte) e
 		// Undo the file we just wrote rather than leaving it orphaned.
 		//nolint:errcheck // best effort: if this fails the file is an orphan,
 		// and avatarsweep_web.go exists to collect exactly those
+		//nolint:errcheck // best effort: a failure leaves an orphan, and avatarsweep_web.go collects those
 		_ = files.Remove(ctx, name)
 		return fmt.Errorf("could not save your avatar")
 	}

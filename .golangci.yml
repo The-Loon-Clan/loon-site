@@ -45,6 +45,25 @@ linters:
     - bodyclose
 
   settings:
+    # errcheck's check-blank is OFF, and that is a decision rather than the
+    # default going unexamined.
+    #
+    # It reports `_ = f()`, which is how thirty-four discarded errors sat in
+    # this tree unseen while errcheck ran clean — four of them hiding real
+    # bugs, including a login that skipped 2FA when a database read failed.
+    # Every one of those discards now carries a //nolint:errcheck saying why it
+    # is safe, so turning this on would be nearly free.
+    #
+    # Nearly. It also reports `x, _ := f()`, and that lands on 79 sites, most
+    # of them `in, _ := readXInput(c)` — a deliberate pattern documented in
+    # inputs.go, where Bind reports only what the PROGRAM got wrong and a
+    # member's mistake is Validate's business. Enabling it means either
+    # changing that pattern everywhere or excluding it, and an exclusion list
+    # is what this file exists to avoid.
+    #
+    # So: revisit alongside a decision about readXInput's signature, not on its
+    # own.
+
     staticcheck:
       checks:
         - "all"

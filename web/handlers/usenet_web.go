@@ -68,6 +68,7 @@ func (w *web) newznabAPI(c *gin.Context) {
 	if cacheable {
 		// Long TTL is safe: an ingest invalidates the namespace, so entries stay
 		// fresh until new releases land.
+		//nolint:errcheck // a cache write that fails is a cache miss next time, nothing more
 		_ = cache.SetJSON(c.Request.Context(), w.cache, key, res, time.Hour)
 	}
 	writeNewznab(c, res, "miss")

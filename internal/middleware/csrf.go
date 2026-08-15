@@ -65,6 +65,7 @@ func CSRF() gin.HandlerFunc {
 			}
 			token = base64.RawURLEncoding.EncodeToString(b)
 			sess.Set(csrfSessionKey, token)
+			//nolint:errcheck // a token that was not stored fails the next POST visibly
 			_ = sess.Save()
 		}
 		c.Set(csrfContextKey, token)

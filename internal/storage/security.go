@@ -44,6 +44,7 @@ func (st *Store) ReadTOTPStatus(ctx context.Context, userID int64) TOTPStatus {
 	}
 	out := TOTPStatus{Enabled: row.Secret != "", Pending: row.Pending}
 	if out.Enabled {
+		//nolint:errcheck // display only: a failed count shows 0 recovery codes, which is not a gate
 		_ = st.db.GetContext(ctx, &out.RecoveryLeft,
 			`SELECT COUNT(*) FROM totp_recovery_codes WHERE user_id = $1 AND used_at IS NULL`, userID)
 	}

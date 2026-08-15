@@ -28,7 +28,7 @@ Numbers taken Aug 2026. Re-run them rather than trusting this table.
 | Build correctness | `go vet`, `staticcheck`, `unused` | clean |
 | Formatting | `scripts/gofmt.sh` | clean |
 | Error handling | `errorlint`, `nilerr`, `bodyclose` (enabled) | clean — 4 found, 2 real bugs fixed |
-| — explicit discards | `grep '^\s*_ = '` (non-test) | 25, each triaged |
+| — explicit discards | `grep '^\s*_ = '` (non-test) | **all triaged**; each carries its reason |
 | — log-and-continue | `grep 'log.Error('` in web/handlers | **52** |
 | — wrapped with `%w` | `grep '%w'` | 28 |
 | Test depth | `make cover` | 34.7% with services / 23.0% without |
@@ -82,10 +82,32 @@ never told; the pending email changes survive, still confirmable; the widget
 layout reports "updated" and is not. Those get logged, and where the member is
 waiting on an answer, refused.
 
-Done so far: `widgetsadmin_web.go` (5), `security_web.go` (6), `tickets_web.go`
-(2), `serve_wiring.go` (2), `locallink_web.go` (2), `avatar_web.go` (2). One of
-those turned out not to be an error discard at all — `_ = old` is a deliberately
-unused variable — so the original count of 34 was slightly generous to itself.
+**Done.** Every `_ = f()` in non-test code is now either handled or carries a
+`//nolint:errcheck` naming the reason it is safe.
+
+Six bugs came out of it, five of them fail-open — because Go's zero values are
+`""`, `0` and `false`, and in this codebase each of those reads as "nothing
+here, carry on":
+
+| what | the failure it hid |
+| --- | --- |
+| `TOTPSecret` at the login gate | a failed read skipped 2FA entirely |
+| `session.Clear` on logout | logout reported success, session survived |
+| `CountOpenWishes` | a failed count read as 0, so the per-member cap lifted |
+| entitlement `RoleOf` | a transient DB error cached as "no such user" |
+| `err == sql.ErrNoRows` | a wrapped error read as a lookup failure |
+| `moveWidget` | reorder failed, "Layout updated" shown |
+
+One of the original 34 was not an error discard at all (`_ = old`, a
+deliberately unused variable), so that count flattered itself slightly.
+
+**Why this is not enforced by a linter.** `errcheck` ignores `_ = f()` unless
+`check-blank` is set — which is exactly why it ran clean over all of this for
+months. Turning it on was tried: it also reports `x, _ := f()`, landing on 79
+sites, most of them the deliberate `in, _ := readXInput(c)` pattern. Revisit
+alongside a decision about that signature, not on its own. Until then the
+guarantee is social: the reasons are written down, and a reviewer can see a
+bare discard for what it is.
 
 ## Standards worth adopting
 

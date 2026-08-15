@@ -75,6 +75,7 @@ func (st *Store) CountOpenWishes(ctx context.Context, userID int64) (int, error)
 // WishlistCount is the number of open entries site-wide, for the stats page.
 func (st *Store) WishlistCount(ctx context.Context) int {
 	var n int
+	//nolint:errcheck // a site-wide stat: 0 is a wrong number on a stats page, not a decision
 	_ = st.db.GetContext(ctx, &n, `SELECT count(*) FROM wishlist_items WHERE filled_at IS NULL`)
 	return n
 }

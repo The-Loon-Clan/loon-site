@@ -160,6 +160,7 @@ func takeFlashCodes(c *gin.Context) []string {
 		return nil
 	}
 	s.Delete(flashCodesKey)
+	//nolint:errcheck // see the note above flashCodes: the cookie not being written IS the signal
 	_ = s.Save()
 	return strings.Split(v, ",")
 }
@@ -335,6 +336,7 @@ func beginTOTPChallenge(c *gin.Context, userID int64) {
 	s.Clear()
 	s.Set(pendingTOTPKey, userID)
 	s.Set(pendingTOTPAtKey, time.Now().Unix())
+	//nolint:errcheck // see the note above flashCodes: the cookie not being written IS the signal
 	_ = s.Save()
 	c.Redirect(http.StatusSeeOther, "/login/2fa")
 }
@@ -355,6 +357,7 @@ func pendingTOTPUser(c *gin.Context) int64 {
 	at, _ := s.Get(pendingTOTPAtKey).(int64)
 	if at == 0 || time.Since(time.Unix(at, 0)) > pendingTOTPTTL {
 		s.Clear()
+		//nolint:errcheck // see the note above flashCodes: the cookie not being written IS the signal
 		_ = s.Save()
 		return 0
 	}

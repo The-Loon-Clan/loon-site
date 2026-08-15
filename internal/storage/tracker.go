@@ -166,6 +166,8 @@ func (st *Store) ReadTrackerSiteStats(ctx context.Context) (TrackerSiteStats, bo
 	// Total uploaded is the members' side of the ledger and lives in user_stats.
 	// Best-effort: the torrent figures above are the section's substance, and
 	// losing one row of it is not a reason to drop the rest.
+	//nolint:errcheck // best-effort, as the comment above says: this figure is
+	// one row of a section whose substance is already read
 	_ = st.db.QueryRowContext(ctx,
 		`SELECT coalesce(sum(uploaded), 0) FROM tracker.user_stats`).Scan(&s.Uploaded)
 	return s, true

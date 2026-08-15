@@ -43,7 +43,11 @@ func forumSeed(db storage.Conn, log *slog.Logger) {
 	if err := db.Get(&alice, `SELECT id FROM users WHERE username = 'alice'`); err != nil {
 		log.Warn("forum seed: no demo users yet — categories only")
 	}
-	_ = db.Get(&bob, `SELECT id FROM users WHERE username = 'bob'`)
+	if err := db.Get(&bob, `SELECT id FROM users WHERE username = 'bob'`); err != nil {
+		// Mirrors the alice lookup above, which warned while this one said
+		// nothing — so a seed run missing both users reported one of them.
+		log.Warn("forum seed: no demo users yet — categories only")
+	}
 
 	if _, err := db.Exec(`INSERT INTO forum_categories (name, description, ordinal) VALUES
 		('General',  'Anything about this indexer.',              0),

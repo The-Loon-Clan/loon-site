@@ -191,14 +191,19 @@ func (p *Plugin) sign(c *gin.Context) {
 
 	// Tell the site owner (user 1 in the demo) someone signed. The
 	// host skips delivery when actor == recipient.
-	_ = p.core.Notifications.Notify(ctx, 1, core.Notification{
+	if err := p.core.Notifications.Notify(ctx, 1, core.Notification{
 		Kind:      "guestbook_signed",
 		Title:     u.Username + " signed the guestbook",
 		Body:      msg,
 		Link:      "/p/guestbook",
 		ActorID:   u.ID,
 		ActorName: u.Username,
-	})
+	}); err != nil {
+		// The entry is saved either way; only the owner's notice is lost, and
+		// it is lost at both ends — nobody is told, and nothing records that
+		// nobody was told.
+		p.core.Errors.Report(ctx, "guestbook/notify", err)
+	}
 
 	c.JSON(http.StatusOK, gin.H{"ok": true, "points_balance": balance})
 }

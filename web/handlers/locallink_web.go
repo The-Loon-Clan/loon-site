@@ -196,6 +196,7 @@ func (w *web) linkOneKind(ctx context.Context, spec linkSpec) (int, error) {
 		if err := rows.Scan(&c.id, &c.title); err != nil {
 			//nolint:errcheck // closing a read after a scan failure: the scan
 			// error is the one that matters and is returned below
+			//nolint:errcheck // closing a read; rows.Err() is the real check
 			_ = rows.Close()
 			return 0, err
 		}
