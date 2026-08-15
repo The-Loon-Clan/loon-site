@@ -131,8 +131,13 @@ func tmplHelpers() template.FuncMap {
 		"ellipsis": markdown.Ellipsis,
 		"excerpt":  markdown.Excerpt,
 		"str":      str_,
-		"add":      func(a, b int) int { return a + b },
-		"dict":     dict,
+		// suggestURL turns a catalogue title into the search that finds it.
+		// A function rather than a field on the row, because it is a routing
+		// fact and rows are cached as JSON — a URL baked into the cache is a
+		// URL that survives the route it was built for.
+		"suggestURL": suggestSearchURL,
+		"add":        func(a, b int) int { return a + b },
+		"dict":       dict,
 		// cond is the ternary the template language does not have. It earns its
 		// place in ARGUMENT position: {{if}} is a statement and cannot appear
 		// inside a dict literal, so passing a component an optional label meant

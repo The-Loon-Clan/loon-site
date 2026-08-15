@@ -379,6 +379,9 @@ func (w *web) mount(e *gin.Engine) {
 	e.GET("/u/:name/friends", w.followPage(followKindFriends))
 	e.POST("/release/:id/bookmark", w.authed(w.bookmarkToggle)...)
 	e.GET("/search", w.search)
+	// The quick-search dropdown. A fragment, so it is never a page — see
+	// suggest_web.go.
+	e.GET("/search/suggest", w.suggestPage)
 	e.GET("/browse", w.browse)
 	e.GET("/release/:id", w.releasePage)
 	e.GET("/nzb/:id", w.nzbDownload)

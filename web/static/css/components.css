@@ -515,6 +515,10 @@ a.tag { min-height: 24px; }
  *  </form>                                                                  */
 
 .quick-search {
+    /* The dropdown below is absolutely positioned and anchors here, so the
+       form has to be a positioning context. Without it the suggestions
+       position against the page and land wherever the header happens to be. */
+    position: relative;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1356,6 +1360,68 @@ a.stat-tile:hover {
 @media only screen and (max-width: 40rem) {
     .panel__header { flex-wrap: wrap; }
 }
+
+/* ----------------------------------------------------------- suggest ------ */
+
+/* The quick-search dropdown.
+ *
+ * It has NO open state. It is visible because it has children and hidden
+ * because it does not — which is why the server returns an empty fragment for
+ * a short query, a query with no matches and a failed lookup alike. A boolean
+ * somewhere would be a second source of truth about whether there is anything
+ * to show, and the two would disagree the first time a request failed.
+ */
+.suggest:empty { display: none; }
+
+.suggest {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: var(--z-dropdown);
+    padding: 4px;
+    background: var(--top-nav-dropdown-menu-bg);
+    border: var(--top-nav-dropdown-menu-border);
+    border-radius: var(--top-nav-dropdown-menu-border-radius);
+    box-shadow: var(--shadow-lg, 0 10px 30px rgba(0, 0, 0, 0.35));
+}
+
+.suggest__list { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; }
+
+.suggest__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* 40px tall, because this is a touch target on a phone and the row is the
+       whole control — WCAG 2.2 2.5.8 wants 24px minimum and a dropdown row
+       people tap while walking wants more. */
+    min-height: 40px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm, 6px);
+    color: var(--text);
+    text-decoration: none;
+}
+/* :focus-visible as well as :hover — the arrow keys move focus, so the row the
+   keyboard is on has to look like the row the mouse is on. */
+.suggest__item:hover,
+.suggest__item:focus-visible {
+    background: var(--primary-soft);
+    color: var(--text-strong);
+    text-decoration: none;
+    outline: none;
+}
+
+.suggest__kind { flex-shrink: 0; color: var(--muted); }
+.suggest__title {
+    flex: 1;
+    min-width: 0;
+    /* One line. A catalogue title that wraps turns an eight-row dropdown into a
+       twelve-row one and moves every row under the reader's finger. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.suggest__year { flex-shrink: 0; font-size: var(--fs-2xs); color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* ------------------------------------------------- data-table--stack ------ */
 

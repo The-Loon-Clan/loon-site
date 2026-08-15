@@ -252,12 +252,46 @@
             </a>
         </div>
         <div class="top-nav__center">
-            <form class="quick-search" role="search" action="/search" method="get">
+            {{/* The form still works with JavaScript off and still submits to
+                 /search — the dropdown is an accelerator on top, never the only
+                 way through. */}}
+            <form class="quick-search" role="search" action="/search" method="get" data-suggest>
                 <svg class="icon quick-search__leading" aria-hidden="true"><use href="#search"></use></svg>
                 <label class="visually-hidden" for="quick-search-input">Search releases</label>
-                <input class="quick-search__input" id="quick-search-input" type="search" name="q" placeholder="Search releases…" autocomplete="off">
+                {{/* Three attributes carry the speed, and they matter more than
+                     the query does:
+
+                     delay:150ms   the debounce. Nobody sustains a keystroke
+                                   every 150ms, so this drops ~80% of requests
+                                   that a per-keystroke trigger would send.
+                     hx-sync abort a slow answer for "bre" must not land AFTER
+                                   the answer for "break" and overwrite the
+                                   right list with a stale one. That is
+                                   correctness, not speed.
+                     search        the event, not keyup: it also fires when the
+                                   type=search clear button is used, which
+                                   keyup does not, so clearing the box empties
+                                   the dropdown instead of leaving it open. */}}
+                <input class="quick-search__input" id="quick-search-input" type="search" name="q"
+                       placeholder="Search releases…" autocomplete="off"
+                       {{/* NOT role="combobox". An input type=search has an
+                            implicit searchbox role and ARIA-in-HTML does not
+                            allow combobox on it — vnu rejects the attribute and
+                            aria-expanded with it. Claiming a role the markup
+                            cannot carry is worse than not claiming one: a
+                            screen reader is promised an expandable control and
+                            given a search field. What is left is honest — the
+                            input controls a region, and the region announces
+                            how many suggestions arrived. */}}
+                       aria-controls="quick-search-suggest"
+                       hx-get="/search/suggest" hx-trigger="keyup changed delay:150ms, search"
+                       hx-target="#quick-search-suggest" hx-sync="this:replace">
                 <kbd class="quick-search__hotkey" aria-hidden="true">/</kbd>
                 <button class="quick-search__button" type="submit"><svg class="icon" aria-hidden="true"><use href="#search"></use></svg><span class="visually-hidden">Search</span></button>
+                {{/* Empty until something is typed. It has no open state of its
+                     own — the stylesheet hides it while it is :empty — so there
+                     is no flag to get out of step with what is in it. */}}
+                <div class="suggest" id="quick-search-suggest"></div>
             </form>
         </div>
         <div class="top-nav__right">
@@ -1190,6 +1224,54 @@
         box.focus();
     });
 
+    // The quick-search dropdown's keyboard, and its aria-expanded.
+    //
+    // Everything the dropdown DOES works without this: each row is a real link
+    // to a real search, reachable by Tab, clickable, middle-clickable. What
+    // this adds is the two things a reader expects of a suggestion list and
+    // cannot get from links alone — arrows to walk it, Escape to dismiss it.
+    //
+    // No aria-expanded to maintain: see the note on the input. The list
+    // announces itself through the aria-live count in the fragment instead,
+    // which is what an input type=search is allowed to carry.
+    (function () {
+        var box = document.getElementById('quick-search-input');
+        var panel = document.getElementById('quick-search-suggest');
+        if (!box || !panel) return;
+
+        function items() { return Array.prototype.slice.call(panel.querySelectorAll('.suggest__item')); }
+        function close() { panel.innerHTML = ''; }
+
+        box.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') { close(); return; }
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+            var list = items();
+            if (!list.length) return;
+            e.preventDefault();
+            // Down from the input enters at the top; up from the input enters
+            // at the bottom, which is what every other list on a desktop does.
+            (e.key === 'ArrowDown' ? list[0] : list[list.length - 1]).focus();
+        });
+
+        panel.addEventListener('keydown', function (e) {
+            var list = items();
+            var i = list.indexOf(document.activeElement);
+            if (i < 0) return;
+            if (e.key === 'Escape') { close(); box.focus(); return; }
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+            e.preventDefault();
+            if (e.key === 'ArrowUp' && i === 0) { box.focus(); return; }
+            var next = list[e.key === 'ArrowDown' ? i + 1 : i - 1];
+            if (next) next.focus();
+        });
+
+        // Clicking away closes it. focusout alone fires while moving BETWEEN
+        // rows, which would close the list mid-arrow-key.
+        document.addEventListener('click', function (e) {
+            if (!box.closest('form').contains(e.target)) close();
+        });
+    })();
+
     // Carousel arrows. The track scrolls natively (touch, trackpad, keyboard,
     // scroll-snap) without a line of this; the handler is only what makes the
     // prev/next buttons work. The buttons sit in .panel__actions — UNIT3D's
@@ -1670,4 +1752,44 @@
         document.querySelectorAll(SEL).forEach(build);
     })();
     </script>
+{{end}}
+
+{{/* The quick-search dropdown's contents.
+
+     A fragment on its own, per docs/ASYNC.md rule 3: the region that swaps is a
+     shared partial, so the thing htmx replaces and the thing the page first
+     renders are the same markup rather than two copies that drift.
+
+     Deliberately EMPTY when there is nothing to show. The dropdown has no
+     open/closed state of its own — it is visible because it has children, and
+     hidden because it does not (:empty in the stylesheet). That means a query
+     too short to answer, a query with no matches and a failed lookup all
+     produce the same thing, which is what stops the previous result list
+     hanging around while somebody deletes the word that produced it. */}}
+{{define "suggest"}}
+{{if .Suggestions}}
+{{/* A listbox, because that is what it is. Without the roles a screen reader
+     announces a search field and then, silently, some links appear below it —
+     the aria-live is what says how many. */}}
+<ul class="suggest__list" role="listbox" aria-label="Search suggestions">
+    {{range .Suggestions}}
+    <li role="option" aria-selected="false">
+        {{/* Every row is a real link to a real search. It works with
+             JavaScript off, it can be middle-clicked, and the keyboard
+             handling below only has to move focus between things that were
+             already reachable by Tab. */}}
+        <a class="suggest__item" href="{{suggestURL .Title}}">
+            <svg class="icon suggest__kind" aria-hidden="true"><use href="#{{if eq .Kind "movie"}}film{{else if eq .Kind "tv"}}tv{{else}}tag{{end}}"></use></svg>
+            <span class="suggest__title">{{.Title}}</span>
+            {{/* Year earns its place: a catalogue has several things called
+                 "The Office" and the year is how a reader tells them apart. A
+                 zero year means the chain never resolved one, and printing
+                 "0" would be a claim rather than a gap. */}}
+            {{if .Year}}<span class="suggest__year">{{.Year}}</span>{{end}}
+        </a>
+    </li>
+    {{end}}
+</ul>
+<p class="visually-hidden" aria-live="polite">{{len .Suggestions}} suggestions</p>
+{{end}}
 {{end}}
