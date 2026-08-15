@@ -37,7 +37,6 @@ type pageAccess struct {
 var accessRoutes = []struct{ Path, Label, Note string }{
 	{"/", "Home", ""},
 	{"/browse", "Browse", ""},
-	{"/browse/categories", "Categories", "The category directory /browse used to be."},
 	{"/search", "Search", ""},
 	{"/groups", "Newsgroups", ""},
 	{"/trending", "Trending", ""},

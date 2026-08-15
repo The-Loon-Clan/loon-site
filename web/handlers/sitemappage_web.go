@@ -37,8 +37,7 @@ type sitemapLink struct {
 // chrome offers must appear here.
 var sitemapGroups = []sitemapGroup{
 	{Title: "Releases", Links: []sitemapLink{
-		{Href: "/browse", Label: "Browse", Note: "Everything indexed, newest first"},
-		{Href: "/browse/categories", Label: "Categories", Note: "The same index, narrowed by category"},
+		{Href: "/browse", Label: "Browse", Note: "Everything indexed, by category"},
 		{Href: "/search", Label: "Search", Note: "Search releases by name, group or category"},
 		{Href: "/groups", Label: "Newsgroups", Note: "The groups being crawled, and how much each holds"},
 		{Href: "/trending", Label: "Trending", Note: "Most grabbed, by window"},

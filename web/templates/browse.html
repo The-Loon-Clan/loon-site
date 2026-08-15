@@ -27,8 +27,11 @@
     <span>The catalog isn't set up yet.</span>
 </p>
 
-{{else if .Grid}}
-<h1 class="h3 m-0">Categories</h1>
+{{else if .CatID}}
+{{template "browse-results" .}}
+
+{{else}}
+<h1 class="h3 m-0">Browse</h1>
 {{if .Categories}}
 <div class="grid grid--3">
     {{range .Categories}}
@@ -61,9 +64,6 @@
     <span>No categories enabled.</span>
 </p>
 {{end}}
-
-{{else}}
-{{template "browse-results" .}}
 {{end}}
 {{end}}
 
@@ -86,19 +86,12 @@
 <section class="panelV2" id="results">
     <header class="panel__header">
         <h1 class="panel__heading">
-            <svg class="icon panel__heading-icon" aria-hidden="true">{{if .CatID}}{{template "cat-icon" .CatID}}{{else}}<use href="#database"></use>{{end}}</svg>
-            {{/* No category is the ordinary case now, so it gets the plain
-                 name rather than being described as an absence. */}}
-            {{if .CatID}}{{if .CatName}}{{.CatName}}{{else}}Category {{.CatID}}{{end}}{{else}}Latest releases{{end}}
+            <svg class="icon panel__heading-icon" aria-hidden="true">{{template "cat-icon" .CatID}}</svg>
+            {{if .CatName}}{{.CatName}}{{else}}Category {{.CatID}}{{end}}
             {{if .Results}}<span class="panel__grouping">{{.Total}} release{{if ne .Total 1}}s{{end}}</span>{{end}}
         </h1>
         <div class="panel__actions">
-            {{/* Filtered: a way back to everything. Unfiltered: the directory,
-                 which is where the grid went when /browse became this page. */}}
-            {{if .CatID}}
-            <a class="panel__action" href="/browse"><svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-left"></use></svg>All releases</a>
-            {{end}}
-            <a class="panel__action" href="/browse/categories"><svg class="icon icon--sm" aria-hidden="true"><use href="#browse"></use></svg>Categories</a>
+            <a class="panel__action" href="/browse"><svg class="icon icon--sm" aria-hidden="true"><use href="#chevron-left"></use></svg>All categories</a>
         </div>
     </header>
     {{if .Results}}
@@ -107,7 +100,7 @@
 
         <div class="data-table-wrapper">
             <table class="data-table">
-<caption class="visually-hidden">{{if .CatName}}Releases in {{.CatName}}{{else}}Latest releases{{end}}</caption>
+<caption class="visually-hidden">Releases in this category</caption>
                 <thead>
                     <tr>
                         {{template "sort-th" (dict "Col" $.SortCols.release)}}
@@ -125,13 +118,13 @@
         </div>
     </div>
     <div class="panel__body">
-        <p class="m-0 small text-muted">Showing {{len .Results}} of {{.Total}} release{{if ne .Total 1}}s{{end}}{{with .CatName}} in {{.}}{{end}}.</p>
+        <p class="m-0 small text-muted">Showing {{len .Results}} of {{.Total}} release{{if ne .Total 1}}s{{end}} in {{.CatName}}.</p>
     </div>
     {{else}}
     <div class="panel__body">
         <p class="notice notice--info">
             <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
-            <span>{{if .CatName}}No releases in {{.CatName}} yet.{{else}}Nothing indexed yet.{{end}}</span>
+            <span>No releases in {{.CatName}} yet.</span>
         </p>
     </div>
     {{end}}
