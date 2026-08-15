@@ -105,6 +105,13 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 	slug := in.Slug
 	ctx := c.Request.Context()
 
+	// Every arm writes, and every write used to discard its error while the
+	// handler reported success regardless. Converting this endpoint to htmx
+	// made that worse rather than exposing it: the response now SAYS "Layout
+	// updated", where a redirect at least returned a page without the change
+	// on it. So the error is kept and answered.
+	var err error
+
 	switch in.Action {
 	case "add":
 		// Refuse a slug that is not a registered widget. The dropdown only
@@ -115,24 +122,37 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 		// Appended at the end: position is the count of what is already there.
 		// ON CONFLICT DO NOTHING makes a double-submit idempotent rather than
 		// moving a widget the operator did not touch.
-		_ = w.data.PlaceWidget(ctx, region, slug)
+		err = w.data.PlaceWidget(ctx, region, slug)
 	case "remove":
-		_ = w.data.RemoveWidget(ctx, region, slug)
+		err = w.data.RemoveWidget(ctx, region, slug)
 	case "toggle":
 		// Off rather than removed keeps the position, so switching a widget
 		// back on puts it where it was instead of at the bottom.
-		_ = w.data.ToggleWidget(ctx, region, slug)
+		err = w.data.ToggleWidget(ctx, region, slug)
 	case "configure":
 		// The setting for one placement. Stored verbatim — a widget decides
 		// what its own string means, and the host escaping or parsing it here
 		// would break every widget whose value is not what the host guessed.
 		// Whatever a widget does with it must be safe at RENDER; see the
 		// markdown widget, which runs the site's sanitising renderer.
-		_ = w.data.ConfigureWidget(ctx, region, slug, in.Config)
+		err = w.data.ConfigureWidget(ctx, region, slug, in.Config)
 	case "move":
 		if delta := in.Delta; delta != 0 {
 			w.moveWidget(c, region, slug, delta)
 		}
+	}
+
+	if err != nil {
+		w.log.Error("widget layout", "action", in.Action, "region", region,
+			"slug", slug, "err", err)
+		if isHTMX(c) {
+			w.renderRefusal(c, "admin_widgets.html", "That change could not be saved.")
+			return
+		}
+		// No-JavaScript: fall through to the redirect. The reloaded page shows
+		// the layout unchanged, which is the truth, and it is what this
+		// endpoint did before — the failure was never invisible on that path,
+		// only unlogged.
 	}
 	// The whole table, not the row: moving a widget up moves its neighbour
 	// down, and toggling one changes only that row but returns through the same
