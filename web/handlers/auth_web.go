@@ -183,7 +183,14 @@ func (w *web) registerPost(c *gin.Context) {
 }
 
 func (w *web) logout(c *gin.Context) {
-	_ = session.Clear(c)
+	// A logout that fails silently is the one failure here worth a log line:
+	// the session survives, the redirect reports success, and somebody on a
+	// shared machine walks away from an account that is still signed in. The
+	// nav rendering as signed-in is the only other signal, and it is one people
+	// do not look for after clicking Log out.
+	if err := session.Clear(c); err != nil {
+		w.log.Error("logout", "err", err)
+	}
 	c.Redirect(http.StatusSeeOther, "/")
 }
 

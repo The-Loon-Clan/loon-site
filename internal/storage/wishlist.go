@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 )
 
@@ -56,11 +57,19 @@ type WishRow struct {
 }
 
 // CountOpenWishes is the per-member cap check.
-func (st *Store) CountOpenWishes(ctx context.Context, userID int64) int {
+//
+// Returns the error, because the caller that ENFORCES the cap cannot treat a
+// failed read as an answer: this returned a bare int, a failed read gave 0,
+// and `0 >= cap` is false — so the limit stopped applying exactly when the
+// database was unhappy. The display caller may ignore it and show nothing.
+func (st *Store) CountOpenWishes(ctx context.Context, userID int64) (int, error) {
+	if st == nil || !st.db.Valid() {
+		return 0, errors.New("storage: no database connection")
+	}
 	var n int
-	_ = st.db.GetContext(ctx, &n,
+	err := st.db.GetContext(ctx, &n,
 		`SELECT count(*) FROM wishlist_items WHERE user_id = $1 AND filled_at IS NULL`, userID)
-	return n
+	return n, err
 }
 
 // WishlistCount is the number of open entries site-wide, for the stats page.

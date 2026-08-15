@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -54,10 +55,12 @@ func (w *web) wishlistPage(c *gin.Context) {
 	ctx := c.Request.Context()
 	mine := c.Query("all") != "1"
 	w.render(c, "wishlist.html", map[string]any{
-		"Title":    "Wishlist",
-		"Items":    w.data.ListWishlist(ctx, u.ID, mine),
-		"Mine":     mine,
-		"Open":     w.data.CountOpenWishes(ctx, u.ID),
+		"Title": "Wishlist",
+		"Items": w.data.ListWishlist(ctx, u.ID, mine),
+		"Mine":  mine,
+		// Display only: a failed count shows as nothing, which is the same as
+		// any other unavailable figure on this page.
+		"Open":     w.openWishes(ctx, u.ID),
 		"Cap":      wishPerUser,
 		"TitleMax": wishTitleMax,
 		"NoteMax":  wishNoteMax,
@@ -81,7 +84,16 @@ func (w *web) wishlistAdd(c *gin.Context) {
 		return
 	}
 	title, note := in.Title, in.Note
-	if w.data.CountOpenWishes(ctx, u.ID) >= wishPerUser {
+	open, err := w.data.CountOpenWishes(ctx, u.ID)
+	if err != nil {
+		// Refuse rather than guess. A failed count used to read as zero, which
+		// is under every cap there is.
+		w.log.Error("count open wishes", "user", u.ID, "err", err)
+		c.Redirect(http.StatusSeeOther, "/wishlist?err="+
+			url.QueryEscape("could not check your open entries; please try again"))
+		return
+	}
+	if open >= wishPerUser {
 		c.Redirect(http.StatusSeeOther, "/wishlist?err="+
 			url.QueryEscape("that is your "+strconv.Itoa(wishPerUser)+" open entries; fill or remove one first"))
 		return
@@ -177,4 +189,20 @@ func (w *web) wishlistUpdate(c *gin.Context) {
 		back += "?all=1"
 	}
 	c.Redirect(http.StatusSeeOther, back)
+}
+
+// openWishes is the display-side read of the per-member open count.
+//
+// Separate from the enforcing call in wishlistAdd on purpose. That one must
+// refuse when it cannot count; this one is a number on a page, and a page that
+// fails to render because a count was unavailable is worse than a page with a
+// gap in it. The two callers want opposite things from the same failure, which
+// is why the store returns the error and lets them choose.
+func (w *web) openWishes(ctx context.Context, userID int64) any {
+	n, err := w.data.CountOpenWishes(ctx, userID)
+	if err != nil {
+		w.log.Error("count open wishes", "user", userID, "err", err)
+		return nil
+	}
+	return n
 }
