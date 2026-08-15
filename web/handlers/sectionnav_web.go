@@ -177,38 +177,35 @@ func accountNav(path string) []sectionTab {
 // say it is in the area. /u/ is here because the profile is the area's landing
 // page: the avatar menu points at it, and arriving there is what puts the rest
 // of the account within one click.
-// /store/history and /rewards are deliberately NOT here: they are the points
-// economy's, they carry its strip, and the account bar on top of that was the
-// second tab row.
 var accountAreaPrefixes = []string{
 	"/u/", "/inbox", "/p/inbox", "/p/account", "/p/api-key",
 	"/p/topics", "/p/posts", "/settings/",
 	"/bookmarks", "/calendar", "/achievements", "/subscriptions", "/gifts", "/wishlist",
 	// The member's own tracker standing — see trackerAccountGroup.
 	"/hitrun", "/perks", "/seedlock",
-	// The points economy. In the AREA so the account menu may point at it —
-	// see stripOwners for why that does not give it the bar.
+	// The points economy: the store, its ledger, and the claim page.
 	"/store", "/rewards",
 }
 
 // stripOwners are account-area paths that render their own tab strip, so the
 // account bar must stay off them.
 //
-// Two things were conflated until this existed: whether a path is part of the
-// account area, and whether the account bar renders on it. They were the same
-// question while every account page was the host's, and the points pages are
-// where they come apart — the store plugin ships its own Store | History |
-// Rewards strip in its templates, and the account bar on top of that is the
-// second tab row this file was written to prevent.
+// EMPTY, and kept rather than deleted, because the distinction it draws is
+// still real: being part of the account area and getting the account bar are
+// different questions, and the next plugin page that arrives with its own
+// navigation will need somewhere to say so.
 //
-// So: in the area, so the menu can offer it and clicking does not feel like
-// leaving. No bar, because the page already carries an equivalent one.
+// It held /store and /rewards. The store plugin used to ship its own
+// Store | History | Rewards strip, and the account bar on top of that was the
+// second tab row this file exists to prevent — so those pages were in the area
+// (the menu could offer them) without getting the bar. That was the honest
+// arrangement rather than the ideal one, and the comment here said as much.
 //
-// The end state UNIT3D has is the strip GONE and Bonus Points as a dropdown on
-// the account bar like Profile and Settings. That needs the store plugin to
-// stop rendering its own, which is a change in loon-plugins rather than here.
-// Until then this is the honest arrangement rather than the ideal one.
-var stripOwners = []string{"/store", "/rewards"}
+// The ideal one is now in place: the plugin takes Deps.SuppressTabs from the
+// host (store_web.go), draws no strip, and the account bar covers the points
+// pages like every other account page — Bonus Points as a dropdown beside
+// Profile and Settings, which is the arrangement UNIT3D has.
+var stripOwners = []string{}
 
 func ownsItsStrip(path string) bool {
 	for _, p := range stripOwners {

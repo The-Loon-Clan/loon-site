@@ -2,10 +2,11 @@
      tab. Data from rewards_web.go: .Card (a widgetVM) or .Unavailable, and
      neither when the plugin is wired but has nothing to offer today.
 
-     The tab strip is rendered here rather than shared with the store plugin's
-     two pages: those are the plugin's own markup, in the plugin's template
-     set, which this cannot reach. The classes match so the three read as one
-     strip — a Bootstrap-subset `nav tabs`, same as store.html. */}}
+     There is no tab strip here any more. This page used to render its own,
+     matching the one the store plugin drew on its two pages so the three read
+     as one — but the strip itself is gone: the plugin takes Deps.SuppressTabs
+     from this host (store_web.go) and the account bar covers all three pages
+     under Bonus Points, which is one row of tabs instead of two. */}}
 {{define "breadcrumbs"}}
 <ol class="breadcrumbsV2">
     <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
@@ -24,15 +25,6 @@
         <h1 class="h5 mb-0" style="font-weight:600;">Rewards</h1>
         {{if .HasPoints}}<span class="badge bg-warning text-dark" style="font-size:0.82rem;">{{.Points}} pts</span>{{end}}
     </div>
-
-    <ul class="nav tabs mb-3">
-        <li class="nav-item"><a class="nav-link" href="/store">Store</a></li>
-        <li class="nav-item"><a class="nav-link" href="/store/history">History</a></li>
-        {{/* aria-current alongside the active class — the class is what a
-             sighted reader sees, and without the attribute the strip reads as
-             three identical links with nothing saying which one you are on. */}}
-        <li class="nav-item"><a class="nav-link active" href="/rewards" aria-current="page">Rewards</a></li>
-    </ul>
 
     {{if .Unavailable}}
     <div class="empty">Rewards need the rewards plugin, which is not running here.</div>

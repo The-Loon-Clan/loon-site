@@ -56,7 +56,16 @@ func wireStorePlugin(w *web) {
 		// The points area's third tab. The store plugin knows nothing about
 		// rewards and should not — it takes tabs from the host rather than
 		// linking to a page that may not exist on a site running store alone.
+		//
+		// Still wired although SuppressTabs is on below: the two are
+		// independent, so turning the strip back on must not also mean
+		// remembering this. Nothing calls it while the strip is off.
 		ExtraTabs: w.pointsAreaTabs,
+		// This host has an account bar, and it reaches every page the store's
+		// own strip does — Points store, History and Rewards, under Bonus
+		// Points. Two rows of tabs offering the same three places is what the
+		// plugin's default produces here, so the host says so and keeps one.
+		SuppressTabs: true,
 	})
 }
 

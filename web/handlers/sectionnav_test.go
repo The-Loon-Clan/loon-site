@@ -4,6 +4,7 @@ import (
 	site "github.com/the-loon-clan/loon-site"
 
 	"io/fs"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -239,14 +240,23 @@ func TestAccountBarScope(t *testing.T) {
 		"/u/alice", "/achievements", "/calendar", "/bookmarks", "/inbox",
 		"/p/inbox", "/p/topics", "/p/posts", "/p/account", "/p/api-key",
 		"/settings/privacy", "/settings/notifications",
+		// The points pages, which used to be the exception: they carried the
+		// store plugin's own strip, so the bar stayed off them. The plugin
+		// stopped drawing it (Deps.SuppressTabs), so they are ordinary account
+		// pages now — see TestPointsPagesGetOneStripNotTwo.
+		"/store", "/store/history", "/rewards",
 	} {
 		if accountBar(p, true, true) == nil {
 			t.Errorf("%s is in the account area but gets no bar", p)
 		}
 	}
 	for _, p := range []string{
-		"/", "/browse", "/search", "/community/forums", "/store", "/stats",
-		"/about", "/login", "/admin/settings", "/p/stats", "/p/store",
+		"/", "/browse", "/search", "/community/forums", "/stats",
+		"/about", "/login", "/admin/settings", "/p/stats",
+		// /p/store is the flair shop, a view-registry page core mounts and the
+		// host does not wrap — so there is no bar to put on it. Unrelated to
+		// /store above, which is the host's.
+		"/p/store",
 	} {
 		if tabs := accountBar(p, true, true); tabs != nil {
 			t.Errorf("%s got an account bar (%d entries) — that is the site-wide second bar again", p, len(tabs))
@@ -308,15 +318,56 @@ func TestProfileNameFromPath(t *testing.T) {
 	}
 }
 
-// The points pages carry the STORE's strip (Store | History | Rewards), which
-// its own templates render. They must not also be in the account area, or the
-// page gets two rows of tabs disagreeing about where the reader is — which is
-// exactly what happened when the account bar first went in.
+// The points pages get the account bar, and get it exactly once.
+//
+// This test used to assert the OPPOSITE — that they got no bar at all — because
+// the store plugin rendered its own Store | History | Rewards strip and the
+// account bar on top of that was two rows of tabs disagreeing about where the
+// reader was. The cost was that the points pages were the only account pages
+// with no way back to Profile, Messages or Settings.
+//
+// Fixed at the source instead: the plugin takes Deps.SuppressTabs and draws no
+// strip, so the bar is the one row. The plugin's half is guarded by its own
+// test; this is the host's half, and the pair of them is the invariant.
 func TestPointsPagesGetOneStripNotTwo(t *testing.T) {
 	for _, p := range []string{"/store", "/store/history", "/rewards"} {
-		if tabs := accountBar(p, true, true); tabs != nil {
-			t.Errorf("%s gets the account bar AND the store strip — two tab rows on one page", p)
+		tabs := accountBar(p, true, true)
+		if tabs == nil {
+			t.Errorf("%s gets no account bar — the points area is cut off from the "+
+				"rest of the account again", p)
+			continue
 		}
+		// And the bar knows where it is. A bar that renders with nothing marked
+		// has stopped answering the question it exists to answer.
+		lit := 0
+		for _, tab := range tabs {
+			if tab.Active {
+				lit++
+			}
+		}
+		if lit != 1 {
+			t.Errorf("%s: %d lit entries on the account bar, want exactly 1", p, lit)
+		}
+	}
+}
+
+// The other half: the host must actually ASK for the strip to go.
+//
+// Read off the source, because deps inside the store plugin are package-private
+// and there is no way to observe the wiring from here. Crude on purpose — the
+// failure it guards is somebody deleting one line in a SetDeps call, and a
+// crude check catches that on the line it happens. Without it the two tab rows
+// come back, and nothing fails: both rows work, both go to real pages, and the
+// page just looks wrong to whoever opens it.
+func TestTheHostSuppressesTheStoresOwnTabStrip(t *testing.T) {
+	b, err := os.ReadFile("store_web.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "SuppressTabs: true") {
+		t.Error("store_web.go no longer sets SuppressTabs — the store draws its own " +
+			"Store | History strip again, under the account bar that already offers " +
+			"those pages under Bonus Points")
 	}
 }
 
