@@ -88,7 +88,6 @@ Highest value for the gaps above:
 | --- | --- |
 | `errorlint` | comparing errors with `==` instead of `errors.Is`; `%v` where `%w` belongs |
 | `wrapcheck` | errors returned across a package boundary without context |
-| `contextcheck` | a function that should take a `context.Context` and does not |
 | `godot`, `gocritic` | comment and idiom hygiene |
 | `cyclop` / `gocognit` | functions past a complexity budget |
 
@@ -173,6 +172,34 @@ transient database failure took the same branch as a genuinely absent user and
 was cached as "no such user", so a momentary blip denied a real member their
 grants for a whole cache window and then healed itself — the hardest kind of
 bug to catch in the act. Split in two, and the error now propagates uncached.
+
+### Linters considered and rejected
+
+Two, and the reasoning is the same both times: this file's policy is that every
+enabled linter is enforced, so one whose output is mostly annotations is not
+earning its place — it trains people to skim.
+
+**`wrapcheck`** flags every error crossing a package boundary unwrapped. Here
+that is hundreds of sites. Revisit only alongside a decision about where this
+codebase wants wrapping to happen; that is a design question, not a lint
+setting.
+
+**`contextcheck`** was enabled, run, and reverted. Five findings, and the two
+that settle it are the graceful-shutdown pair:
+
+    <-ctx.Done()
+    shutCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+    _ = srv.Shutdown(shutCtx)
+
+Inheriting there would be an actual bug — `Shutdown` would return immediately
+with nothing drained. The linter wants the cancelled context passed in. The
+remaining three are boot-time wiring and a fire-and-forget goroutine, where a
+request context would be the wrong lifetime.
+
+One of them is worth a MANUAL look rather than a linter: the render path
+reaches `renderRegions` through a background context. Whether that should carry
+the request's context is a real question; it just is not one contextcheck can
+answer here without four false positives alongside it.
 
 **Next:** triage the 34 `_ =` discards. Each becomes one of: handled, discarded
 with a comment saying why, or wrapped and returned. That is reading, not
