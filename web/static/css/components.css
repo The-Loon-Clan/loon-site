@@ -1349,6 +1349,62 @@ a.stat-tile:hover {
     min-width: 0;
 }
 
+/* ------------------------------------------------- data-table--stack ------ */
+
+/* A release listing stops being a table on a phone and becomes a list of rows.
+ *
+ * The measurement that prompted it: /search at a 390px viewport laid its table
+ * out 667px wide — so reading a result's size or category meant scrolling a
+ * table sideways, on the most-used page of an indexer. It never broke the PAGE
+ * (the .data-table-wrapper scroller did its job), which is why it survived: a
+ * horizontal scrollbar inside a container is invisible in every check that
+ * looks for document overflow.
+ *
+ * Opt-in, on the five templates that render release-row. The other sixteen
+ * .data-tables keep their columns, because losing the header on an admin table
+ * loses the only thing saying which number is which — here, "2.1 GB" and
+ * "5 days ago" say what they are without a header, and that is what makes the
+ * pattern safe on this table and not on those.
+ */
+@media only screen and (max-width: 40rem) {
+    .data-table--stack thead { display: none; }
+    .data-table--stack,
+    .data-table--stack tbody { display: block; width: 100%; }
+
+    .data-table--stack tr {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 10px;
+        padding: 10px var(--space-3);
+        border-top: 1px solid var(--border);
+    }
+    .data-table--stack tbody tr:first-child { border-top: 0; }
+
+    .data-table--stack td {
+        display: block;
+        width: auto;
+        padding: 0;
+        border: 0;
+        white-space: normal;
+    }
+    /* The name takes its own line: it is the thing being chosen between, and
+       everything else on the row is a qualifier on it. */
+    .data-table--stack td:first-child { flex: 1 0 100%; min-width: 0; }
+
+    /* The qualifiers read as one meta line rather than as columns that lost
+       their headings. */
+    .data-table--stack .data-table__num,
+    .data-table--stack .data-table__nowrap {
+        font-size: var(--fs-2xs);
+        color: var(--muted);
+        text-align: left;
+    }
+    /* The action goes to the far end of the meta line, which is the one place
+       a thumb reaches without covering what it is acting on. */
+    .data-table--stack .data-table__shrink { margin-left: auto; }
+}
+
 /* --------------------------------------------------------- forum-head ----- */
 
 /* The masthead on the forums index and on a category: what this board IS,

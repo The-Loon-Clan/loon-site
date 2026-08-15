@@ -493,16 +493,27 @@ main > article {
     white-space: nowrap;
 }
 
-/* Below 940px the centred search would squeeze the branding; drop it and let
-   the SEARCH nav item carry the job (UNIT3D hides .quick-search the same way). */
+/* Below 940px the centred search would squeeze the branding, so it drops to a
+   full-width row of its own underneath.
+
+   It used to be `display: none`, on the grounds that the SEARCH nav item could
+   carry the job — which UNIT3D does too. That was wrong for this site: Search
+   lives INSIDE the Releases dropdown, so hiding the box moved the primary
+   action of an indexer from zero taps to two, on the devices where taps cost
+   most. A row costs ~44px; two taps to search costs more. */
 @media only screen and (max-width: 940px) {
     .top-nav {
         grid-template-columns: minmax(0, 1fr) minmax(0, auto);
         column-gap: 12px;
+        row-gap: 8px;
     }
 
-    .top-nav__center { display: none; }
-    .top-nav__right { grid-column: 2; }
+    /* Rows named explicitly rather than left to auto-placement: the search has
+       to land BELOW the branding and the avatar, and auto-placement puts it
+       wherever the previous two happen to leave a gap. */
+    .top-nav__left { grid-column: 1; grid-row: 1; }
+    .top-nav__right { grid-column: 2; grid-row: 1; }
+    .top-nav__center { grid-column: 1 / -1; grid-row: 2; }
 }
 
 @media only screen and (max-width: 620px) {
