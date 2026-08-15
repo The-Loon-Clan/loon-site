@@ -188,6 +188,22 @@ var navPlacedByHost = map[string]bool{
 // the strip cannot be rendered on it. The tab would have led to a dead end.
 var navPlacement = map[string]struct{ Group, Label string }{
 	"/p/store": {Group: "Community", Label: "Flair"},
+
+	// The stats plugin asks for Community (NavHint in its views.go) and this
+	// overrides it, for the same reason /p/store is here: two pages about the
+	// same subject were in two different menus under names a reader could not
+	// tell apart.
+	//
+	// /stats — the host's — is already in Other: a hub of releases, groups,
+	// categories, members and forum counts, public, linking on to the pages
+	// that answer each. The plugin's is a periodic SNAPSHOT: a flat
+	// Label/Value list with a captured-at time, logged-in only. Neither is
+	// redundant, but "Stats" in Other and "Site stats" in Community read as
+	// the same thing filed twice.
+	//
+	// Both in Other, named for what they actually are, so the difference is
+	// visible in one menu instead of hidden across two.
+	"/p/stats": {Group: "Other", Label: "Site snapshot"},
 }
 
 // accountPluginPages is the fallback for a per-viewer plugin page the host has
