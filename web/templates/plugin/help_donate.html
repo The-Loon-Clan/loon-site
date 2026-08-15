@@ -57,14 +57,28 @@
     </div>
 </div>
 
-{{/* There is nothing to click unless an admin has published a wallet. Said
-     plainly rather than left to be inferred from a costs table with no button
-     under it: a page that asks for help and offers no way to give it reads as
-     broken, and the reader cannot tell whether they missed something.
+{{/* Two different reasons there is nothing to send to, and they must not share
+     a sentence.
 
-     AddressesHidden is the admin's own "do not display wallets" switch, so both
-     it and the absence of any address mean the same thing here. */}}
-{{if or .AddressesHidden (not (or .BTCAddress .ETHAddress .XMRAddress))}}
+     This block first said "no payment method is published yet" for both, and
+     testing with real settings is what caught it: with wallets configured and
+     the site group fully funded, the page told donors the site had no way to
+     take money. It had one — it had decided to stop. Telling somebody their
+     help is not wanted because of a missing feature, when the truth is that it
+     is not needed, is the kind of wrong that costs a donation and a bit of
+     trust.
+
+     AddressesHidden is not an admin switch, which is what the old comment here
+     assumed. It is the LOCK: the handler hides the addresses once every group
+     in donate_locking_groups is fully funded, and the whole point of a locking
+     group is that a site with its costs covered stops asking. */}}
+{{if and .AddressesHidden (or .BTCAddress .ETHAddress .XMRAddress)}}
+<p class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <strong>Funded.</strong> Everything below is paid for, so donations are
+    closed until the next reset. Thank you.
+</p>
+{{else if not (or .BTCAddress .ETHAddress .XMRAddress)}}
 <p class="notice notice--info">
     <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
     No payment method is published yet, so there is nothing to send to from this
@@ -172,7 +186,17 @@
 {{end}}
 
 {{/* ── what a donor gets ───────────────────────────────────────────────── */}}
-{{if .Packages}}
+{{/* BOTH lists. The handler splits packages into Packages and FundedPackages,
+     and rendering only the first made a sold-out tier VANISH rather than show
+     as taken — which also meant the "claimed" branch below could never run.
+
+     Found by configuring three tiers and seeing two: the third had
+     stock_total = 0, and Recompute reads StockRemaining == 0 as funded, so a
+     tier with no stock LIMIT is indistinguishable from one with no stock LEFT.
+     That is a plugin-side question, not something to paper over here — see
+     docs/BACKLOG.md. Rendering both lists is the part that is unambiguously
+     this page's job. */}}
+{{if or .Packages .FundedPackages}}
 <section class="panelV2">
     <header class="panel__header">
         <h2 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#star"></use></svg>Tiers</h2>
@@ -192,6 +216,15 @@
                 {{if .Funded}}<span class="tag">claimed</span>
                 {{else if .StockTotal}}<span class="tag">{{.StockRemaining}} left</span>{{end}}
             </div>
+        </div>
+        {{end}}
+        {{range .FundedPackages}}
+        <div class="donate-tier">
+            <div>
+                <div class="donate-tier__name">{{.Label}}</div>
+                {{with .Reward}}<div class="donate-tier__reward">{{.}}</div>{{end}}
+            </div>
+            <div class="donate-tier__price">${{printf "%.2f" .AmountUSD}} <span class="tag">claimed</span></div>
         </div>
         {{end}}
     </div>

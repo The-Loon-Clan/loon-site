@@ -492,3 +492,33 @@ Spotweb's source rather than a guess: which bytes the signature covers. That is
 the only part where being wrong is dangerous rather than broken — a verifier
 that accepts everything looks exactly like one that works, in front of a group
 anyone can post to.
+
+## 15. A donation tier with no stock LIMIT reads as having no stock LEFT
+
+`DonationPackageView.Recompute` (loon-plugins/donations/models.go):
+
+    v.StockRemaining = v.StockTotal - stockUsed
+    v.Funded         = v.StockRemaining == 0
+
+With `stock_total = 0` — which is what an admin sets for an unlimited tier, and
+what the column defaults to — that is `0 - 0 = 0`, so the tier is Funded before
+anybody has claimed it. The handler then files it under FundedPackages and the
+public page shows it as taken.
+
+Two lines further down the same function guards the other derived field:
+
+    if v.StockTotal > 0 { … PercentRound … }
+
+so the zero case was clearly considered for the percentage and not for the
+flag. That asymmetry is why this reads as an oversight rather than a decision.
+
+Found by configuring three tiers and seeing two.
+
+NOT fixed here, deliberately. It is a change to what a money-facing flag means
+in a plugin shared with a live site, and the fix depends on an answer this host
+cannot give: does `stock_total = 0` mean "unlimited" or "none"? If unlimited,
+Funded should be `StockTotal > 0 && StockRemaining == 0`. If none, the admin
+form should refuse 0 rather than silently creating a tier nobody can buy.
+
+The host side IS fixed: help_donate.html renders FundedPackages as well as
+Packages, so a genuinely sold-out tier shows as claimed instead of vanishing.
