@@ -85,7 +85,12 @@
     <header class="panel__header">
         <h2 class="panel__heading">
             <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
-            Results <span class="panel__grouping">{{len .Results}} release{{if ne (len .Results) 1}}s{{end}}</span>
+            {{/* The heading has to say WHICH set this is. With no query the
+                 page lists the newest releases, and calling that "Results"
+                 would imply a search nobody ran — the reader would take an
+                 unfiltered feed for the answer to a question. */}}
+            {{if .Latest}}Latest releases{{else}}Results{{end}}
+            <span class="panel__grouping">{{len .Results}} release{{if ne (len .Results) 1}}s{{end}}</span>
         </h2>
     </header>
     <div class="panel__body panel__body--flush">
@@ -117,10 +122,24 @@
     <span>No results{{if .Query}} for &ldquo;{{.Query}}&rdquo;{{end}}{{if .Group}} in {{.Group}}{{end}}.
         {{if not .Configured}}The crawler isn't set up yet.{{end}}</span>
 </p>
-{{else}}
+{{else if and .Filter .Filter.Narrows}}
+{{/* Filtered the latest down to nothing. Distinct from an empty index, and
+     saying the wrong one is worse than saying nothing: this page reported
+     "Nothing indexed yet" against 160,692 releases the first time it was tried
+     with ?res=1080p, because the only two empty states it knew about were
+     "searched and found none" and "not searched yet". */}}
 <p class="notice notice--info">
     <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
-    <span>Enter a title above, or browse a group from the <a href="/groups">Groups</a> page.</span>
+    <span>No recent releases match these filters. <a href="/search">Clear them</a> to see the latest.</span>
+</p>
+{{else}}
+{{/* Reached only when the LATEST feed is empty AND nothing was narrowing it —
+     an index with nothing in it, or a crawler that has not run. "Type
+     something" would be advice that cannot work, so this says what is true. */}}
+<p class="notice notice--info">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>{{if .Configured}}Nothing indexed yet.{{else}}The crawler isn't set up yet.{{end}}
+        Once there is, this page lists the newest releases.</span>
 </p>
 {{end}}
 </div>

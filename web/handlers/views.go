@@ -873,6 +873,23 @@ var homeBlockOrder = []string{
 	blockTopPosters,
 }
 
+// communityBlocks are the three panels that read as a row rather than as a
+// stack: the busiest groups, the latest threads and who posts most.
+//
+// They are grouped because they are the same KIND of thing — small, ranked,
+// glanceable summaries of activity — and stacking three of them full-width
+// pushes everything below them off the screen for no gain. Each is a short
+// list; none needs the width.
+//
+// A set rather than "the last three", because homeBlockOrder is meant to be
+// reorderable and a positional rule would silently regroup whatever ended up
+// at the bottom.
+var communityBlocks = map[string]bool{
+	blockTopGroups:    true,
+	blockLatestTopics: true,
+	blockTopPosters:   true,
+}
+
 // homeBlock is one section of the stack. Data is the block's own view model —
 // []widgetVM, []searchRow, []groupRowVM, []forumThreadVM, []forumPosterVM, or
 // (for blockNoReleases) the Configured bool — depending on Name.
@@ -1099,6 +1116,21 @@ func (w *web) search(c *gin.Context) {
 			res, err = w.usenet.Browse(c.Request.Context(), f.Group, listingLimit)
 		case q != "":
 			res, err = w.usenet.Search(c.Request.Context(), q, listingLimit)
+		default:
+			// Nothing asked for yet: show the newest releases rather than an
+			// empty page.
+			//
+			// A search box above a "type something" notice is a dead end — the
+			// one page a reader lands on with no idea what is in the index, and
+			// it shows them nothing that is in the index. The latest feed
+			// answers that for free: it is the same Feed the home page reads,
+			// and the facet bar built below then turns it into something
+			// browsable rather than something to be typed at.
+			//
+			// A nil category set means every category — the Feed contract says
+			// so, which is why there is no list to keep in step here.
+			res, _, err = w.usenet.Feed(c.Request.Context(), nil, listingLimit, 0)
+			data["Latest"] = true
 		}
 		if err == nil {
 			ctx := c.Request.Context()

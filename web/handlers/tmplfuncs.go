@@ -131,6 +131,9 @@ func tmplHelpers() template.FuncMap {
 		"ellipsis": markdown.Ellipsis,
 		"excerpt":  markdown.Excerpt,
 		"str":      str_,
+		// isCommunityBlock lets home.html render the three summary panels in
+		// one row instead of three full-width sections. See communityBlocks.
+		"isCommunityBlock": func(name string) bool { return communityBlocks[name] },
 		// percent and f2i back the funding bar on the donate page.
 		//
 		// They exist in the donations plugin's OWN FuncMap too, and that is not

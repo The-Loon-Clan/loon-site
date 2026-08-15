@@ -33,6 +33,17 @@ type releaseFilter struct {
 	Sort       string // one of sortOptions
 }
 
+// Narrows reports whether this filter actually excludes anything.
+//
+// Sort is deliberately NOT counted: reordering a list shows the same releases,
+// so a page that found nothing under a sort found nothing for a different
+// reason. The distinction matters on the empty-search page, where "no releases
+// match these filters" and "nothing is indexed" are both plausible and only one
+// of them is ever true.
+func (f releaseFilter) Narrows() bool {
+	return f.Resolution != "" || f.Source != "" || f.Group != ""
+}
+
 // sortOptions are the orderings offered, in menu order. Keyed by the ?sort=
 // value so a bookmarked URL keeps working.
 var sortOptions = []struct{ Key, Label string }{

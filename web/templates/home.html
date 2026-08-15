@@ -101,16 +101,40 @@
      already says this to a sighted reader and a second title under it would be
      a heading nobody asked for. */}}
 <h1 class="visually-hidden">loon indexer — the latest Usenet releases</h1>
+{{/* Two passes over one ordered list.
+
+     The full-width blocks render in order, then the three community summaries
+     render together in a row that reflows — three across when there is room,
+     two when there is not, one on a phone. They are the same kind of thing
+     (short ranked lists nobody reads end to end), and stacking three of them
+     full-width pushed the footer a screen and a half down for no gain.
+
+     Two passes rather than a wrapper opened mid-loop, because the block list is
+     FILTERED to whatever has data: "the first of the three" is not a position
+     that can be tested for, and a wrapper opened on a block that turned out to
+     be absent would never be closed. */}}
 {{- range .Blocks}}
-    {{- if eq .Name "widgets"}}{{template "block-widgets" .Data}}
+    {{- if isCommunityBlock .Name}}{{else if eq .Name "widgets"}}{{template "block-widgets" .Data}}
     {{- else if eq .Name "featured"}}{{template "block-featured" .Data}}
     {{- else if eq .Name "latest_releases"}}{{template "block-latest-releases" .Data}}
     {{- else if eq .Name "no_releases"}}{{template "block-nothing-yet" .Data}}
     {{- else if eq .Name "popular"}}{{template "block-popular" .Data}}
-    {{- else if eq .Name "top_groups"}}{{template "block-top-groups" .Data}}
+    {{- end}}
+{{- end}}
+
+{{/* The row itself, and only when something is in it: an empty grid still
+     carries its gap and would leave a band of nothing above the footer. */}}
+{{- $community := false}}
+{{- range .Blocks}}{{if isCommunityBlock .Name}}{{$community = true}}{{end}}{{end}}
+{{- if $community}}
+<div class="home-community">
+    {{- range .Blocks}}
+    {{- if eq .Name "top_groups"}}{{template "block-top-groups" .Data}}
     {{- else if eq .Name "latest_topics"}}{{template "block-latest-topics" .Data}}
     {{- else if eq .Name "top_posters"}}{{template "block-top-posters" .Data}}
     {{- end}}
+    {{- end}}
+</div>
 {{- end}}
 {{end}}{{/* content */}}
 

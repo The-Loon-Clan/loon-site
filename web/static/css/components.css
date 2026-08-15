@@ -1361,6 +1361,31 @@ a.stat-tile:hover {
     .panel__header { flex-wrap: wrap; }
 }
 
+/* --------------------------------------------------- home-community ------- */
+
+/* The three summary panels at the foot of the home page, as a row.
+ *
+ * auto-fit with a minimum, not three fixed columns: the row decides for itself
+ * how many fit, so it is three across on a desktop, two on a tablet and one on
+ * a phone with no breakpoints to keep in step with the panels inside it. 20rem
+ * is the width below which these lists start wrapping their own rows — a
+ * ranked name and a figure beside it — so it is the point at which a column
+ * stops being worth having.
+ *
+ * align-items: start so a short panel does not stretch to match a tall one and
+ * leave a stripe of empty surface under its last row.
+ */
+.home-community {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    align-items: start;
+    gap: var(--space-4);
+}
+
+/* The panels inside carry their own bottom margin from the stack they used to
+   be part of; in a grid the gap does that job and the margin doubles it. */
+.home-community > .panelV2 { margin-bottom: 0; }
+
 /* ------------------------------------------------------------ donate ------ */
 
 /* The donate page's layout, in this site's vocabulary.
