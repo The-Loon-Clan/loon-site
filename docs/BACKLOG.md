@@ -381,3 +381,32 @@ form) and worth closing anyway, because the fix is the same one line in
 `authflow.ChangePassword` and in `account`'s handler, and because "trimmed
 here, raw there" is exactly the inconsistency that made the original bug
 invisible.
+
+## 11. Flair store takes USD/crypto (design done, implementation in loon-plugins)
+
+Design: [FLAIR-PAYMENTS.md](FLAIR-PAYMENTS.md).
+
+Three surfaces, two currencies, one money rail. Donate and a USD store are the
+SAME mechanism — both raise an invoice, both wait for the same HMAC-verified
+webhook, both grant on settlement, and the only difference is what the
+settlement handler does with the money. A donation is a purchase whose item is
+points. The points store is untouched and keeps ranks and invites.
+
+The work is in `loon-plugins`, which is shared and runs a live site:
+
+- `pluginapi/checkout.go` — a new `Checkout` capability, additive, breaks
+  nothing. Third of its kind after `RankGranter` and `InviteGranter`, and
+  `RankGranter`'s own doc already anticipates external money as a payment path.
+- `donations` — publish it. All the machinery exists; this exposes it.
+- `pointstore` — consume it, price flair in fiat, declare the dependency in
+  `Metadata.Requires` so the shop degrades to unavailable when donations is off
+  (which is this host's default, behind `LOON_DONATIONS`).
+
+Four properties to test, each with a specific failure behind it: grant on
+settlement and never on checkout; idempotent per `Ref`, because webhooks retry;
+verify the AMOUNT against the price recorded at invoice time, since crypto
+underpayment is normal; and degrade when the rail is absent rather than
+rendering as free.
+
+The host needs no change, which is the test of whether the seam is in the right
+place.
