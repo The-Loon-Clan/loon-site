@@ -337,3 +337,26 @@ than squeezed in.
 * `/admin/jobs/config` shows as a 404 in the crawler. That is the CRAWLER: it
   strips query strings and the real link carries `?name=`. Recorded so nobody
   chases it twice.
+
+## 9. Mojibake in release titles (2,008 rows)
+
+Found by the first W3C validation run — see docs/QUALITY.md.
+
+2,008 rows in `usenet.nzbs` have titles containing C1 control characters
+(the U+0080..U+009F range), which are forbidden in HTML and meaningless as
+text. The cause is a double decode at ingest: UTF-8 bytes read as Latin-1 and
+re-encoded, so a single mathematical operator becomes a six-character run of
+accented Latin.
+
+Count them with a regex over that range against `usenet.nzbs.title`.
+
+Two halves, owned by different repositories:
+
+- **The decode**, in the usenet plugin's subject handling. That is where new
+  rows keep being written wrong, so nothing else matters until it is fixed.
+- **The stored rows**, which need a one-off repair once the decode is right.
+  Repairing first just re-breaks them on the next crawl.
+
+The host could also strip C1 controls at render, which fixes the invalid HTML
+without fixing the titles. Worth doing as a floor, not as the answer: a
+stripped title still reads as mojibake to the member, just legally.

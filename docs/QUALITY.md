@@ -34,7 +34,7 @@ Numbers taken Aug 2026. Re-run them rather than trusting this table.
 | Test depth | `make cover` | 34.7% with services / 23.0% without |
 | SQL safety | `scripts/sqllint.py` | clean |
 | Vulnerabilities | `scripts/govulncheck.sh` | 0 |
-| **HTML validity** | W3C Nu validator | **never run** |
+| HTML validity | `scripts/htmlvalidate.sh` | 16 errors, all one cause (below) |
 | **Accessibility** | `pa11y-ci` / `axe-core` vs WCAG 2.2 AA | **never run** |
 | **Performance** | Lighthouse CI (LCP/INP/CLS) | **never run** |
 | **Security posture** | OWASP ASVS L1 checklist | partial — CSRF, CSP, sanitiser, password rules done |
@@ -150,6 +150,33 @@ widely adopted third-party one). Both are worth reading against
   htmx notices swap into.
 - **Lighthouse CI** — Core Web Vitals, and it will have opinions about the
   48 KB category grid.
+
+### What the first HTML validation run found
+
+`scripts/htmlvalidate.sh` runs the official W3C validator image against five
+pages. First run: 98 errors, 82 of them htmx attributes (filtered, with the
+reasoning in the script) and **16 real ones, all the same cause**.
+
+`Forbidden code point U+0086` / `U+0088` — C1 control characters in release
+titles, emitted straight into the page. The extract gives the mechanism away:
+a mojibake run beginning `[B` followed by the tell-tale `A-circumflex` sequence.
+
+That is U+2206 (bytes `E2 88 86`) decoded as UTF-8, re-read as Latin-1 — giving
+U+00E2, U+0088, U+0086 — and re-encoded. A classic double decode.
+
+**2,008 stored titles are affected**, counted directly against the C1 range
+U+0080..U+009F rather than estimated.
+
+So this is a data-integrity finding rather than a markup nit: those titles are
+displayed wrong to every visitor, and the invalid HTML is the symptom that made
+it visible. The decode happens at ingest, which is the usenet plugin's, so the
+fix is not in this repository — the host could defend at render, and neither is
+done yet. See BACKLOG.md item 9.
+
+Worth noting how nearly this was missed. The first version of the script wrote
+the pages to a `mktemp -d` and mounted it; on Windows that path is not
+mountable, `/work` was empty, and the validator **exited 0 having checked
+nothing**. It looked exactly like a clean run.
 
 ### Release and supply chain
 
