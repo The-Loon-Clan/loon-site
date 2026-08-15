@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/i18n"
+
 	"github.com/the-loon-clan/loon-site/internal/markdown"
 
 	site "github.com/the-loon-clan/loon-site"
@@ -21,8 +23,8 @@ import (
 // renderUserTag executes just the component, the way a page invokes it.
 func renderUserTag(t *testing.T, arg map[string]any) string {
 	t.Helper()
-	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
-	tmpl, err := template.New("t").Funcs(w.tmplFuncs()).ParseFS(site.FS,
+	w := &web{log: slog.Default(), tmpls: map[string]map[string]*template.Template{i18n.Default().Key(): {}}}
+	tmpl, err := template.New("t").Funcs(w.tmplFuncs(i18n.Default())).ParseFS(site.FS,
 		"web/templates/site_chrome.html")
 	if err != nil {
 		t.Fatalf("parse: %v", err)

@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/i18n"
+
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -28,13 +30,13 @@ import (
 func dashWeb(t *testing.T) *web {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	w := &web{log: slog.Default(), tmpls: map[string]map[string]*template.Template{i18n.Default().Key(): {}}}
 	w.auth = webauth.Auth{Session: session.Config{Secret: []byte("test-secret-test-secret-abc")}}
 	tmpl, err := parseSet(w, "admin_dashboard.html")
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	w.tmpls["admin_dashboard.html"] = tmpl
+	w.tmpls[i18n.Default().Key()]["admin_dashboard.html"] = tmpl
 	return w
 }
 
@@ -129,13 +131,13 @@ func TestItoaGroupsThousands(t *testing.T) {
 // else.
 func TestRenderPreservesHandlerStatus(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	w := &web{log: slog.Default(), tmpls: map[string]map[string]*template.Template{i18n.Default().Key(): {}}}
 	w.auth = webauth.Auth{Session: session.Config{Secret: []byte("test-secret-test-secret-abc")}}
 	tmpl, err := parseSet(w, "admin_dashboard.html")
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	w.tmpls["admin_dashboard.html"] = tmpl
+	w.tmpls[i18n.Default().Key()]["admin_dashboard.html"] = tmpl
 
 	for _, tc := range []struct {
 		name string

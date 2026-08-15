@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/i18n"
+
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"github.com/the-loon-clan/loon-site/internal/middleware"
@@ -73,8 +75,11 @@ type web struct {
 	log       *slog.Logger
 	// data is the site's own SQL, behind one handle. It replaced eight
 	// package-level *sqlx.DB globals and the 44 nil guards that defended them.
-	data  *storage.Store
-	tmpls map[string]*template.Template // page name -> parsed (base + page)
+	data *storage.Store
+	// tmpls is keyed by LOCALE then page. One parsed set per supported
+	// language, because timeAgo and shortDate are bound to a locale in the
+	// FuncMap — see tmplFuncs. Built once at boot.
+	tmpls map[string]map[string]*template.Template
 
 	// usenet plugin read capability, looked up on the extension registry after
 	// Boot (the plugin's ADMIN surface is no longer consumed here — the plugin
@@ -164,7 +169,7 @@ func newWeb(store users.Store, secret []byte, log *slog.Logger, data *storage.St
 		data:   data,
 		flow:   authflow.Flow{Users: store, Hasher: password.Hasher{}, DefaultRole: core.RoleUser, MinPasswordLen: minPasswordLen},
 		log:    log,
-		tmpls:  map[string]*template.Template{},
+		tmpls:  map[string]map[string]*template.Template{},
 		covers: newCoverCache(),
 	}
 	// Session + current-user middleware from the baseline — the exact prod
@@ -207,8 +212,16 @@ func newWeb(store users.Store, secret []byte, log *slog.Logger, data *storage.St
 	// another page, then the page itself. The page is parsed LAST on purpose:
 	// a {{define}} there overrides the same name in base.html, which is how a
 	// page can replace a shell block ("stat-strip" on the home page).
-	for _, page := range pageTemplates {
-		w.tmpls[page] = template.Must(template.New(page).Funcs(w.tmplFuncs()).ParseFS(site.FS, pageFiles(page)...))
+	//
+	// Once per supported language: the FuncMap carries locale-bound date
+	// helpers, so the set a request renders from decides what language its
+	// dates come out in without any template naming a locale.
+	for _, loc := range i18n.Locales {
+		set := make(map[string]*template.Template, len(pageTemplates))
+		for _, page := range pageTemplates {
+			set[page] = template.Must(template.New(page).Funcs(w.tmplFuncs(loc)).ParseFS(site.FS, pageFiles(page)...))
+		}
+		w.tmpls[loc.Key()] = set
 	}
 	return w
 }
@@ -610,6 +623,12 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 			data["PendingAvatars"] = n
 		}
 	}
+	// The request's language, for <html lang> and the picker. Resolved here so
+	// every page gets it without each handler remembering to — a page that
+	// forgot would render lang="" and tell a screen reader nothing.
+	loc := w.locale(c)
+	data["Lang"] = loc.Key()
+	data["Locales"] = localeOptions(loc)
 	data["CSRFToken"] = middleware.Token(c) // hidden _csrf field for every POST form
 	if u != nil {
 		// Viewer identity bits the user panel + top bar show. Both come off the
@@ -765,7 +784,14 @@ func (w *web) render(c *gin.Context, page string, data map[string]any) {
 // starts streaming the header is already gone.
 func (w *web) renderStatus(c *gin.Context, status int, page string, data map[string]any) {
 	data = w.chromeData(c, data)
-	t := w.tmpls[page]
+	// The set for this request's language. chromeData resolved it already and
+	// cached it on the context, so this is a map lookup rather than a second
+	// pass over the headers.
+	set := w.tmpls[w.locale(c).Key()]
+	if set == nil {
+		set = w.tmpls[i18n.Default().Key()]
+	}
+	t := set[page]
 	if t == nil {
 		c.String(http.StatusInternalServerError, "unknown page %q", page)
 		return
@@ -774,7 +800,7 @@ func (w *web) renderStatus(c *gin.Context, status int, page string, data map[str
 		// Re-read from disk so a template edit shows on refresh. Unlike the boot
 		// path this must NOT template.Must — a half-saved file would kill the
 		// server mid-edit; show the parse error in the browser and stay up.
-		fresh, err := template.New(page).Funcs(w.tmplFuncs()).ParseFS(site.FS, pageFiles(page)...)
+		fresh, err := template.New(page).Funcs(w.tmplFuncs(w.locale(c))).ParseFS(site.FS, pageFiles(page)...)
 		if err != nil {
 			c.String(http.StatusInternalServerError, "template %s: %v", page, err)
 			return

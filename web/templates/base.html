@@ -3,7 +3,11 @@
      .Theme.Key, never the raw cookie) so a stylesheet can key off the document
      element as well as off the token file site-head links. Same attribute on
      the forum set's fhead. */}}
-<html lang="en" data-theme="{{.Theme.Key}}">
+{{/* lang is the REQUEST's language, not a constant. It picks the font a
+     browser falls back to for CJK, tells a screen reader which voice to use,
+     and is what a translation tool reads before deciding whether to offer. A
+     hardcoded "en" over Japanese text is wrong in all three. */}}
+<html lang="{{.Lang}}" data-theme="{{.Theme.Key}}">
 <head>
     {{/* site-head leads with <meta charset>, so it goes before <title> — the
          title carries an em dash and must not be sniffed as anything else. */}}

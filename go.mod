@@ -21,6 +21,7 @@ require (
 	github.com/the-loon-clan/loon v0.0.0-20260812212233-90e72a7524b9
 	github.com/the-loon-clan/loon-baseline v0.0.0-20260725031118-59273104365c
 	github.com/the-loon-clan/loon-plugins v0.0.0-20260815084512-3a370239a23e
+	golang.org/x/text v0.41.0
 )
 
 require (
@@ -58,6 +59,5 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/arch v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 )

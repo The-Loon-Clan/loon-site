@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/i18n"
+
 	site "github.com/the-loon-clan/loon-site"
 
 	"bytes"
@@ -65,13 +67,13 @@ var shellTemplates = map[string]bool{
 // calling the SAME pageFiles the production path calls, so this test cannot
 // drift from it the way a hand-copied file list would.
 func parseSet(w *web, page string) (*template.Template, error) {
-	return template.New(page).Funcs(w.tmplFuncs()).ParseFS(site.FS, pageFiles(page)...)
+	return template.New(page).Funcs(w.tmplFuncs(i18n.Default())).ParseFS(site.FS, pageFiles(page)...)
 }
 
 // TestPageTemplatesParse builds the host's per-page template sets the same way
 // newWeb does. A parse error here is a boot-time panic in production.
 func TestPageTemplatesParse(t *testing.T) {
-	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	w := &web{log: slog.Default(), tmpls: map[string]map[string]*template.Template{i18n.Default().Key(): {}}}
 	for _, page := range pageTemplates {
 		tmpl, err := parseSet(w, page)
 		if err != nil {
@@ -410,7 +412,7 @@ func chromeKeys() map[string]any {
 // are not build errors, not vet errors, and not boot panics. render() only
 // logs them, so the browser silently receives a truncated page.
 func TestPagesExecuteWithNoData(t *testing.T) {
-	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	w := &web{log: slog.Default(), tmpls: map[string]map[string]*template.Template{i18n.Default().Key(): {}}}
 	for _, page := range pageTemplates {
 		tmpl := template.Must(parseSet(w, page))
 
@@ -434,7 +436,7 @@ func TestPagesExecuteWithNoData(t *testing.T) {
 // every per-viewer key render() can set, including a GENUINE ZERO for points
 // and unread — the case the Has* sentinels exist for.
 func TestPagesExecuteForSignedInViewer(t *testing.T) {
-	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	w := &web{log: slog.Default(), tmpls: map[string]map[string]*template.Template{i18n.Default().Key(): {}}}
 	u := &core.User{ID: 1, Username: "alice", Role: core.RoleAdmin, CreatedAt: time.Now().Add(-72 * time.Hour)}
 	for _, page := range pageTemplates {
 		tmpl := template.Must(parseSet(w, page))
@@ -493,7 +495,7 @@ func TestPagesExecuteForSignedInViewer(t *testing.T) {
 // branches, the tag rows and the pagination arithmetic all actually run. The
 // no-data test proves the guards hold; this proves the bodies work.
 func TestPagesExecuteWithRealData(t *testing.T) {
-	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	w := &web{log: slog.Default(), tmpls: map[string]map[string]*template.Template{i18n.Default().Key(): {}}}
 	u := &core.User{ID: 1, Username: "alice", Role: core.RoleAdmin, CreatedAt: time.Now().Add(-500 * time.Hour)}
 	now := time.Now()
 
@@ -1018,7 +1020,7 @@ var wantSheetOrder = []string{
 // emitted <link> order — including that exactly ONE theme is linked (the themes
 // are complete token sets, so a second would silently win) and theme.css last.
 func TestStylesheetOrder(t *testing.T) {
-	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	w := &web{log: slog.Default(), tmpls: map[string]map[string]*template.Template{i18n.Default().Key(): {}}}
 	tmpl := template.Must(parseSet(w, "home.html"))
 	for _, th := range siteThemes {
 		want := append([]string(nil), wantSheetOrder...)
@@ -1098,7 +1100,7 @@ func TestHostileThemeNameNeverReachesThePage(t *testing.T) {
 		allowed[th.Href] = true
 	}
 
-	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	w := &web{log: slog.Default(), tmpls: map[string]map[string]*template.Template{i18n.Default().Key(): {}}}
 	tmpl := template.Must(parseSet(w, "home.html"))
 
 	for _, name := range hostile {
@@ -1191,7 +1193,7 @@ func homeBlockFixtures() map[string]any {
 // renderHome executes home.html through base.html with the given block list.
 func renderHome(t *testing.T, blocks []homeBlock, extra map[string]any) string {
 	t.Helper()
-	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	w := &web{log: slog.Default(), tmpls: map[string]map[string]*template.Template{i18n.Default().Key(): {}}}
 	tmpl := template.Must(parseSet(w, "home.html"))
 	data := chromeKeys()
 	data["Title"] = "Home"
@@ -1474,7 +1476,7 @@ func TestDailyRewardClaimLinkMatchesTheCardsAnchor(t *testing.T) {
 // half is asserted too, since the failure is a dead tab on every site running
 // store without rewards.
 func TestRewardsTabAndPageAgree(t *testing.T) {
-	w := &web{log: slog.Default(), tmpls: map[string]*template.Template{}}
+	w := &web{log: slog.Default(), tmpls: map[string]map[string]*template.Template{i18n.Default().Key(): {}}}
 
 	// No rewards widget registered: no tab, or the strip advertises a page
 	// this host does not serve.

@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/i18n"
+
 	"fmt"
 	"hash/fnv"
 	"html/template"
@@ -60,9 +62,24 @@ func pageFiles(page string) []string {
 // tmplFuncs exposes host helpers to templates. {{captcha}} renders the
 // Turnstile widget (empty when captcha is disabled), so any form can drop it
 // in; everything else comes from tmplHelpers (pure, host-independent).
-func (w *web) tmplFuncs() template.FuncMap {
+func (w *web) tmplFuncs(loc i18n.Locale) template.FuncMap {
 	fns := tmplHelpers()
 	fns["captcha"] = func() template.HTML { return w.captcha.Widget() }
+	// timeAgo and shortDate are BOUND TO A LOCALE here, which is why there is
+	// one parsed template set per language rather than one set and a locale
+	// argument at every call site.
+	//
+	// The alternative was {{timeAgo $.Locale .CreatedAt}} in 76 templates, and
+	// then in 83 plugin ones, and then forever in every new one — a change
+	// nobody can finish and which fails silently where it is missed, because a
+	// date in the wrong language still renders. Closing over the locale here
+	// makes every existing call site correct without being edited.
+	//
+	// The cost is parsing the page set once per supported language at boot.
+	// Templates are cheap and there are three languages; the sets are built
+	// once and never rebuilt.
+	fns["timeAgo"] = func(t time.Time) string { return loc.Ago(t, time.Now()) }
+	fns["shortDate"] = loc.Short
 	return fns
 }
 

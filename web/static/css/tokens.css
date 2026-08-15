@@ -85,7 +85,18 @@
        System stack only: no webfont, no CDN, no external request.
        --fs-base is body copy; the steps below it are the UI sizes (labels,
        table cells, meta lines), the steps above are headings. */
-    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    /* CJK families appended, not substituted. Font fallback is per CHARACTER:
+       Latin still comes from system-ui, and only glyphs no earlier family
+       covers reach these. Without them a zh or ja page falls through to
+       whatever the browser picks last, which on Windows is a serif that looks
+       nothing like the rest of the site.
+
+       System families, not a webfont: Noto Sans CJK is ~16MB per weight, which
+       is more than every other asset this site serves put together. */
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+                 "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei",
+                 "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", Meiryo,
+                 "Noto Sans CJK SC", "Noto Sans CJK JP", sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
     /* Measured against a live UNIT3D (ClearJav) at the same viewport, because

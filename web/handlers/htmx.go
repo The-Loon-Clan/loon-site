@@ -42,6 +42,8 @@ package handlers
 //     untouched, which is what keeps rule 1 true.
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/i18n"
+
 	"html/template"
 	"net/http"
 
@@ -202,7 +204,7 @@ func (w *web) renderRefusal(c *gin.Context, page, text string) {
 // diverge on which set they execute against.
 func (w *web) fragmentSet(c *gin.Context, page string) (*template.Template, bool) {
 	if site.DevReload {
-		fresh, err := template.New(page).Funcs(w.tmplFuncs()).ParseFS(site.FS, pageFiles(page)...)
+		fresh, err := template.New(page).Funcs(w.tmplFuncs(w.locale(c))).ParseFS(site.FS, pageFiles(page)...)
 		if err != nil {
 			w.log.Error("fragment parse", "page", page, "err", err)
 			c.String(http.StatusInternalServerError, "template %s: %v", page, err)
@@ -210,7 +212,14 @@ func (w *web) fragmentSet(c *gin.Context, page string) (*template.Template, bool
 		}
 		return fresh, true
 	}
-	t := w.tmpls[page]
+	// Same per-locale set the full page render uses. A fragment swapped into a
+	// Japanese page has to come back in Japanese, or htmx quietly reverts half
+	// the screen to English on every interaction.
+	set := w.tmpls[w.locale(c).Key()]
+	if set == nil {
+		set = w.tmpls[i18n.Default().Key()]
+	}
+	t := set[page]
 	if t == nil {
 		c.String(http.StatusInternalServerError, "unknown page %q", page)
 		return nil, false
