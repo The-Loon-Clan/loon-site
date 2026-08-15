@@ -20,26 +20,75 @@
      a payment funnel for a demo that cannot take payments would be theatre. */}}
 {{template "fhead" .}}
 
+{{/* The masthead the forum pages use — see .page-head in components.css. A
+     page asking for money should say what it is and what the money is for
+     before it shows a table of line items. */}}
+<div class="panelV2">
+    <div class="page-head">
+        <span class="page-head__icon"><svg class="icon" aria-hidden="true"><use href="#coin"></use></svg></span>
+        <div class="page-head__body">
+            <h1 class="page-head__title">Support the site</h1>
+            <p class="page-head__desc">
+                What it costs to run this indexer, and where the money goes. Every
+                figure below is a real bill.
+            </p>
+            {{if .TotalMonthlyUSD}}
+            <div class="page-head__stats">
+                <span class="page-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#coin"></use></svg><strong>${{printf "%.2f" .TotalMonthlyUSD}}</strong> per month</span>
+                {{if .TotalAnnualUSD}}<span class="page-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#calendar"></use></svg><strong>${{printf "%.2f" .TotalAnnualUSD}}</strong> per year</span>{{end}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+</div>
+
+{{/* There is nothing to click unless an admin has published a wallet.
+     Said plainly rather than left to be inferred from a costs table with no
+     button under it: a page that asks for help and offers no way to give it
+     reads as broken, and the reader cannot tell whether they missed something.
+
+     AddressesHidden is the admin's own "do not display wallets" switch, so
+     both it and the absence of any address mean the same thing here. */}}
+{{if or .AddressesHidden (not (or .BTCAddress .ETHAddress .XMRAddress))}}
+<p class="notice notice--info">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    No payment method is published yet, so there is nothing to send to from this
+    page. The costs below are still real — an admin can add a wallet under
+    <a href="/admin/donate">donations</a>.
+</p>
+{{end}}
+
 <section class="panelV2">
     <header class="panel__header">
-        <h1 class="panel__heading">
-            <svg class="icon" aria-hidden="true"><use href="#coin"></use></svg>
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
             Running costs
-        </h1>
-        {{if .TotalMonthlyUSD}}
-        <div class="panel__actions"><span class="panel__action">${{printf "%.2f" .TotalMonthlyUSD}} / month</span></div>
-        {{end}}
+        </h2>
     </header>
 
     {{if .Groups}}
     {{range .Groups}}
     <div class="panel__body">
-        <h2 class="h5">{{.Name}}{{if .Locks}} <span class="tag">locks when funded</span>{{end}}</h2>
+        <h3 class="h5 fund__name">{{.Name}}{{if .Locks}} <span class="tag">locks when funded</span>{{end}}</h3>
         {{if .MonthlyGoalUSD}}
-        <p class="meta__line">
-            <span class="meta__item">${{printf "%.2f" .MonthlyRaisedUSD}} of ${{printf "%.2f" .MonthlyGoalUSD}} monthly</span>
-            {{if .YearlyGoalUSD}}<span class="meta__item">${{printf "%.2f" .YearlyRaisedUSD}} of ${{printf "%.2f" .YearlyGoalUSD}} yearly</span>{{end}}
-        </p>
+        {{/* A bar, not just the pair of numbers. "$25.00 of $42.00" is
+             arithmetic the reader has to do to learn the one thing they came
+             for; the bar IS the answer, and the numbers stay beside it for
+             anyone who wants the exact figures.
+
+             percent is the plugin's own helper and already clamps to 0..100,
+             so an over-funded month reads as full rather than as a bar
+             running off its track. */}}
+        <div class="fund">
+            <div class="fund__track" role="img"
+                 aria-label="${{printf "%.2f" .MonthlyRaisedUSD}} raised of ${{printf "%.2f" .MonthlyGoalUSD}} monthly">
+                <div class="fund__fill" style="width:{{percent (f2i .MonthlyRaisedUSD) (f2i .MonthlyGoalUSD)}}%"></div>
+            </div>
+            <p class="fund__figures">
+                <span>${{printf "%.2f" .MonthlyRaisedUSD}} of ${{printf "%.2f" .MonthlyGoalUSD}} monthly</span>
+                {{if .YearlyGoalUSD}}<span class="text-muted">&middot; ${{printf "%.2f" .YearlyRaisedUSD}} of ${{printf "%.2f" .YearlyGoalUSD}} yearly</span>{{end}}
+            </p>
+        </div>
         {{end}}
         {{if .Items}}
         <div class="data-table-wrapper">

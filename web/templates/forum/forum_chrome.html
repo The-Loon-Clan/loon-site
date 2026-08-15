@@ -20,12 +20,24 @@
 {{/* Same data-theme base.html carries — chromeData() supplies .Theme on this
      side too (forum_web.go BaseData runs through it), so the forum pages theme
      themselves without a second code path. */}}
-<html lang="en" data-theme="{{.Theme.Key}}">
+{{/* lang and title come from the REQUEST, not from the forum.
+
+     This wrapper is shared by eighteen pages — the forum, communities,
+     playlists, the donate pages and the plugin error page — and it hardcoded
+     both. So every one of them reported <title>Forums</title>, which is what a
+     reader sees in a tab strip: the donate page, a playlist and a community all
+     called "Forums". And every one reported lang="en" whatever the request
+     asked for, which is the whole point of the locale work in internal/i18n
+     silently not applying to a fifth of the site.
+
+     Both fall back rather than assume: a page in this set that sets no Title
+     gets the site name alone, which is a smaller lie than another page's. */}}
+<html lang="{{if .Lang}}{{.Lang}}{{else}}en{{end}}" data-theme="{{.Theme.Key}}">
 <head>
     {{/* site-head leads with <meta charset>, so it goes before <title> — the
          title carries an em dash and must not be sniffed as anything else. */}}
     {{template "site-head" .}}
-    <title>Forums — loon indexer</title>
+    <title>{{if .Title}}{{.Title}} — loon indexer{{else}}loon indexer{{end}}</title>
 </head>
 <body>
 {{template "site-sprite" .}}
@@ -98,7 +110,7 @@
     <li class="breadcrumbV2"><a class="breadcrumb__link" href="/playlists">Playlists</a></li>
     {{with .Title}}<li class="breadcrumb--active">{{.}}</li>{{end}}
     {{end}}
-    {{else if hasPrefix .Path "/donate"}}
+    {{else if hasPrefix .Path "/help/donate"}}
     <li class="breadcrumb--active">Donate</li>
     {{else if hasPrefix .Path "/admin/donate"}}
     <li class="breadcrumb--active">Donations</li>

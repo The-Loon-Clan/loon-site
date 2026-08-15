@@ -626,6 +626,22 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 			data["PendingAvatars"] = n
 		}
 	}
+	// A page that set no title gets one from the site's own page map.
+	//
+	// The plugin pages rendered through fhead mostly set none, so every one of
+	// them fell back to the site name — the donate page, a playlist and a
+	// community all sharing one tab label. The map already exists and is
+	// already reviewed (accessadmin_web.go); this reads it rather than adding a
+	// second list of what pages are called, which would drift from the first.
+	//
+	// Only when ABSENT. A page that set its own title knows better than a table
+	// does — a thread is called after the thread, not after "Forums".
+	if t, ok := data["Title"].(string); !ok || t == "" {
+		if name := pageTitleFor(c.Request.URL.Path); name != "" {
+			data["Title"] = name
+		}
+	}
+
 	// The request's language, for <html lang> and the picker. Resolved here so
 	// every page gets it without each handler remembering to — a page that
 	// forgot would render lang="" and tell a screen reader nothing.

@@ -51,6 +51,8 @@ var accessRoutes = []struct{ Path, Label, Note string }{
 	{"/stats", "Stats", ""},
 	{"/about", "About", ""},
 	{"/sitemap", "Sitemap", ""},
+	{"/playlists", "Playlists", ""},
+	{"/help/donate", "Donate", "Dev-only: needs LOON_DONATIONS=1."},
 	{"/u/:name", "Member profile", "A member may also set their own profile private."},
 	{"/login", "Sign in", "A door: always reachable, or nobody could get in."},
 	{"/register", "Register", "Also gated by the registration mode above."},
@@ -132,4 +134,31 @@ func (w *web) adminAccessSave(c *gin.Context) {
 	}
 	w.log.Info("access settings changed", "registration", reg, "browsing", browse)
 	c.Redirect(http.StatusFound, "/admin/access?saved=1")
+}
+
+// pageTitleFor names a path using the same table the access map is built from.
+//
+// For the pages that set no title of their own — most of the plugin pages
+// rendered through fhead — so they stop sharing one tab label. Longest match
+// wins, so /community/forums beats /c, and a path with no entry returns "",
+// which the caller reads as "leave it alone" rather than as a name.
+func pageTitleFor(path string) string {
+	best := ""
+	for _, r := range accessRoutes {
+		p := r.Path
+		if strings.HasSuffix(p, "/*") || strings.Contains(p, ":") {
+			continue // patterns name a whole area, not a page
+		}
+		if path == p || (p != "/" && strings.HasPrefix(path, p+"/")) {
+			if len(p) > len(best) {
+				best, _ = p, r.Label
+			}
+		}
+	}
+	for _, r := range accessRoutes {
+		if r.Path == best {
+			return r.Label
+		}
+	}
+	return ""
 }

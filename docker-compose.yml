@@ -95,6 +95,12 @@ services:
       # unless asked for and must never be set on anything reachable:
       #   LOON_UI_INSPECT=1 docker compose up -d
       LOON_UI_INSPECT: "${LOON_UI_INSPECT:-}"
+      # DEV ONLY: the donation pages and their BTCPay wiring. This one takes
+      # REAL MONEY, so the env flag is the outer gate and the admin toggle sits
+      # inside it — a deployment without the flag reports disabled even with
+      # donate_enabled persisted true:
+      #   LOON_DONATIONS=1 docker compose up -d
+      LOON_DONATIONS: "${LOON_DONATIONS:-}"
       # Metadata-source credentials (optional — set on the host to enable a source).
       # Every source main.go reads must be listed here: an unlisted variable is
       # simply absent inside the container, so the source registers as "not

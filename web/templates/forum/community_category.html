@@ -23,20 +23,20 @@
          a list, so the name is the heading of the page they land on and the
          description sits with it — rather than the name in a one-line strip and
          the description as a first table row that scrolls away. */}}
-    <div class="forum-head">
-        <span class="forum-head__icon"><svg class="icon" aria-hidden="true"><use href="#forums"></use></svg></span>
-        <div class="forum-head__body">
-            <h1 class="forum-head__title">{{.Category.Name}}</h1>
-            {{if .Category.Description}}<p class="forum-head__desc">{{.Category.Description}}</p>{{end}}
+    <div class="page-head">
+        <span class="page-head__icon"><svg class="icon" aria-hidden="true"><use href="#forums"></use></svg></span>
+        <div class="page-head__body">
+            <h1 class="page-head__title">{{.Category.Name}}</h1>
+            {{if .Category.Description}}<p class="page-head__desc">{{.Category.Description}}</p>{{end}}
             {{if not .AccessDenied}}
-            <div class="forum-head__stats">
-                <span class="forum-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#forums"></use></svg><strong>{{.Category.ThreadCount}}</strong> Threads</span>
-                <span class="forum-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#comment"></use></svg><strong>{{.Category.PostCount}}</strong> Posts</span>
+            <div class="page-head__stats">
+                <span class="page-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#forums"></use></svg><strong>{{.Category.ThreadCount}}</strong> Threads</span>
+                <span class="page-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#comment"></use></svg><strong>{{.Category.PostCount}}</strong> Posts</span>
             </div>
             {{end}}
         </div>
         {{if .User}}
-        <div class="forum-head__actions">
+        <div class="page-head__actions">
             <a class="button button--primary button--sm" href="/community/forums/new?category={{.Category.ID}}">
                 <svg class="icon icon--sm" aria-hidden="true"><use href="#plus"></use></svg>New thread
             </a>

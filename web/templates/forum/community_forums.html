@@ -31,23 +31,23 @@
             {{/* The same masthead a category page gets — see community_category
                  .html. Two pages one click apart that name the same kind of
                  thing should introduce it the same way. */}}
-            <div class="forum-head">
-                <span class="forum-head__icon"><svg class="icon" aria-hidden="true"><use href="#forums"></use></svg></span>
-                <div class="forum-head__body">
-                    <h1 class="forum-head__title">Forums</h1>
-                    <p class="forum-head__desc">Discussion, questions and announcements.</p>
-                    <div class="forum-head__stats">
+            <div class="page-head">
+                <span class="page-head__icon"><svg class="icon" aria-hidden="true"><use href="#forums"></use></svg></span>
+                <div class="page-head__body">
+                    <h1 class="page-head__title">Forums</h1>
+                    <p class="page-head__desc">Discussion, questions and announcements.</p>
+                    <div class="page-head__stats">
                         {{/* No forum COUNT here. It was {{len .Categories}}, which
                              blows up on a board with none — Categories is absent
                              from the data map then, and len of a zero Value is an
                              error that aborts the render mid-page. Caught by the
                              empty-board case in templates_test.go, and not worth
                              a guard: the list directly below is the count. */}}
-                        <span class="forum-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#forums"></use></svg><strong>{{.TotalThreads}}</strong> Threads</span>
-                        <span class="forum-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#comment"></use></svg><strong>{{.TotalPosts}}</strong> Posts</span>
+                        <span class="page-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#forums"></use></svg><strong>{{.TotalThreads}}</strong> Threads</span>
+                        <span class="page-head__stat"><svg class="icon icon--sm" aria-hidden="true"><use href="#comment"></use></svg><strong>{{.TotalPosts}}</strong> Posts</span>
                     </div>
                 </div>
-                <div class="forum-head__actions">
+                <div class="page-head__actions">
                     {{/* /admin/forum-categories is gated at RoleMod (plugin.go),
                          so the link shows to the role that can actually use it. */}}
                     {{if .IsMod}}<a class="button button--text button--sm" href="/admin/forum-categories">Manage</a>{{end}}
@@ -78,7 +78,7 @@
                                              NAME and .Color a palette key; this stack
                                              ships neither, so every tile is #forums
                                              rather than a guess at the admin's choice. */}}
-                                        <span class="forum-head__icon" style="width:34px;height:34px">
+                                        <span class="page-head__icon" style="width:34px;height:34px">
                                             <svg class="icon icon--sm" aria-hidden="true"><use href="#forums"></use></svg>
                                         </span>
                                         <div class="data-table__name-body">

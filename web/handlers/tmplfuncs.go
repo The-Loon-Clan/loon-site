@@ -131,6 +131,44 @@ func tmplHelpers() template.FuncMap {
 		"ellipsis": markdown.Ellipsis,
 		"excerpt":  markdown.Excerpt,
 		"str":      str_,
+		// percent and f2i back the funding bar on the donate page.
+		//
+		// They exist in the donations plugin's OWN FuncMap too, and that is not
+		// duplication to remove: that map is used only on the modern render
+		// contract, where the plugin draws its own templates. This host wires
+		// the legacy contract, so the host renders those pages and the host's
+		// map is the one in scope. Same semantics on purpose — clamped, so an
+		// over-funded month reads as full rather than as a bar running off its
+		// track, and a zero or negative goal reads as 0 rather than dividing.
+		"percent": func(a, b int) int {
+			if b <= 0 {
+				return 0
+			}
+			p := a * 100 / b
+			if p < 0 {
+				return 0
+			}
+			if p > 100 {
+				return 100
+			}
+			return p
+		},
+		// f2i coerces the float64 money columns percent takes as ints.
+		// Truncates toward zero; anything unexpected is 0 rather than a panic
+		// in a template, which aborts the page mid-document.
+		"f2i": func(v any) int {
+			switch x := v.(type) {
+			case float64:
+				return int(x)
+			case float32:
+				return int(x)
+			case int:
+				return x
+			case int64:
+				return int(x)
+			}
+			return 0
+		},
 		// suggestURL turns a catalogue title into the search that finds it.
 		// A function rather than a field on the row, because it is a routing
 		// fact and rows are cached as JSON — a URL baked into the cache is a

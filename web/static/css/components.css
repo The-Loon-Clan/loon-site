@@ -1361,6 +1361,45 @@ a.stat-tile:hover {
     .panel__header { flex-wrap: wrap; }
 }
 
+/* -------------------------------------------------------------- fund ------ */
+
+/* A funding bar on the donate page.
+ *
+ * The figures alone ("$25.00 of $42.00") are arithmetic the reader has to do to
+ * learn the one thing they came for. The bar is the answer; the numbers stay
+ * beside it for anyone who wants them exactly.
+ *
+ * role="img" with an aria-label on the track, rather than a <progress>: the
+ * label has to carry currency, and a progress element announces a bare
+ * percentage that means nothing here.
+ */
+.fund { margin: 0 0 4px; }
+.fund__name { margin: 0 0 8px; }
+.fund__track {
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-sunken, var(--surface-2));
+    overflow: hidden;
+}
+.fund__fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--primary);
+    /* A funded goal and an empty one must not look the same at a glance, and a
+       0% fill is invisible — so the track carries the shape and the fill only
+       ever shows what is really there. */
+    min-width: 0;
+}
+.fund__figures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 6px 0 0;
+    font-size: var(--fs-2xs);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
 /* ----------------------------------------------------------- suggest ------ */
 
 /* The quick-search dropdown.
@@ -1479,7 +1518,7 @@ a.stat-tile:hover {
     .data-table--stack .data-table__shrink { margin-left: auto; }
 }
 
-/* --------------------------------------------------------- forum-head ----- */
+/* --------------------------------------------------------- page-head ----- */
 
 /* The masthead on the forums index and on a category: what this board IS,
  * before the list of what is in it.
@@ -1489,7 +1528,7 @@ a.stat-tile:hover {
  * chose from a list deserves to be the heading of the page they land on, with
  * its description beside it rather than as a first table row.
  */
-.forum-head {
+.page-head {
     display: flex;
     align-items: flex-start;
     gap: 14px;
@@ -1500,7 +1539,7 @@ a.stat-tile:hover {
 /* The glyph tile. ForumCategory.Icon is a Bootstrap Icons NAME and .Color a
  * palette key, and this stack ships neither — so every tile is the sprite's
  * #forums glyph rather than a guess at the admin's choice. */
-.forum-head__icon {
+.page-head__icon {
     flex-shrink: 0;
     display: grid;
     place-items: center;
@@ -1510,13 +1549,13 @@ a.stat-tile:hover {
     background: var(--primary-soft);
     color: var(--primary-tint);
 }
-.forum-head__icon .icon { width: 24px; height: 24px; }
+.page-head__icon .icon { width: 24px; height: 24px; }
 
-.forum-head__body { flex: 1; min-width: 0; }
-.forum-head__title { margin: 0; font-size: var(--fs-xl); font-weight: 700; line-height: 1.2; }
-.forum-head__desc { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--muted); }
+.page-head__body { flex: 1; min-width: 0; }
+.page-head__title { margin: 0; font-size: var(--fs-xl); font-weight: 700; line-height: 1.2; }
+.page-head__desc { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--muted); }
 
-.forum-head__stats {
+.page-head__stats {
     display: flex;
     flex-wrap: wrap;
     gap: 14px;
@@ -1524,16 +1563,16 @@ a.stat-tile:hover {
     font-size: var(--fs-2xs);
     color: var(--muted);
 }
-.forum-head__stat { display: inline-flex; align-items: center; gap: 6px; }
-.forum-head__stat strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.page-head__stat { display: inline-flex; align-items: center; gap: 6px; }
+.page-head__stat strong { color: var(--text); font-variant-numeric: tabular-nums; }
 
 /* Actions sit top-right on a wide screen and wrap under the description on a
  * narrow one, which is what the flex-wrap on the parent gives for free. */
-.forum-head__actions { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+.page-head__actions { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
 
 @media (max-width: 40rem) {
-    .forum-head { flex-wrap: wrap; }
-    .forum-head__actions { width: 100%; }
+    .page-head { flex-wrap: wrap; }
+    .page-head__actions { width: 100%; }
 }
 
 /* ------------------------------------------------------- thread rows ------ */
