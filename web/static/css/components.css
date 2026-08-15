@@ -1349,6 +1349,14 @@ a.stat-tile:hover {
     min-width: 0;
 }
 
+/* A panel header holds a heading and its actions on one line, which stops
+   being possible when the line is 390px wide: /groups put "New thread"-style
+   actions 14px past the edge and scrolled the page. Wrapping is the whole fix
+   — the actions drop under the heading and the header grows a row. */
+@media only screen and (max-width: 40rem) {
+    .panel__header { flex-wrap: wrap; }
+}
+
 /* ------------------------------------------------- data-table--stack ------ */
 
 /* A release listing stops being a table on a phone and becomes a list of rows.

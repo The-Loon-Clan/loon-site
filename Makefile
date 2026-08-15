@@ -170,6 +170,19 @@ html:
 lh:
 	@bash scripts/lighthouse.sh
 
+## mobile: every page at 390px, checked for layout that does not fit
+##
+## Needs `make run` first, and Chrome on the host (CHROME= to point at it).
+## Set LOON_COOKIE=mysession=... to include the signed-in pages — a third of
+## the site is behind a login, and that third is where the account bar lives,
+## which is where 14 of the first 15 failures were.
+##
+## Not in `check`, for the same reason html and lh are not: it needs a RUNNING
+## site, and a check that silently passes when the thing it tests is not up is
+## worse than no check. It belongs on the release list — see docs/READINESS.md.
+mobile:
+	@$(PYTHON) scripts/mobile.py
+
 ## grade: print the scorecard in docs/QUALITY.md, measured rather than believed
 ##
 ## Rows that need a running site are SKIPPED with a note rather than scored,
@@ -182,6 +195,7 @@ grade:
 	@printf "  %-22s " "sql safety"; $(PYTHON) scripts/sqllint.py >/dev/null 2>&1 && echo "constants only" || echo "FAIL"
 	@printf "  %-22s " "contrast (WCAG AA)"; $(PYTHON) scripts/contrast.py >/dev/null 2>&1 && echo "all pairs pass" || echo "FAIL — run make contrast"
 	@printf "  %-22s " "vulnerabilities"; bash scripts/govulncheck.sh 2>&1 | grep -qi "No vulnerabilities found" && echo "0" || echo "SEE make vuln"
+	@printf "  %-22s " "mobile (390px)"; if curl -sf -o /dev/null http://localhost:8090/healthz 2>/dev/null; then 	   $(PYTHON) scripts/mobile.py >/dev/null 2>&1 && echo "every page fits" || echo "FAIL — run make mobile"; 	 else echo "skipped (site not running)"; fi
 	@printf "  %-22s " "error discards"; echo "$$(grep -rn '^[[:space:]]*_ = ' --include='*.go' . | grep -v _test | wc -l | tr -d ' ') (each carries its reason — docs/QUALITY.md)"
 	@printf "  %-22s " "coverage"; $(GO) test ./... -coverprofile=coverage.out >/dev/null 2>&1; $(GO) tool cover -func=coverage.out 2>/dev/null | tail -1 | awk '{print $$3}'
 	@rm -f coverage.out

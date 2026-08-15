@@ -51,9 +51,32 @@ substantial gaps are the mojibake (a data bug with a known cause) and
 
 Barely started, and it is the right next axis for humans.
 
-Nothing here is measured yet, which is itself the finding — the accessibility
-score says the site is *operable*, not that it is *good*. Candidates, in the
-order they would pay off:
+**Measured: mobile layout.** `make mobile` loads every page the sitemap lists
+at 390x844 and fails on any layout that does not fit. It is on the release list
+below, and it earns its place: on its first run it failed **15 of 36 pages**,
+14 of them the same fault — the account bar is a fixed three-track grid that
+does not fit a phone, so every page in the account area scrolled sideways.
+
+Nothing about that was visible. The bar rendered, the pages rendered, and the
+35px of tab past the edge only showed if you dragged the page sideways, which
+nobody does on purpose. Several passes done by eye had missed it, including one
+done the same afternoon.
+
+It checks two things, and the second is why it found anything:
+
+| | |
+| --- | --- |
+| document overflow | the page scrolls sideways. Loud and rare. |
+| element overhang | one element sticks past the viewport while the page does not scroll, because a container clips it. Invisible to `scrollWidth`, invisible in a screenshot. |
+
+`/search` was the second kind: its results table laid out at 667px inside a
+390px screen and the page never scrolled, because the table sat in a
+`.data-table-wrapper`. Reading a result's size meant scrolling a table
+sideways, on the page people use most.
+
+The rest of usability is still unmeasured, which is itself the finding — the
+accessibility score says the site is *operable*, not that it is *good*.
+Candidates, in the order they would pay off:
 
 - **A how-to layer in the docs.** Diátaxis names the gap precisely. There is no
   document that walks an operator through adding a plugin, seeding a site, or
@@ -135,6 +158,27 @@ action lands in, or the audit trail quietly stops meaning anything.
 
 That is a design decision about accountability, not a technical one about
 transport, and it wants making before the first tool ships rather than after.
+
+---
+
+## Before a release
+
+Everything in `make check` runs without a site. These need one up (`make run`),
+which is why they are a list rather than a target — a check that quietly passes
+because the thing it tests was not running is worse than no check at all.
+
+```sh
+make run                                  # the stack
+make check                                # fmt, build, lint, sql, contrast, tests, coverage
+make mobile   LOON_COOKIE=mysession=...   # every page at 390px, signed in
+make html                                 # W3C validation
+make lh                                   # Lighthouse: a11y, SEO, best practices
+make grade                                # the scorecard, measured
+```
+
+`LOON_COOKIE` is not optional in practice. A third of the pages are behind a
+login, and that third is where the account bar lives — which is where 14 of the
+first 15 mobile failures were. Run it signed out and it reports a clean site.
 
 ---
 

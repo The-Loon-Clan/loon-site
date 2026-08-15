@@ -770,6 +770,49 @@ main > article {
    positioning context its absolutely placed menu anchors against. */
 .section-tabs .dropdown { position: relative; }
 
+/* On a phone the account bar does not fit beside the breadcrumb, and its
+   dropdowns hang off the right edge.
+ *
+ * This was 14 of 36 pages scrolling sideways — every page in the account area
+ * — and it took a script to find. Nothing looks broken: the bar renders, the
+ * page renders, and the 35px of tab past the edge is only visible if you drag
+ * the page sideways, which nobody does on purpose. It is the single biggest
+ * layout fault on the site and it survived every pass done by eye.
+ *
+ * Two separate causes, both fixed here.
+ */
+@media only screen and (max-width: 40rem) {
+    /* One: the bar is a track in a three-column grid sized for crumbs LEFT,
+       tabs CENTRED, and nothing on the right. At this width there is no room
+       for two things in a row, so they stack and the tabs wrap. Wrapping
+       rather than scrolling for the same reason the main nav wraps — an
+       overflow-x scroller clips the dropdown menus these tabs open. */
+    .breadcrumb-bar {
+        position: relative;
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 4px;
+    }
+    .breadcrumb-bar > .breadcrumbsV2,
+    .breadcrumb-bar > .section-tabs { grid-column: 1; }
+
+    .section-tabs {
+        flex-wrap: wrap;
+        gap: var(--space-2) var(--space-4);
+    }
+
+    /* Two: a menu opened from the LAST tab is positioned against that tab, so
+       it opens to the right of something already near the right edge. Making
+       the tab static moves the anchor to the bar itself, and the menu becomes
+       a full-width panel underneath it — which is what a dropdown does on a
+       phone anyway. */
+    .section-tabs .dropdown { position: static; }
+    .section-tabs .dropdown__menu {
+        left: var(--gutter);
+        right: var(--gutter);
+        min-width: 0;
+    }
+}
+
 .stat-strip__items {
     display: flex;
     align-items: center;
