@@ -137,10 +137,20 @@ func (w *web) securityPage(c *gin.Context) {
 // flashCodesKey carries freshly issued recovery codes across one redirect.
 const flashCodesKey = "flash_recovery_codes"
 
+// The four `_ = s.Save()` calls in this file are deliberate, and share one
+// reason: a session save that fails did not write the cookie, so the NEXT
+// request behaves as though the change never happened — the pending 2FA state
+// is absent, the flash is not there, the expiry did not clear. The member sees
+// the action not having taken effect, which is the truthful outcome and the
+// one they can act on. There is no recovery to perform and no second thing to
+// tell them, and these helpers have no logger to reach for.
+//
+// What would NOT be acceptable is discarding a STORE write the same way; see
+// totpCancel and the pending-email drop below, both of which are logged.
 func flashCodes(c *gin.Context, codes []string) {
 	s := sessions.Default(c)
 	s.Set(flashCodesKey, strings.Join(codes, ","))
-	_ = s.Save()
+	_ = s.Save() //nolint:errcheck // see the note above: the cookie not being written IS the signal
 }
 
 func takeFlashCodes(c *gin.Context) []string {
@@ -243,7 +253,12 @@ func (w *web) totpConfirm(c *gin.Context, ctx context.Context, u *core.User, in 
 
 // totpCancel abandons a setup in progress, clearing the pending secret.
 func (w *web) totpCancel(c *gin.Context, ctx context.Context, u *core.User, in securityActionInput, fail func(string)) {
-	_ = w.data.ClearPendingTOTP(ctx, u.ID)
+	// A failure here leaves the pending secret in place after the member asked
+	// to abandon it. The redirect still shows setup as cancelled, so the two
+	// disagree — worth a line in the log, and not worth failing a cancel over.
+	if err := w.data.ClearPendingTOTP(ctx, u.ID); err != nil {
+		w.log.Error("clear pending totp", "user", u.ID, "err", err)
+	}
 	c.Redirect(http.StatusSeeOther, "/settings/security")
 }
 
@@ -455,7 +470,16 @@ func (w *web) emailConfirm(c *gin.Context) {
 	// Every other pending change for this account is dropped: they were all
 	// requested from the old address, and one of them just stopped being the
 	// account's address.
-	_ = w.data.DropPendingEmailChanges(ctx, userID)
+	//
+	// Logged rather than discarded, because of what survives the failure: a
+	// pending change requested from an address that is no longer the
+	// account's, still confirmable by whoever holds its token. The change
+	// above already succeeded and must not be rolled back, so this cannot fail
+	// the request — but it must not be silent either, or the one record of a
+	// confirmable stale token is a row nobody looks at.
+	if err := w.data.DropPendingEmailChanges(ctx, userID); err != nil {
+		w.log.Error("drop pending email changes", "user", userID, "err", err)
+	}
 	w.log.Info("email changed", "user", userID)
 	c.Redirect(http.StatusSeeOther, "/settings/security?done=email")
 }
