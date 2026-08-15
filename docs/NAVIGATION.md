@@ -41,6 +41,36 @@ Enforced by `TestAccountDropdownHasAtMostOneStaffDoor`, which counts the
 and deliberately so: the failure it guards against is somebody adding one more
 link, and a crude check catches that on the line it happens.
 
+## The second rule: one word, one destination
+
+**No label may name two different pages.** A menu that offers "Store" twice is
+not ambiguous to the person who built it — they know which is which — and is
+unusable to everybody else, who has only the word to choose from.
+
+It has happened three times here, and every time the same way: two plugins, or a
+plugin and the host, each picked the obvious name for their own page without
+being able to see the other one.
+
+| the collision | fixed by |
+|---|---|
+| "Store" — the flair shop and the points shop | Store (`/p/store`) and Points store (`/store`) |
+| "Stats" — the host's hub and the plugin's snapshot | Stats (`/stats`) and Site snapshot (`/p/stats`) |
+| "Sitemap" — the page and the crawler feed | Sitemap (`/sitemap`) and XML sitemap (`/sitemap.xml`) |
+
+The last one shipped a footer link labelled "Sitemap" that served raw XML to
+anybody who clicked it. Nothing errored — that is the whole difficulty. A
+collision produces a working link to the wrong place, so it is only ever found
+by a reader who was confused enough to say so.
+
+The host renames plugin pages in `navPlacement` (`admin_views.go`) rather than
+asking the plugin to change: a plugin cannot know what else is on the menu of
+the site running it, so the collision is the host's to resolve.
+
+Enforced by `TestNoTwoDestinationsShareALabel`, which collects every label in
+the chrome, the account menu and `navPlacement`, and fails when one leads to two
+hrefs. The same label for the *same* page is fine — the nav and the footer
+should agree.
+
 ## Corollary: every staff page must be on the admin subnav
 
 The dropdown used to be the only door to `/moderation` and `/moderation/avatars`,

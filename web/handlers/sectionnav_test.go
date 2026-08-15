@@ -5,6 +5,7 @@ import (
 
 	"io/fs"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -163,7 +164,7 @@ func TestAccountMenuSelectsOneEntry(t *testing.T) {
 		// Bonus Points, moved here out of Community. /store/history is the
 		// interesting one: a shorter /store must not steal it, which is the
 		// longest-match rule this menu shares with the site nav.
-		{"/store", "Store"},
+		{"/store", "Points store"},
 		{"/store/history", "History"},
 		{"/rewards", "Rewards"},
 	} {
@@ -414,5 +415,87 @@ func TestChromeLinksAreServed(t *testing.T) {
 	}
 	if len(seen) < 15 {
 		t.Errorf("only %d chrome links found; the scan is probably not matching", len(seen))
+	}
+}
+
+// One word must not name two destinations.
+//
+// Written after the third time it happened. "Store" was the flair shop in the
+// account menu and the points shop one menu away; "Stats" was the host's hub in
+// Other and the plugin's snapshot in Community. Each was reported by a reader
+// who could not tell from the menu which one they wanted, which is the only way
+// this gets found — nothing 404s, nothing errors, the menu simply lies about
+// how many places there are to go.
+//
+// A collision is the same label pointing at DIFFERENT hrefs. The same label
+// twice for the same page is not one: the footer and the nav are allowed to
+// offer the same destination, and usually should.
+func TestNoTwoDestinationsShareALabel(t *testing.T) {
+	b, err := fs.ReadFile(site.FS, "web/templates/site_chrome.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// label -> the hrefs it leads to, and where each was written, so a failure
+	// names the two files to open rather than just the word.
+	dest := map[string]map[string]string{}
+	add := func(label, href, where string) {
+		label = strings.TrimSpace(label)
+		if label == "" || href == "" {
+			return
+		}
+		if dest[label] == nil {
+			dest[label] = map[string]string{}
+		}
+		dest[label][href] = where
+	}
+
+	// The chrome's hand-written links. The label sits after the icon, so the
+	// tags and template actions come out and what is left is what a reader
+	// sees: <a ... href="/stats" ...><svg ...><use .../></svg>Stats</a>.
+	link := regexp.MustCompile(`(?s)<a [^>]*href="(/[^"?#{]*)"[^>]*>(.*?)</a>`)
+	strip := regexp.MustCompile(`(?s)<[^>]*>|\{\{.*?\}\}`)
+	for _, m := range link.FindAllStringSubmatch(string(b), -1) {
+		if strings.HasPrefix(m[1], "/static/") {
+			continue
+		}
+		add(strip.ReplaceAllString(m[2], ""), m[1], "site_chrome.html")
+	}
+
+	// The account menu, which the template renders from this slice.
+	var walk func(tabs []sectionTab)
+	walk = func(tabs []sectionTab) {
+		for _, tab := range tabs {
+			if len(tab.Items) > 0 {
+				walk(tab.Items) // the GROUP is a heading, not a destination
+				continue
+			}
+			add(tab.Label, tab.Href, "sectionnav_web.go")
+		}
+	}
+	walk(accountMenu)
+
+	// And the host's renames of plugin pages, which is where both collisions
+	// were fixed and so the most likely place to reintroduce one.
+	for href, p := range navPlacement {
+		add(p.Label, href, "navPlacement (admin_views.go)")
+	}
+
+	for label, hrefs := range dest {
+		if len(hrefs) < 2 {
+			continue
+		}
+		var where []string
+		for href, src := range hrefs {
+			where = append(where, href+" ("+src+")")
+		}
+		sort.Strings(where) // map order, and a failing test must read the same twice
+		t.Errorf("%q names %d different destinations: %s — a reader picking from "+
+			"the menu cannot tell which one they are opening",
+			label, len(hrefs), strings.Join(where, ", "))
+	}
+
+	if len(dest) < 20 {
+		t.Errorf("only %d labels collected; the scan is probably not matching", len(dest))
 	}
 }

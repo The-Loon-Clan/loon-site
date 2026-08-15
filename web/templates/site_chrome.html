@@ -729,7 +729,11 @@
                     <li><a href="/browse">Browse</a></li>
                     <li><a href="/search">Search</a></li>
                     <li><a href="/groups">Groups</a></li>
-                    <li><a href="/sitemap.xml">Sitemap</a></li>
+                    {{/* /sitemap, not /sitemap.xml. This column is Browse,
+                         Search, Groups — pages a person reads — and "Sitemap"
+                         here delivered raw XML. Crawlers are told about the
+                         feed by robots.txt, so nothing needed this link. */}}
+                    <li><a href="/sitemap">Sitemap</a></li>
                 </ul>
             </section>
 
@@ -770,7 +774,10 @@
                 <ul class="footer__socials">
                     <li><a class="footer__social" href="/rss?t=search"><svg class="icon" aria-hidden="true"><use href="#rss"></use></svg><span class="visually-hidden">RSS feed</span></a></li>
                     <li><a class="footer__social" href="/api?t=caps"><svg class="icon" aria-hidden="true"><use href="#code"></use></svg><span class="visually-hidden">Newznab API capabilities</span></a></li>
-                    <li><a class="footer__social" href="/sitemap.xml"><svg class="icon" aria-hidden="true"><use href="#globe"></use></svg><span class="visually-hidden">Sitemap</span></a></li>
+                    {{/* This row is machine feeds — RSS, Newznab — so the XML
+                         copy is the right one here. Named for what it is, so
+                         it does not read as a second link to the page above. */}}
+                    <li><a class="footer__social" href="/sitemap.xml"><svg class="icon" aria-hidden="true"><use href="#globe"></use></svg><span class="visually-hidden">XML sitemap</span></a></li>
                     <li><a class="footer__social" href="https://github.com/The-Loon-Clan/loon" target="_blank" rel="noopener"><svg class="icon" aria-hidden="true"><use href="#external-link"></use></svg><span class="visually-hidden">loon on GitHub</span></a></li>
                 </ul>
             </section>

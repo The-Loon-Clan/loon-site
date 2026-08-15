@@ -176,18 +176,30 @@ var navPlacedByHost = map[string]bool{
 // somewhere this site does not want it. The plugin still owns the page; the
 // host owns where it is advertised and what the menu calls it.
 //
-// /p/store is the POINTSTORE plugin, which sells cosmetic flair for points —
-// nothing to do with /store, the points store selling invites and ranks. It
-// registered ungrouped and titled "Store", so it landed in the account menu as
-// a row called Store, one menu away from a "Points store": two unrelated shops
-// under one word. It belongs in Community beside the other one, called what it
-// actually sells.
+// /p/store is the POINTSTORE plugin's shop and /store is the STORE plugin's:
+// two unrelated shops whose routes differ by two characters, so the menu has to
+// do the telling-apart that the URLs do not.
+//
+// They are named for their CURRENCY, which is the difference a buyer acts on:
+//
+//	Store          /p/store   cosmetic flair
+//	Points store   /store     invites and ranks, spent from your balance
+//
+// Today both debit points, so the pair reads as a promise the site does not yet
+// keep. It is the naming the split in docs/FLAIR-PAYMENTS.md arrives at — flair
+// bought outright in USD or crypto, standing kept on points — and renaming the
+// menu twice teaches the reader the word twice. The other half of the pair is
+// labelled in sectionnav_web.go, under Bonus Points.
+//
+// Other rather than Community: Community is where other people are — forums,
+// groups, news. A shop is somewhere you go, not something you do with members,
+// and Other is where the site's remaining destinations already live.
 //
 // Not made a tab in the points area, which was the other candidate: the view
 // registry mounts /p/<slug> in core and the host does not wrap those pages, so
 // the strip cannot be rendered on it. The tab would have led to a dead end.
 var navPlacement = map[string]struct{ Group, Label string }{
-	"/p/store": {Group: "Community", Label: "Flair"},
+	"/p/store": {Group: "Other", Label: "Store"},
 
 	// The stats plugin asks for Community (NavHint in its views.go) and this
 	// overrides it, for the same reason /p/store is here: two pages about the

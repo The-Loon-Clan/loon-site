@@ -99,7 +99,12 @@ var accountMenu = []sectionTab{
 	// row this file exists to avoid. Listed in the menu, not wrapped by the
 	// bar — those are different things.
 	{Label: "Bonus Points", Items: []sectionTab{
-		{Label: "Store", Href: "/store"},
+		// "Points store" and not "Store", because the flair shop took that word
+		// in the site nav's Other menu. Redundant inside a group already called
+		// Bonus Points, and worth it: the two labels are read a menu apart, and
+		// the reader deciding which shop to open has only the label to go on.
+		// See navPlacement (admin_views.go) for the pair.
+		{Label: "Points store", Href: "/store"},
 		{Label: "History", Href: "/store/history"},
 		{Label: "Rewards", Href: "/rewards"},
 	}},

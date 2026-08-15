@@ -73,9 +73,10 @@ const storeRewardsPath = "/rewards"
 //
 // The pointstore plugin's flair shop is deliberately NOT a tab here. Its page
 // is served by the view registry at /p/<slug>, which core mounts and the host
-// does not wrap, so the host cannot put this strip on it: a Flair tab would
-// lead somewhere with no way back to Store or History. It is in the Community
-// menu instead, beside the other shop — see navPlacement (admin_views.go).
+// does not wrap, so the host cannot put this strip on it: the tab would lead
+// somewhere with no way back to the store or its history. It is in the site
+// nav's Other menu instead, called Store, which is why this area's own entry in
+// the account menu is called Points store — see navPlacement (admin_views.go).
 func (w *web) pointsAreaTabs(c *gin.Context) []store.Tab {
 	if !w.hasSiteWidget(rewardsClaimWidget) {
 		return nil

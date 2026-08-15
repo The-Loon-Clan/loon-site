@@ -157,9 +157,20 @@ rollback that has to reconstruct prices is not a rollback.
 
 ## What the host does
 
-Nothing. Capabilities travel through the Core extension registry, so neither the
-route table nor `loon-site` changes. The only host-visible effect is that the
-flair store shows a price in dollars.
+Nothing — with one exception, already done: the menu.
+
+Capabilities travel through the Core extension registry, so neither the route
+table nor `loon-site` changes, and the only host-visible effect of the work
+above is that the flair store shows a price in dollars.
+
+The naming, though, went in ahead of it. The two shops are labelled for their
+currency — **Store** (`/p/store`, the site nav's Other menu) and **Points
+store** (`/store`, the account menu under Bonus Points) — which is the pair this
+design arrives at, and is a promise the site does not yet keep, since both still
+debit points today. Deliberate: renaming a menu twice teaches the reader the
+word twice, and the second lesson is the one that sticks. See `navPlacement` in
+`admin_views.go`, and the one-word-one-destination rule in
+[NAVIGATION.md](NAVIGATION.md).
 
 That is worth stating plainly because it is the test of whether this belongs in
 the plugin layer: if the host had to learn about payments, the seam would be in
