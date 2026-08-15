@@ -28,7 +28,7 @@ Numbers taken Aug 2026. Re-run them rather than trusting this table.
 | Build correctness | `go vet`, `staticcheck`, `unused` | clean |
 | Formatting | `scripts/gofmt.sh` | clean |
 | Error handling | `errorlint`, `nilerr`, `bodyclose` (enabled) | clean — 4 found, 2 real bugs fixed |
-| — explicit discards | `grep '^\s*_ = '` (non-test) | **34** |
+| — explicit discards | `grep '^\s*_ = '` (non-test) | 25, each triaged |
 | — log-and-continue | `grep 'log.Error('` in web/handlers | **52** |
 | — wrapped with `%w` | `grep '%w'` | 28 |
 | Test depth | `make cover` | 34.7% with services / 23.0% without |
@@ -63,9 +63,29 @@ execution continues as though it had not happened. Again, some are right — a
 notification that fails should not fail the request that triggered it — and the
 rest are a decision nobody has revisited.
 
-**Triage, not eradication.** The goal is that each of the 86 sites is one of:
-handled, deliberately discarded with a comment saying why, or wrapped and
-returned. A blanket rule would be wrong and would get reverted.
+**Triage, not eradication.** Each site should be one of: handled, deliberately
+discarded with a comment saying why, or wrapped and returned. A blanket rule
+would be wrong and would get reverted.
+
+The question that decides it, arrived at while doing the first twelve:
+
+> **Does the failure announce itself?**
+
+A session save that fails did not write the cookie, so the next request behaves
+as though the action never happened — the member sees it, and there is nothing
+further to tell them. Closing a read after a scan error is the same: the scan
+error is the one that matters. Those stay discarded, with the reason written
+down and `//nolint:errcheck` so the decision is visible to tooling too.
+
+A store write that fails is invisible. The ticket is filed and its author is
+never told; the pending email changes survive, still confirmable; the widget
+layout reports "updated" and is not. Those get logged, and where the member is
+waiting on an answer, refused.
+
+Done so far: `widgetsadmin_web.go` (5), `security_web.go` (6), `tickets_web.go`
+(2), `serve_wiring.go` (2), `locallink_web.go` (2), `avatar_web.go` (2). One of
+those turned out not to be an error discard at all — `_ = old` is a deliberately
+unused variable — so the original count of 34 was slightly generous to itself.
 
 ## Standards worth adopting
 

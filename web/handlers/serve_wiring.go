@@ -55,9 +55,16 @@ func serve(engine *gin.Engine, wsrv *web, rt *core.Runtime, ctx context.Context,
 	<-ctx.Done()
 	shutCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	_ = srv.Shutdown(shutCtx)
+	if err := srv.Shutdown(shutCtx); err != nil {
+		// Deadline exceeded here means connections were still in flight after
+		// 15s and were cut. That is the difference between a clean deploy and
+		// a truncated response somebody is about to report as a bug, and this
+		// is the last moment anything can say so.
+		logger.Error("http shutdown", "err", err)
+	}
 	rt.Stop(shutCtx)
 	if redis != nil {
+		//nolint:errcheck // the process is exiting; a close error changes nothing
 		_ = redis.Close() // host owns the shared client's lifecycle
 	}
 }

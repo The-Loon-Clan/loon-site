@@ -107,12 +107,18 @@ func wireTicketsPlugin(c *core.Core, w *web) error {
 			if c.Notifications == nil || userID == 0 {
 				return
 			}
-			_ = c.Notifications.Notify(ctx, int64(userID), core.Notification{
+			if err := c.Notifications.Notify(ctx, int64(userID), core.Notification{
 				Kind:  "ticket_created",
 				Title: "Ticket received: " + subject,
 				Body:  "We will reply here.",
 				Link:  fmt.Sprintf("/support/%d", ticketID),
-			})
+			}); err != nil {
+				// Never fails the ticket — it is already filed. But a lost
+				// notification is silent at both ends: the member is not told
+				// their ticket landed, and nothing anywhere records that they
+				// were not told.
+				w.log.Error("notify ticket author", "user", userID, "err", err)
+			}
 		},
 		NotifyReply: func(ctx context.Context, ticketID, ownerID, recipientID, authorID int, username, subject string, staff bool) {
 			// Never notify someone about their own reply. Core skips the case
@@ -123,13 +129,17 @@ func wireTicketsPlugin(c *core.Core, w *web) error {
 			if c.Notifications == nil || recipientID == 0 || recipientID == authorID {
 				return
 			}
-			_ = c.Notifications.Notify(ctx, int64(recipientID), core.Notification{
+			if err := c.Notifications.Notify(ctx, int64(recipientID), core.Notification{
 				Kind:      "ticket_reply",
 				Title:     username + " replied to: " + subject,
 				Link:      fmt.Sprintf("/support/%d", ticketID),
 				ActorID:   int64(authorID),
 				ActorName: username,
-			})
+			}); err != nil {
+				// Same as above: the reply is saved either way, and a member
+				// who is never told is indistinguishable from one who was.
+				w.log.Error("notify ticket reply", "user", recipientID, "err", err)
+			}
 		},
 	})
 	return nil
