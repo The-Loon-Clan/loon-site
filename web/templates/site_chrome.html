@@ -599,6 +599,19 @@
         {{block "breadcrumbs" .}}{{if .Title}}
         <ol class="breadcrumbsV2">
             <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
+            {{/* Optional intermediate crumbs, for a page that sits UNDER
+                 something: a news post under News, and whatever comes next.
+
+                 A handler that sets no Crumbs ranges over nothing and gets the
+                 two-crumb trail it always had, which is why this needed no
+                 change anywhere else. A page with more to say than its own
+                 title can still {{"{{define \"breadcrumbs\"}}"}} and replace the lot —
+                 this is for the ones whose trail is data rather than markup,
+                 like a plugin fragment, which cannot define a block in the
+                 host's template set at all. */}}
+            {{range .Crumbs}}
+            <li class="breadcrumbV2"><a class="breadcrumb__link" href="{{.Href}}">{{.Label}}</a></li>
+            {{end}}
             <li class="breadcrumb--active">{{.Title}}</li>
         </ol>
         {{end}}{{end}}

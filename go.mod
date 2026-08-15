@@ -20,7 +20,7 @@ require (
 require (
 	github.com/the-loon-clan/loon v0.0.0-20260812212233-90e72a7524b9
 	github.com/the-loon-clan/loon-baseline v0.0.0-20260725031118-59273104365c
-	github.com/the-loon-clan/loon-plugins v0.0.0-20260815072914-f4a5124fb197
+	github.com/the-loon-clan/loon-plugins v0.0.0-20260815074028-97f697544db9
 )
 
 require (
