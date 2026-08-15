@@ -192,3 +192,37 @@ func TestTheMuxServesTheProfiles(t *testing.T) {
 		}
 	}
 }
+
+// A short token must not start the listener.
+//
+// The failure this prevents is an operator setting LOON_PPROF_TOKEN=hunter2,
+// seeing pprof come up, and believing it is protected. A guessable token in
+// front of heap dumps and a CPU denial of service is worse than no profiling,
+// so this refuses rather than warns — a warning at boot is read once and then
+// lives in a log nobody greps.
+func TestAShortTokenDoesNotStart(t *testing.T) {
+	for _, tok := range []string{
+		"hunter2",
+		"loon-indexer",
+		"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde", // 63: one short
+	} {
+		if Start(Config{Addr: "127.0.0.1:0", Token: tok, Log: quietLog()}) {
+			t.Errorf("Start listened with a %d-character token", len(tok))
+		}
+	}
+}
+
+// And the length that .env.example tells people to generate must pass, or the
+// documentation and the code disagree — which is the failure the whole
+// error-handling triage kept finding.
+func TestTheDocumentedKeyLengthIsAccepted(t *testing.T) {
+	// `openssl rand -hex 64` = 512 bits as 128 hex characters.
+	tok := strings.Repeat("a1b2c3d4", 16)
+	if len(tok) != 128 {
+		t.Fatalf("test fixture is %d characters, not the 128 that -hex 64 produces", len(tok))
+	}
+	if len(tok) < MinTokenLen {
+		t.Fatalf("the documented key length (%d) is below MinTokenLen (%d) — "+
+			".env.example tells people to generate a key this code refuses", len(tok), MinTokenLen)
+	}
+}

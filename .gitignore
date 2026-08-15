@@ -28,3 +28,6 @@ go.work.sum
 # by hand.
 coverage.out
 *.cover
+
+# Local secrets. .env.example is the template and IS committed.
+.env

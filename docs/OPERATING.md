@@ -76,8 +76,17 @@ Growing it does nothing for a staging stall.
 Off unless `LOON_PPROF_TOKEN` is set. An unset token does not mean "no auth" —
 the listener never starts, so forgetting to configure it cannot leave it open.
 
-    LOON_PPROF_TOKEN=<a long random string>
+Set it in `.env` (see `.env.example`, which compose reads automatically):
+
+    LOON_PPROF_TOKEN=<512-bit key>      # openssl rand -hex 64
     LOON_PPROF_ADDR=127.0.0.1:6060      # default
+
+**A token under 64 characters is refused and the listener does not start**, with
+the generating command in the error. That floor admits every reasonable encoding
+of a strong key — 512 bits is 128 hex characters or 88 base64 — and refuses the
+thing people type in a hurry. Refusing rather than warning, because a warning at
+boot is read once and then lives in a log nobody greps, and a guessable token in
+front of heap dumps is worse than no profiling at all.
 
 Three layers, and the first is the one that matters:
 

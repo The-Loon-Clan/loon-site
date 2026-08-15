@@ -56,6 +56,19 @@ var allowedCIDRs = []string{
 	"100.64.0.0/10",
 }
 
+// MinTokenLen is the shortest token this will start with.
+//
+// 64 characters, which every reasonable encoding of a strong key clears: a
+// 512-bit key is 128 hex characters or 88 base64 ones, and even a 256-bit key
+// in hex lands exactly on the floor. What it refuses is the thing people
+// actually type when in a hurry — a word, a date, the site's name.
+//
+// Refusing rather than warning, because a warning at boot is read once and
+// then lives in a log nobody greps. A listener that will not start is noticed
+// immediately, and the failure mode is "profiling is off", which is where it
+// was a minute ago anyway.
+const MinTokenLen = 64
+
 // Config is what the host supplies.
 type Config struct {
 	// Addr is the listen address, e.g. "127.0.0.1:6060". Bind it to an
@@ -82,6 +95,15 @@ func Start(cfg Config) bool {
 	}
 	if cfg.Token == "" {
 		cfg.Log.Info("pprof disabled", "reason", "no token configured")
+		return false
+	}
+	if len(cfg.Token) < MinTokenLen {
+		// Named in the log, because the alternative is an operator who set the
+		// variable, saw no listener, and concludes the feature is broken.
+		cfg.Log.Error("pprof disabled",
+			"reason", "token too short",
+			"count", len(cfg.Token),
+			"fix", "512-bit key: openssl rand -hex 64 — see .env.example")
 		return false
 	}
 	if cfg.Addr == "" {

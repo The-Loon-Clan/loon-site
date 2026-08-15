@@ -114,6 +114,15 @@ services:
       # 2x0000000000000000000000000000000AA (always fail).
       TURNSTILE_SITEKEY: "${TURNSTILE_SITEKEY:-}"
       TURNSTILE_SECRET: "${TURNSTILE_SECRET:-}"
+      # Secrets. Generate each with `openssl rand -hex 64` — see .env.example,
+      # which compose reads automatically. Unset is a working demo, not a
+      # working deployment: the session secret falls back to a placeholder
+      # marked dev-insecure, and pprof simply does not start.
+      LOON_SESSION_SECRET: "${LOON_SESSION_SECRET:-}"
+      LOON_PPROF_TOKEN: "${LOON_PPROF_TOKEN:-}"
+      LOON_PPROF_ADDR: "${LOON_PPROF_ADDR:-127.0.0.1:6060}"
+      LOON_BASE_URL: "${LOON_BASE_URL:-http://localhost:8090}"
+      SECURE_COOKIES: "${SECURE_COOKIES:-}"
       # The UI dev loop (edit web/, refresh, no rebuild) lives in
       # compose.dev.yml, NOT here — see that file for why.
     ports:
