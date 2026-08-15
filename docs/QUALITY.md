@@ -208,14 +208,24 @@ seeding a site, or converting a control to htmx.
 
 ## `make grade`
 
-Not built yet. It should run every measured row and print the table, so the
-numbers above can be regenerated rather than believed. Two constraints:
+Built. Prints the measured rows so the table above can be regenerated rather
+than believed, and it holds to both constraints it was specified with:
 
-- It must **not** gate CI on the new dimensions until each has a floor that
-  reflects reality. A check nobody can pass gets deleted rather than met — the
-  same reasoning as the coverage floor in the `Makefile`.
-- Rows with no measurement print `unmeasured`, never a zero. A zero implies
-  somebody looked.
+- Rows needing a running site are **skipped with a note**, never scored. A
+  blank is honest; a zero implies somebody looked.
+- Only `contrast` was added to `make check`, so only it can fail a pull
+  request. `html` and `lh` need a browser and a live server, so they are
+  targets you run rather than gates you trip over.
+
+**Why contrast is the one that gates.** It needs nothing — no Docker, no
+network, no running site, just Python and the CSS — and it catches what the
+browser checks cannot. Lighthouse loads one theme on one page; this reads the
+tokens, so a theme nobody screenshotted is checked too. That is how nord's
+panel headings were found at 2.75:1 while Lighthouse was reporting the site at
+90 and had never rendered that theme.
+
+Verified to gate rather than merely run: reverting the nord token makes it exit
+1, and restoring it makes it exit 0.
 
 ## Where to start
 

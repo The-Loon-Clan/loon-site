@@ -44,7 +44,7 @@ COVER_MIN ?= 22.0
 # LOON_TEST_DSN present means the substantial half is running.
 COVER_MIN_SERVICES ?= 33.0
 
-.PHONY: help check build test itest cover lint golint fmt sql vuln run clean
+.PHONY: help check build test itest cover lint golint fmt sql contrast vuln grade html lh run clean
 
 # `make` on its own explains itself, rather than silently building the first
 # target. Every target below already carried a `## name: description` line and
@@ -62,7 +62,7 @@ help:
 	@echo "  The Go toolchain runs in Docker by default. Pass GO=go to use the host's."
 
 ## check: everything CI runs
-check: fmt build lint golint sql test cover
+check: fmt build lint golint sql contrast test cover
 
 ## build: compile every package
 build:
@@ -147,6 +147,50 @@ PYTHON ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/nul
 
 sql:
 	@$(PYTHON) scripts/sqllint.py
+
+## contrast: theme colour pairs against the WCAG AA minimum
+##
+## In `check` because it needs nothing — no Docker, no network, no running
+## site, just Python and the CSS. That matters: the other two accessibility
+## checks below need a browser and a live server, so they cannot gate a pull
+## request, and this one can.
+##
+## It also catches what a browser check cannot. Lighthouse loads ONE theme on
+## ONE page; this reads the tokens, so a theme nobody screenshotted is checked
+## too. That is how nord's panel headings were found at 2.75:1 — a browser-only
+## check had reported the site at 90 and never looked at that theme.
+contrast:
+	@$(PYTHON) scripts/contrast.py
+
+## html: W3C validation of the running site (needs `make run` first)
+html:
+	@bash scripts/htmlvalidate.sh
+
+## lh: Lighthouse accessibility/SEO/best-practices (needs `make run` first)
+lh:
+	@bash scripts/lighthouse.sh
+
+## grade: print the scorecard in docs/QUALITY.md, measured rather than believed
+##
+## Rows that need a running site are SKIPPED with a note rather than scored,
+## because a blank is honest and a zero is not — a zero implies somebody looked.
+grade:
+	@echo "loon-site quality scorecard — $$(date -u +%Y-%m-%dT%H:%MZ)"
+	@echo
+	@printf "  %-22s " "formatting"; if bash scripts/gofmt.sh >/dev/null 2>&1; then echo "clean"; else echo "NEEDS gofmt"; fi
+	@printf "  %-22s " "vet + linters"; if bash scripts/golangci.sh ./... 2>&1 | grep -q "^0 issues"; then echo "0 issues"; else echo "SEE make golint"; fi
+	@printf "  %-22s " "sql safety"; $(PYTHON) scripts/sqllint.py >/dev/null 2>&1 && echo "constants only" || echo "FAIL"
+	@printf "  %-22s " "contrast (WCAG AA)"; $(PYTHON) scripts/contrast.py >/dev/null 2>&1 && echo "all pairs pass" || echo "FAIL — run make contrast"
+	@printf "  %-22s " "vulnerabilities"; bash scripts/govulncheck.sh 2>&1 | grep -qi "No vulnerabilities found" && echo "0" || echo "SEE make vuln"
+	@printf "  %-22s " "error discards"; echo "$$(grep -rn '^[[:space:]]*_ = ' --include='*.go' . | grep -v _test | wc -l | tr -d ' ') (each carries its reason — docs/QUALITY.md)"
+	@printf "  %-22s " "coverage"; $(GO) test ./... -coverprofile=coverage.out >/dev/null 2>&1; $(GO) tool cover -func=coverage.out 2>/dev/null | tail -1 | awk '{print $$3}'
+	@rm -f coverage.out
+	@echo
+	@echo "  needs a running site (make run, then):"
+	@echo "    make html    W3C validity"
+	@echo "    make lh      accessibility / SEO / best practices"
+	@echo
+	@echo "  never run:  performance (needs a TLS deployment), OpenSSF Scorecard (needs a token)"
 
 ## vuln: known vulnerabilities in anything this code actually calls
 vuln:
