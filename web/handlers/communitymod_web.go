@@ -297,8 +297,14 @@ func (w *web) listModItems(ctx context.Context, viewerID int64, history bool) []
 		Remove bool  `db:"remove"`
 	}
 	if viewerID > 0 {
-		_ = w.db().SelectContext(ctx, &votes,
-			`SELECT item_id, remove FROM moderation_votes WHERE user_id = $1`, viewerID)
+		if err := w.db().SelectContext(ctx, &votes,
+			`SELECT item_id, remove FROM moderation_votes WHERE user_id = $1`, viewerID); err != nil {
+			// The page renders as though the viewer has voted on nothing, so
+			// every item offers both buttons again. Harmless to press — a
+			// second vote replaces the first — but it is the page telling them
+			// something untrue about their own history.
+			w.log.Error("read own moderation votes", "user", viewerID, "err", err)
+		}
 	}
 	for _, v := range votes {
 		mine[v.ItemID] = v.Remove

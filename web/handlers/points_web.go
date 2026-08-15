@@ -63,8 +63,16 @@ func (p pgPoints) change(ctx context.Context, userID int64, delta int, kind, des
 	return balance, nil
 }
 
+// balance reports a member's points, or 0 if it cannot read them.
+//
+// The discard is deliberate and safe in both directions, which is why it stays.
+// Where this feeds a SPEND, zero is below every price, so a failed read refuses
+// the purchase — the safe side. Where it feeds a display, zero is a wrong
+// number rather than a dangerous one, and the alternative is failing a page
+// over a figure in the corner of it.
 func (p pgPoints) balance(ctx context.Context, userID int64) int {
 	var n int
+	//nolint:errcheck // see above: 0 refuses a spend and merely mis-displays elsewhere
 	_ = p.db.GetContext(ctx, &n, `SELECT COALESCE(points, 0) FROM users WHERE id = $1`, userID)
 	return n
 }

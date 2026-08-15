@@ -138,7 +138,7 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 		err = w.data.ConfigureWidget(ctx, region, slug, in.Config)
 	case "move":
 		if delta := in.Delta; delta != 0 {
-			w.moveWidget(c, region, slug, delta)
+			err = w.moveWidget(c, region, slug, delta)
 		}
 	}
 
@@ -174,7 +174,12 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 // not an error — so it stays here. Writing the new order is the store's job;
 // see ReorderWidgets for why the whole region is renumbered rather than two
 // rows swapped.
-func (w *web) moveWidget(c *gin.Context, region, slug string, delta int) {
+//
+// Returns an error so the caller can report one. It used to return nothing and
+// discard ReorderWidgets, so the "move" arm of widgetsAdminAction reported
+// success unconditionally — and once every OTHER arm gained a real error path,
+// that was worse than before: five arms honest and one quietly not.
+func (w *web) moveWidget(c *gin.Context, region, slug string, delta int) error {
 	ctx := c.Request.Context()
 	rows := w.data.ReadPlacements(ctx, region)
 	idx := -1
@@ -185,16 +190,16 @@ func (w *web) moveWidget(c *gin.Context, region, slug string, delta int) {
 		}
 	}
 	if idx < 0 {
-		return
+		return nil // no such placement in this region: nothing to move
 	}
 	target := idx + delta
 	if target < 0 || target >= len(rows) {
-		return // already at the end; not an error, just nothing to do
+		return nil // already at the end; not an error, just nothing to do
 	}
 	rows[idx], rows[target] = rows[target], rows[idx]
 	order := make([]string, len(rows))
 	for i, p := range rows {
 		order[i] = p.Slug
 	}
-	_ = w.data.ReorderWidgets(ctx, region, order)
+	return w.data.ReorderWidgets(ctx, region, order)
 }
