@@ -369,6 +369,44 @@ func (st *Store) MigrateDonations() error {
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_donations_txid
 		     ON donations (txid) WHERE txid <> ''`,
 		`CREATE INDEX IF NOT EXISTS idx_donations_received ON donations (received_at DESC)`,
+		// The donor's running total, WITHOUT WHICH THE WEBHOOK CANNOT RECORD AN
+		// ATTRIBUTED DONATION AT ALL.
+		//
+		// donations.CreateDonation commits the donation row and then, for a
+		// donation carrying a member, runs
+		//
+		//	UPDATE users SET donation_count = donation_count + 1,
+		//	                 donation_total_usd = donation_total_usd + $2,
+		//	                 donator = donator OR (...) >= $3
+		//
+		// against these three columns. This host created the donations tables
+		// and never created them, so that statement failed with
+		// `column "donation_count" does not exist`, the whole transaction
+		// rolled back, and the webhook answered 500 — which is the CORRECT
+		// answer to a failed write, so BTCPay retried it, forever, and the
+		// member's money settled while the site recorded nothing.
+		//
+		// Anonymous donations were unaffected (the UPDATE is skipped when there
+		// is no donor), which is why the tip jar worked and nothing looked
+		// wrong. Only a signed-in member's donation broke — the only kind that
+		// could ever unlock anything.
+		//
+		// donation_total_usd is the LIFETIME SUM, and that is the whole point:
+		// ten payments of $5 reach the $50 tier, where counting settlements
+		// would rank fifty $1 tips above one $500 gift. donations/events.go
+		// makes the same argument about why a donor badge must be scored on
+		// this figure rather than on the donations.received event.
+		//
+		// DOUBLE PRECISION to match donations.amount_usd above rather than
+		// NUMERIC — two money columns that add together should not disagree
+		// about their type, and the comparison that flips `donator` adds them.
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS donation_count     INTEGER          NOT NULL DEFAULT 0`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS donation_total_usd DOUBLE PRECISION NOT NULL DEFAULT 0`,
+		// Sticky by design: CreateDonation only ever ORs it true, so a member
+		// who donated once keeps the flag even if the threshold is raised
+		// later. Reproduced here as a default rather than a rule this column
+		// enforces, because the rule lives in the statement above.
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS donator            BOOLEAN          NOT NULL DEFAULT false`,
 	}
 	for _, q := range stmts {
 		if _, err := st.db.Exec(q); err != nil {

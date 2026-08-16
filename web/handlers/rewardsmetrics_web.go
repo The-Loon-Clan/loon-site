@@ -81,7 +81,7 @@ func countBy(db storage.Conn, query storage.SQL) metricFunc {
 // definitions cannot disagree about which metrics exist — a definition naming
 // an unregistered metric is INERT: it never progresses, and nothing says so.
 func achievementMetrics(db storage.Conn) map[string]metricFunc {
-	return map[string]metricFunc{
+	m := map[string]metricFunc{
 		// Posts a member has written. Hidden posts still count: the member did
 		// write them, and un-counting on moderation would walk an achievement
 		// backwards, which the plugin has no way to represent.
@@ -95,6 +95,85 @@ func achievementMetrics(db storage.Conn) map[string]metricFunc {
 		"login": countBy(db,
 			`SELECT user_id, COUNT(*) FROM login_logs WHERE success GROUP BY user_id`),
 	}
+	// Donations, only on a deployment that takes them.
+	//
+	// Gated for the reason the absent metrics above are absent: with
+	// LOON_DONATIONS unset nothing can ever move this, and a threshold nobody
+	// can reach is worse than no threshold — it is configurable, looks healthy,
+	// and never completes. Unlike comments.created this is deployment config
+	// rather than a missing table, so it appears the moment the flag is set.
+	//
+	// WHOLE DOLLARS, floored. An achievement threshold is an integer and the
+	// tiers people write are "$50", not "$50.00" — and floor rather than round
+	// so $49.99 does not unlock the $50 tier.
+	//
+	// THE LIFETIME SUM, which is the entire point: ten payments of $5 reach $50.
+	// donations/events.go argues the same thing from the other side — a donor
+	// badge must not be scored on the donations.received event, because
+	// counting settlements ranks fifty $1 tips above one $500 gift. This column
+	// is that argument's "absolute metric path".
+	//
+	// The value is maintained by donations.CreateDonation, which could not
+	// write it at all until the three columns it targets were added — see
+	// MigrateDonations. Nothing read this figure before now.
+	if donationsEnabled {
+		m["donations.total_usd"] = countBy(db,
+			`SELECT id, FLOOR(donation_total_usd)::bigint
+			   FROM users WHERE donation_total_usd > 0`)
+	}
+	return m
+}
+
+// achievementSourceDefs is the dropdown an admin picks a metric from.
+//
+// IT WAS EMPTY. rewards seeds its catalogue from whatever the host registers
+// under SourceCatalogExtension, this host registered nothing, and
+// rewards.reward_sources therefore held zero rows — so the achievement admin
+// offered no metric to choose and no achievement could be created through the
+// UI at all. The plugin's own comment predicted exactly this: "That list is
+// empty exactly when it is most needed — setting up the first one."
+//
+// Not rewards.StockSources(). That set names seven things a general site might
+// count, four of which this host cannot answer (see the header) — and a source
+// that Counts with no registered metric is inert: selectable, plausible, and
+// permanently stuck at zero. So the catalogue is derived from what this host
+// actually registers, and rewardsmetrics_web_test.go pins the two together in
+// both directions.
+func achievementSourceDefs() rewards.SourceCatalog {
+	defs := rewards.SourceCatalog{
+		{Key: "login", Label: "Logged in", Group: "Account",
+			Fires: true, Counts: true, Unit: "login", Units: "logins"},
+		{Key: "posts.created", Label: "Posts created", Group: "Forum",
+			Fires: true, Counts: true, Unit: "post", Units: "posts"},
+		{Key: "threads.created", Label: "Threads started", Group: "Forum",
+			Fires: true, Counts: true, Unit: "thread", Units: "threads"},
+	}
+	// Behind the same flag as its counter, and the test that made this
+	// conditional is the argument for it: the first version offered this row
+	// unconditionally while achievementMetrics gated the metric, so on a
+	// deployment without donations an admin could pick "Donated (USD)", set a
+	// $50 threshold, and watch it sit at zero forever. That is the exact shape
+	// of inertness this whole file is written against, and it took about a
+	// minute to reintroduce.
+	if !donationsEnabled {
+		return defs
+	}
+	return append(defs,
+		// Fires: FALSE, and it is not an oversight.
+		//
+		// donations.received exists, but it can never drive a per-member
+		// threshold: it is declared EventSystem because the tip jar takes money
+		// from nobody in particular, so Event.UserID is always 0 — and both of
+		// rewards' subscribers return immediately on UserID 0. core refuses
+		// Countable on a system event for the same reason (events.go:140).
+		//
+		// So this source only ever Counts, and the counting is the reconciling
+		// job reading the column. Which is also better: the job SETS the
+		// absolute total every tick, so a webhook that was dropped or retried
+		// corrects itself instead of leaving a donor permanently short.
+		rewards.SourceDef{Key: "donations.total_usd", Label: "Donated (USD)", Group: "Donations",
+			Fires: false, Counts: true, Unit: "dollar", Units: "dollars"},
+	)
 }
 
 // registerAchievementMetrics publishes every counter above, plus the payout
@@ -104,6 +183,12 @@ func registerAchievementMetrics(c *core.Core, db storage.Conn) error {
 		if err := c.Register(rewards.MetricSourcePrefix+key, src); err != nil {
 			return fmt.Errorf("register metric %q: %w", key, err)
 		}
+	}
+	// The dropdown itself. Same before-Boot rule as the metrics: rewards seeds
+	// its catalogue during its own Provision, so registering afterwards leaves
+	// the table empty and the admin with nothing to pick.
+	if err := c.Register(rewards.SourceCatalogExtension, achievementSourceDefs()); err != nil {
+		return fmt.Errorf("register source catalogue: %w", err)
 	}
 	// Same before-Boot rule as the metrics: the plugin looks this up during its
 	// own Provision, so one registered afterwards is never seen.
