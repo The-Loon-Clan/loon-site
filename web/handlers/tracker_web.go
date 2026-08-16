@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/the-loon-clan/loon-site/internal/middleware"
 
+	"fmt"
 	"html/template"
 	"os"
 	"time"
@@ -71,5 +72,20 @@ func (w *web) wireTrackerPlugin() {
 		// because it is called from templates, and this plugin asks for a
 		// time.Time. The wrapper is the whole difference.
 		RelativeTime: func(t time.Time) string { return relativeTime(t) },
+		// Where the release a torrent was made from is browsable.
+		//
+		// The plugin stores nzb_id and cannot know this: the id belongs to the
+		// host's index and the route that renders it is the host's to move. So
+		// it asks, and its listing links the torrent's name to the release page
+		// — the cover, the metadata, the file list, none of which fits in a
+		// table row.
+		//
+		// Not validated. A release deleted after its torrent was made would
+		// give a link to a 404, which is the honest outcome and is what
+		// scripts/audit_links.py exists to notice; the alternative is a
+		// database round trip per row on a page that already renders 100.
+		ReleaseURL: func(nzbID int64) string {
+			return fmt.Sprintf("/release/%d", nzbID)
+		},
 	})
 }
