@@ -570,6 +570,12 @@ func Main() {
 	if err := registerAchievementMetrics(c, conn); err != nil {
 		logger.Error("register achievement metrics", "err", err)
 	}
+	// Member figures for automatic rank promotion (rankstats_web.go). Same
+	// before-Boot rule, same reason: the ranks plugin looks this up during its
+	// own Provision, and without it every earned rank stays unreachable.
+	if err := registerRankStats(c, conn); err != nil {
+		logger.Error("register rank stats", "err", err)
+	}
 	// Scraper enrichment: persist entries + link covers via the catalog plugin
 	// (resolved lazily after Boot), fed release candidates from the usenet index.
 	scraper.SetDeps(scraper.Deps{
