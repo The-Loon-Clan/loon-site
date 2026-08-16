@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/middleware"
+
 	"github.com/the-loon-clan/loon-site/internal/sanitize"
 
 	"fmt"
@@ -71,6 +73,11 @@ func wireNewsPlugin(c *core.Core, w *web) error {
 			w.render(gc, "site_page.html", data)
 		},
 		Sanitize: sanitize.HTML,
+		// Host-minted and host-validated, like every other plugin form seam:
+		// the token the plugin embeds must be the one csrf.go checks. Without
+		// this seam the admin forms posted tokenless and this middleware
+		// refused them all — create and delete were dead features.
+		CSRFToken: middleware.Token,
 	})
 	return nil
 }

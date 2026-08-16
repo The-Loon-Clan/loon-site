@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/middleware"
+
 	"github.com/the-loon-clan/loon-site/internal/markdown"
 
 	"context"
@@ -45,6 +47,9 @@ func wireTicketsPlugin(c *core.Core, w *web) error {
 		// fragment cannot reach the host's partials, and a copy per plugin
 		// works only until the partial changes.
 		RenderEditor: w.renderEditor,
+		// See news_web.go. A member could not open a ticket without it: the
+		// support form posted tokenless and csrf.go refused it.
+		CSRFToken: middleware.Token,
 		RenderPagination: func(page, pageSize, totalItems int, baseURL string) template.HTML {
 			return w.renderPagination(hostPagination(page, pageSize, totalItems, baseURL))
 		},

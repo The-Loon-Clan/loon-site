@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/middleware"
+
 	"github.com/the-loon-clan/loon-site/internal/markdown"
 
 	"fmt"
@@ -68,6 +70,9 @@ func wireWikiPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 		},
 		Markdown: markdown.Render,
 		Files:    blob.NewLocal(uploadRoot, uploadURL),
+		// See news_web.go: the token must be host-minted or it is not the one
+		// csrf.go checks. All seven wiki admin forms 403'd without it.
+		CSRFToken: middleware.Token,
 	})
 	return nil
 }
