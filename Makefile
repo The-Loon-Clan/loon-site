@@ -170,6 +170,38 @@ html:
 lh:
 	@bash scripts/lighthouse.sh
 
+## release: everything, in the order that fails fastest
+##
+## `check` needs no site; the rest do, so this starts the stack itself rather
+## than assuming. That is the point of having one target: every one of these
+## already existed and four of them had never been run by anything, because
+## running them meant remembering they were there.
+##
+## It STOPS at the first failure. A release check that prints twelve red
+## sections is one nobody reads to the end.
+release:
+	@echo "== 1/6 check (no site needed)"      && $(MAKE) --no-print-directory check
+	@echo "== 2/6 bringing the stack up"       && docker compose up -d --build >/dev/null && 	  for i in $$(seq 1 60); do 	    [ "$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/healthz)" = "200" ] && break; 	    sleep 2; 	  done; 	  test "$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/healthz)" = "200" 	    || { echo "the site did not come up; nothing below this can be trusted"; exit 1; }
+	@echo "== 3/6 access (staff routes, destructive POSTs, table coverage)" && $(PYTHON) scripts/audit_access.py
+	@echo "== 4/6 links"                       && $(PYTHON) scripts/audit_links.py
+	@echo "== 5/6 accessibility"               && $(PYTHON) scripts/audit_a11y.py
+	@echo "== 6/6 mobile (every page at 390px)" && $(PYTHON) scripts/mobile.py
+	@echo
+	@echo "all six passed. html and lh are NOT in here — they need a browser"
+	@echo "container and a network pull, so run them by hand: make html, make lh"
+
+## access: every route probed as anonymous, a member and an admin
+access:
+	@$(PYTHON) scripts/audit_access.py
+
+## links: every internal link the site offers actually resolves
+links:
+	@$(PYTHON) scripts/audit_links.py
+
+## a11y: the accessibility rules that can be checked without a browser
+a11y:
+	@$(PYTHON) scripts/audit_a11y.py
+
 ## mobile: every page at 390px, checked for layout that does not fit
 ##
 ## Needs `make run` first, and Chrome on the host (CHROME= to point at it).

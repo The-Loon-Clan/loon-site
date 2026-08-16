@@ -168,17 +168,31 @@ which is why they are a list rather than a target — a check that quietly passe
 because the thing it tests was not running is worse than no check at all.
 
 ```sh
-make run                                  # the stack
-make check                                # fmt, build, lint, sql, contrast, tests, coverage
-make mobile   LOON_COOKIE=mysession=...   # every page at 390px, signed in
-make html                                 # W3C validation
-make lh                                   # Lighthouse: a11y, SEO, best practices
-make grade                                # the scorecard, measured
+make release   # everything below, in one command, stopping at the first failure
 ```
 
-`LOON_COOKIE` is not optional in practice. A third of the pages are behind a
-login, and that third is where the account bar lives — which is where 14 of the
-first 15 mobile failures were. Run it signed out and it reports a clean site.
+That is six steps: `check` (which needs no site), then the stack, then four
+audits against it — access, links, accessibility and mobile layout. Each is also
+its own target (`make access`, `make links`, `make a11y`, `make mobile`) for
+when one of them is what you are working on.
+
+Two are NOT in it, because they pull a browser container and a few hundred
+megabytes over the network, which does not belong in a command people run
+often:
+
+```sh
+make html   # W3C validation of the running site
+make lh     # Lighthouse: accessibility, SEO, best practices
+make grade  # the scorecard, measured rather than believed
+```
+
+**The audits sign themselves in.** Four of them existed before this and were
+wired to nothing — written, working, and run by no target, which is the same
+failure as a check that passes without executing. `mobile` also used to want a
+cookie pasted in by hand: without it, it silently checked 23 of 36 pages, and
+the 13 it skipped were the account area, where 14 of its first 15 findings were.
+They use `AUDIT_USER`/`AUDIT_PASS` now (alice/alice on the demo) and say so if
+they cannot sign in, rather than reporting a clean run of a third of the site.
 
 ---
 

@@ -66,6 +66,21 @@ var accessRoutes = []struct{ Path, Label, Note string }{
 	{"/login", "Sign in", "A door: always reachable, or nobody could get in."},
 	{"/register", "Register", "Also gated by the registration mode above."},
 	{"/forgot", "Forgot password", "A door."},
+	// The other two halves of the same door. Both were missing, which meant the
+	// table listed where you ask for a reset and not where you complete one.
+	{"/reset", "Reset password", "A door: reached from the emailed link."},
+	{"/verify", "Verify email", "A door: reached from the emailed link."},
+	// Public pages nobody had written down. Found by audit_access.py, which
+	// asks the running app which routes a stranger can read and compares that
+	// with this list — the check this table could not perform on itself.
+	{"/credits", "Data sources", "Attribution for the metadata sources."},
+	{"/store", "Points store", "Readable by anyone; spending needs an account."},
+	{"/support/public", "Public tickets", ""},
+	{"/wiki/recent", "Recent wiki changes", ""},
+	{"/p/guestbook", "Guestbook", "A plugin page."},
+	{"/c/new", "New community", "The FORM is public; the write is not."},
+	{"/community/forums/new", "New thread", "The FORM is public; the write is not."},
+	{"/sitemap.xml", "sitemap.xml", "The crawler's copy of the sitemap."},
 	{"/api", "Newznab API", "Authenticates with an API key, not a session."},
 	{"/rss", "RSS feed", "Authenticates with an API key, not a session."},
 	{"/robots.txt", "robots.txt", "Generated from the browsing mode."},

@@ -166,6 +166,19 @@ jobs:
           test "$errs" = "0" || { echo "$errs error(s) on first boot"; docker compose logs app | grep 'level=ERROR' | head; exit 1; }
           echo "first boot clean, HTTP 200"
 
+      # The audits that need the site. They were written long before this and
+      # run by nothing, which is the same as not having them: the access audit
+      # found the NZB download missing from the access table, and the a11y one
+      # found three real defects, both on their first run under this job.
+      #
+      # Not `make release`: `check` already ran in the job above, and repeating
+      # it here would double the slowest part of CI to re-prove a green result.
+      - name: Access, links, accessibility, mobile layout
+        run: |
+          python3 scripts/audit_access.py
+          python3 scripts/audit_links.py
+          python3 scripts/audit_a11y.py
+
       - name: Logs on failure
         if: failure()
         run: docker compose logs --tail=100

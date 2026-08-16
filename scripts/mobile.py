@@ -3,7 +3,9 @@
 
     python scripts/mobile.py                  # every page the sitemap lists
     python scripts/mobile.py /search?q=a      # just these
-    LOON_COOKIE=... python scripts/mobile.py  # include signed-in pages
+
+Signs itself in (AUDIT_USER/AUDIT_PASS, default alice) so the account pages are
+covered. Signed out it reaches 23 of 36.
 
 Exit status is 1 if any page overflows, so it can gate a release.
 
@@ -43,8 +45,7 @@ pointed at directly. Two reasons, both discovered the hard way:
   saved copy carries no headers.
 
 Saving also buys the thing scripts/shot.sh says it cannot do: a signed-in page.
-Chrome's CLI cannot set a session cookie, but curl can, so LOON_COOKIE makes
-the account pages checkable.
+Chrome's CLI cannot set a session cookie; _site.Session can.
 """
 
 import json
@@ -54,6 +55,9 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _site  # noqa: E402
 
 BASE = os.environ.get("BASE", "http://localhost:8090")
 WIDTH = int(os.environ.get("MOBILE_WIDTH", "390"))
@@ -90,12 +94,20 @@ SCROLLERS = [".carousel", ".stat-strip", ".data-table-wrapper", ".nav-tabsV2--sc
 EXTRA = ["/search?q=a"]
 
 
+# One signed-in session, shared with the other audits.
+#
+# It used to take a cookie from LOON_COOKIE, which meant a run without one
+# silently checked 23 of 36 pages — and the 13 it skipped were the account area,
+# where 14 of the first 15 failures were. A check that quietly tests a third
+# less than you think is the failure this project keeps finding, so it signs
+# itself in now and says so if it cannot.
+_session = _site.Session()
+_signed_in = _session.login(_site.USER, _site.PASS)
+
+
 def fetch(path):
-    req = urllib.request.Request(BASE + path, headers={"User-Agent": "mobile-check"})
-    if os.environ.get("LOON_COOKIE"):
-        req.add_header("Cookie", os.environ["LOON_COOKIE"])
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.read().decode("utf-8", "replace"), r.status
+    status, body = _session.get(path)
+    return body, status
 
 
 def discover():
@@ -226,9 +238,9 @@ def run(paths):
     # account area — which is where 14 of the first 15 failures were. A run
     # without a session reported a clean site while a third of it was broken,
     # and nothing about the output said so.
-    if not os.environ.get("LOON_COOKIE"):
-        print("  ! no LOON_COOKIE: signed-out only, so every page behind a login")
-        print("    is UNCHECKED. Set LOON_COOKIE=mysession=... for the rest.")
+    if not _signed_in:
+        print("  ! not signed in as %s, so every page behind a login is UNCHECKED." % _site.USER)
+        print("    Set AUDIT_USER/AUDIT_PASS. This reaches 23 of 36 pages signed out.")
     print()
     for r in results:
         issues = []
