@@ -41,6 +41,15 @@ var accessRoutes = []struct{ Path, Label, Note string }{
 	{"/groups", "Newsgroups", ""},
 	{"/trending", "Trending", ""},
 	{"/release/:id", "Release detail", ""},
+	// The NZB itself. Listed because it is the most consequential route on an
+	// indexer — the actual payload, not a page about it — and it was the one
+	// route missing from this table. An operator auditing access would have
+	// read every row here and still not known whether the files were public.
+	//
+	// It follows the browsing mode like any other page: public here, and behind
+	// the login the moment browsing is set to members. That is worth stating
+	// rather than leaving to be inferred from the absence of a row.
+	{"/nzb/:id", "NZB download", "The file itself, not a page about it. Follows the browsing mode."},
 	{"/community/forums", "Forums", ""},
 	{"/c", "Communities", ""},
 	{"/news", "News", ""},
