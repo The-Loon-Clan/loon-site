@@ -89,9 +89,14 @@ var logKeys = map[string]string{
 	"metrics":      "how many metrics",
 	"history":      "how many history rows",
 	"warnings":     "how many warnings",
-	"count":        "how many, where nothing more specific fits",
-	"amount":       "a quantity of points or currency",
-	"left_remote":  "rows left on the remote side",
+	"torrents":     "how many torrents",
+	// Deliberately NOT "count": the tracker seed logs two figures in one entry
+	// — torrents made, and accounting rows written against them — and a pair
+	// where one is "count" reads as though the other were the incidental one.
+	"stats":       "how many per-member accounting rows",
+	"count":       "how many, where nothing more specific fits",
+	"amount":      "a quantity of points or currency",
+	"left_remote": "rows left on the remote side",
 
 	// outcome
 	"err":                 "the error. ALWAYS this spelling, never \"error\"",

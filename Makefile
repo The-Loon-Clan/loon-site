@@ -205,15 +205,26 @@ a11y:
 ## mobile: every page at 390px, checked for layout that does not fit
 ##
 ## Needs `make run` first, and Chrome on the host (CHROME= to point at it).
-## Set LOON_COOKIE=mysession=... to include the signed-in pages — a third of
-## the site is behind a login, and that third is where the account bar lives,
-## which is where 14 of the first 15 failures were.
+## Signs itself in as AUDIT_USER/AUDIT_PASS, so the account pages are covered —
+## it used to want a LOON_COOKIE, and without one it silently reached 23 of 36
+## pages, skipping the third of the site where 14 of the first 15 failures were.
 ##
 ## Not in `check`, for the same reason html and lh are not: it needs a RUNNING
 ## site, and a check that silently passes when the thing it tests is not up is
 ## worse than no check. It belongs on the release list — see docs/READINESS.md.
 mobile:
 	@$(PYTHON) scripts/mobile.py
+
+## shot: screenshot one page as a signed-in member (make shot NAME=x URL=/path)
+##
+## Here rather than left as a script somebody has to know about, which is what
+## four working audits were until `make release` went looking for them.
+##
+## scripts/shot.sh is the anonymous version and captures the LIVE url, headers
+## and all. This one holds a session, which Chrome's CLI cannot — so it is the
+## only way to see /tracker, the account area or an admin page.
+shot:
+	@$(PYTHON) scripts/shot.py $(or $(NAME),page) $(or $(URL),/) $(or $(W),1400) $(or $(H),1000)
 
 ## grade: print the scorecard in docs/QUALITY.md, measured rather than believed
 ##

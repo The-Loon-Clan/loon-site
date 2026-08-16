@@ -31,3 +31,8 @@ coverage.out
 
 # Local secrets. .env.example is the template and IS committed.
 .env
+
+# Screenshots from scripts/shot.py. Written into the tree rather than a system
+# temp dir so they are easy to open while working on a page — and ignored,
+# because a PNG of yesterday's layout is not something anybody needs in a diff.
+scratchpad/

@@ -63,31 +63,23 @@ BASE = os.environ.get("BASE", "http://localhost:8090")
 WIDTH = int(os.environ.get("MOBILE_WIDTH", "390"))
 HEIGHT = int(os.environ.get("MOBILE_HEIGHT", "844"))
 
-def winpath(p):
-    """MSYS path -> a path Windows Python can open.
-
-    This script is run from a bash prompt whose paths look like /c/Program
-    Files/..., and handed to a Windows Chrome and a Windows Python that have
-    never heard of them. Converting rather than requiring one spelling, because
-    the alternative is a FileNotFoundError that names the file it cannot find
-    in a form that looks perfectly correct.
-    """
-    p = p.replace("\\", "/")
-    m = re.match(r"^/([a-zA-Z])/(.*)$", p)
-    return "%s:/%s" % (m.group(1), m.group(2)) if m else p
-
-
-# The one machine-specific path. Overridable, so this is not pinned to whoever
-# wrote it — scripts/shot.sh hardcodes the same path and should learn the same
-# trick.
-CHROME = winpath(os.environ.get(
-    "CHROME", "C:/Program Files/Google/Chrome/Application/chrome.exe"
-))
+# Both moved to _site.py when shot.py needed them too — one Chrome path for
+# every script that drives a browser, rather than a copy per script.
+winpath = _site.winpath
+CHROME = _site.CHROME
 
 # Containers whose children are MEANT to run past the edge. Named explicitly:
 # the alternative is ignoring any element inside anything scrollable, which
 # would also ignore the results table, which is the bug this was written for.
-SCROLLERS = [".carousel", ".stat-strip", ".data-table-wrapper", ".nav-tabsV2--scroll"]
+SCROLLERS = [".carousel", ".stat-strip", ".data-table-wrapper", ".nav-tabsV2--scroll",
+             # The Bootstrap-shaped equivalent of .data-table-wrapper, which the
+             # tracker plugin's templates use. Added only after checking that
+             # this site actually implements it — theme.css:113 sets
+             # overflow-x: auto — because naming a container here on the
+             # assumption that it scrolls is how a real overflow gets silenced.
+             # The tracker pages confirm it: their tables run 364px past the
+             # edge and the DOCUMENT still does not scroll.
+             ".table-responsive"]
 
 # Pages the sitemap cannot name because they need a parameter. A release id and
 # a thread id are looked up from the running site rather than hardcoded.
@@ -269,22 +261,8 @@ def run(paths):
     return 0
 
 
-def unmangle(arg):
-    """Undo MSYS path conversion on a URL path argument.
-
-    Git Bash rewrites any argument starting with "/" into a Windows path before
-    the program sees it, so `python scripts/mobile.py /about` arrives as
-    "C:/Program Files/Git/about" and fails with a message about control
-    characters that says nothing about the real cause.
-
-    Defended here rather than documented, because the fix is invisible from the
-    error and the error is what somebody will search for. MSYS_NO_PATHCONV=1
-    also works, for anyone who already knows to reach for it.
-    """
-    m = re.match(r"^[A-Za-z]:[\\/].*?[\\/](?:Git|usr|mingw64)([\\/].*)$", arg)
-    return m.group(1).replace("\\", "/") if m else arg
-
-
 if __name__ == "__main__":
-    args = [unmangle(a) for a in sys.argv[1:] if not a.startswith("-")]
+    # _site.unmangle, moved there when shot.py hit the same trap and reported
+    # the site as down rather than the argument as mangled.
+    args = [_site.unmangle(a) for a in sys.argv[1:] if not a.startswith("-")]
     sys.exit(run(args or discover()))

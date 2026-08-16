@@ -88,3 +88,26 @@ func TestTrackerFlagsAreReadable(t *testing.T) {
 	}
 	_ = os.Getenv
 }
+
+// The announce base a .torrent carries, and the order it is resolved in.
+//
+// LOON_BASE_URL is the case worth pinning: it was added after the doc in
+// .env.example claimed the fallback already worked that way. Before it, a
+// deployment that had set its address correctly still minted torrents
+// announcing to localhost, and nothing said so — the .torrent parses, the row
+// is right, and the member's client simply reports the tracker dead.
+func TestTrackerSiteURLPrefersTheMostSpecificAddress(t *testing.T) {
+	for _, tc := range []struct {
+		name, site, base, want string
+	}{
+		{"explicit wins", "https://tracker.example", "https://www.example", "https://tracker.example"},
+		{"falls back to the site's own base", "", "https://www.example", "https://www.example"},
+		{"and to localhost, so a bare compose up works", "", "", "http://localhost:8090"},
+	} {
+		t.Setenv("LOON_SITE_URL", tc.site)
+		t.Setenv("LOON_BASE_URL", tc.base)
+		if got := trackerSiteURL(); got != tc.want {
+			t.Errorf("%s: trackerSiteURL() = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}

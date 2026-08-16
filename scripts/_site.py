@@ -161,6 +161,45 @@ class Session:
             return 0
 
 
+def winpath(p):
+    """MSYS path -> a path Windows Python and Windows Chrome can open.
+
+    These scripts are run from a bash prompt whose paths look like
+    /c/Program Files/..., and handed to programs that have never heard of them.
+    Converting rather than requiring one spelling, because the alternative is a
+    FileNotFoundError naming a file in a form that looks perfectly correct.
+
+    Lives here rather than in mobile.py because shot.py needs the same fix, and
+    a second copy is a second thing to get wrong on the next platform.
+    """
+    p = p.replace("\\", "/")
+    m = re.match(r"^/([a-zA-Z])/(.*)$", p)
+    return "%s:/%s" % (m.group(1), m.group(2)) if m else p
+
+
+# The one machine-specific path, shared by every script that drives a browser.
+# Overridable, so none of them is pinned to whoever wrote it.
+CHROME = winpath(os.environ.get(
+    "CHROME", "C:/Program Files/Google/Chrome/Application/chrome.exe"
+))
+
+
+def unmangle(arg):
+    """Undo MSYS path conversion on a URL path argument.
+
+    Git Bash rewrites any argument starting with "/" into a Windows path before
+    the program sees it, so `python scripts/shot.py x /tracker` arrives as
+    "C:/Program Files/Git/tracker" and the script reports the SITE as broken —
+    an error that names an HTTP status and says nothing about the real cause.
+
+    Defended here rather than documented, because the fix is invisible from the
+    error and the error is what somebody will search for. MSYS_NO_PATHCONV=1
+    also works, for anyone who already knows to reach for it.
+    """
+    m = re.match(r"^[A-Za-z]:[\\/].*?[\\/](?:Git|usr|mingw64)([\\/].*)$", arg)
+    return m.group(1).replace("\\", "/") if m else arg
+
+
 def require_site():
     """Exit with a clear message when the site is not up, rather than reporting
     every page as broken."""

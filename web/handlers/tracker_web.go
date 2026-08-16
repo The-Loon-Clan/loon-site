@@ -26,12 +26,24 @@ import (
 
 // trackerSiteURL is the absolute base baked into every downloaded .torrent.
 //
-// There is no sensible default and a wrong value does not fail loudly — it
-// produces .torrent files pointing somewhere unable to answer, and the member
-// finds out when their client reports the tracker as dead. So it is read from
-// the environment and falls back to the address this demo actually serves on.
+// A wrong value does not fail loudly — it produces .torrent files pointing
+// somewhere unable to answer, and the member finds out when their client
+// reports the tracker as dead. So it is read from the environment, and the
+// fallback matters as much as the variable.
+//
+// LOON_BASE_URL BEFORE the localhost literal, which it did not used to be. The
+// two are the same fact — the absolute address this site answers on — and
+// LOON_BASE_URL is already set on any real deployment, for the sitemap and
+// robots.txt. Falling straight through to localhost meant a correctly
+// configured host still minted torrents announcing to localhost, silently,
+// with the one variable that says otherwise sitting right there.
+//
+// The literal stays last so a bare `docker compose up` still works.
 func trackerSiteURL() string {
 	if u := os.Getenv("LOON_SITE_URL"); u != "" {
+		return u
+	}
+	if u := os.Getenv("LOON_BASE_URL"); u != "" {
 		return u
 	}
 	return "http://localhost:8090"

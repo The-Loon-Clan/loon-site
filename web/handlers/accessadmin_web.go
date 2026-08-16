@@ -90,6 +90,26 @@ var accessRoutes = []struct{ Path, Label, Note string }{
 	{"/subscriptions", "Subscriptions", ""},
 	{"/bookmarks", "Bookmarks", ""},
 	{"/inbox", "Inbox", ""},
+	// The tracker. Six routes an operator most needs written down, because two
+	// of them are the only ones on this site that take no session at all — and
+	// because the whole feature appears and disappears with an env flag, so its
+	// absence from this table read as "no such pages" rather than "switched
+	// off".
+	//
+	// The member pages are members-only in EVERY browsing mode, and not for the
+	// reason the rest of that group is: they carry a second gate the site
+	// setting cannot reach — the tracker.access entitlement — so a member
+	// without it is sent to / rather than to the login page.
+	{"/tracker", "Tracker", "Needs LOON_TRACKER=1, an account, and the tracker.access entitlement."},
+	{"/tracker/my", "Your tracker stats", "Your ratio, your passkey. Same gates as /tracker."},
+	{"/tracker/download/:hash", "Torrent download", "The .torrent, with YOUR passkey baked into its announce URL."},
+	// Public on purpose, and the one row here worth reading twice. The caller is
+	// a torrent client: it has no cookie, cannot follow a login redirect, and
+	// would parse a login page as a bencoded response. The passkey in the path
+	// IS the credential — which is why rotating one invalidates every .torrent a
+	// member has already downloaded.
+	{"/api/tracker/announce/:passkey", "Announce", "No session by design: the passkey is the credential."},
+	{"/api/tracker/scrape/:passkey", "Scrape", "As announce."},
 }
 
 // buildAccessMap answers the access question for each route by ASKING the
@@ -123,10 +143,17 @@ func buildAccessMap() []pageAccess {
 	return out
 }
 
-// isPerViewer reports whether a page is about the viewer, and so needs an
-// account whatever the site mode is.
+// isPerViewer reports whether a page needs an account whatever the site mode
+// is, because the browsing setting is not the only thing gating it.
+//
+// For most of the list below that is because the page is ABOUT the viewer —
+// your inbox, your bookmarks — and there is no "you" without a session. The
+// tracker is here for a different reason and it is worth not blurring: its
+// pages carry a second gate the browsing mode cannot reach, the tracker.access
+// entitlement, so opening the site to anonymous browsing does not open them.
+// Same answer, different cause, and each of those rows carries its own note.
 func isPerViewer(p string) bool {
-	for _, pre := range []string{"/settings/", "/subscriptions", "/bookmarks", "/inbox", "/achievements", "/calendar", "/rewards"} {
+	for _, pre := range []string{"/settings/", "/subscriptions", "/bookmarks", "/inbox", "/achievements", "/calendar", "/rewards", "/tracker"} {
 		if strings.HasPrefix(p, pre) {
 			return true
 		}

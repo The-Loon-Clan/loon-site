@@ -46,6 +46,11 @@ func demoSeed(db storage.Conn, log *slog.Logger) {
 	ranksSeed(db, log)
 	storeSeed(db, log)
 	newsSeed(db, log)
+	// The tracker (demoseedtracker_web.go). Last because it is the only seeder
+	// that reads another table to decide what to write — its torrents are made
+	// from releases already in the index — and the only one gated on a feature
+	// flag as well as an empty table.
+	trackerSeed(db, log)
 }
 
 // ranksSeed creates the rank ladder.
