@@ -426,22 +426,6 @@ func (w *web) profilePage(c *gin.Context) {
 	}
 	core.SetViewSubject(c, subject.ID)
 
-	var widgets []widgetVM
-	for _, v := range w.userWidgets {
-		if !w.canView(v, c) {
-			continue
-		}
-		frag, err := v.Render(c)
-		if err != nil {
-			w.log.Error("user widget", "slug", v.Slug, "err", err)
-			continue
-		}
-		if frag == "" {
-			continue
-		}
-		widgets = append(widgets, widgetVM{Title: v.Title, Fragment: frag})
-	}
-
 	viewer, _ := w.currentUser(c)
 	subj := subject.ToCore()
 	// Privacy is ENFORCED here, not just rendered: a private profile shows its
@@ -480,7 +464,6 @@ func (w *web) profilePage(c *gin.Context) {
 		// Outcome of a report POST, round-tripped through the redirect.
 		"Report":  c.Query("report"),
 		"IsSelf":  isSelf,
-		"Widgets": widgets,
 		"Role":    roleLabel(subj.Role),
 		"Private": private,
 		// Preview is NOT IsSelf: the page must render as a stranger sees it,
@@ -497,6 +480,50 @@ func (w *web) profilePage(c *gin.Context) {
 		w.render(c, "profile.html", data)
 		return
 	}
+	// Every plugin card goes to the SIDEBAR now, and two are suppressed
+	// outright. Placement is the host's call — the page is its layout — and
+	// the profile had drifted into a collage: four plugin cards stacked in the
+	// main column, two of them repeating what the page already said.
+	//
+	//   summary       (loon-baseline) said Role and Joined — the identity card
+	//                 at the top of the sidebar already carries both, so this
+	//                 was the same two facts a second time, four cards down.
+	//   achievements  (rewards) duplicated the host's own Achievements panel
+	//                 one section below it: the same earned badges, twice on
+	//                 one screen. The widget's extra — in-progress bars — lives
+	//                 on /achievements, which the panel links to.
+	//
+	// What remains (flair, daily streak, linked accounts, agent fleet) is a
+	// fact ABOUT the member, and facts live in the sidebar with the identity
+	// card and the stats; the main column is content. Suppression is by slug,
+	// which couples the host to two plugin names — accepted and stated, the
+	// same way navPlacedByHost pins nav entries.
+	//
+	// AFTER the private gate on purpose — the sidebar renders on private
+	// profiles, so a fragment built here would leak there. Below the gate the
+	// fragments are never rendered at all for a private profile, which also
+	// honours the gate's stronger rule: the figures must never be FETCHED.
+	var sidebarWidgets []widgetVM
+	for _, v := range w.userWidgets {
+		if v.Slug == "summary" || v.Slug == "achievements" {
+			continue
+		}
+		if !w.canView(v, c) {
+			continue
+		}
+		frag, err := v.Render(c)
+		if err != nil {
+			w.log.Error("user widget", "slug", v.Slug, "err", err)
+			continue
+		}
+		if frag == "" {
+			continue
+		}
+		sidebarWidgets = append(sidebarWidgets, widgetVM{Title: v.Title, Fragment: frag})
+	}
+
+	data["SidebarWidgets"] = sidebarWidgets
+
 	// Real profile figures only. Each is guarded: a missing capability drops
 	// the tile rather than showing a zero, because "0 points" and "points are
 	// unavailable" are different claims and a profile should not conflate them.

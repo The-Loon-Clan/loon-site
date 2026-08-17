@@ -197,7 +197,18 @@ def unmangle(arg):
     also works, for anyone who already knows to reach for it.
     """
     m = re.match(r"^[A-Za-z]:[\\/].*?[\\/](?:Git|usr|mingw64)([\\/].*)$", arg)
-    return m.group(1).replace("\\", "/") if m else arg
+    if m:
+        return m.group(1).replace("\\", "/")
+    # The OTHER mangling: a path whose first segment is one letter (/u/alice)
+    # becomes a DRIVE reference (U:/alice) rather than a Git-prefixed path, so
+    # the pattern above never sees it. Found by `mobile.py /u/alice` reporting
+    # the site down. A real caller has no reason to hand these scripts a
+    # drive-rooted Windows path as a URL, so the reverse mapping is safe here
+    # in a way it would not be in general.
+    m = re.match(r"^([A-Za-z]):[\\/](.+)$", arg)
+    if m:
+        return "/%s/%s" % (m.group(1).lower(), m.group(2).replace("\\", "/"))
+    return arg
 
 
 def require_site():
