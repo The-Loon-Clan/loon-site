@@ -3288,6 +3288,26 @@ tr:first-child .quick-info {
 @media (max-width: 900px) {
     .quick-info { display: none; }
 }
+/* A table SHORTER than the card cannot contain it: in a one-row panel every
+   anchor above still leaves the card taller than the table, so it was clipped
+   by .data-table-wrapper (a scroll container) and grew a scrollbar the height
+   of the hidden part. The card has to escape its clipping ancestors — but
+   only WHILE it is up: .panelV2's overflow:hidden is what rounds the table
+   corners into the panel radius, and lifting it permanently would square them
+   off. Scoped to the same states that show the card, the corners un-clip only
+   for the duration of a hover, which nothing can see. Same breakpoint as the
+   card itself: below it there is no card to escape. */
+@media (min-width: 901px) {
+    .panelV2:has(.data-table__name:hover),
+    .panelV2:has(.data-table__name:focus-within) {
+        overflow: visible;
+    }
+
+    .data-table-wrapper:has(.data-table__name:hover),
+    .data-table-wrapper:has(.data-table__name:focus-within) {
+        overflow-x: visible;
+    }
+}
 .quick-info__poster {
     flex: 0 0 72px;
     width: 72px;
