@@ -45,6 +45,7 @@ func demoSeed(db storage.Conn, log *slog.Logger) {
 	// Ranks first: the store's rank items reference a rank by id.
 	ranksSeed(db, log)
 	storeSeed(db, log)
+	storeCreditItems(db, log)
 	newsSeed(db, log)
 	// The tracker (demoseedtracker_web.go). Last because it is the only seeder
 	// that reads another table to decide what to write — its torrents are made
@@ -139,6 +140,41 @@ func storeSeed(db storage.Conn, log *slog.Logger) {
 		log.Warn("store seed: flair", "err", err)
 	}
 	log.Info("seeded demo store items")
+}
+
+// storeCreditItems ENSURES the transfer-credit shelf — MaM's classic BON
+// spends — into any catalogue, by name and outside storeSeed's
+// only-when-empty guard: an existing shop gains them on upgrade, an
+// operator's edits (price, stock, deactivation) survive every boot. All
+// flavour=tracker: the shop hides them when the site's tracker half is off.
+func storeCreditItems(db storage.Conn, log *slog.Logger) {
+	items := []struct {
+		Name string
+		Cost int
+		Kind string
+		GB   string
+		Sort int
+	}{
+		{"1.0 GB Uploaded", 200, "upload_gb", "1", 70},
+		{"5.0 GB Uploaded", 900, "upload_gb", "5", 80},
+		{"10.0 GB Uploaded", 1700, "upload_gb", "10", 90},
+		{"100.0 GB Uploaded", 15000, "upload_gb", "100", 100},
+		{"10.0 GB Downloaded", 1500, "download_gb", "10", 110},
+		{"100.0 GB Downloaded", 13000, "download_gb", "100", 120},
+	}
+	for _, it := range items {
+		desc := "Adds " + it.GB + " GB to your uploaded total."
+		if it.Kind == "download_gb" {
+			desc = "Wipes " + it.GB + " GB off your downloaded total."
+		}
+		if _, err := db.Exec(`
+			INSERT INTO store.items (name, description, points_cost, reward_type, reward_ref, reward_days, stock, active, sort_order, flavour)
+			SELECT $1, $2, $3, $4, $5, 0, -1, true, $6, 'tracker'
+			 WHERE NOT EXISTS (SELECT 1 FROM store.items WHERE name = $1)`,
+			it.Name, desc, it.Cost, it.Kind, it.GB, it.Sort); err != nil {
+			log.Warn("store seed: credit item", "name", it.Name, "err", err)
+		}
+	}
 }
 
 // newsSeed writes the announcements.

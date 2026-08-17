@@ -63,6 +63,12 @@ import (
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	_ "github.com/the-loon-clan/loon-plugins/pointstore"
 
+	// games: the pot + charity, self-contained over core seams (Points,
+	// rewards granter, rank stats) — the import is most of the wiring; the
+	// csrf seam below is the rest.
+	_ "github.com/the-loon-clan/loon-plugins/games"
+	"github.com/the-loon-clan/loon-plugins/store"
+
 	// events owns scheduled windows — the WHEN other plugins hang behaviour on.
 	// Lifted out of rewards, which now GATES on it: rewards links its admin page
 	// at /admin/p/events, and without this import that link 404s. Self-contained
@@ -580,6 +586,17 @@ func Main() {
 	// own Provision, and without it every earned rank stays unreachable.
 	if err := registerRankStats(c, conn); err != nil {
 		logger.Error("register rank stats", "err", err)
+	}
+	// The store's flavour seam: which halves of the site are on, so the shop
+	// can hide (and refuse) items whose half is off. And the games plugin's
+	// CSRF seam — the same host token every other form embeds.
+	if err := c.Register(store.FlavourExtension,
+		func() (bool, bool) { return flavourIndexer(), flavourTracker() }); err != nil {
+		logger.Error("register store flavour", "err", err)
+	}
+	if err := c.Register("games.csrf",
+		func(gc *gin.Context) string { return middleware.Token(gc) }); err != nil {
+		logger.Error("register games csrf", "err", err)
 	}
 	// The message catalogue's seams (i18nadmin_web.go): slug list + per-viewer
 	// resolution for achievements, and pluginapi.I18nDeclarer so any plugin
