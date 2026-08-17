@@ -55,6 +55,41 @@
             </div>
         </section>
 
+        {{/* In progress: locked achievements the member has MOVED ON, nearest
+             completion first, each with the site's one bar component (.fund,
+             the donate page's). Locked ones with zero progress stay a count in
+             Statistics — a bar at 0% is absence wearing a chart. This panel is
+             where the profile widget's bars moved when the profile kept a
+             single achievements card. */}}
+        {{if .InProgress}}
+        <section class="panelV2 achievements__progress">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#clock"></use></svg>
+                    In progress
+                </h2>
+                <div class="panel__actions"><span class="panel__grouping">{{len .InProgress}}</span></div>
+            </header>
+            <div class="panel__body">
+                {{range .InProgress}}
+                <div class="fund">
+                    <div class="fund__name d-flex justify-content-between">
+                        <strong>{{.Name}}</strong>
+                        <span class="text-muted small">{{.Progress}} / {{.Threshold}}</span>
+                    </div>
+                    {{/* role="img" + aria-label, the .fund pattern's own rule:
+                         the label carries the real figures, where a bare
+                         percentage would leave a screen-reader user doing the
+                         arithmetic the bar exists to remove. */}}
+                    <div class="fund__track" role="img" aria-label="{{.Name}}: {{.Progress}} of {{.Threshold}}">
+                        <div class="fund__fill" style="width:{{.Percent}}%"></div>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+        </section>
+        {{end}}
+
         {{/* Pending is hidden when empty rather than showing a second empty
              state. It is a transient condition, not a section of the page. */}}
         {{if .Pending}}

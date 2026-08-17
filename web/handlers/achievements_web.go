@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"sort"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/the-loon-clan/loon-plugins/rewards"
@@ -14,10 +16,15 @@ import (
 // so the profile card had a hardcoded em dash. `rewards.achievements` is that
 // question; this file is the page that asks it.
 //
-// LOCKED achievements are counted but NOT listed. UNIT3D lists them, and on a
-// site with 53 of them that is a wall of things you do not have; the count in
-// the statistics panel says the same thing without the page being mostly
-// absence. Revisit if the catalogue ever gets descriptions worth browsing.
+// LOCKED achievements split two ways, and the line between them is progress.
+// One WITH progress is work underway — it renders in the In Progress panel
+// with a bar, because this page became the only home for those bars when the
+// profile stopped showing the rewards widget (profile.html keeps one
+// achievements panel, and the in-progress half lives here). One with NO
+// progress is pure absence, and stays a count: UNIT3D lists all of them, and
+// on a site with 53 that is a wall of things you do not have. The original
+// note here said "revisit if"; the revisit happened when the bars lost their
+// other home.
 
 // achievementView is one badge as the template needs it.
 type achievementView struct {
@@ -26,6 +33,13 @@ type achievementView struct {
 	Icon  string
 	When  string
 	State rewards.AchievementState
+	// The in-progress figures. Percent is computed here rather than in the
+	// template because html/template arithmetic on two int64s is where a page
+	// silently truncates — and clamped to 99: a bar reading full beside a
+	// badge that has not unlocked is a contradiction the member will report.
+	Progress  int64
+	Threshold int64
+	Percent   int
 }
 
 // achievementIcon picks the sprite for a state.
@@ -73,13 +87,15 @@ func (w *web) achievementsPage(c *gin.Context) {
 		return
 	}
 
-	unlocked, pending := []achievementView{}, []achievementView{}
+	unlocked, pending, inProgress := []achievementView{}, []achievementView{}, []achievementView{}
 	for _, a := range list {
 		v := achievementView{
-			Name:  a.Name,
-			Slug:  a.Slug,
-			Icon:  achievementIcon(a.State),
-			State: a.State,
+			Name:      a.Name,
+			Slug:      a.Slug,
+			Icon:      achievementIcon(a.State),
+			State:     a.State,
+			Progress:  a.Progress,
+			Threshold: a.Threshold,
 		}
 		if !a.EarnedAt.IsZero() {
 			v.When = a.EarnedAt.Format("2 Jan 2006")
@@ -89,12 +105,26 @@ func (w *web) achievementsPage(c *gin.Context) {
 			unlocked = append(unlocked, v)
 		case rewards.AchievementPending:
 			pending = append(pending, v)
+		default:
+			if a.Progress > 0 && a.Threshold > 0 {
+				v.Percent = int(a.Progress * 100 / a.Threshold)
+				if v.Percent > 99 {
+					v.Percent = 99
+				}
+				inProgress = append(inProgress, v)
+			}
 		}
 	}
+	// Nearest completion first: the panel is a to-do list, and the item a
+	// member is three posts from matters more than the one they are 22 from.
+	sort.SliceStable(inProgress, func(i, j int) bool {
+		return inProgress[i].Percent > inProgress[j].Percent
+	})
 
 	nUnlocked, nPending, nLocked := rewards.AchievementCounts(list)
 	data["Unlocked"] = unlocked
 	data["Pending"] = pending
+	data["InProgress"] = inProgress
 	data["CountUnlocked"] = nUnlocked
 	data["CountPending"] = nPending
 	data["CountLocked"] = nLocked
