@@ -407,6 +407,13 @@ func (st *Store) MigrateDonations() error {
 		// later. Reproduced here as a default rather than a rule this column
 		// enforces, because the rule lives in the statement above.
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS donator            BOOLEAN          NOT NULL DEFAULT false`,
+		// A donor's choice to stay OFF the public page entirely. Distinct from
+		// an empty donor_label, which lists the donation as "Anonymous" — some
+		// donors are fine with an anonymous row, some do not want the row at
+		// all, and conflating the two forces the second group to fake the
+		// first. The row itself stays: totals, thermometers and the goal
+		// trigger must keep counting money that asked not to be displayed.
+		`ALTER TABLE donations ADD COLUMN IF NOT EXISTS anonymous BOOLEAN NOT NULL DEFAULT false`,
 	}
 	for _, q := range stmts {
 		if _, err := st.db.Exec(q); err != nil {
