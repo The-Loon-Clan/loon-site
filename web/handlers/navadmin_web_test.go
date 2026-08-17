@@ -74,8 +74,8 @@ func TestAssembleNavLocalisesGroupLabels(t *testing.T) {
 // dropdown with nothing in it is a dead control.
 func TestAssembleNavSkipsHiddenAndEmptyGroups(t *testing.T) {
 	st := navTestState()
-	st.Groups[0].Hidden = true              // releases hidden
-	st.Entries = st.Entries[:0]             // nothing anywhere
+	st.Groups[0].Hidden = true  // releases hidden
+	st.Entries = st.Entries[:0] // nothing anywhere
 	tabs, footer := assembleNav(st, "/", nil, nil, nil)
 	if len(tabs) != 0 || len(footer) != 0 {
 		t.Fatalf("tabs=%d footer=%d, want nothing rendered", len(tabs), len(footer))

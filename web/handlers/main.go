@@ -169,6 +169,7 @@ func Main() {
 		os.Exit(1)
 	}
 	wsrv := newWeb(st.users, st.sessionSecret, logger, data)
+	wsrv.apiKeys = st.apiKeys
 	wsrv.loginLog = st.loginLog
 	wsrv.ipSalt = string(st.sessionSecret) // demo salt; a real host uses a dedicated ip_salt secret
 	// Cloudflare Turnstile hook (loon-baseline). Disabled unless both keys are

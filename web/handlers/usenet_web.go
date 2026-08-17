@@ -22,8 +22,10 @@ import (
 // views mounted generically in main.go — see admin_views.go.
 
 // newznabAPI is the Newznab/Torznab endpoint (/api + /rss). The plugin owns the
-// XML; the host parses the query + serves the response. Open (no apikey check) —
-// it's a demo; a real host validates apikey against its user store here.
+// XML; the host parses the query + serves the response. Authenticated and
+// METERED (apiquota_web.go): ?apikey= resolves to the member it belongs to,
+// a members-only site requires it, and the daily quota the operator sets on
+// the Search API service refuses past its line.
 //
 // Responses are read through the host cache, using the SAME key + namespace as
 // the loon-api read tier (pluginapi.NewznabCacheKey) so a shared Redis is
@@ -37,6 +39,11 @@ func (w *web) newznabAPI(c *gin.Context) {
 	}
 	in, _ := readNewznabQueryInput(c)
 	in = in.clamp()
+	// Before the cache: a cached answer still counts against the quota, or
+	// the cheapest requests would be the unmetered ones.
+	if !w.apiGate(c, in.APIKey) {
+		return
+	}
 	req := pluginapi.NewznabRequest{
 		Function:   in.Function,
 		Query:      in.Query,

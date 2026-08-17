@@ -205,7 +205,7 @@ func wireAdminAndViews(
 	// loon-baseline self-service API key page: /p/api-key shows the user's
 	// Newznab key (created on first visit) + a Regenerate button. loon-api
 	// validates the key against the same table.
-	if kviews, err := apikey.Views(st.apiKeys, wsrv.currentUser); err != nil {
+	if kviews, err := apikey.Views(st.apiKeys, wsrv.currentUser, wsrv.apiUsage); err != nil {
 		logger.Error("apikey.Views", "err", err)
 	} else {
 		for _, v := range kviews {

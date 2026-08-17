@@ -24,6 +24,7 @@ import (
 
 	"github.com/the-loon-clan/loon/core"
 
+	"github.com/the-loon-clan/loon-baseline/apikey"
 	"github.com/the-loon-clan/loon-baseline/authflow"
 	"github.com/the-loon-clan/loon-baseline/authtoken"
 	"github.com/the-loon-clan/loon-baseline/cache"
@@ -110,6 +111,10 @@ type web struct {
 	dailyStatus dailyreward.StatusFunc
 
 	// View-system lookup tables, filled by wireViews after Boot.
+	// apiKeys resolves ?apikey= on /api and /rss (apiquota_web.go). Set in
+	// main() beside the other baseline stores.
+	apiKeys *apikey.PGStore
+
 	adminNav       []navItem            // admin subnav: Settings + plugin pages + host pages
 	settingsViews  []core.View          // sections on /admin/settings
 	sitePages      []core.View          // public-facing pages at /p/<slug>
