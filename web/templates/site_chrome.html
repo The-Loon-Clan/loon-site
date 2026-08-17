@@ -921,7 +921,10 @@
 {{define "achievement-badge"}}
 <li class="badge-tile badge-tile--{{.State}}" title="{{.Name}}{{with .When}} — {{.}}{{end}}">
     <span class="badge-tile__icon">
-        <svg class="icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>
+        {{/* The operator's uploaded badge art wins over the sprite; the view
+             model has already blanked it for anything not yet earned. */}}
+        {{if .Image}}<img src="{{.Image}}" alt="" width="20" height="20" style="border-radius:4px">
+        {{else}}<svg class="icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>{{end}}
     </span>
     <span class="badge-tile__body">
         <span class="badge-tile__name">{{.Name}}</span>

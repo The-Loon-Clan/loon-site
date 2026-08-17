@@ -31,6 +31,10 @@ type achievementView struct {
 	Name  string
 	Slug  string
 	Icon  string
+	// Image is the operator-uploaded badge art URL (rewards migration 006),
+	// which wins over Icon when set — and is blanked by the builder for
+	// anything not yet earned, so hidden badges cannot leak their art.
+	Image string
 	When  string
 	State rewards.AchievementState
 	// The in-progress figures. Percent is computed here rather than in the
@@ -93,9 +97,18 @@ func (w *web) achievementsPage(c *gin.Context) {
 			Name:      a.Name,
 			Slug:      a.Slug,
 			Icon:      achievementIcon(a.State),
+			Image:     a.ImagePath,
 			State:     a.State,
 			Progress:  a.Progress,
 			Threshold: a.Threshold,
+		}
+		// The operator's look applies to what is EARNED. Locked and pending
+		// keep the state icons — a padlock says "not yet" in a way custom art
+		// cannot, and a hidden-until-earned badge must not leak its image.
+		if a.State != rewards.AchievementUnlocked {
+			v.Image = ""
+		} else if a.Icon != "" {
+			v.Icon = a.Icon
 		}
 		if !a.EarnedAt.IsZero() {
 			v.When = a.EarnedAt.Format("2 Jan 2006")

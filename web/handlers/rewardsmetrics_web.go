@@ -12,6 +12,7 @@ import (
 	"log/slog"
 
 	"github.com/the-loon-clan/loon-plugins/rewards"
+	"github.com/the-loon-clan/loon/blob"
 	"github.com/the-loon-clan/loon/core"
 )
 
@@ -207,6 +208,19 @@ func registerAchievementMetrics(c *core.Core, db storage.Conn) error {
 	if err := c.Register(rewards.CSRFExtension,
 		func(gc *gin.Context) string { return middleware.Token(gc) }); err != nil {
 		return fmt.Errorf("register rewards csrf: %w", err)
+	}
+	// The achievements definition page's two optional extras. Files shares the
+	// wiki's upload root, so /uploads/* is already statically served; icons is
+	// the sprite subset that makes sense on a badge — offering the whole sheet
+	// would put #logo and #chevron-down in a picker where they mean nothing.
+	if err := c.Register("rewards.files", blob.Store(blob.NewLocal(uploadRoot, uploadURL))); err != nil {
+		return fmt.Errorf("register rewards files: %w", err)
+	}
+	if err := c.Register("rewards.icons", []string{
+		"star", "verified", "shield", "coin", "film", "tv", "music", "book",
+		"comment", "users", "download", "server", "globe", "calendar",
+	}); err != nil {
+		return fmt.Errorf("register rewards icons: %w", err)
 	}
 	return nil
 }
