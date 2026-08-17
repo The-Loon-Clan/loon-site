@@ -1,0 +1,99 @@
+{{/* Admin → Navigation. The four main dropdowns as editable rows: relabel,
+     renumber, move between groups, hide, add custom links, remove your own.
+     One form, one save — like the i18n grid, an edit session touches many
+     rows. Data from navadmin_web.go: .Groups [{Key, Rows}], .Saved, .Err. */}}
+{{define "content"}}
+{{template "admin-subnav" .}}
+
+<header class="mt-3">
+    <h1 class="h3 m-0">Navigation</h1>
+    <p class="text-muted small m-0 mt-1">What the Releases, Community, Support and Other menus carry, and in what order.</p>
+</header>
+
+{{if .Saved}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Saved. The menus read the new layout on the next page load.</span>
+</div>
+{{end}}
+{{with .Err}}
+<div class="notice notice--warning">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg><span>{{.}}</span>
+</div>
+{{end}}
+
+<form method="post" action="/admin/nav">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    {{range .Groups}}
+    <section class="panelV2 mt-4">
+        <header class="panel__header">
+            <h2 class="panel__heading" style="text-transform:capitalize">{{.Key}}</h2>
+            {{with .Rows}}<div class="panel__actions"><span class="panel__grouping">{{len .}}</span></div>{{end}}
+        </header>
+        <div class="panel__body panel__body--flush">
+            <div class="data-table-wrapper">
+                <table class="data-table">
+                    <caption class="visually-hidden">The {{.Key}} menu's entries</caption>
+                    <thead>
+                        <tr><th>Label</th><th>Links to</th><th>Menu</th><th>Order</th><th>Hidden</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {{range .Rows}}
+                        <tr>
+                            <td><input class="form__input" name="l/{{.Href}}" value="{{.Label}}" aria-label="Label for {{.Href}}"></td>
+                            <td><a href="{{.Href}}"><code>{{.Href}}</code></a></td>
+                            <td>
+                                <select class="form__input" name="g/{{.Href}}" aria-label="Menu for {{.Href}}">
+                                    <option value="releases" {{if eq .Grp "releases"}}selected{{end}}>Releases</option>
+                                    <option value="community" {{if eq .Grp "community"}}selected{{end}}>Community</option>
+                                    <option value="support" {{if eq .Grp "support"}}selected{{end}}>Support</option>
+                                    <option value="other" {{if eq .Grp "other"}}selected{{end}}>Other</option>
+                                </select>
+                            </td>
+                            <td><input class="form__input" name="o/{{.Href}}" value="{{.Ordinal}}" inputmode="numeric" size="4" aria-label="Order for {{.Href}}"></td>
+                            <td><input type="checkbox" name="h/{{.Href}}" value="1" {{if .Hidden}}checked{{end}} aria-label="Hide {{.Href}}"></td>
+                            <td>
+                                {{if .Builtin}}<span class="text-muted small">built-in</span>
+                                {{else}}<label class="small"><input type="checkbox" name="rm/{{.Href}}" value="1" aria-label="Remove {{.Href}}"> remove</label>{{end}}
+                            </td>
+                        </tr>
+                        {{else}}
+                        <tr><td colspan="6" class="text-muted">Nothing here — move an entry in, or add a link below.</td></tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+    {{end}}
+
+    <section class="panelV2 mt-4">
+        <header class="panel__header"><h2 class="panel__heading">Add a link</h2></header>
+        <div class="panel__body">
+            <div style="display:flex;gap:0.75rem;align-items:end;flex-wrap:wrap">
+                <label class="form__label" for="nav-new-label">Label
+                    <input id="nav-new-label" name="new_label" class="form__input" placeholder="Privacy">
+                </label>
+                <label class="form__label" for="nav-new-href" style="flex:1;min-width:220px">Links to
+                    <input id="nav-new-href" name="new_href" class="form__input" placeholder="/pages/privacy">
+                </label>
+                <label class="form__label" for="nav-new-grp">Menu
+                    <select id="nav-new-grp" name="new_grp" class="form__input">
+                        <option value="other">Other</option>
+                        <option value="releases">Releases</option>
+                        <option value="community">Community</option>
+                        <option value="support">Support</option>
+                    </select>
+                </label>
+                <button class="button button--primary button--sm" type="submit">Save all</button>
+            </div>
+            <p class="text-muted small" style="margin:0.5rem 0 0">
+                A local path (<code>/pages/privacy</code>) or an http(s) URL. Order sorts
+                low-to-high within a menu; built-in entries can be renamed, moved and hidden
+                but not removed &mdash; and entries the site flavour switches off (Newsgroups,
+                Torrents, the API) stay off regardless of this table.
+            </p>
+        </div>
+    </section>
+</form>
+{{end}}

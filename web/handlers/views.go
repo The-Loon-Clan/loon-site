@@ -136,6 +136,8 @@ var pageTemplates = []string{
 	"admin_i18n.html",
 	// Editable site pages (pagesadmin_web.go).
 	"admin_pages.html",
+	// The menu editor (navadmin_web.go).
+	"admin_nav.html",
 	// The widget page editor (widgetsadmin_web.go).
 	"admin_widgets.html",
 	// Data-source attribution (credits_web.go).
@@ -645,11 +647,29 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// /admin/* routes sit behind Require(RoleAdmin), so a plain user
 	// clicking them lands on a 403 JSON blob instead of a page.
 	data["IsAdmin"] = u != nil && u.AtLeast(core.RoleAdmin)
-	// The two halves of the chrome, live from the site flavour so a save
-	// moves the nav without a restart: ShowIndexer gates Newsgroups and the
-	// Newznab/RSS links, ShowTracker the Releases menu's Torrents entry.
+	// ShowIndexer gates the FOOTER's Newznab/RSS links; the dropdowns' own
+	// flavour gating moved into the nav assembly below (navConditions).
 	data["ShowIndexer"] = flavourIndexer()
-	data["ShowTracker"] = flavourTracker()
+	// The four main dropdowns, from the nav editor's rows (navadmin_web.go):
+	// condition-filtered, operator-ordered, active-marked for THIS path. One
+	// key per group rather than a map because a missing map key under index
+	// is a render error in the no-data tests, and a missing slice key under
+	// range is a no-op.
+	navPath := c.Request.URL.Path
+	menuItems, menuActive := assembleNav(navRows(), navPath)
+	// The release detail pages belong to Releases but no menu row carries
+	// their prefix — the one special case the literals used to encode.
+	if strings.HasPrefix(navPath, "/release/") {
+		menuActive["releases"] = true
+	}
+	data["NavReleases"] = menuItems["releases"]
+	data["NavCommunity"] = menuItems["community"]
+	data["NavSupport"] = menuItems["support"]
+	data["NavOther"] = menuItems["other"]
+	data["NavActiveReleases"] = menuActive["releases"]
+	data["NavActiveCommunity"] = menuActive["community"]
+	data["NavActiveSupport"] = menuActive["support"]
+	data["NavActiveOther"] = menuActive["other"]
 	// The forum's moderation routes (pin/lock, category admin) gate at RoleMod
 	// — templates must show those buttons to the role that can use them.
 	data["IsMod"] = u != nil && u.AtLeast(core.RoleMod)

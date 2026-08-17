@@ -193,5 +193,13 @@ func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PG
 	if err := data.MigrateSitePages(); err != nil {
 		return fmt.Errorf("site pages migrate: %w", err)
 	}
+	// The editable navigation (navadmin_web.go / storage/sitenav.go): create,
+	// reconcile the builtin rows in, and load the mirror the chrome reads.
+	if err := data.MigrateSiteNav(); err != nil {
+		return fmt.Errorf("site nav migrate: %w", err)
+	}
+	if err := loadSiteNav(context.Background(), data); err != nil {
+		logger.Error("load site nav", "err", err)
+	}
 	return nil
 }

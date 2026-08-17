@@ -43,7 +43,7 @@ PAGES = [
     "/settings/profile", "/settings/privacy", "/settings/notifications",
     "/inbox", "/store",
     "/admin", "/admin/settings", "/admin/access", "/admin/contracts",
-    "/admin/i18n", "/admin/pages", "/admin/pages?edit=faq",
+    "/admin/i18n", "/admin/pages", "/admin/pages?edit=faq", "/admin/nav",
     "/admin/jobs", "/admin/plugins", "/moderation", "/moderation/avatars",
 ]
 

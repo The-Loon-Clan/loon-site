@@ -80,9 +80,34 @@
             <label class="form__label" for="page-title">Title
                 <input id="page-title" name="title" class="form__input" value="{{$.EditTitle}}">
             </label>
-            <label class="form__label" for="page-body">Body (markdown)
+            {{$fmt := or $.EditFormat "markdown"}}
+            <fieldset class="m-0" style="border:0;padding:0">
+                <legend class="form__label m-0">Format</legend>
+                <label class="small" for="fmt-md"><input type="radio" id="fmt-md" name="format" value="markdown" {{if ne $fmt "html"}}checked{{end}}> Markdown (sanitised)</label>
+                &nbsp;
+                <label class="small" for="fmt-html"><input type="radio" id="fmt-html" name="format" value="html" {{if eq $fmt "html"}}checked{{end}}> HTML (verbatim &mdash; you are trusted with a &lt;script&gt; tag, so mean it)</label>
+            </fieldset>
+            <label class="form__label" for="page-body">Body
                 <textarea id="page-body" name="body_md" class="form__input" rows="18">{{$.EditBody}}</textarea>
             </label>
+            {{if not $.EditIsBuiltin}}
+            {{$grp := or $.EditNavGroup ""}}
+            <div style="display:flex;gap:0.75rem;align-items:end;flex-wrap:wrap">
+                <label class="form__label" for="page-nav-group">Show in menu
+                    <select id="page-nav-group" name="nav_group" class="form__input">
+                        <option value="">&mdash; not in a menu &mdash;</option>
+                        <option value="releases" {{if eq $grp "releases"}}selected{{end}}>Releases</option>
+                        <option value="community" {{if eq $grp "community"}}selected{{end}}>Community</option>
+                        <option value="support" {{if eq $grp "support"}}selected{{end}}>Support</option>
+                        <option value="other" {{if eq $grp "other"}}selected{{end}}>Other</option>
+                    </select>
+                </label>
+                <label class="form__label" for="page-nav-ordinal">at position
+                    <input id="page-nav-ordinal" name="nav_ordinal" class="form__input" size="4" inputmode="numeric" value="{{or $.EditNavOrdinal 1000}}">
+                </label>
+                <span class="text-muted small">fine-tune later at Admin &rarr; Navigation</span>
+            </div>
+            {{end}}
             <button class="button button--primary button--sm mt-2" type="submit">Save</button>
         </form>
         {{if $.EditExists}}

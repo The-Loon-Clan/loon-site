@@ -13,21 +13,31 @@ import (
 
 // SitePage is one page.
 type SitePage struct {
-	Slug      string    `db:"slug"`
-	Title     string    `db:"title"`
-	BodyMD    string    `db:"body_md"`
+	Slug   string `db:"slug"`
+	Title  string `db:"title"`
+	BodyMD string `db:"body_md"`
+	// Format is how BodyMD renders: "markdown" (the sanitising pipeline, and
+	// what an empty value means) or "html" (verbatim). Drupal's text-formats
+	// idea at its smallest: the choice exists ONLY here, where every author
+	// is an admin — member-authored content everywhere else stays nailed to
+	// the sanitiser.
+	Format    string    `db:"format"`
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
 // MigrateSitePages creates the table. Idempotent, unconditional — the
 // site_settings lesson again.
 func (st *Store) MigrateSitePages() error {
-	_, err := st.db.Exec(`CREATE TABLE IF NOT EXISTS site_pages (
+	if _, err := st.db.Exec(`CREATE TABLE IF NOT EXISTS site_pages (
 	    slug       TEXT PRIMARY KEY,
 	    title      TEXT NOT NULL,
 	    body_md    TEXT NOT NULL DEFAULT '',
 	    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-	)`)
+	)`); err != nil {
+		return err
+	}
+	_, err := st.db.Exec(`ALTER TABLE site_pages
+	    ADD COLUMN IF NOT EXISTS format TEXT NOT NULL DEFAULT 'markdown'`)
 	return err
 }
 
@@ -35,7 +45,7 @@ func (st *Store) MigrateSitePages() error {
 func (st *Store) ListSitePages(ctx context.Context) ([]SitePage, error) {
 	var out []SitePage
 	err := st.db.SelectContext(ctx, &out,
-		`SELECT slug, title, body_md, updated_at FROM site_pages ORDER BY slug`)
+		`SELECT slug, title, body_md, format, updated_at FROM site_pages ORDER BY slug`)
 	return out, err
 }
 
@@ -45,20 +55,20 @@ func (st *Store) ListSitePages(ctx context.Context) ([]SitePage, error) {
 func (st *Store) GetSitePage(ctx context.Context, slug string) (SitePage, bool) {
 	var p SitePage
 	if err := st.db.GetContext(ctx, &p,
-		`SELECT slug, title, body_md, updated_at FROM site_pages WHERE slug = $1`, slug); err != nil {
+		`SELECT slug, title, body_md, format, updated_at FROM site_pages WHERE slug = $1`, slug); err != nil {
 		return SitePage{}, false
 	}
 	return p, true
 }
 
 // UpsertSitePage writes one page.
-func (st *Store) UpsertSitePage(ctx context.Context, slug, title, bodyMD string) error {
+func (st *Store) UpsertSitePage(ctx context.Context, slug, title, bodyMD, format string) error {
 	_, err := st.db.ExecContext(ctx, `
-		INSERT INTO site_pages (slug, title, body_md, updated_at)
-		VALUES ($1, $2, $3, now())
+		INSERT INTO site_pages (slug, title, body_md, format, updated_at)
+		VALUES ($1, $2, $3, $4, now())
 		ON CONFLICT (slug) DO UPDATE SET title = EXCLUDED.title,
-		    body_md = EXCLUDED.body_md, updated_at = now()`,
-		slug, title, bodyMD)
+		    body_md = EXCLUDED.body_md, format = EXCLUDED.format, updated_at = now()`,
+		slug, title, bodyMD, format)
 	return err
 }
 

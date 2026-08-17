@@ -503,8 +503,12 @@
             {{/* Home stays a plain tab: one destination, nothing to group. */}}
             <li class="nav-tab"><a class="{{if eq $p "/"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/"{{if eq $p "/"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#home"></use></svg>Home</a></li>
 
-            {{/* Releases — UNIT3D's "Torrents": finding indexed content. */}}
-            {{$rel := or (eq $p "/browse") (eq $p "/search") (eq $p "/groups") (eq $p "/trending") (hasPrefix $p "/release/") (inGroup $.SiteNavGroup "Releases" $p)}}
+            {{/* Releases — UNIT3D's "Torrents": finding indexed content.
+                 The items come from the nav editor (navadmin_web.go): each
+                 group renders its rows, already condition-filtered, ordered
+                 and active-marked. The literals this file carried live on as
+                 that editor's defaults. */}}
+            {{$rel := or .NavActiveReleases (inGroup $.SiteNavGroup "Releases" $p)}}
             <li class="nav-tab">
                 <details class="dropdown">
                     <summary class="{{if $rel}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
@@ -512,19 +516,16 @@
                         <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                     </summary>
                     <div class="dropdown__menu">
-                        <a class="dropdown__item{{if eq $p "/browse"}} active{{end}}" href="/browse"{{if eq $p "/browse"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#browse"></use></svg>Browse</a>
-                        <a class="dropdown__item{{if eq $p "/search"}} active{{end}}" href="/search"{{if eq $p "/search"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#search"></use></svg>Search</a>
-                        {{if .ShowIndexer}}<a class="dropdown__item{{if eq $p "/groups"}} active{{end}}" href="/groups"{{if eq $p "/groups"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#groups"></use></svg>Newsgroups</a>{{end}}
-                        <a class="dropdown__item{{if eq $p "/trending"}} active{{end}}" href="/trending"{{if eq $p "/trending"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#database"></use></svg>Trending</a>
-                        {{if .ShowTracker}}<a class="dropdown__item{{if hasPrefix $p "/tracker"}} active{{end}}" href="/tracker"{{if hasPrefix $p "/tracker"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#download"></use></svg>Torrents</a>{{end}}
-                        {{if .ShowIndexer}}<a class="dropdown__item" href="/api"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#code"></use></svg>Newznab API</a>{{end}}
+                        {{range .NavReleases}}
+                        <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>{{.Label}}</a>
+                        {{end}}
                         {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Releases") "Path" $p)}}
                     </div>
                 </details>
             </li>
 
             {{/* Community — the social half. */}}
-            {{$com := or (hasPrefix $p "/community/forums") (hasPrefix $p "/c/") (eq $p "/c") (hasPrefix $p "/playlists") (inGroup $.SiteNavGroup "Community" $p)}}
+            {{$com := or .NavActiveCommunity (inGroup $.SiteNavGroup "Community" $p)}}
             <li class="nav-tab">
                 <details class="dropdown">
                     <summary class="{{if $com}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
@@ -532,9 +533,9 @@
                         <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                     </summary>
                     <div class="dropdown__menu">
-                        <a class="dropdown__item{{if hasPrefix $p "/community/forums"}} active{{end}}" href="/community/forums"{{if hasPrefix $p "/community/forums"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#forums"></use></svg>Forums</a>
-                        <a class="dropdown__item{{if or (eq $p "/c") (hasPrefix $p "/c/")}} active{{end}}" href="/c"{{if or (eq $p "/c") (hasPrefix $p "/c/")}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#users"></use></svg>Communities</a>
-                        <a class="dropdown__item{{if hasPrefix $p "/playlists"}} active{{end}}" href="/playlists"{{if hasPrefix $p "/playlists"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#music"></use></svg>Playlists</a>
+                        {{range .NavCommunity}}
+                        <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>{{.Label}}</a>
+                        {{end}}
                         {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Community") "Path" $p)}}
                     </div>
                 </details>
@@ -543,7 +544,7 @@
             {{/* Support — UNIT3D's grouping, plus News: announcements are the
                  site talking to its members, which is this section's subject —
                  the Community menu is members talking to each other. */}}
-            {{$sup := or (eq $p "/rules") (eq $p "/faq") (eq $p "/staff") (hasPrefix $p "/wiki") (hasPrefix $p "/support") (hasPrefix $p "/news") (inGroup $.SiteNavGroup "Support" $p)}}
+            {{$sup := or .NavActiveSupport (inGroup $.SiteNavGroup "Support" $p)}}
             <li class="nav-tab">
                 <details class="dropdown">
                     <summary class="{{if $sup}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
@@ -551,12 +552,9 @@
                         <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                     </summary>
                     <div class="dropdown__menu dropdown__menu--end">
-                        <a class="dropdown__item{{if hasPrefix $p "/news"}} active{{end}}" href="/news"{{if hasPrefix $p "/news"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#rss"></use></svg>News</a>
-                        <a class="dropdown__item{{if eq $p "/rules"}} active{{end}}" href="/rules"{{if eq $p "/rules"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Rules</a>
-                        <a class="dropdown__item{{if eq $p "/faq"}} active{{end}}" href="/faq"{{if eq $p "/faq"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#info"></use></svg>FAQ</a>
-                        <a class="dropdown__item{{if hasPrefix $p "/wiki"}} active{{end}}" href="/wiki"{{if hasPrefix $p "/wiki"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#book"></use></svg>Wiki</a>
-                        <a class="dropdown__item{{if hasPrefix $p "/support"}} active{{end}}" href="/support"{{if hasPrefix $p "/support"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#comment"></use></svg>Helpdesk</a>
-                        <a class="dropdown__item{{if eq $p "/staff"}} active{{end}}" href="/staff"{{if eq $p "/staff"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Staff</a>
+                        {{range .NavSupport}}
+                        <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>{{.Label}}</a>
+                        {{end}}
                         {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Support") "Path" $p)}}
                     </div>
                 </details>
@@ -567,7 +565,7 @@
                  tabs, which is the single biggest reason the bar grew: every
                  plugin registering a site page widened it. A plugin that
                  declares a NavHint group still gets its own dropdown below. */}}
-            {{$oth := or (eq $p "/stats") (eq $p "/about") (eq $p "/sitemap") (inGroup $.SiteNavGroup "Other" $p)}}
+            {{$oth := or .NavActiveOther (inGroup $.SiteNavGroup "Other" $p)}}
             {{range .SiteNav}}{{if not .Children}}{{if eq $p .Href}}{{$oth = true}}{{end}}{{end}}{{end}}
             <li class="nav-tab">
                 <details class="dropdown">
@@ -576,9 +574,9 @@
                         <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                     </summary>
                     <div class="dropdown__menu dropdown__menu--end">
-                        <a class="dropdown__item{{if eq $p "/stats"}} active{{end}}" href="/stats"{{if eq $p "/stats"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#database"></use></svg>Stats</a>
-                        <a class="dropdown__item{{if eq $p "/about"}} active{{end}}" href="/about"{{if eq $p "/about"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#logo"></use></svg>About</a>
-                        <a class="dropdown__item{{if eq $p "/sitemap"}} active{{end}}" href="/sitemap"{{if eq $p "/sitemap"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#globe"></use></svg>Sitemap</a>
+                        {{range .NavOther}}
+                        <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>{{.Label}}</a>
+                        {{end}}
                         {{range .SiteNav}}{{if not .Children}}
                         <a class="dropdown__item{{if eq $p .Href}} active{{end}}" href="{{.Href}}"{{if eq $p .Href}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>
                         {{end}}{{end}}

@@ -62,6 +62,7 @@ var logKeys = map[string]string{
 	"kind":         "a variant of the thing being logged",
 	"mode":         "which of several modes a subsystem is in",
 	"flavour":      "the site flavour: indexer, torrent or both",
+	"href":         "the path or URL a nav entry links to",
 	"area":         "which part of the site",
 	"source":       "a metadata source's name",
 	"provider":     "an external service",

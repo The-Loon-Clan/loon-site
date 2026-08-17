@@ -72,6 +72,9 @@ func wireAdminAndViews(
 	admin.GET("/pages", wsrv.adminPages)
 	admin.POST("/pages", wsrv.adminPagesSave)
 	admin.POST("/pages/delete", wsrv.adminPagesDelete)
+	// The menu editor (navadmin_web.go).
+	admin.GET("/nav", wsrv.adminNavEditor)
+	admin.POST("/nav", wsrv.adminNavSave)
 	// Where cover art comes from (coversadmin_web.go + covermode_web.go).
 	admin.GET("/covers", wsrv.adminCovers)
 	admin.POST("/covers", wsrv.adminCoversSave)

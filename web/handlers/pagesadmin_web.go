@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -39,6 +40,18 @@ var builtinPages = map[string]struct {
 // sitePageSlugPattern is a URL segment: lowercase, digits, single dashes.
 var sitePageSlugPattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
+// renderPageBody turns a saved page's body into HTML by its format:
+// markdown through the sanitising pipeline, html verbatim. The verbatim arm
+// is Drupal's "Full HTML" text format with the role check made structural —
+// site_pages rows are only ever written through /admin/pages, which sits
+// behind Require(RoleAdmin).
+func renderPageBody(p storage.SitePage) template.HTML {
+	if p.Format == "html" {
+		return template.HTML(p.BodyMD)
+	}
+	return markdown.Render(p.BodyMD)
+}
+
 // prosePage serves a built-in page's canonical route: the saved row when one
 // exists, the fallback template otherwise. The template name is a call-site
 // LITERAL, not a builtinPages field, so renderpage_test's pageNameWrappers
@@ -51,7 +64,7 @@ func (w *web) prosePage(slug, fallbackPage string) gin.HandlerFunc {
 		data := map[string]any{"Title": b.Title, "EditHref": "/admin/pages?edit=" + slug}
 		if p, ok := w.data.GetSitePage(c.Request.Context(), slug); ok {
 			data["Title"] = p.Title
-			data["Fragment"] = markdown.Render(p.BodyMD)
+			data["Fragment"] = renderPageBody(p)
 			w.render(c, "site_page.html", data)
 			return
 		}
@@ -76,7 +89,7 @@ func (w *web) customSitePage(c *gin.Context) {
 	}
 	w.render(c, "site_page.html", map[string]any{
 		"Title":    p.Title,
-		"Fragment": markdown.Render(p.BodyMD),
+		"Fragment": renderPageBody(p),
 		"EditHref": "/admin/pages?edit=" + p.Slug,
 	})
 }
@@ -144,8 +157,20 @@ func (w *web) adminPages(c *gin.Context) {
 		data["EditIsBuiltin"] = isBuiltin
 		if p, ok := bySlug[slug]; ok {
 			data["EditTitle"], data["EditBody"], data["EditExists"] = p.Title, p.BodyMD, true
+			data["EditFormat"] = p.Format
 		} else if isBuiltin {
 			data["EditTitle"] = builtinPages[slug].Title
+		}
+		// The Grav idea: placement lives on the page form. Custom pages only —
+		// the built-ins already sit in the menu as builtin rows, moved at
+		// /admin/nav like any other entry.
+		if !isBuiltin {
+			for _, e := range navRows() {
+				if e.Href == "/pages/"+slug {
+					data["EditNavGroup"], data["EditNavOrdinal"] = e.Grp, e.Ordinal
+					break
+				}
+			}
 		}
 	}
 	w.render(c, "admin_pages.html", data)
@@ -164,10 +189,40 @@ func (w *web) adminPagesSave(c *gin.Context) {
 		// heading is not.
 		title = slug
 	}
-	if err := w.data.UpsertSitePage(c.Request.Context(), slug, title, c.PostForm("body_md")); err != nil {
+	format := c.PostForm("format")
+	if format != "html" {
+		// The closed set, defaulted rather than refused: markdown is the
+		// safe arm, and an absent field (an old form) must not error.
+		format = "markdown"
+	}
+	if err := w.data.UpsertSitePage(c.Request.Context(), slug, title, c.PostForm("body_md"), format); err != nil {
 		w.log.Error("site page save", "slug", slug, "err", err)
 		c.Redirect(http.StatusSeeOther, "/admin/pages?"+queryErr+"=save+failed&edit="+slug)
 		return
+	}
+	// Menu placement, custom pages only (built-ins have builtin nav rows).
+	// "none" removes the entry; a group writes/moves it. Best-effort: a page
+	// that saved but failed to place is a page, not a lost edit.
+	if _, isBuiltin := builtinPages[slug]; !isBuiltin {
+		href := "/pages/" + slug
+		grp := c.PostForm("nav_group")
+		ctx := c.Request.Context()
+		if validNavGroup(grp) {
+			ord := 1000
+			if n, err := strconv.Atoi(strings.TrimSpace(c.PostForm("nav_ordinal"))); err == nil {
+				ord = n
+			}
+			if err := w.data.UpsertSiteNav(ctx, storage.NavEntry{
+				Href: href, Label: title, Grp: grp, Ordinal: ord,
+			}); err != nil {
+				w.log.Error("site page nav place", "slug", slug, "err", err)
+			}
+		} else if err := w.data.DeleteSiteNav(ctx, href); err != nil {
+			w.log.Error("site page nav remove", "slug", slug, "err", err)
+		}
+		if err := refreshNavMirror(ctx, w.data); err != nil {
+			w.log.Error("nav mirror refresh", "err", err)
+		}
 	}
 	c.Redirect(http.StatusSeeOther, "/admin/pages?"+querySaved+"=1&edit="+slug)
 }
@@ -185,6 +240,16 @@ func (w *web) adminPagesDelete(c *gin.Context) {
 		w.log.Error("site page delete", "slug", slug, "err", err)
 		c.Redirect(http.StatusSeeOther, "/admin/pages?"+queryErr+"=delete+failed")
 		return
+	}
+	// A deleted custom page must leave the menu too — a built-in reverts to
+	// its template and its nav row rightly stays.
+	if _, isBuiltin := builtinPages[slug]; !isBuiltin {
+		if err := w.data.DeleteSiteNav(c.Request.Context(), "/pages/"+slug); err != nil {
+			w.log.Error("site page nav remove", "slug", slug, "err", err)
+		}
+		if err := refreshNavMirror(c.Request.Context(), w.data); err != nil {
+			w.log.Error("nav mirror refresh", "err", err)
+		}
 	}
 	c.Redirect(http.StatusSeeOther, "/admin/pages?"+querySaved+"=1")
 }
