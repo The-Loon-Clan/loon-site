@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 
+	"github.com/the-loon-clan/loon-plugins/achievements"
 	"github.com/the-loon-clan/loon-plugins/rewards"
 	"github.com/the-loon-clan/loon/core"
 )
@@ -131,7 +132,7 @@ func auditAchievementMetrics(ctx context.Context, db storage.Conn, registered ma
 	}
 	var out []contractFinding
 	for _, m := range metrics {
-		key := rewards.MetricSourcePrefix + m
+		key := achievements.MetricSourcePrefix + m
 		if registered[key] {
 			continue
 		}

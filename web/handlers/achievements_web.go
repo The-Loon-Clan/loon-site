@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/the-loon-clan/loon-plugins/rewards"
+	"github.com/the-loon-clan/loon-plugins/achievements"
 )
 
 // Achievements — docs/MOCKS.md M2, the last mock standing.
@@ -36,7 +36,7 @@ type achievementView struct {
 	// anything not yet earned, so hidden badges cannot leak their art.
 	Image string
 	When  string
-	State rewards.AchievementState
+	State achievements.AchievementState
 	// The in-progress figures. Percent is computed here rather than in the
 	// template because html/template arithmetic on two int64s is where a page
 	// silently truncates — and clamped to 99: a bar reading full beside a
@@ -51,11 +51,11 @@ type achievementView struct {
 // Host-side on purpose: the plugin owns whether a badge is held, this owns
 // what that looks like. An icon column on the plugin would be one the host
 // could not override.
-func achievementIcon(s rewards.AchievementState) string {
+func achievementIcon(s achievements.AchievementState) string {
 	switch s {
-	case rewards.AchievementUnlocked:
+	case achievements.AchievementUnlocked:
 		return "verified"
-	case rewards.AchievementPending:
+	case achievements.AchievementPending:
 		return "clock"
 	}
 	return "lock"
@@ -105,7 +105,7 @@ func (w *web) achievementsPage(c *gin.Context) {
 		// The operator's look applies to what is EARNED. Locked and pending
 		// keep the state icons — a padlock says "not yet" in a way custom art
 		// cannot, and a hidden-until-earned badge must not leak its image.
-		if a.State != rewards.AchievementUnlocked {
+		if a.State != achievements.AchievementUnlocked {
 			v.Image = ""
 		} else if a.Icon != "" {
 			v.Icon = a.Icon
@@ -114,9 +114,9 @@ func (w *web) achievementsPage(c *gin.Context) {
 			v.When = a.EarnedAt.Format("2 Jan 2006")
 		}
 		switch a.State {
-		case rewards.AchievementUnlocked:
+		case achievements.AchievementUnlocked:
 			unlocked = append(unlocked, v)
-		case rewards.AchievementPending:
+		case achievements.AchievementPending:
 			pending = append(pending, v)
 		default:
 			if a.Progress > 0 && a.Threshold > 0 {
@@ -134,7 +134,7 @@ func (w *web) achievementsPage(c *gin.Context) {
 		return inProgress[i].Percent > inProgress[j].Percent
 	})
 
-	nUnlocked, nPending, nLocked := rewards.AchievementCounts(list)
+	nUnlocked, nPending, nLocked := achievements.AchievementCounts(list)
 	data["Unlocked"] = unlocked
 	data["Pending"] = pending
 	data["InProgress"] = inProgress
@@ -175,14 +175,14 @@ func (w *web) recentAchievements(c *gin.Context, userID int64, n int) (achieveme
 	if err != nil {
 		return achievementSummary{}, false
 	}
-	unlocked, _, _ := rewards.AchievementCounts(list)
+	unlocked, _, _ := achievements.AchievementCounts(list)
 	sum := achievementSummary{Unlocked: unlocked, Total: len(list)}
 
 	// Most recently earned first. Only unlocked ones: a profile card is a
 	// display of what someone HAS.
-	var earned []rewards.Achievement
+	var earned []achievements.Achievement
 	for _, a := range list {
-		if a.State == rewards.AchievementUnlocked && !a.EarnedAt.IsZero() {
+		if a.State == achievements.AchievementUnlocked && !a.EarnedAt.IsZero() {
 			earned = append(earned, a)
 		}
 	}
@@ -202,7 +202,7 @@ func (w *web) recentAchievements(c *gin.Context, userID int64, n int) (achieveme
 
 // sortByEarnedDesc orders newest first. An insertion sort because the input is
 // one member's achievements — tens of items, not thousands.
-func sortByEarnedDesc(as []rewards.Achievement) {
+func sortByEarnedDesc(as []achievements.Achievement) {
 	for i := 1; i < len(as); i++ {
 		for j := i; j > 0 && as[j].EarnedAt.After(as[j-1].EarnedAt); j-- {
 			as[j], as[j-1] = as[j-1], as[j]

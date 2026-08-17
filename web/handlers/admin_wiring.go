@@ -29,7 +29,7 @@ import (
 	"github.com/the-loon-clan/loon-baseline/profile"
 	"github.com/the-loon-clan/loon-plugins/dailyreward"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
-	"github.com/the-loon-clan/loon-plugins/rewards"
+	"github.com/the-loon-clan/loon-plugins/achievements"
 	"github.com/the-loon-clan/loon/core"
 	"github.com/the-loon-clan/loon/schedule"
 
@@ -107,8 +107,8 @@ func wireAdminAndViews(
 	// Rewards: the plugin owns what is earnable and who has earned it; the
 	// host owns the page that shows it. Absent extension = the page says
 	// so, rather than 404ing a link the account nav always renders.
-	if v, ok := c.Lookup(rewards.AchievementsExtension); ok {
-		wsrv.achievements, _ = v.(rewards.AchievementsFunc)
+	if v, ok := c.Lookup(achievements.ListExtension); ok {
+		wsrv.achievements, _ = v.(achievements.ListFunc)
 		// Seed the catalogue here rather than beside the other seeds up top:
 		// rewards.achievements is the PLUGIN's table, created by its own
 		// migration during Boot, so nothing could be inserted into it before

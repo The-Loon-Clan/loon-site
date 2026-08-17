@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/the-loon-clan/loon-plugins/achievements"
+	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	"github.com/the-loon-clan/loon-plugins/rewards"
 	"github.com/the-loon-clan/loon/blob"
 	"github.com/the-loon-clan/loon/core"
@@ -185,7 +187,7 @@ func achievementSourceDefs() rewards.SourceCatalog {
 // handler that lets an earned achievement actually be claimed.
 func registerAchievementMetrics(c *core.Core, db storage.Conn) error {
 	for key, src := range achievementMetrics(db) {
-		if err := c.Register(rewards.MetricSourcePrefix+key, src); err != nil {
+		if err := c.Register(achievements.MetricSourcePrefix+key, src); err != nil {
 			return fmt.Errorf("register metric %q: %w", key, err)
 		}
 	}
@@ -198,7 +200,7 @@ func registerAchievementMetrics(c *core.Core, db storage.Conn) error {
 	// Same before-Boot rule as the metrics: the plugin looks this up during its
 	// own Provision, so one registered afterwards is never seen.
 	if err := c.Register("rewards.payout."+string(rewards.PayoutAchievement),
-		achievementPayoutHandler()); err != nil {
+		achievementPayoutHandler(c)); err != nil {
 		return fmt.Errorf("register achievement payout handler: %w", err)
 	}
 	// The claim card's CSRF token, host-minted like every other form seam —
@@ -213,14 +215,14 @@ func registerAchievementMetrics(c *core.Core, db storage.Conn) error {
 	// wiki's upload root, so /uploads/* is already statically served; icons is
 	// the sprite subset that makes sense on a badge — offering the whole sheet
 	// would put #logo and #chevron-down in a picker where they mean nothing.
-	if err := c.Register("rewards.files", blob.Store(blob.NewLocal(uploadRoot, uploadURL))); err != nil {
-		return fmt.Errorf("register rewards files: %w", err)
+	if err := c.Register("achievements.files", blob.Store(blob.NewLocal(uploadRoot, uploadURL))); err != nil {
+		return fmt.Errorf("register achievements files: %w", err)
 	}
-	if err := c.Register("rewards.icons", []string{
+	if err := c.Register("achievements.icons", []string{
 		"star", "verified", "shield", "coin", "film", "tv", "music", "book",
 		"comment", "users", "download", "server", "globe", "calendar",
 	}); err != nil {
-		return fmt.Errorf("register rewards icons: %w", err)
+		return fmt.Errorf("register achievements icons: %w", err)
 	}
 	return nil
 }
@@ -271,7 +273,7 @@ var achievementSeeds = []achievementDef{
 // nothing is.
 func achievementsSeed(db storage.Conn, log *slog.Logger) {
 	var n int
-	if err := db.Get(&n, `SELECT COUNT(*) FROM rewards.achievements`); err != nil || n > 0 {
+	if err := db.Get(&n, `SELECT COUNT(*) FROM achievements.achievements`); err != nil || n > 0 {
 		return
 	}
 	for _, d := range achievementSeeds {
@@ -294,12 +296,15 @@ func achievementsSeed(db storage.Conn, log *slog.Logger) {
 			log.Error("achievements seed: payout", "slug", d.Slug, "err", err)
 			return
 		}
+		// The definition lives in the achievements plugin's schema now, and
+		// names its payment by SLUG through the cross-plugin granter — the
+		// reward_id foreign key died with the shared schema.
 		if _, err := db.Exec(`
-			INSERT INTO rewards.achievements
-			    (slug, name, description, reward_id, metric, threshold, ordinal, enabled)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+			INSERT INTO achievements.achievements
+			    (slug, name, description, reward_slug, metric, threshold, ordinal, enabled)
+			VALUES ($1, $2, $3, $1, $4, $5, $6, true)
 			ON CONFLICT (slug) DO NOTHING`,
-			d.Slug, d.Name, d.Desc, rewardID, d.Metric, d.Threshold, d.Ordinal); err != nil {
+			d.Slug, d.Name, d.Desc, d.Metric, d.Threshold, d.Ordinal); err != nil {
 			log.Error("achievements seed", "slug", d.Slug, "err", err)
 			return
 		}
@@ -335,8 +340,26 @@ func achievementsSeed(db storage.Conn, log *slog.Logger) {
 // refusing those would turn old pending grants into permanently unclaimable
 // ones — a stricter handler that breaks existing data to catch a
 // misconfiguration nobody has.
-func achievementPayoutHandler() rewards.PayoutHandler {
+// It can DO something now, which it could not before the split: the
+// achievements plugin publishes pluginapi.AchievementGranter, so a reward
+// whose payout targets a REAL achievement slug marks it earned. The old
+// tolerance survives — the demo ships payouts targeting badge slugs with no
+// achievement row (first-grab, night-owl, ...), and refusing those would turn
+// old pending grants permanently unclaimable, so an unknown slug settles as
+// the historical no-op rather than erroring.
+func achievementPayoutHandler(c *core.Core) rewards.PayoutHandler {
 	return func(ctx context.Context, g rewards.Grant, p rewards.Payout) error {
+		v, ok := c.Lookup(pluginapi.AchievementGranterName)
+		if !ok {
+			return nil // no achievements plugin: the historical no-op
+		}
+		granter, ok := v.(pluginapi.AchievementGranter)
+		if !ok {
+			return nil
+		}
+		// Best-effort and idempotent per the granter's contract; an unknown
+		// slug is ITS no-op, matching the tolerance above.
+		_ = granter.GrantAchievement(ctx, g.UserID, p.Target)
 		return nil
 	}
 }

@@ -35,9 +35,9 @@ import (
 	"github.com/the-loon-clan/loon-baseline/users"
 	"github.com/the-loon-clan/loon-baseline/webauth"
 
+	"github.com/the-loon-clan/loon-plugins/achievements"
 	"github.com/the-loon-clan/loon-plugins/dailyreward"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
-	"github.com/the-loon-clan/loon-plugins/rewards"
 )
 
 // sessionCookieName is loon-baseline's own default, named here because the
@@ -95,9 +95,10 @@ type web struct {
 	covers *coverCache
 	rt     *core.Runtime // plugin runtime, for the /admin/plugins page
 	// achievements answers where a member stands on every earnable badge.
-	// nil when the rewards plugin is absent, which renders the page's
+	// nil when the achievements plugin is absent, which renders the page's
 	// unavailable state rather than a 404 on a link the nav always shows.
-	achievements rewards.AchievementsFunc
+	// The type moved plugins when achievements left rewards (9a0e52b).
+	achievements achievements.ListFunc
 
 	// calSources contribute dated events to /calendar. A slice rather than a
 	// field per source: the page's whole point is that adding a kind of event
