@@ -15,17 +15,21 @@
     </header>
     {{if .Communities}}
     <div class="panel__body">
-        <div class="tile-grid">
+        <div class="banner-card-list">
             {{range .Communities}}
-            <a class="tile" href="/c/{{.Slug}}">
-                <span class="tile__body">
-                    <span class="tile__title">{{.Name}}{{if .NSFW}} <span class="tag tag--danger">NSFW</span>{{end}}</span>
-                    <span class="tile__meta">/c/{{.Slug}}</span>
-                    {{if .Description}}<span class="tile__meta">{{.Description}}</span>{{end}}
-                    <span class="tile__meta">
-                        <span class="tag">{{.SubscriberCount}} members</span>
-                        <span class="tag">{{.ThreadCount}} threads</span>
-                        {{if ne .JoinType "open"}}<span class="tag tag--warning">{{.JoinType}}</span>{{end}}
+            {{/* The artwork IS the card (see components.css banner-card). The
+                 poster--hN stop only shows through when there is no banner —
+                 the themed fallback gradient, same as a coverless release.
+                 BannerPosition is the uploader's focal point, and it matters
+                 more now that the image is the whole card. */}}
+            <a class="banner-card" href="/c/{{.Slug}}">
+                <span class="banner-card__banner poster--h{{hue .Slug}}"
+                      {{if .BannerURL}}style="background-image:url('{{.BannerURL}}');background-position:center {{.BannerPosition}}%;"{{end}}>
+                    <span class="banner-card__title">{{.Name}}{{if .NSFW}} <span class="tag tag--danger">NSFW</span>{{end}}</span>
+                    <span class="banner-card__info">
+                        <span class="banner-card__meta">{{.SubscriberCount}} members &middot; {{.ThreadCount}} threads{{if ne .JoinType "open"}} &middot; {{.JoinType}}{{end}}</span>
+                        {{if .Description}}<span class="banner-card__desc">{{.Description}}</span>{{end}}
+                        <span class="banner-card__slug">/c/{{.Slug}}</span>
                     </span>
                 </span>
             </a>

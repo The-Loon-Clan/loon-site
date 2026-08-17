@@ -185,6 +185,9 @@ def run(paths):
         # Assets have to resolve from a file:// page, so they become absolute.
         html = html.replace('href="/static', 'href="%s/static' % BASE)
         html = html.replace('src="/static', 'src="%s/static' % BASE)
+        # Uploads too — avatars and community banners; see shot.py.
+        html = html.replace('src="/uploads', 'src="%s/uploads' % BASE)
+        html = html.replace("url('/uploads", "url('%s/uploads" % BASE)
         name = re.sub(r"[^a-z0-9]+", "_", p.lower()).strip("_") or "root"
         fn = os.path.join(tmp, name + ".html")
         with open(fn, "w", encoding="utf-8") as f:

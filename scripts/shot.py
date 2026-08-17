@@ -56,6 +56,12 @@ def shot(name, path, width=1400, height=1000):
     os.makedirs(OUT, exist_ok=True)
     html = html.replace('href="/static', 'href="%s/static' % BASE)
     html = html.replace('src="/static', 'src="%s/static' % BASE)
+    # Uploads too: avatars come through src="/uploads and community banners
+    # through style="background-image:url('/uploads — a file:// page resolves
+    # neither, and the screenshot shows a broken image where the site shows a
+    # banner, which reads as a layout bug that is not there.
+    html = html.replace('src="/uploads', 'src="%s/uploads' % BASE)
+    html = html.replace("url('/uploads", "url('%s/uploads" % BASE)
     page = os.path.join(OUT, name + ".html")
     with open(page, "w", encoding="utf-8") as f:
         f.write(html)

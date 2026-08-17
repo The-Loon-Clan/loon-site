@@ -713,6 +713,118 @@ a.tag { min-height: 24px; }
     color: var(--muted);
 }
 
+/* -------------------------------------------------------- banner card ----- */
+
+/*  <a class="banner-card" href="…">
+ *    <span class="banner-card__banner poster--h3" style="background-image:…">
+ *      <span class="banner-card__title">…</span>
+ *      <span class="banner-card__info">
+ *        <span class="banner-card__meta">…</span>
+ *        <span class="banner-card__desc">…</span>
+ *      </span>
+ *    </span>
+ *  </a>
+ *
+ * One item per row and the uploaded artwork IS the card — a thin frame of
+ * surface around the image, every word overlaid on a left-weighted scrim so
+ * any banner stays legible without asking uploaders to leave dead space for
+ * text. Bannerless items reuse the poster fallback system: a .poster--hN stop
+ * on the banner and the themed gradient plus on-image ink read as a designed
+ * placeholder, exactly like a coverless release. Used by /c. */
+.banner-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.banner-card {
+    display: block;
+    padding: 0.6rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.banner-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.banner-card__banner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1.4rem;
+    min-height: 190px;
+    padding: 1.1rem 1.4rem;
+    border-radius: calc(var(--radius) - 4px);
+    overflow: hidden;
+    background: var(--poster-fallback-bg);
+    background-size: cover;
+    background-position: center;
+}
+
+/* The scrim: strongest where the text sits, gone by mid-image. A layer rather
+   than text-shadow alone because a shadow cannot rescue white ink over a white
+   sky. Fixed blacks, not a theme token: the ground here is the artwork, which
+   no theme repaints. */
+.banner-card__banner::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(8, 10, 16, 0.72), rgba(8, 10, 16, 0.35) 45%, rgba(8, 10, 16, 0.05) 75%);
+}
+
+.banner-card__banner > * {
+    position: relative;
+}
+
+.banner-card__title {
+    max-width: 32ch;
+    font-size: 1.45rem;
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--ink-on-image);
+    text-shadow: 0 2px 8px var(--scrim);
+}
+
+.banner-card__info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    max-width: 60ch;
+    color: var(--ink-on-image);
+    text-shadow: 0 1px 5px var(--scrim);
+}
+
+.banner-card__meta {
+    font-size: var(--fs-xs);
+    font-variant-numeric: tabular-nums;
+}
+
+.banner-card__desc {
+    font-size: var(--fs-sm);
+    line-height: 1.45;
+}
+
+.banner-card__slug {
+    font-size: var(--fs-3xs);
+    color: var(--ink-on-image-muted);
+}
+
+@media (max-width: 640px) {
+    .banner-card__banner {
+        min-height: 150px;
+        padding: 0.9rem 1rem;
+    }
+
+    .banner-card__title {
+        font-size: 1.15rem;
+    }
+}
+
 /* ----------------------------------------------------------- carousel ----- */
 
 /*  <section class="panelV2 blocks__featured">
