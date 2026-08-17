@@ -9,6 +9,11 @@
         <h1 class="panel__heading">
             <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Title}}
         </h1>
+        {{/* The editor, one click from the page it edits — set by the site-page
+             handlers (pagesadmin_web.go), absent on plugin views. */}}
+        {{if and .IsAdmin .EditHref}}
+        <div class="panel__actions"><a class="panel__action" href="{{.EditHref}}">Edit</a></div>
+        {{end}}
     </header>
     <div class="panel__body">{{.Fragment}}</div>
 </section>

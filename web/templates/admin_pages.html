@@ -1,0 +1,100 @@
+{{/* Admin → Pages. The site's prose pages: the three the nav links (faq,
+     rules, about — templates until saved, rows after) plus any the operator
+     adds, served at /pages/<slug>. Data from pagesadmin_web.go:
+     .Rows []pageRow · .EditSlug/.EditTitle/.EditBody/.EditExists/.EditIsBuiltin
+     · .Saved/.Err */}}
+{{define "content"}}
+{{template "admin-subnav" .}}
+
+<header class="mt-3">
+    <h1 class="h3 m-0">Pages</h1>
+    <p class="text-muted small m-0 mt-1">The site's own prose &mdash; edit what /faq, /rules and /about say, or add a page of your own.</p>
+</header>
+
+{{if .Saved}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Saved. The page serves the new content now.</span>
+</div>
+{{end}}
+{{with .Err}}
+<div class="notice notice--warning">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg><span>{{.}}</span>
+</div>
+{{end}}
+
+<section class="panelV2 mt-4">
+    <header class="panel__header">
+        <h2 class="panel__heading">Every page</h2>
+        <div class="panel__actions"><a class="panel__action" href="/admin/pages?edit=new-page">New page</a></div>
+    </header>
+    <div class="panel__body panel__body--flush">
+        <div class="data-table-wrapper">
+            <table class="data-table">
+                <caption class="visually-hidden">Site pages: slug, title, where it serves, and when it last changed</caption>
+                <thead>
+                    <tr><th>Slug</th><th>Title</th><th>Serves at</th><th>Content</th><th>Updated</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {{range .Rows}}
+                    <tr>
+                        <td><code>{{.Slug}}</code></td>
+                        <td class="data-table__title">{{.Title}}</td>
+                        <td><a href="{{.Href}}">{{.Href}}</a></td>
+                        <td>{{if .Saved}}<span class="tag tag--success">saved</span>{{else}}<span class="tag">template</span>{{end}}</td>
+                        <td>{{.Updated}}</td>
+                        <td><a class="button button--sm" href="/admin/pages?edit={{.Slug}}">Edit</a></td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="6" class="text-muted">Nothing yet.</td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+{{with .EditSlug}}
+<section class="panelV2 mt-4">
+    <header class="panel__header">
+        <h2 class="panel__heading">{{if $.EditExists}}Edit{{else}}Write{{end}} <code>{{.}}</code></h2>
+    </header>
+    <div class="panel__body">
+        {{if and $.EditIsBuiltin (not $.EditExists)}}
+        <p class="text-muted small">
+            This page currently serves its built-in template. Saving replaces it with
+            what you write here; deleting the saved copy later brings the template back.
+        </p>
+        {{end}}
+        <form method="post" action="/admin/pages">
+            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+            {{if $.EditIsBuiltin}}
+            <input type="hidden" name="slug" value="{{.}}">
+            {{else}}
+            <label class="form__label" for="page-slug">Slug
+                <input id="page-slug" name="slug" class="form__input" value="{{.}}"
+                       pattern="[a-z0-9]+(-[a-z0-9]+)*">
+                <span class="form-help text-muted small">lowercase with dashes; the page serves at /pages/&lt;slug&gt;</span>
+            </label>
+            {{end}}
+            <label class="form__label" for="page-title">Title
+                <input id="page-title" name="title" class="form__input" value="{{$.EditTitle}}">
+            </label>
+            <label class="form__label" for="page-body">Body (markdown)
+                <textarea id="page-body" name="body_md" class="form__input" rows="18">{{$.EditBody}}</textarea>
+            </label>
+            <button class="button button--primary button--sm mt-2" type="submit">Save</button>
+        </form>
+        {{if $.EditExists}}
+        <form method="post" action="/admin/pages/delete" class="mt-2">
+            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+            <input type="hidden" name="slug" value="{{.}}">
+            <button class="button button--sm" type="submit">
+                {{if $.EditIsBuiltin}}Delete saved copy (the built-in template serves again){{else}}Delete this page{{end}}
+            </button>
+        </form>
+        {{end}}
+    </div>
+</section>
+{{end}}
+{{end}}

@@ -68,6 +68,10 @@ func wireAdminAndViews(
 	// (i18nadmin_web.go).
 	admin.GET("/i18n", wsrv.adminI18n)
 	admin.POST("/i18n", wsrv.adminI18nSave)
+	// The site's prose pages (pagesadmin_web.go).
+	admin.GET("/pages", wsrv.adminPages)
+	admin.POST("/pages", wsrv.adminPagesSave)
+	admin.POST("/pages/delete", wsrv.adminPagesDelete)
 	// Where cover art comes from (coversadmin_web.go + covermode_web.go).
 	admin.GET("/covers", wsrv.adminCovers)
 	admin.POST("/covers", wsrv.adminCoversSave)

@@ -35,7 +35,7 @@ import (
 // Any OTHER computed page name is a hard failure rather than a note, because
 // that is the same hole reopening somewhere this list does not know about.
 var pageNameWrappers = map[string]int{
-	"sitePagePlain": 0,
+	"prosePage": 1,
 }
 
 func wrapper(name string) bool { _, ok := pageNameWrappers[name]; return ok }

@@ -9,14 +9,16 @@ import (
 	"github.com/the-loon-clan/loon/core"
 )
 
-// Static site pages + the stats hub — UNIT3D's page/* and stats/index areas.
+// Site pages + the stats hub — UNIT3D's page/* and stats/index areas.
 //
 // These are HOST pages, not plugin surfaces: the content is about this
-// deployment, so there is no plugin that could own it. UNIT3D backs its
-// equivalents with an admin-editable `pages` table (Staff/page/*); that is a
-// CMS feature, and building one to hold four pages of prose would be the wrong
-// trade. If the demo ever needs editable pages it should adopt the wiki plugin,
-// which is already wired and does exactly this.
+// deployment, so there is no plugin that could own it. The prose pages are
+// UNIT3D's admin-editable `pages` table now (pagesadmin_web.go) — with the
+// difference that the shipped templates stay as the fallback, so a fresh
+// database serves the curated prose unchanged and an operator's saved copy
+// replaces it per page. NOT the wiki, deliberately: the wiki is member-facing
+// reference with topics and recent-changes, and "Rules" does not belong in
+// its index between articles.
 //
 // Nothing here is mocked. /staff is real users read by role, /stats is the same
 // capability figures the home strip uses, and the prose pages describe this
@@ -145,15 +147,6 @@ func (w *web) statsPage(c *gin.Context) {
 	w.render(c, "stats.html", data)
 }
 
-// sitePagePlain renders one of the fixed prose pages. The content lives in the
-// template, not the database: it describes this demo, so it changes when the
-// demo does — in the same commit.
-func (w *web) sitePagePlain(page, title string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		w.render(c, page, map[string]any{"Title": title})
-	}
-}
-
 // mountSitePages wires the fixed pages. Called from wireViews so they land
 // alongside the plugin site pages rather than in main's route soup.
 func (w *web) mountSitePages(e *gin.Engine) {
@@ -164,9 +157,13 @@ func (w *web) mountSitePages(e *gin.Engine) {
 	e.GET("/robots.txt", w.robotsTxt)
 	e.GET("/staff", w.staffPage)
 	e.GET("/stats", w.statsPage)
-	e.GET("/rules", w.sitePagePlain("rules.html", "Rules"))
-	e.GET("/faq", w.sitePagePlain("faq.html", "FAQ"))
-	e.GET("/about", w.sitePagePlain("about.html", "About"))
+	// The prose pages: template-backed until an admin saves a replacement at
+	// /admin/pages (pagesadmin_web.go), and operator-created pages beside
+	// them. sitePagePlain is gone — the fallback lives inside prosePage now.
+	e.GET("/rules", w.prosePage("rules", "rules.html"))
+	e.GET("/faq", w.prosePage("faq", "faq.html"))
+	e.GET("/about", w.prosePage("about", "about.html"))
+	e.GET("/pages/:slug", w.customSitePage)
 	// Attribution (credits_web.go). Its own page rather than a line along every
 	// footer — the credit is a licence condition and still one click away, but
 	// it does not need to be on the screen while somebody reads a release.

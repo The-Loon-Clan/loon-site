@@ -184,5 +184,9 @@ func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PG
 	if err := data.MigrateI18n(); err != nil {
 		return fmt.Errorf("i18n migrate: %w", err)
 	}
+	// Editable site pages (pagesadmin_web.go / storage/sitepages.go).
+	if err := data.MigrateSitePages(); err != nil {
+		return fmt.Errorf("site pages migrate: %w", err)
+	}
 	return nil
 }

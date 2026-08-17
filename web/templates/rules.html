@@ -10,6 +10,9 @@
             <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#shield"></use></svg>
             Rules
         </h1>
+        {{if and .IsAdmin .EditHref}}
+        <div class="panel__actions"><a class="panel__action" href="{{.EditHref}}">Edit</a></div>
+        {{end}}
     </header>
     <div class="panel__body prose">
         <p>
