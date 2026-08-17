@@ -1,6 +1,10 @@
 package handlers
 
 import (
+	"github.com/the-loon-clan/loon-site/internal/middleware"
+
+	"github.com/gin-gonic/gin"
+
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"context"
@@ -195,6 +199,14 @@ func registerAchievementMetrics(c *core.Core, db storage.Conn) error {
 	if err := c.Register("rewards.payout."+string(rewards.PayoutAchievement),
 		achievementPayoutHandler()); err != nil {
 		return fmt.Errorf("register achievement payout handler: %w", err)
+	}
+	// The claim card's CSRF token, host-minted like every other form seam —
+	// the token the card embeds must be the one csrf.go checks. Without it the
+	// card's Claim button 403'd for every member, invisibly: the card only
+	// renders when a member holds an unclaimed grant, so no crawl saw the form.
+	if err := c.Register(rewards.CSRFExtension,
+		func(gc *gin.Context) string { return middleware.Token(gc) }); err != nil {
+		return fmt.Errorf("register rewards csrf: %w", err)
 	}
 	return nil
 }
