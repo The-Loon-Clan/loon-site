@@ -271,7 +271,7 @@ var achievementSeeds = []achievementDef{
 // already earned by the seeded forum activity, the high ones sit in progress.
 // A page where everything is unlocked demonstrates as little as one where
 // nothing is.
-func achievementsSeed(db storage.Conn, log *slog.Logger) {
+func achievementsSeed(db storage.Conn, w *web, log *slog.Logger) {
 	var n int
 	if err := db.Get(&n, `SELECT COUNT(*) FROM achievements.achievements`); err != nil || n > 0 {
 		return
@@ -298,16 +298,33 @@ func achievementsSeed(db storage.Conn, log *slog.Logger) {
 		}
 		// The definition lives in the achievements plugin's schema now, and
 		// names its payment by SLUG through the cross-plugin granter — the
-		// reward_id foreign key died with the shared schema.
+		// reward_id foreign key died with the shared schema. Each seeded
+		// definition also names its message-catalogue slugs, so the demo's
+		// badges are translatable at /admin/i18n out of the box.
 		if _, err := db.Exec(`
 			INSERT INTO achievements.achievements
-			    (slug, name, description, reward_slug, metric, threshold, ordinal, enabled)
-			VALUES ($1, $2, $3, $1, $4, $5, $6, true)
+			    (slug, name, description, reward_slug, metric, threshold, ordinal,
+			     title_slug, description_slug, enabled)
+			VALUES ($1, $2, $3, $1, $4, $5, $6, $7, $8, true)
 			ON CONFLICT (slug) DO NOTHING`,
-			d.Slug, d.Name, d.Desc, d.Metric, d.Threshold, d.Ordinal); err != nil {
+			d.Slug, d.Name, d.Desc, d.Metric, d.Threshold, d.Ordinal,
+			"ach."+d.Slug+".title", "ach."+d.Slug+".desc"); err != nil {
 			log.Error("achievements seed", "slug", d.Slug, "err", err)
 			return
 		}
+	}
+	// The catalogue texts behind those slugs, through the SAME seed-only path
+	// pluginapi.I18nDeclarer gives plugins — so the demo exercises the seam's
+	// semantics (an operator's cell is never overwritten) rather than keeping
+	// a private insert that could drift from them.
+	defaults := map[string]string{}
+	for _, d := range achievementSeeds {
+		defaults["ach."+d.Slug+".title"] = d.Name
+		defaults["ach."+d.Slug+".desc"] = d.Desc
+	}
+	if err := w.declareI18n(context.Background(), defaults); err != nil {
+		log.Error("achievements seed: catalogue defaults", "err", err)
+		return
 	}
 	log.Info("seeded the achievements catalogue")
 }

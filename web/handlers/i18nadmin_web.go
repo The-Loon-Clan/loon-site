@@ -4,12 +4,14 @@ import (
 	"github.com/the-loon-clan/loon-site/internal/i18n"
 
 	"context"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	"github.com/the-loon-clan/loon/core"
 )
 
@@ -21,11 +23,8 @@ import (
 //
 // HOST-owned, deliberately. The strings are the operator's content, like news
 // posts; the supported locale set is the host's (internal/i18n); and plugins
-// consume through two registered seams rather than reading a table that is
-// not theirs:
-//
-//	achievements.l10n.slugs    the slug list, for definition-form dropdowns
-//	achievements.l10n.resolve  slug -> text for the CURRENT VIEWER's locale
+// go through registered seams rather than reading a table that is not theirs
+// — two reads and one seed-only write (see registerI18nSeams below).
 //
 // Resolution order: the viewer's locale, then the default locale, then
 // nothing — a missing translation falls back to the definition's own text
@@ -129,14 +128,46 @@ func (w *web) resolveI18n(c *gin.Context, slug string) (string, bool) {
 	return "", false
 }
 
-// registerAchievementL10n publishes the two seams the achievements plugin
-// looks up at Provision — so, like every registration that plugin scans for,
-// this MUST run before core.Boot.
-func registerAchievementL10n(c *core.Core, w *web) error {
+// declareI18n is the host's side of pluginapi.I18nDeclarer: seed-only writes
+// under the DEFAULT locale, because the declared text is the fallback string
+// and the fallback column is the host's to define. Validation refuses the
+// whole batch on the first bad slug — a plugin shipping a malformed slug
+// should fail its Provision loudly, not seed a vocabulary the resolve path
+// can never be asked for.
+func (w *web) declareI18n(ctx context.Context, defaults map[string]string) error {
+	for slug := range defaults {
+		if !i18nSlugPattern.MatchString(slug) {
+			return fmt.Errorf("i18n.declare: slug %q is not dotted lowercase (like ach.night-owl.title)", slug)
+		}
+	}
+	def := i18n.Default().Key()
+	for slug, text := range defaults {
+		if err := w.data.SeedI18nMessage(ctx, slug, def, strings.TrimSpace(text)); err != nil {
+			return fmt.Errorf("i18n.declare: %s: %w", slug, err)
+		}
+	}
+	return nil
+}
+
+// registerI18nSeams publishes the catalogue's three seams. All are looked up
+// by plugins at Provision, so this MUST run before core.Boot:
+//
+//	achievements.l10n.slugs    the slug list, for definition-form dropdowns
+//	achievements.l10n.resolve  slug -> text for the CURRENT VIEWER's locale
+//	i18n.declare               pluginapi.I18nDeclarer — plugins seed defaults
+//
+// The declarer is registered AS the pluginapi type, not a bare func: a
+// Lookup's type assertion matches identical types only, so a host that
+// registered its own func type would hand every plugin a value that asserts
+// to nothing, silently.
+func registerI18nSeams(c *core.Core, w *web) error {
 	if err := c.Register("achievements.l10n.slugs",
 		func(ctx context.Context) ([]string, error) { return w.data.I18nSlugs(ctx) }); err != nil {
 		return err
 	}
-	return c.Register("achievements.l10n.resolve",
-		func(gc *gin.Context, slug string) (string, bool) { return w.resolveI18n(gc, slug) })
+	if err := c.Register("achievements.l10n.resolve",
+		func(gc *gin.Context, slug string) (string, bool) { return w.resolveI18n(gc, slug) }); err != nil {
+		return err
+	}
+	return c.Register(pluginapi.I18nDeclarerName, pluginapi.I18nDeclarer(w.declareI18n))
 }

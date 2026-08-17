@@ -117,7 +117,7 @@ func wireAdminAndViews(
 		// rewards.achievements is the PLUGIN's table, created by its own
 		// migration during Boot, so nothing could be inserted into it before
 		// this point. Guarded on the table being empty, so it runs once.
-		achievementsSeed(db, logger)
+		achievementsSeed(db, wsrv, logger)
 	}
 
 	// The rest of the demo seed (demoseed_web.go). Here for the same reason

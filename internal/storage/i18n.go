@@ -45,6 +45,19 @@ func (st *Store) UpsertI18nMessage(ctx context.Context, slug, locale, text strin
 	return err
 }
 
+// SeedI18nMessage writes one cell ONLY if it does not exist — the write the
+// pluginapi.I18nDeclarer seam and the demo seeds go through. Distinct from
+// Upsert on purpose: a declaration is a starting point, and a cell the
+// operator has created (even empty, even blanked) is theirs — a plugin update
+// re-declaring a changed default must not revert an operator's edit.
+func (st *Store) SeedI18nMessage(ctx context.Context, slug, locale, text string) error {
+	_, err := st.db.ExecContext(ctx, `
+		INSERT INTO i18n_messages (slug, locale, text) VALUES ($1, $2, $3)
+		ON CONFLICT (slug, locale) DO NOTHING`,
+		slug, locale, text)
+	return err
+}
+
 // I18nSlugs lists the distinct slugs, for definition-form dropdowns.
 func (st *Store) I18nSlugs(ctx context.Context) ([]string, error) {
 	var out []string
