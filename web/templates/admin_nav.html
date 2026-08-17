@@ -1,13 +1,14 @@
-{{/* Admin → Navigation. The four main dropdowns as editable rows: relabel,
-     renumber, move between groups, hide, add custom links, remove your own.
-     One form, one save — like the i18n grid, an edit session touches many
-     rows. Data from navadmin_web.go: .Groups [{Key, Rows}], .Saved, .Err. */}}
+{{/* Admin → Navigation. Both storeys: the MENUS panel edits the tabs and
+     footer columns themselves (name, localization slug, icon, order,
+     placement, hidden; add/remove custom ones), and a panel per menu edits
+     its entries. One form, one save. Data from navadmin_web.go:
+     .Groups [groupVM] · .L10nSlugs []string · .Saved/.Err */}}
 {{define "content"}}
 {{template "admin-subnav" .}}
 
 <header class="mt-3">
     <h1 class="h3 m-0">Navigation</h1>
-    <p class="text-muted small m-0 mt-1">What the Releases, Community, Support and Other menus carry, and in what order.</p>
+    <p class="text-muted small m-0 mt-1">The top bar's menus and the footer's link columns &mdash; what they are called, what they carry, and in what order.</p>
 </header>
 
 {{if .Saved}}
@@ -24,41 +25,114 @@
 
 <form method="post" action="/admin/nav">
     <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+
+    <section class="panelV2 mt-4">
+        <header class="panel__header">
+            <h2 class="panel__heading">Menus</h2>
+            {{with .Groups}}<div class="panel__actions"><span class="panel__grouping">{{len .}}</span></div>{{end}}
+        </header>
+        <div class="panel__body panel__body--flush">
+            <div class="data-table-wrapper">
+                <table class="data-table">
+                    <caption class="visually-hidden">The menus: name, localization slug, icon, order, placement</caption>
+                    <thead>
+                        <tr><th>Name</th><th>Localized name</th><th>Icon</th><th>Order</th><th>Placement</th><th>Hidden</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {{range .Groups}}
+                        <tr>
+                            <td><input class="form__input" name="gl/{{.Key}}" value="{{.Label}}" aria-label="Name of the {{.Key}} menu"></td>
+                            <td>
+                                {{if $.L10nSlugs}}
+                                {{$cur := .LabelSlug}}
+                                <select class="form__input" name="gs/{{.Key}}" aria-label="Localization slug for {{.Key}}">
+                                    <option value="">&mdash; the name as written &mdash;</option>
+                                    {{range $.L10nSlugs}}<option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{.}}</option>{{end}}
+                                </select>
+                                {{else}}
+                                <input class="form__input" name="gs/{{.Key}}" value="{{.LabelSlug}}" placeholder="nav.releases" aria-label="Localization slug for {{.Key}}">
+                                {{end}}
+                            </td>
+                            <td><input class="form__input" name="gi/{{.Key}}" value="{{.Icon}}" size="8" aria-label="Icon for {{.Key}}"></td>
+                            <td><input class="form__input" name="go/{{.Key}}" value="{{.Ordinal}}" inputmode="numeric" size="4" aria-label="Order of {{.Key}}"></td>
+                            <td>
+                                <select class="form__input" name="gp/{{.Key}}" aria-label="Placement of {{.Key}}">
+                                    <option value="top" {{if ne .Placement "footer"}}selected{{end}}>Top bar</option>
+                                    <option value="footer" {{if eq .Placement "footer"}}selected{{end}}>Footer</option>
+                                </select>
+                            </td>
+                            <td><input type="checkbox" name="gh/{{.Key}}" value="1" {{if .Hidden}}checked{{end}} aria-label="Hide the {{.Key}} menu"></td>
+                            <td>
+                                {{if .Builtin}}<span class="text-muted small">built-in</span>
+                                {{else if .Deletable}}<label class="small"><input type="checkbox" name="grm/{{.Key}}" value="1" aria-label="Remove the {{.Key}} menu"> remove</label>
+                                {{else}}<span class="text-muted small">empty it first</span>{{end}}
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="panel__body">
+            <div style="display:flex;gap:0.75rem;align-items:end;flex-wrap:wrap">
+                <label class="form__label" for="nav-ng-key">New menu key
+                    <input id="nav-ng-key" name="new_group_key" class="form__input" placeholder="guides" size="10">
+                </label>
+                <label class="form__label" for="nav-ng-label">Name
+                    <input id="nav-ng-label" name="new_group_label" class="form__input" placeholder="Guides" size="12">
+                </label>
+                <label class="form__label" for="nav-ng-icon">Icon
+                    <input id="nav-ng-icon" name="new_group_icon" class="form__input" placeholder="book" size="8">
+                </label>
+                <label class="form__label" for="nav-ng-placement">Placement
+                    <select id="nav-ng-placement" name="new_group_placement" class="form__input">
+                        <option value="top">Top bar</option>
+                        <option value="footer">Footer</option>
+                    </select>
+                </label>
+            </div>
+            <p class="text-muted small" style="margin:0.5rem 0 0">
+                Icons are sprite names from the site's icon sheet (browse, search, forums,
+                info, folder, book, users, globe, download&hellip;); a name that is not in
+                the sheet draws nothing. The localized name wins for viewers whose language
+                the slug covers; the plain name is everyone else's fallback.
+            </p>
+        </div>
+    </section>
+
     {{range .Groups}}
     <section class="panelV2 mt-4">
         <header class="panel__header">
-            <h2 class="panel__heading" style="text-transform:capitalize">{{.Key}}</h2>
+            <h2 class="panel__heading">{{.Label}} <span class="text-muted small">({{if eq .Placement "footer"}}footer{{else}}top bar{{end}})</span></h2>
             {{with .Rows}}<div class="panel__actions"><span class="panel__grouping">{{len .}}</span></div>{{end}}
         </header>
         <div class="panel__body panel__body--flush">
             <div class="data-table-wrapper">
                 <table class="data-table">
-                    <caption class="visually-hidden">The {{.Key}} menu's entries</caption>
+                    <caption class="visually-hidden">Entries of the {{.Label}} menu</caption>
                     <thead>
                         <tr><th>Label</th><th>Links to</th><th>Menu</th><th>Order</th><th>Hidden</th><th></th></tr>
                     </thead>
                     <tbody>
                         {{range .Rows}}
                         <tr>
-                            <td><input class="form__input" name="l/{{.Href}}" value="{{.Label}}" aria-label="Label for {{.Href}}"></td>
+                            <td><input class="form__input" name="l/{{.ID}}" value="{{.Label}}" aria-label="Label of {{.Href}}"></td>
                             <td><a href="{{.Href}}"><code>{{.Href}}</code></a></td>
                             <td>
-                                <select class="form__input" name="g/{{.Href}}" aria-label="Menu for {{.Href}}">
-                                    <option value="releases" {{if eq .Grp "releases"}}selected{{end}}>Releases</option>
-                                    <option value="community" {{if eq .Grp "community"}}selected{{end}}>Community</option>
-                                    <option value="support" {{if eq .Grp "support"}}selected{{end}}>Support</option>
-                                    <option value="other" {{if eq .Grp "other"}}selected{{end}}>Other</option>
+                                {{$cur := .Grp}}
+                                <select class="form__input" name="g/{{.ID}}" aria-label="Menu for {{.Href}}">
+                                    {{range $.Groups}}<option value="{{.Key}}" {{if eq .Key $cur}}selected{{end}}>{{.Label}} ({{if eq .Placement "footer"}}footer{{else}}top{{end}})</option>{{end}}
                                 </select>
                             </td>
-                            <td><input class="form__input" name="o/{{.Href}}" value="{{.Ordinal}}" inputmode="numeric" size="4" aria-label="Order for {{.Href}}"></td>
-                            <td><input type="checkbox" name="h/{{.Href}}" value="1" {{if .Hidden}}checked{{end}} aria-label="Hide {{.Href}}"></td>
+                            <td><input class="form__input" name="o/{{.ID}}" value="{{.Ordinal}}" inputmode="numeric" size="4" aria-label="Order of {{.Href}}"></td>
+                            <td><input type="checkbox" name="h/{{.ID}}" value="1" {{if .Hidden}}checked{{end}} aria-label="Hide {{.Href}}"></td>
                             <td>
                                 {{if .Builtin}}<span class="text-muted small">built-in</span>
-                                {{else}}<label class="small"><input type="checkbox" name="rm/{{.Href}}" value="1" aria-label="Remove {{.Href}}"> remove</label>{{end}}
+                                {{else}}<label class="small"><input type="checkbox" name="rm/{{.ID}}" value="1" aria-label="Remove {{.Href}}"> remove</label>{{end}}
                             </td>
                         </tr>
                         {{else}}
-                        <tr><td colspan="6" class="text-muted">Nothing here — move an entry in, or add a link below.</td></tr>
+                        <tr><td colspan="6" class="text-muted">Nothing here &mdash; move an entry in, or add a link below.</td></tr>
                         {{end}}
                     </tbody>
                 </table>
@@ -79,19 +153,16 @@
                 </label>
                 <label class="form__label" for="nav-new-grp">Menu
                     <select id="nav-new-grp" name="new_grp" class="form__input">
-                        <option value="other">Other</option>
-                        <option value="releases">Releases</option>
-                        <option value="community">Community</option>
-                        <option value="support">Support</option>
+                        {{range .Groups}}<option value="{{.Key}}">{{.Label}} ({{if eq .Placement "footer"}}footer{{else}}top{{end}})</option>{{end}}
                     </select>
                 </label>
                 <button class="button button--primary button--sm" type="submit">Save all</button>
             </div>
             <p class="text-muted small" style="margin:0.5rem 0 0">
                 A local path (<code>/pages/privacy</code>) or an http(s) URL. Order sorts
-                low-to-high within a menu; built-in entries can be renamed, moved and hidden
-                but not removed &mdash; and entries the site flavour switches off (Newsgroups,
-                Torrents, the API) stay off regardless of this table.
+                low-to-high; built-ins can be renamed, moved and hidden but not removed;
+                entries the site flavour switches off stay off regardless of this table.
+                A menu with nothing visible in it simply does not render.
             </p>
         </div>
     </section>

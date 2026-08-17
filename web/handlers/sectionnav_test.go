@@ -469,8 +469,18 @@ func TestChromeLinksAreServed(t *testing.T) {
 				"either the route is missing or this list is stale", p)
 		}
 	}
-	if len(seen) < 15 {
-		t.Errorf("only %d chrome links found; the scan is probably not matching", len(seen))
+	// The dropdowns and footer columns render from the nav editor's rows now,
+	// so their hrefs are not literals in the template — the same guarantee
+	// runs against the SHIPPED DEFAULTS instead: every link the editor seeds
+	// must be served. (Operator-added links are the operator's own claim.)
+	for _, e := range navDefaults {
+		if !served[e.Href] {
+			t.Errorf("navDefaults links %s, which nothing in this list serves — "+
+				"either the route is missing or this list is stale", e.Href)
+		}
+	}
+	if len(seen) < 8 {
+		t.Errorf("only %d literal chrome links found; the scan is probably not matching", len(seen))
 	}
 }
 

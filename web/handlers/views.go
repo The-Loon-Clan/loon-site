@@ -647,29 +647,10 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// /admin/* routes sit behind Require(RoleAdmin), so a plain user
 	// clicking them lands on a 403 JSON blob instead of a page.
 	data["IsAdmin"] = u != nil && u.AtLeast(core.RoleAdmin)
-	// ShowIndexer gates the FOOTER's Newznab/RSS links; the dropdowns' own
-	// flavour gating moved into the nav assembly below (navConditions).
+	// ShowIndexer gates the FOOTER's Newznab/RSS links; the menus' own
+	// flavour gating lives in the nav assembly (navadmin_web.go), which runs
+	// below once the plugin site pages are known.
 	data["ShowIndexer"] = flavourIndexer()
-	// The four main dropdowns, from the nav editor's rows (navadmin_web.go):
-	// condition-filtered, operator-ordered, active-marked for THIS path. One
-	// key per group rather than a map because a missing map key under index
-	// is a render error in the no-data tests, and a missing slice key under
-	// range is a no-op.
-	navPath := c.Request.URL.Path
-	menuItems, menuActive := assembleNav(navRows(), navPath)
-	// The release detail pages belong to Releases but no menu row carries
-	// their prefix — the one special case the literals used to encode.
-	if strings.HasPrefix(navPath, "/release/") {
-		menuActive["releases"] = true
-	}
-	data["NavReleases"] = menuItems["releases"]
-	data["NavCommunity"] = menuItems["community"]
-	data["NavSupport"] = menuItems["support"]
-	data["NavOther"] = menuItems["other"]
-	data["NavActiveReleases"] = menuActive["releases"]
-	data["NavActiveCommunity"] = menuActive["community"]
-	data["NavActiveSupport"] = menuActive["support"]
-	data["NavActiveOther"] = menuActive["other"]
 	// The forum's moderation routes (pin/lock, category admin) gate at RoleMod
 	// — templates must show those buttons to the role that can use them.
 	data["IsMod"] = u != nil && u.AtLeast(core.RoleMod)
@@ -814,7 +795,24 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// itself (see hostNavGroups), SiteNavAccount the per-viewer pages that
 	// belong on the account menu. All three ALWAYS set — the nav indexes
 	// SiteNavGroup by name on every render.
-	data["SiteNav"], data["SiteNavGroup"], data["SiteNavAccount"] = w.siteNav(c)
+	siteNodes, siteGrouped, siteAccount := w.siteNav(c)
+	data["SiteNav"], data["SiteNavGroup"], data["SiteNavAccount"] = siteNodes, siteGrouped, siteAccount
+	// Both storeys of the editable navigation (navadmin_web.go): the top
+	// bar's tabs and the footer's link columns, assembled for THIS request —
+	// operator rows filtered and ordered, labels localised through the
+	// message catalogue when a group names a slug, plugin pages merged into
+	// the tab that asked for them, actives computed against the path.
+	var ungrouped []navItem
+	for _, n := range siteNodes {
+		if len(n.Children) == 0 && n.Href != "" {
+			ungrouped = append(ungrouped, navItem{Href: n.Href, Label: n.Label})
+		}
+	}
+	tabs, footerCols := assembleNav(currentNav(), c.Request.URL.Path,
+		func(slug string) (string, bool) { return w.resolveI18n(c, slug) },
+		siteGrouped, ungrouped)
+	data["NavTabs"] = tabs
+	data["FooterNav"] = footerCols
 	// Theme is resolved from an allowlist (theme.go): the cookie value never
 	// reaches the page, only the matching entry does — the head prints
 	// .Theme.Href, which is a constant. Both keys are ALWAYS set: the

@@ -96,10 +96,7 @@
                 <label class="form__label" for="page-nav-group">Show in menu
                     <select id="page-nav-group" name="nav_group" class="form__input">
                         <option value="">&mdash; not in a menu &mdash;</option>
-                        <option value="releases" {{if eq $grp "releases"}}selected{{end}}>Releases</option>
-                        <option value="community" {{if eq $grp "community"}}selected{{end}}>Community</option>
-                        <option value="support" {{if eq $grp "support"}}selected{{end}}>Support</option>
-                        <option value="other" {{if eq $grp "other"}}selected{{end}}>Other</option>
+                        {{range $.NavGroupOptions}}<option value="{{.Key}}" {{if eq .Key $grp}}selected{{end}}>{{.Label}} ({{if eq .Placement "footer"}}footer{{else}}top{{end}})</option>{{end}}
                     </select>
                 </label>
                 <label class="form__label" for="page-nav-ordinal">at position

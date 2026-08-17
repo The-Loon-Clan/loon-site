@@ -503,87 +503,29 @@
             {{/* Home stays a plain tab: one destination, nothing to group. */}}
             <li class="nav-tab"><a class="{{if eq $p "/"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/"{{if eq $p "/"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#home"></use></svg>Home</a></li>
 
-            {{/* Releases — UNIT3D's "Torrents": finding indexed content.
-                 The items come from the nav editor (navadmin_web.go): each
-                 group renders its rows, already condition-filtered, ordered
-                 and active-marked. The literals this file carried live on as
-                 that editor's defaults. */}}
-            {{$rel := or .NavActiveReleases (inGroup $.SiteNavGroup "Releases" $p)}}
+            {{/* The dropdown tabs, from the navigation editor (/admin/nav):
+                 groups the operator can rename (with a message-catalogue slug
+                 for per-viewer localisation), reorder, re-icon, hide or add
+                 to; entries the same. Assembly happens in navadmin_web.go —
+                 flavour gates, active states and plugin-page merging all
+                 arrive precomputed, so this range only draws. The old
+                 literals live on as that editor's defaults. */}}
+            {{range .NavTabs}}
             <li class="nav-tab">
                 <details class="dropdown">
-                    <summary class="{{if $rel}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
-                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#browse"></use></svg>Releases
+                    <summary class="{{if .Active}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
+                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>{{.Label}}
                         <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                     </summary>
-                    <div class="dropdown__menu">
-                        {{range .NavReleases}}
+                    <div class="dropdown__menu{{if .End}} dropdown__menu--end{{end}}">
+                        {{range .Items}}
                         <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>{{.Label}}</a>
                         {{end}}
-                        {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Releases") "Path" $p)}}
+                        {{template "nav-plugin-items" (dict "Items" .PluginItems "Path" $p)}}
                     </div>
                 </details>
             </li>
-
-            {{/* Community — the social half. */}}
-            {{$com := or .NavActiveCommunity (inGroup $.SiteNavGroup "Community" $p)}}
-            <li class="nav-tab">
-                <details class="dropdown">
-                    <summary class="{{if $com}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
-                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#forums"></use></svg>Community
-                        <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
-                    </summary>
-                    <div class="dropdown__menu">
-                        {{range .NavCommunity}}
-                        <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>{{.Label}}</a>
-                        {{end}}
-                        {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Community") "Path" $p)}}
-                    </div>
-                </details>
-            </li>
-
-            {{/* Support — UNIT3D's grouping, plus News: announcements are the
-                 site talking to its members, which is this section's subject —
-                 the Community menu is members talking to each other. */}}
-            {{$sup := or .NavActiveSupport (inGroup $.SiteNavGroup "Support" $p)}}
-            <li class="nav-tab">
-                <details class="dropdown">
-                    <summary class="{{if $sup}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
-                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#info"></use></svg>Support
-                        <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
-                    </summary>
-                    <div class="dropdown__menu dropdown__menu--end">
-                        {{range .NavSupport}}
-                        <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>{{.Label}}</a>
-                        {{end}}
-                        {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Support") "Path" $p)}}
-                    </div>
-                </details>
-            </li>
-
-            {{/* Other — the catch-all UNIT3D also keeps, and the home for
-                 UNGROUPED plugin pages. Those used to be promoted to top-level
-                 tabs, which is the single biggest reason the bar grew: every
-                 plugin registering a site page widened it. A plugin that
-                 declares a NavHint group still gets its own dropdown below. */}}
-            {{$oth := or .NavActiveOther (inGroup $.SiteNavGroup "Other" $p)}}
-            {{range .SiteNav}}{{if not .Children}}{{if eq $p .Href}}{{$oth = true}}{{end}}{{end}}{{end}}
-            <li class="nav-tab">
-                <details class="dropdown">
-                    <summary class="{{if $oth}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
-                        <svg class="icon nav-tab__icon" aria-hidden="true"><use href="#folder"></use></svg>Other
-                        <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
-                    </summary>
-                    <div class="dropdown__menu dropdown__menu--end">
-                        {{range .NavOther}}
-                        <a class="dropdown__item{{if .Active}} active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#{{.Icon}}"></use></svg>{{.Label}}</a>
-                        {{end}}
-                        {{range .SiteNav}}{{if not .Children}}
-                        <a class="dropdown__item{{if eq $p .Href}} active{{end}}" href="{{.Href}}"{{if eq $p .Href}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#tag"></use></svg>{{.Label}}</a>
-                        {{end}}{{end}}
-                        {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Other") "Path" $p)}}
-                    </div>
-                </details>
-            </li>
+            {{end}}
 
             {{/* Plugin pages that DID declare a NavHint group keep their own
                  dropdown — the plugin asked to be a section, so honour it. */}}
@@ -771,27 +713,18 @@
                 {{end}}
             </section>
 
+            {{/* The link columns, from the same navigation editor as the top
+                 bar — groups placed "footer". Account and Stay connected stay
+                 code: one is session logic, the other is flavour-gated. */}}
+            {{range .FooterNav}}
             <section class="footer__section">
-                <h2 class="footer__section-title">Index</h2>
+                <h2 class="footer__section-title">{{.Label}}</h2>
                 <ul class="footer__section-list">
-                    <li><a href="/browse">Browse</a></li>
-                    <li><a href="/search">Search</a></li>
-                    <li><a href="/groups">Groups</a></li>
-                    {{/* /sitemap, not /sitemap.xml. This column is Browse,
-                         Search, Groups — pages a person reads — and "Sitemap"
-                         here delivered raw XML. Crawlers are told about the
-                         feed by robots.txt, so nothing needed this link. */}}
-                    <li><a href="/sitemap">Sitemap</a></li>
+                    {{range .Items}}<li><a href="{{.Href}}">{{.Label}}</a></li>
+                    {{end}}
                 </ul>
             </section>
-
-            <section class="footer__section">
-                <h2 class="footer__section-title">Community</h2>
-                <ul class="footer__section-list">
-                    <li><a href="/community/forums">Forums</a></li>
-                    <li><a href="/community/forums/new">Start a thread</a></li>
-                </ul>
-            </section>
+            {{end}}
 
             <section class="footer__section">
                 <h2 class="footer__section-title">Account</h2>

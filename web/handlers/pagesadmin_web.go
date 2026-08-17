@@ -165,13 +165,14 @@ func (w *web) adminPages(c *gin.Context) {
 		// the built-ins already sit in the menu as builtin rows, moved at
 		// /admin/nav like any other entry.
 		if !isBuiltin {
-			for _, e := range navRows() {
-				if e.Href == "/pages/"+slug {
+			for _, e := range currentNav().Entries {
+				if e.Href == "/pages/"+slug && e.Key == "" {
 					data["EditNavGroup"], data["EditNavOrdinal"] = e.Grp, e.Ordinal
 					break
 				}
 			}
 		}
+		data["NavGroupOptions"] = currentNav().Groups
 	}
 	w.render(c, "admin_pages.html", data)
 }
@@ -207,17 +208,30 @@ func (w *web) adminPagesSave(c *gin.Context) {
 		href := "/pages/" + slug
 		grp := c.PostForm("nav_group")
 		ctx := c.Request.Context()
-		if validNavGroup(grp) {
+		if navGroupExists(grp) {
 			ord := 1000
 			if n, err := strconv.Atoi(strings.TrimSpace(c.PostForm("nav_ordinal"))); err == nil {
 				ord = n
 			}
-			if err := w.data.UpsertSiteNav(ctx, storage.NavEntry{
-				Href: href, Label: title, Grp: grp, Ordinal: ord,
-			}); err != nil {
-				w.log.Error("site page nav place", "slug", slug, "err", err)
+			placed := false
+			for _, e := range currentNav().Entries {
+				if e.Href == href && e.Key == "" {
+					e.Label, e.Grp, e.Ordinal = title, grp, ord
+					if err := w.data.UpdateSiteNav(ctx, e); err != nil {
+						w.log.Error("site page nav place", "slug", slug, "err", err)
+					}
+					placed = true
+					break
+				}
 			}
-		} else if err := w.data.DeleteSiteNav(ctx, href); err != nil {
+			if !placed {
+				if err := w.data.InsertSiteNav(ctx, storage.NavEntry{
+					Href: href, Label: title, Grp: grp, Ordinal: ord,
+				}); err != nil {
+					w.log.Error("site page nav place", "slug", slug, "err", err)
+				}
+			}
+		} else if err := w.data.DeleteSiteNavHref(ctx, href); err != nil {
 			w.log.Error("site page nav remove", "slug", slug, "err", err)
 		}
 		if err := refreshNavMirror(ctx, w.data); err != nil {
@@ -244,7 +258,7 @@ func (w *web) adminPagesDelete(c *gin.Context) {
 	// A deleted custom page must leave the menu too — a built-in reverts to
 	// its template and its nav row rightly stays.
 	if _, isBuiltin := builtinPages[slug]; !isBuiltin {
-		if err := w.data.DeleteSiteNav(c.Request.Context(), "/pages/"+slug); err != nil {
+		if err := w.data.DeleteSiteNavHref(c.Request.Context(), "/pages/"+slug); err != nil {
 			w.log.Error("site page nav remove", "slug", slug, "err", err)
 		}
 		if err := refreshNavMirror(c.Request.Context(), w.data); err != nil {
