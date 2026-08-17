@@ -129,6 +129,15 @@ func storeSeed(db storage.Conn, log *slog.Logger) {
 		        1000, 'invite', '1', 0, 25, true, 30)`); err != nil {
 		log.Warn("store seed: invite", "err", err)
 	}
+	// Flair, at the prices the pointstore's own shop charged before that page
+	// was retired — the items moved, the economy did not.
+	if _, err := db.Exec(`
+		INSERT INTO store.items (name, description, points_cost, reward_type, reward_ref, reward_days, stock, active, sort_order)
+		VALUES ('Supporter flair', 'A badge on your profile. Replaces whatever you wear now.', 10, 'flair', 'supporter', 0, -1, true, 40),
+		       ('VIP flair',       'A badge on your profile. Replaces whatever you wear now.', 25, 'flair', 'vip',       0, -1, true, 50),
+		       ('Legend flair',    'A badge on your profile. Replaces whatever you wear now.', 50, 'flair', 'legend',    0, -1, true, 60)`); err != nil {
+		log.Warn("store seed: flair", "err", err)
+	}
 	log.Info("seeded demo store items")
 }
 

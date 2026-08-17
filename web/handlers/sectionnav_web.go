@@ -97,11 +97,10 @@ var accountMenu = []sectionTab{
 	// the right one: spend them, read what they did, claim more, hand some to
 	// somebody else.
 	{Label: "Bonus Points", Items: []sectionTab{
-		// "Points store" and not "Store", because the flair shop took that word
-		// in the site nav's Other menu. Redundant inside a group already called
-		// Bonus Points, and worth it: the two labels are read a menu apart, and
-		// the reader deciding which shop to open has only the label to go on.
-		// See navPlacement (admin_views.go) for the pair.
+		// "Points store", though the flair shop that once took plain "Store"
+		// in the site nav is gone (flair is an item in here now). The longer
+		// label stays because the site also has a donate page: a member
+		// deciding where money versus points goes has only the label to go on.
 		{Label: "Points store", Href: "/store"},
 		{Label: "History", Href: "/store/history"},
 		{Label: "Rewards", Href: "/rewards"},
