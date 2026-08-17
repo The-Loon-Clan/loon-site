@@ -23,21 +23,23 @@
 
     {{if .Playlists}}
     <div class="panel__body">
-        <div class="tile-grid">
+        <div class="banner-card-list">
             {{range .Playlists}}
-            <a class="tile" href="/playlists/{{.Slug}}">
-                <span class="tile__body">
-                    <span class="tile__title">
+            {{/* Same treatment as /c (components.css banner-card): the cover
+                 IS the card, and a coverless playlist gets the themed poster
+                 fallback keyed off its slug. */}}
+            <a class="banner-card" href="/playlists/{{.Slug}}">
+                <span class="banner-card__banner poster--h{{hue .Slug}}"
+                      {{if .CoverURL}}style="background-image:url('{{.CoverURL}}');"{{end}}>
+                    <span class="banner-card__title">
                         {{.Name}}
                         {{/* Private ones only ever appear here for their owner,
                              so the badge is a reminder rather than a warning. */}}
                         {{if not .Public}}<span class="tag">Private</span>{{end}}
                     </span>
-                    {{if .Description}}<span class="tile__meta">{{.Description}}</span>{{end}}
-                    <span class="tile__meta">
-                        <span class="tag">{{.ItemCount}} release{{if ne .ItemCount 1}}s{{end}}</span>
-                        {{if .Username}}<span>by {{.Username}}</span>{{end}}
-                        {{with timeAgo .UpdatedAt}}<span>{{.}}</span>{{end}}
+                    <span class="banner-card__info">
+                        <span class="banner-card__meta">{{.ItemCount}} release{{if ne .ItemCount 1}}s{{end}}{{if .Username}} &middot; by {{.Username}}{{end}}{{with timeAgo .UpdatedAt}} &middot; {{.}}{{end}}</span>
+                        {{if .Description}}<span class="banner-card__desc">{{.Description}}</span>{{end}}
                     </span>
                 </span>
             </a>

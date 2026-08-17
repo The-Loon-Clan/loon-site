@@ -523,7 +523,7 @@
             </li>
 
             {{/* Community — the social half. */}}
-            {{$com := or (hasPrefix $p "/community/forums") (hasPrefix $p "/c/") (eq $p "/c") (hasPrefix $p "/news") (hasPrefix $p "/playlists") (inGroup $.SiteNavGroup "Community" $p)}}
+            {{$com := or (hasPrefix $p "/community/forums") (hasPrefix $p "/c/") (eq $p "/c") (hasPrefix $p "/playlists") (inGroup $.SiteNavGroup "Community" $p)}}
             <li class="nav-tab">
                 <details class="dropdown">
                     <summary class="{{if $com}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
@@ -533,15 +533,16 @@
                     <div class="dropdown__menu">
                         <a class="dropdown__item{{if hasPrefix $p "/community/forums"}} active{{end}}" href="/community/forums"{{if hasPrefix $p "/community/forums"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#forums"></use></svg>Forums</a>
                         <a class="dropdown__item{{if or (eq $p "/c") (hasPrefix $p "/c/")}} active{{end}}" href="/c"{{if or (eq $p "/c") (hasPrefix $p "/c/")}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#users"></use></svg>Communities</a>
-                        <a class="dropdown__item{{if hasPrefix $p "/news"}} active{{end}}" href="/news"{{if hasPrefix $p "/news"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#rss"></use></svg>News</a>
                         <a class="dropdown__item{{if hasPrefix $p "/playlists"}} active{{end}}" href="/playlists"{{if hasPrefix $p "/playlists"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#music"></use></svg>Playlists</a>
                         {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Community") "Path" $p)}}
                     </div>
                 </details>
             </li>
 
-            {{/* Support — UNIT3D's own grouping, unchanged. */}}
-            {{$sup := or (eq $p "/rules") (eq $p "/faq") (eq $p "/staff") (hasPrefix $p "/wiki") (hasPrefix $p "/support") (inGroup $.SiteNavGroup "Support" $p)}}
+            {{/* Support — UNIT3D's grouping, plus News: announcements are the
+                 site talking to its members, which is this section's subject —
+                 the Community menu is members talking to each other. */}}
+            {{$sup := or (eq $p "/rules") (eq $p "/faq") (eq $p "/staff") (hasPrefix $p "/wiki") (hasPrefix $p "/support") (hasPrefix $p "/news") (inGroup $.SiteNavGroup "Support" $p)}}
             <li class="nav-tab">
                 <details class="dropdown">
                     <summary class="{{if $sup}}nav-tab--active__link{{else}}nav-tab__link{{end}}">
@@ -549,6 +550,7 @@
                         <svg class="icon dropdown__chevron" aria-hidden="true"><use href="#chevron-down"></use></svg>
                     </summary>
                     <div class="dropdown__menu dropdown__menu--end">
+                        <a class="dropdown__item{{if hasPrefix $p "/news"}} active{{end}}" href="/news"{{if hasPrefix $p "/news"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#rss"></use></svg>News</a>
                         <a class="dropdown__item{{if eq $p "/rules"}} active{{end}}" href="/rules"{{if eq $p "/rules"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#shield"></use></svg>Rules</a>
                         <a class="dropdown__item{{if eq $p "/faq"}} active{{end}}" href="/faq"{{if eq $p "/faq"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#info"></use></svg>FAQ</a>
                         <a class="dropdown__item{{if hasPrefix $p "/wiki"}} active{{end}}" href="/wiki"{{if hasPrefix $p "/wiki"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#book"></use></svg>Wiki</a>
