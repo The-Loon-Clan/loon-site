@@ -61,6 +61,7 @@ var logKeys = map[string]string{
 	"anchor":       "a fragment target",
 	"kind":         "a variant of the thing being logged",
 	"mode":         "which of several modes a subsystem is in",
+	"flavour":      "the site flavour: indexer, torrent or both",
 	"area":         "which part of the site",
 	"source":       "a metadata source's name",
 	"provider":     "an external service",

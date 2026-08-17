@@ -645,6 +645,11 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// /admin/* routes sit behind Require(RoleAdmin), so a plain user
 	// clicking them lands on a 403 JSON blob instead of a page.
 	data["IsAdmin"] = u != nil && u.AtLeast(core.RoleAdmin)
+	// The two halves of the chrome, live from the site flavour so a save
+	// moves the nav without a restart: ShowIndexer gates Newsgroups and the
+	// Newznab/RSS links, ShowTracker the Releases menu's Torrents entry.
+	data["ShowIndexer"] = flavourIndexer()
+	data["ShowTracker"] = flavourTracker()
 	// The forum's moderation routes (pin/lock, category admin) gate at RoleMod
 	// — templates must show those buttons to the role that can use them.
 	data["IsMod"] = u != nil && u.AtLeast(core.RoleMod)

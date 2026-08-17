@@ -34,7 +34,7 @@ import (
 // its schema, and one that enables it later should not need a restart for this
 // page to work.
 func (w *web) cheatStore() *tracker.PGStore {
-	if !config.TrackerEnabled() || w.rt == nil || w.data == nil {
+	if !flavourTracker() || w.rt == nil || w.data == nil {
 		return nil
 	}
 	return tracker.NewPGStore(core.NewStorage(w.data.DB().Raw()).SchemaDB("tracker"))

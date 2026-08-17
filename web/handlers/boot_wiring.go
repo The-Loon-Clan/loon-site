@@ -169,6 +169,11 @@ func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PG
 	if err := loadAccessSettings(context.Background(), data.DB()); err != nil {
 		logger.Error("load access settings", "err", err)
 	}
+	// The site flavour (flavour_web.go). Before the plugin config snapshot is
+	// built: it decides which of the two content plugins boot.
+	if err := loadSiteFlavour(context.Background(), data.DB()); err != nil {
+		logger.Error("load site flavour", "err", err)
+	}
 	// Where cover art comes from — see covermode_web.go. Loaded before the
 	// scraper can run, so the first matched cover already obeys the setting.
 	if err := loadCoverMode(context.Background(), data.DB()); err != nil {

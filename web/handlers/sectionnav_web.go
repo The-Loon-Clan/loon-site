@@ -138,7 +138,7 @@ var accountMenu = []sectionTab{
 // carries the viewer's own things. All three are that — your seeding debts,
 // your tokens, your locks — and none is a queue, a tool or a staff list.
 func trackerAccountGroup() (sectionTab, bool) {
-	if !config.TrackerEnabled() {
+	if !flavourTracker() {
 		// No tracker, no tracker pages. The plugins may still be compiled in,
 		// but a member has nothing to seed and nothing to owe.
 		return sectionTab{}, false

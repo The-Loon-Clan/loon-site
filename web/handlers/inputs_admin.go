@@ -43,6 +43,10 @@ func (in jobControlInput) Validate() request.Errors { return nil }
 type accessSaveInput struct {
 	Registration string
 	Browsing     string
+	// Flavour is the site's kind — indexer, torrent or both (flavour_web.go).
+	// On the access form because it lives with the site's other operating
+	// modes, saved by the same single Save button.
+	Flavour string
 }
 
 func readAccessSaveInput(c *gin.Context) (accessSaveInput, error) {

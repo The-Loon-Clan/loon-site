@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-site/internal/config"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"crypto/sha1"
@@ -30,7 +29,7 @@ import (
 //
 // TWO GUARDS, AND THE FIRST ONE IS THE POINT
 //
-//	config.TrackerEnabled()  — no torrents unless the operator asked for a
+//	flavourTracker()         — no torrents unless the flavour includes a
 //	                           tracker. The migration runs either way, so a site
 //	                           with LOON_TRACKER unset has the tables and
 //	                           nothing in them, which is the honest state.
@@ -159,7 +158,7 @@ func demoLastSeenAgo(i, m int) int {
 
 // trackerSeed gives the tracker a catalogue and two members' accounting.
 func trackerSeed(db storage.Conn, log *slog.Logger) {
-	if !config.TrackerEnabled() {
+	if !flavourTracker() {
 		return
 	}
 	var n int

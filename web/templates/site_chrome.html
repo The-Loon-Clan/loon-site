@@ -514,9 +514,10 @@
                     <div class="dropdown__menu">
                         <a class="dropdown__item{{if eq $p "/browse"}} active{{end}}" href="/browse"{{if eq $p "/browse"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#browse"></use></svg>Browse</a>
                         <a class="dropdown__item{{if eq $p "/search"}} active{{end}}" href="/search"{{if eq $p "/search"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#search"></use></svg>Search</a>
-                        <a class="dropdown__item{{if eq $p "/groups"}} active{{end}}" href="/groups"{{if eq $p "/groups"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#groups"></use></svg>Newsgroups</a>
+                        {{if .ShowIndexer}}<a class="dropdown__item{{if eq $p "/groups"}} active{{end}}" href="/groups"{{if eq $p "/groups"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#groups"></use></svg>Newsgroups</a>{{end}}
                         <a class="dropdown__item{{if eq $p "/trending"}} active{{end}}" href="/trending"{{if eq $p "/trending"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#database"></use></svg>Trending</a>
-                        <a class="dropdown__item" href="/api"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#code"></use></svg>Newznab API</a>
+                        {{if .ShowTracker}}<a class="dropdown__item{{if hasPrefix $p "/tracker"}} active{{end}}" href="/tracker"{{if hasPrefix $p "/tracker"}} aria-current="page"{{end}}><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#download"></use></svg>Torrents</a>{{end}}
+                        {{if .ShowIndexer}}<a class="dropdown__item" href="/api"><svg class="icon dropdown__item-icon" aria-hidden="true"><use href="#code"></use></svg>Newznab API</a>{{end}}
                         {{template "nav-plugin-items" (dict "Items" (index $.SiteNavGroup "Releases") "Path" $p)}}
                     </div>
                 </details>
@@ -817,12 +818,12 @@
             <section class="footer__section">
                 <h2 class="footer__section-title">Stay connected</h2>
                 <ul class="footer__section-list">
-                    <li><a href="/api?t=caps">Newznab API</a></li>
-                    <li><a href="/rss?t=search">RSS feed</a></li>
+                    {{if .ShowIndexer}}<li><a href="/api?t=caps">Newznab API</a></li>
+                    <li><a href="/rss?t=search">RSS feed</a></li>{{end}}
                 </ul>
                 <ul class="footer__socials">
-                    <li><a class="footer__social" href="/rss?t=search"><svg class="icon" aria-hidden="true"><use href="#rss"></use></svg><span class="visually-hidden">RSS feed</span></a></li>
-                    <li><a class="footer__social" href="/api?t=caps"><svg class="icon" aria-hidden="true"><use href="#code"></use></svg><span class="visually-hidden">Newznab API capabilities</span></a></li>
+                    {{if .ShowIndexer}}<li><a class="footer__social" href="/rss?t=search"><svg class="icon" aria-hidden="true"><use href="#rss"></use></svg><span class="visually-hidden">RSS feed</span></a></li>
+                    <li><a class="footer__social" href="/api?t=caps"><svg class="icon" aria-hidden="true"><use href="#code"></use></svg><span class="visually-hidden">Newznab API capabilities</span></a></li>{{end}}
                     {{/* This row is machine feeds — RSS, Newznab — so the XML
                          copy is the right one here. Named for what it is, so
                          it does not read as a second link to the page above. */}}

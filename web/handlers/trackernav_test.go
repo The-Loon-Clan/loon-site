@@ -15,7 +15,10 @@ import (
 // /hitrun for what you owe" — so a 404 here lands on somebody who is already
 // confused and now has reason to think the site is broken.
 func TestTrackerNavOnlyOffersPagesThatExist(t *testing.T) {
-	t.Setenv("LOON_TRACKER", "")
+	// The group reads the site FLAVOUR now, not LOON_TRACKER — the env flag
+	// only seeds a fresh database's first answer (flavour_web.go).
+	defer flavourMode.Store(siteFlavour())
+	flavourMode.Store(FlavourIndexer)
 	t.Setenv("LOON_SEEDLOCK", "")
 	if _, ok := trackerAccountGroup(); ok {
 		t.Error("the tracker group appeared with no tracker — every link would 404")
@@ -23,7 +26,7 @@ func TestTrackerNavOnlyOffersPagesThatExist(t *testing.T) {
 
 	// Tracker on, lock off: the two always-mounted pages, and NOT the lock page
 	// — the plugin only mounts /seedlock inside its enabled branch.
-	t.Setenv("LOON_TRACKER", "1")
+	flavourMode.Store(FlavourBoth)
 	g, ok := trackerAccountGroup()
 	if !ok {
 		t.Fatal("no tracker group with the tracker on")

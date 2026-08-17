@@ -425,14 +425,18 @@ func Main() {
 			// "redis" (prod's assembly pipeline — needs REDIS_ADDR so core.Redis
 			// is wired, else the plugin refuses to boot rather than silently
 			// falling back). Flip with USENET_STAGING=redis.
-			"usenet": map[string]any{"staging": usenetStaging},
-			// The BitTorrent tracker, OFF unless asked for. Not caution on the
-			// host's part — it is the plugin's own default, because a tracker
-			// publishes announce endpoints, mints passkeys and starts keeping
-			// ratio accounting the moment it is reachable. Everything else here
-			// is inert until a member visits it.
+			//
+			// enabled comes from the site flavour (flavour_web.go): a
+			// torrent-flavour site crawls nothing.
+			"usenet": map[string]any{"staging": usenetStaging, "enabled": flavourIndexer()},
+			// The BitTorrent tracker, on when the site FLAVOUR includes it
+			// (flavour_web.go; LOON_TRACKER seeds the first-boot answer). The
+			// plugin's own default stays off, because a tracker publishes
+			// announce endpoints, mints passkeys and starts keeping ratio
+			// accounting the moment it is reachable. Everything else here is
+			// inert until a member visits it.
 			"tracker": map[string]any{
-				"enabled":  config.TrackerEnabled(),
+				"enabled":  flavourTracker(),
 				"site_url": trackerSiteURL(),
 				// Cheat detection (tracker/cheat.go). OFF unless asked for, and
 				// on its own flag: running a tracker is a feature, judging

@@ -63,9 +63,13 @@ services:
       # plugin fails to boot rather than silently running pg.
       #   USENET_STAGING=redis docker compose up --build -d
       USENET_STAGING: "${USENET_STAGING:-pg}"
-      # The BitTorrent tracker, OFF by default. It publishes announce endpoints,
+      # The FIRST-BOOT default for the site flavour (Admin -> Access): set, a
+      # fresh database starts as "both" (indexer + tracker); unset, as
+      # "indexer". After the first boot the flavour lives in the database and
+      # this flag stops mattering — flip the site's kind on /admin/access.
+      # The tracker defaults off because it publishes announce endpoints,
       # mints passkeys and starts keeping ratio accounting the moment it is
-      # reachable, so it is the one plugin here that must be asked for:
+      # reachable, so it must be asked for:
       #   LOON_TRACKER=1 docker compose up --build -d
       LOON_TRACKER: "${LOON_TRACKER:-}"
       # The absolute base baked into every downloaded .torrent. A wrong value

@@ -76,6 +76,38 @@
             </div>
         </section>
     </div>
+
+    {{/* The site's kind. eq on a possibly-absent key errors, hence $flavour. */}}
+    {{$flavour := or .Flavour ""}}
+    <section class="panelV2 mt-3">
+        <header class="panel__header">
+            <h2 class="panel__heading">
+                <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>Site flavour
+            </h2>
+        </header>
+        <div class="panel__body">
+            <dl class="key-value">
+                <div class="key-value__group">
+                    <dt><label for="fl-both"><input type="radio" id="fl-both" name="flavour" value="both" {{if eq $flavour "both"}}checked{{end}}> Indexer and tracker</label></dt>
+                    <dd class="text-muted">Usenet crawling and the BitTorrent tracker, side by side.</dd>
+                </div>
+                <div class="key-value__group">
+                    <dt><label for="fl-indexer"><input type="radio" id="fl-indexer" name="flavour" value="indexer" {{if eq $flavour "indexer"}}checked{{end}}> Indexer</label></dt>
+                    <dd class="text-muted">Usenet only. No announce endpoints, no passkeys, no ratio accounting.</dd>
+                </div>
+                <div class="key-value__group">
+                    <dt><label for="fl-torrent"><input type="radio" id="fl-torrent" name="flavour" value="torrent" {{if eq $flavour "torrent"}}checked{{end}}> Tracker</label></dt>
+                    <dd class="text-muted">Torrents only. Nothing crawls Usenet and the Newznab API leaves the menus.</dd>
+                </div>
+            </dl>
+            <p class="text-muted small m-0 mt-3">
+                Two speeds, honestly: navigation and the pages the site draws follow this save
+                immediately; which plugins boot follows at the next restart, so a switched-off
+                half keeps answering until then.
+            </p>
+        </div>
+    </section>
+
     <div class="form__actions mt-3"><button class="button button--primary" type="submit">Save</button></div>
 </form>
 

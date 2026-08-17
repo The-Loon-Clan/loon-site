@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"github.com/the-loon-clan/loon-site/internal/config"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"context"
@@ -85,7 +84,7 @@ func (r rankStats) AllStats(ctx context.Context) (map[int64]pluginapi.MemberStat
 // afterwards is never seen and every earned rank sits unreachable with nothing
 // logged — the same before-Boot rule the achievement metrics carry.
 func registerRankStats(c *core.Core, db storage.Conn) error {
-	if !config.TrackerEnabled() {
+	if !flavourTracker() {
 		// Nothing to judge anyone on. Absent rather than stubbed at zero, which
 		// is the rule this host already applies to achievement metrics it
 		// cannot answer honestly: a stub returning zero is indistinguishable

@@ -100,7 +100,7 @@ var accessRoutes = []struct{ Path, Label, Note string }{
 	// reason the rest of that group is: they carry a second gate the site
 	// setting cannot reach — the tracker.access entitlement — so a member
 	// without it is sent to / rather than to the login page.
-	{"/tracker", "Tracker", "Needs LOON_TRACKER=1, an account, and the tracker.access entitlement."},
+	{"/tracker", "Tracker", "Needs a site flavour with the tracker on (above), an account, and the tracker.access entitlement."},
 	{"/tracker/my", "Your tracker stats", "Your ratio, your passkey. Same gates as /tracker."},
 	{"/tracker/download/:hash", "Torrent download", "The .torrent, with YOUR passkey baked into its announce URL."},
 	// Public on purpose, and the one row here worth reading twice. The caller is
@@ -167,6 +167,7 @@ func (w *web) adminAccess(c *gin.Context) {
 		"Title":        "Access",
 		"Registration": registrationMode(),
 		"Browsing":     browsingMode(),
+		"Flavour":      siteFlavour(),
 		"Pages":        buildAccessMap(),
 		"Saved":        c.Query(querySaved) == "1",
 		"Err":          c.Query(queryErr),
@@ -183,7 +184,13 @@ func (w *web) adminAccessSave(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/admin/access?err=could+not+save")
 		return
 	}
-	w.log.Info("access settings changed", "registration", reg, "browsing", browse)
+	if err := saveSiteFlavour(c.Request.Context(), in.Flavour); err != nil {
+		w.log.Error("save site flavour", "flavour", in.Flavour, "err", err)
+		c.Redirect(http.StatusFound, "/admin/access?err=could+not+save")
+		return
+	}
+	w.log.Info("access settings changed",
+		"registration", reg, "browsing", browse, "flavour", in.Flavour)
 	c.Redirect(http.StatusFound, "/admin/access?saved=1")
 }
 
