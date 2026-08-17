@@ -27,9 +27,9 @@ import (
 	"github.com/the-loon-clan/loon-baseline/notify"
 	"github.com/the-loon-clan/loon-baseline/password"
 	"github.com/the-loon-clan/loon-baseline/profile"
+	"github.com/the-loon-clan/loon-plugins/achievements"
 	"github.com/the-loon-clan/loon-plugins/dailyreward"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
-	"github.com/the-loon-clan/loon-plugins/achievements"
 	"github.com/the-loon-clan/loon/core"
 	"github.com/the-loon-clan/loon/schedule"
 
@@ -64,6 +64,10 @@ func wireAdminAndViews(
 	admin.GET("/contracts", wsrv.adminContracts)
 	admin.GET("/access", wsrv.adminAccess)
 	admin.POST("/access", wsrv.adminAccessSave)
+	// The message catalogue behind the achievements localization dropdowns
+	// (i18nadmin_web.go).
+	admin.GET("/i18n", wsrv.adminI18n)
+	admin.POST("/i18n", wsrv.adminI18nSave)
 	// Where cover art comes from (coversadmin_web.go + covermode_web.go).
 	admin.GET("/covers", wsrv.adminCovers)
 	admin.POST("/covers", wsrv.adminCoversSave)

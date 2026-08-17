@@ -180,5 +180,9 @@ func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PG
 	if err := data.MigrateProfileBio(); err != nil {
 		return fmt.Errorf("profile bio migrate: %w", err)
 	}
+	// The message catalogue (i18nadmin_web.go / storage/i18n.go).
+	if err := data.MigrateI18n(); err != nil {
+		return fmt.Errorf("i18n migrate: %w", err)
+	}
 	return nil
 }

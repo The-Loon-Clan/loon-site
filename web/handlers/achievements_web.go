@@ -28,9 +28,9 @@ import (
 
 // achievementView is one badge as the template needs it.
 type achievementView struct {
-	Name  string
-	Slug  string
-	Icon  string
+	Name string
+	Slug string
+	Icon string
 	// Image is the operator-uploaded badge art URL (rewards migration 006),
 	// which wins over Icon when set — and is blanked by the builder for
 	// anything not yet earned, so hidden badges cannot leak their art.
@@ -94,7 +94,7 @@ func (w *web) achievementsPage(c *gin.Context) {
 	unlocked, pending, inProgress := []achievementView{}, []achievementView{}, []achievementView{}
 	for _, a := range list {
 		v := achievementView{
-			Name:      a.Name,
+			Name:      w.localizedAchName(c, a),
 			Slug:      a.Slug,
 			Icon:      achievementIcon(a.State),
 			Image:     a.ImagePath,
@@ -192,12 +192,25 @@ func (w *web) recentAchievements(c *gin.Context, userID int64, n int) (achieveme
 			break
 		}
 		sum.Recent = append(sum.Recent, achievementView{
-			Name: a.Name, Slug: a.Slug,
+			Name: w.localizedAchName(c, a), Slug: a.Slug,
 			Icon: achievementIcon(a.State),
 			When: a.EarnedAt.Format("2 Jan 2006"),
 		})
 	}
 	return sum, true
+}
+
+// localizedAchName resolves a badge's display title for this viewer: the
+// message-catalogue slug when the definition names one, the plain Name
+// otherwise. Same resolution the plugin's own profile widget does through the
+// achievements.l10n.resolve seam — one catalogue, two renderers.
+func (w *web) localizedAchName(c *gin.Context, a achievements.Achievement) string {
+	if a.TitleSlug != "" {
+		if t, ok := w.resolveI18n(c, a.TitleSlug); ok && t != "" {
+			return t
+		}
+	}
+	return a.Name
 }
 
 // sortByEarnedDesc orders newest first. An insertion sort because the input is

@@ -1,0 +1,91 @@
+{{/* The message catalogue — slugs down, locales across, every cell editable,
+     one save for the whole grid. Translation is done in passes ("fill the
+     Japanese column"), so a save per cell would be thirty round trips.
+
+     Data: .Slugs []string (stable order), .LocaleKeys []string,
+     .Rows map[slug]map[locale]text, .Saved/.Err. */}}
+{{define "content"}}
+{{template "admin-subnav" .}}
+
+<header class="mt-3">
+    <h1 class="h3 m-0">Localization</h1>
+    <p class="text-muted small m-0 mt-1">The message catalogue: strings achievements (and anything else that names a slug) can serve in the viewer's language.</p>
+</header>
+
+{{if .Saved}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Saved. Live now &mdash; badges pick the new text up on the next page load.</span>
+</div>
+{{end}}
+{{with .Err}}
+<div class="notice notice--warning">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg><span>{{.}}</span>
+</div>
+{{end}}
+
+<form method="post" action="/admin/i18n">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    <section class="panelV2 mt-4">
+        <header class="panel__header">
+            <h2 class="panel__heading">Message catalogue</h2>
+            {{with .Slugs}}<div class="panel__actions"><span class="panel__grouping">{{len .}}</span></div>{{end}}
+        </header>
+        {{if .Slugs}}
+        <div class="panel__body panel__body--flush">
+            <div class="data-table-wrapper">
+                <table class="data-table">
+                    <caption class="visually-hidden">Localized strings: one row per slug, one column per language</caption>
+                    <thead>
+                        <tr>
+                            <th>Slug</th>
+                            {{range .LocaleKeys}}<th>{{.}}</th>{{end}}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{$root := .}}
+                        {{range .Slugs}}
+                        {{$slug := .}}
+                        <tr>
+                            <td><code>{{$slug}}</code></td>
+                            {{range $root.LocaleKeys}}
+                            <td>
+                                {{/* An empty cell is a missing translation, and
+                                     resolution treats it that way — it falls back
+                                     rather than serving a blank. */}}
+                                <input class="form__input" name="t/{{$slug}}/{{.}}"
+                                       value="{{index (index $root.Rows $slug) .}}"
+                                       aria-label="{{$slug}} in {{.}}">
+                            </td>
+                            {{end}}
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {{else}}
+        <div class="panel__body">
+            <p class="text-muted m-0">No slugs yet &mdash; add the first below. Dotted lowercase, like
+                <code>ach.night-owl.title</code>.</p>
+        </div>
+        {{end}}
+        <div class="panel__body">
+            <div style="display:flex;gap:0.75rem;align-items:end;flex-wrap:wrap">
+                <label class="form__label" for="i18n-new-slug">New slug
+                    <input id="i18n-new-slug" name="new_slug" class="form__input" placeholder="ach.night-owl.title">
+                </label>
+                <label class="form__label" for="i18n-new-text" style="flex:1;min-width:220px">Its {{with .LocaleKeys}}{{index . 0}}{{else}}default{{end}} text
+                    <input id="i18n-new-text" name="new_text" class="form__input" placeholder="Night Owl">
+                </label>
+                <button class="button button--primary button--sm" type="submit">Save all</button>
+            </div>
+            <p class="text-muted small" style="margin:0.5rem 0 0">
+                One save writes every cell. The first locale is the fallback: a slug
+                translated nowhere else serves that text, and a slug empty everywhere
+                serves the consumer's own fallback (an achievement's plain title).
+            </p>
+        </div>
+    </section>
+</form>
+{{end}}

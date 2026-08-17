@@ -576,6 +576,12 @@ func Main() {
 	if err := registerRankStats(c, conn); err != nil {
 		logger.Error("register rank stats", "err", err)
 	}
+	// The message catalogue's two seams for achievements (i18nadmin_web.go).
+	// Same before-Boot rule again: without them the definition form's
+	// localization dropdowns silently never appear.
+	if err := registerAchievementL10n(c, wsrv); err != nil {
+		logger.Error("register achievement l10n", "err", err)
+	}
 	// Scraper enrichment: persist entries + link covers via the catalog plugin
 	// (resolved lazily after Boot), fed release candidates from the usenet index.
 	scraper.SetDeps(scraper.Deps{

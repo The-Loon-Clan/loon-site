@@ -132,6 +132,8 @@ var pageTemplates = []string{
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
 	"admin_access.html", "admin_contracts.html", "admin_covers.html",
+	// The message catalogue (i18nadmin_web.go).
+	"admin_i18n.html",
 	// The widget page editor (widgetsadmin_web.go).
 	"admin_widgets.html",
 	// Data-source attribution (credits_web.go).
