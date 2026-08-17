@@ -429,6 +429,28 @@ func (w *web) mount(e *gin.Engine) {
 // sets it via core.SetViewSubject, and renders every SlotUserWidget the viewer
 // may see (the baseline summary + any plugin contributions like the daily
 // streak) — the host owns zero profile content.
+// wornMedals reads the medals a member chose to display, through the
+// medals plugin's published answer (medals.worn). Empty on any failure —
+// a profile must not 500 over decoration.
+func (w *web) wornMedals(c *gin.Context, userID int64) []pluginapi.WornMedal {
+	if w.rt == nil || w.rt.Core() == nil {
+		return nil
+	}
+	v, ok := w.rt.Core().Lookup(pluginapi.WornMedalsName)
+	if !ok {
+		return nil
+	}
+	fn, ok := v.(pluginapi.WornMedalsFunc)
+	if !ok {
+		return nil
+	}
+	worn, err := fn(c.Request.Context(), userID)
+	if err != nil {
+		return nil
+	}
+	return worn
+}
+
 func (w *web) profilePage(c *gin.Context) {
 	subject, err := w.store.ByUsername(c.Request.Context(), c.Param("name"))
 	if err != nil {
@@ -473,6 +495,9 @@ func (w *web) profilePage(c *gin.Context) {
 		// UserAvatar is whoever is logged in, and on someone else's profile
 		// those are different people.
 		"SubjectAvatar": readAvatarPath(c.Request.Context(), w.data.DB(), subject.ID),
+		// The subject's worn medals (medals.worn — the plugin owns the
+		// cabinet, this page only draws the icons). Empty without the plugin.
+		"SubjectMedals": w.wornMedals(c, subject.ID),
 		// Outcome of a report POST, round-tripped through the redirect.
 		"Report":  c.Query("report"),
 		"IsSelf":  isSelf,

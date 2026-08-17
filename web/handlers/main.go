@@ -67,6 +67,7 @@ import (
 	// rewards granter, rank stats) — the import is most of the wiring; the
 	// csrf seam below is the rest.
 	_ "github.com/the-loon-clan/loon-plugins/games"
+	_ "github.com/the-loon-clan/loon-plugins/medals"
 	"github.com/the-loon-clan/loon-plugins/store"
 
 	// events owns scheduled windows — the WHEN other plugins hang behaviour on.
@@ -597,6 +598,10 @@ func Main() {
 	if err := c.Register("games.csrf",
 		func(gc *gin.Context) string { return middleware.Token(gc) }); err != nil {
 		logger.Error("register games csrf", "err", err)
+	}
+	if err := c.Register("medals.csrf",
+		func(gc *gin.Context) string { return middleware.Token(gc) }); err != nil {
+		logger.Error("register medals csrf", "err", err)
 	}
 	// The message catalogue's seams (i18nadmin_web.go): slug list + per-viewer
 	// resolution for achievements, and pluginapi.I18nDeclarer so any plugin

@@ -199,6 +199,10 @@ func registerAchievementMetrics(c *core.Core, db storage.Conn) error {
 	}
 	// Same before-Boot rule as the metrics: the plugin looks this up during its
 	// own Provision, so one registered afterwards is never seen.
+	if err := c.Register("rewards.payout."+string(rewards.PayoutMedal),
+		medalPayoutHandler(c)); err != nil {
+		return fmt.Errorf("register medal payout: %w", err)
+	}
 	if err := c.Register("rewards.payout."+string(rewards.PayoutAchievement),
 		achievementPayoutHandler(c)); err != nil {
 		return fmt.Errorf("register achievement payout handler: %w", err)
@@ -327,6 +331,28 @@ func achievementsSeed(db storage.Conn, w *web, log *slog.Logger) {
 		return
 	}
 	log.Info("seeded the achievements catalogue")
+}
+
+// medalPayoutHandler settles a payout of kind "medal" — the kind that was
+// declared in rewards with no implementation anywhere, until the medals
+// plugin gave it a cabinet to land in. Same shape as the achievement
+// handler below and lazy for the same reason: the granter is a sibling
+// plugin's registration, resolved at settle time so order never matters,
+// and a medal-less host settles medal payouts as the historical no-op.
+func medalPayoutHandler(c *core.Core) rewards.PayoutHandler {
+	return func(ctx context.Context, g rewards.Grant, p rewards.Payout) error {
+		v, ok := c.Lookup(pluginapi.MedalGranterName)
+		if !ok {
+			return nil
+		}
+		granter, ok := v.(pluginapi.MedalGranter)
+		if !ok {
+			return nil
+		}
+		// Idempotent per the granter's contract; unknown slugs are ITS no-op.
+		_ = granter.GrantMedal(ctx, g.UserID, p.Target)
+		return nil
+	}
 }
 
 // achievementPayoutHandler settles a payout of kind "achievement".

@@ -169,5 +169,15 @@ func registerI18nSeams(c *core.Core, w *web) error {
 		func(gc *gin.Context, slug string) (string, bool) { return w.resolveI18n(gc, slug) }); err != nil {
 		return err
 	}
+	// The medals plugin reads the same catalogue through its own keys — one
+	// key per consumer, the same closures.
+	if err := c.Register("medals.l10n.slugs",
+		func(ctx context.Context) ([]string, error) { return w.data.I18nSlugs(ctx) }); err != nil {
+		return err
+	}
+	if err := c.Register("medals.l10n.resolve",
+		func(gc *gin.Context, slug string) (string, bool) { return w.resolveI18n(gc, slug) }); err != nil {
+		return err
+	}
 	return c.Register(pluginapi.I18nDeclarerName, pluginapi.I18nDeclarer(w.declareI18n))
 }

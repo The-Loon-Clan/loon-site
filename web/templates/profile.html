@@ -65,6 +65,15 @@
                     {{/* Gifting starts from the person, not from a form: you
                          decide to send points while looking at somebody, so
                          the link carries their name into the page. */}}
+                    {{/* Worn medals — just the icons, each named on hover
+                         and for screen readers. The member arranges these at
+                         /p/medals; an empty cabinet renders nothing. */}}
+                    {{with .SubjectMedals}}
+                    <div class="mt-2" style="display:flex;gap:0.35rem;flex-wrap:wrap;justify-content:center">
+                        {{range .}}<img src="{{.Icon}}" alt="{{.Name}} medal" title="{{.Name}}"
+                             style="width:28px;height:28px;object-fit:cover;border-radius:6px">{{end}}
+                    </div>
+                    {{end}}
                     {{if and .User (not .IsSelf)}}
                     <a class="button button--outlined button--sm mt-2" href="/gifts?to={{.Subject.Username}}">
                         <svg class="icon" aria-hidden="true"><use href="#coin"></use></svg>Gift points
