@@ -40,7 +40,7 @@ PAGES = [
     "/login", "/register", "/forgot",
     "/u/alice", "/u/alice/followers", "/u/alice/friends",
     "/bookmarks", "/calendar", "/achievements", "/subscriptions", "/invites",
-    "/p/pot", "/p/charity", "/p/medals",
+    "/p/pot", "/p/charity", "/p/medals", "/p/magic",
     "/settings/profile", "/settings/privacy", "/settings/notifications",
     "/inbox", "/store",
     "/admin", "/admin/settings", "/admin/access", "/admin/contracts",
