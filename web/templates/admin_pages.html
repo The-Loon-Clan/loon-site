@@ -39,7 +39,12 @@
                     {{range .Rows}}
                     <tr>
                         <td><code>{{.Slug}}</code></td>
-                        <td class="data-table__title">{{.Title}}</td>
+                        {{/* The class goes on a SPAN, never the cell: it is
+                             display:block, and a td that stops being a
+                             table-cell leaves the column grid — the title
+                             column ends up its own width with the row's
+                             border stopping short under it. */}}
+                        <td><span class="data-table__title">{{.Title}}</span></td>
                         <td><a href="{{.Href}}">{{.Href}}</a></td>
                         <td>{{if .Saved}}<span class="tag tag--success">saved</span>{{else}}<span class="tag">template</span>{{end}}</td>
                         <td>{{.Updated}}</td>

@@ -127,7 +127,8 @@
             <tbody>
                 {{range .Pages}}
                 <tr>
-                    <td class="data-table__title">{{.Label}}</td>
+                    {{/* On a span, not the cell — see admin_pages.html. */}}
+                    <td><span class="data-table__title">{{.Label}}</span></td>
                     <td><code>{{.Path}}</code></td>
                     <td>
                         {{if eq .Access "public"}}<span class="chip chip--ok">Can read</span>

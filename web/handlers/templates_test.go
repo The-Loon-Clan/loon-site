@@ -1592,3 +1592,52 @@ func TestQuickInfoHoverSelectorMatchesTheMarkup(t *testing.T) {
 			"the scroll area of .data-table-wrapper")
 	}
 }
+
+// Block-level component classes belong on an element INSIDE a cell, never on
+// the <td> or <th>. A cell carrying display:block stops being a table-cell:
+// it leaves the column grid, takes its own width, and the row's border stops
+// short under it — which is what /admin/pages and /admin/access looked like
+// until somebody reported the table as "a little broken".
+//
+// Scanned rather than fixed-and-forgotten, because the misuse reads perfectly
+// naturally: the class is called __title and the cell holds the title.
+func TestBlockComponentClassesAreNotOnTableCells(t *testing.T) {
+	// The classes components.css declares display:block (or flex/grid, which
+	// break a cell the same way). Kept short and explicit: a new entry belongs
+	// here the day a component gains a display rule.
+	blockInCell := []string{"data-table__title", "data-table__meta", "data-table__name"}
+
+	var files []string
+	err := fs.WalkDir(site.FS, "web/templates", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && strings.HasSuffix(p, ".html") {
+			files = append(files, p)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		b, err := fs.ReadFile(site.FS, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := stripTmplComments(string(b))
+		for _, class := range blockInCell {
+			for _, cell := range []string{"td", "th"} {
+				// The shape the bug takes: <td class="…the class…">. Matching
+				// the opening tag and its class attribute together, so a span
+				// on the next line is not a false positive.
+				bad := "<" + cell + ` class="` + class
+				if strings.Contains(body, bad) {
+					t.Errorf("%s puts %q on a <%s>. It is display:block, so the cell "+
+						"leaves the column grid — put it on a <span> inside the cell instead.",
+						f, class, cell)
+				}
+			}
+		}
+	}
+}
