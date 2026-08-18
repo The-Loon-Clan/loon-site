@@ -353,6 +353,11 @@ details.job-group[open] > summary::before { transform: rotate(90deg); }
 .align-items-center { align-items: center; }
 .align-items-baseline { align-items: baseline; }
 .align-items-end { align-items: flex-end; }
+/* The set had every alignment except the one a header row wants — a heading
+   and a link that must sit at the TOP of a two-line block, not centred against
+   it. /staff used it and got nothing, which renders identically to a class
+   that was never written. Found by scripts/audit_css.py. */
+.align-items-start { align-items: flex-start; }
 .align-self-center { align-self: center; }
 .justify-content-between { justify-content: space-between; }
 .justify-content-center { justify-content: center; }

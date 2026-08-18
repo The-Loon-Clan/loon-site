@@ -1484,19 +1484,41 @@ a.stat-tile:hover {
  * ranked name and a figure beside it — so it is the point at which a column
  * stops being worth having.
  *
- * align-items: start so a short panel does not stretch to match a tall one and
- * leave a stripe of empty surface under its last row.
+ * STRETCHED, not start-aligned. This said align-items:start, on the grounds
+ * that a short panel should not "leave a stripe of empty surface under its last
+ * row" — and that reasoning was backwards on a row of three. Three cards with
+ * three different bottom edges read as a layout that failed; one short card
+ * with room under its last row reads as a card with less in it, which is the
+ * true thing. The page also stops reflowing its own footer every time a forum
+ * gains a topic.
+ *
+ * Stretching the GRID ITEM is only half of it: a panel is a header plus a body,
+ * and without the two rules below the panel box grows while its body stays the
+ * height of its content, which puts the border in the same wrong place the
+ * ragged version did. So the panel becomes a column and the body takes the
+ * slack.
  */
 .home-community {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
-    align-items: start;
     gap: var(--space-4);
 }
 
 /* The panels inside carry their own bottom margin from the stack they used to
    be part of; in a grid the gap does that job and the margin doubles it. */
-.home-community > .panelV2 { margin-bottom: 0; }
+.home-community > .panelV2 {
+    margin-bottom: 0;
+    /* .panelV2 sets height:fit-content, and a grid item with an explicit height
+       does not stretch — so the row silently stayed ragged with align-items
+       doing exactly nothing. This is the line that makes the rest work. */
+    height: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* The body takes whatever height the tallest panel in the row forces, so the
+   surface reaches the bottom edge instead of stopping under the last row. */
+.home-community > .panelV2 > .panel__body { flex: 1; }
 
 /* ------------------------------------------------------------ donate ------ */
 
