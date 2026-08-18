@@ -20,7 +20,7 @@ require (
 require (
 	github.com/the-loon-clan/loon v0.0.0-20260817043606-a53a74993b2c
 	github.com/the-loon-clan/loon-baseline v0.0.0-20260817084941-34a6e2db16d4
-	github.com/the-loon-clan/loon-plugins v0.0.0-20260818000605-bd5abe72c1b1
+	github.com/the-loon-clan/loon-plugins v0.0.0-20260818003259-185db57b2321
 	golang.org/x/text v0.41.0
 )
 
