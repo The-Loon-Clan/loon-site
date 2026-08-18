@@ -146,7 +146,15 @@ func (w *web) renderPlaced(c *gin.Context, region string, placements []storage.W
 		// placements of one widget cannot see each other's value.
 		core.SetWidgetConfig(c, p.Config)
 		body, err := widget.Render(c)
-		if err != nil || strings.TrimSpace(string(body)) == "" {
+		if err != nil {
+			// Dropped, but SAID. A widget that fails and one that has nothing
+			// to show look identical on the page, and only one of them is
+			// something an operator can fix — so the difference has to exist
+			// somewhere, and the log is where.
+			w.log.Error("widget", "slug", widget.Slug, "region", region, "err", err)
+			continue
+		}
+		if strings.TrimSpace(string(body)) == "" {
 			continue
 		}
 		out = append(out, renderedWidget{Slug: widget.Slug, Title: widget.Title, Body: body})

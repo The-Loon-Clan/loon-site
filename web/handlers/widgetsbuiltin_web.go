@@ -76,6 +76,51 @@ func (w *web) registerBuiltinWidgets(c *core.Core) {
 		},
 	})
 
+	// ── who runs the site ───────────────────────────────────────────────────
+	//
+	// The /staff listing, placeable and shortcode-able, so an operator can write
+	// their own words around it — "mail this address, not that one" — instead of
+	// getting a bare grid at a URL they cannot edit.
+	//
+	// Config is ONE role slug meaning "this role and above", because that is
+	// what a role ladder is: `admin` on a contact page, blank for the whole
+	// staff, `contributor` on a page about who keeps the index fed. Named roles
+	// rather than a set, so an operator cannot write a combination the ladder
+	// cannot express.
+	//
+	// Public: a staff list nobody can read is not a staff list. It shows names
+	// and roles only — the same facts the site prints beside every post.
+	reg(core.Widget{
+		Slug:        "staff",
+		Title:       "Staff",
+		Description: "Members holding a staff role, grouped by role.",
+		Public:      true,
+		Weight:      30,
+		ConfigLabel: "Lowest role to show",
+		ConfigHint:  "admin, mod or contributor — that role and everything above it. Blank shows the staff (mod and above).",
+		Render: func(gc *gin.Context) (template.HTML, error) {
+			floor, ok := staffFloorRole(core.WidgetConfig(gc))
+			if !ok {
+				// An unreadable role is an operator's typo, and guessing would
+				// publish a list they did not ask for — `contributor` misspelt
+				// must not fall back to showing admins.
+				return "", nil
+			}
+			groups, err := w.staffGroupsFrom(gc.Request.Context(), floor)
+			if err != nil {
+				// A failed read is NOT "this site has no staff". Both callers
+				// drop an erroring widget, so the page looks the same either
+				// way — but returning the error puts the cause on the record
+				// instead of quietly publishing an empty answer.
+				return "", err
+			}
+			if len(groups) == 0 {
+				return "", nil
+			}
+			return w.renderPartial("staff-groups", map[string]any{"Groups": groups}), nil
+		},
+	})
+
 	// ── what the indexer holds ──────────────────────────────────────────────
 	reg(core.Widget{
 		Slug:        "indexer-stats",

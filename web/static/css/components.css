@@ -2380,6 +2380,46 @@ input[type="range"] { accent-color: var(--primary); }
     gap: var(--space-3);
 }
 
+/* .member-list — a group's people as a wrapping row of name chips.
+
+   The compact counterpart to .tile-grid: a staff page wants faces, a "who is
+   in this group" panel wants a list you can read in one line. Named as a HOST
+   component because a plugin renders it (ranks' groups widget) and a plugin
+   inventing its own class names is how a site ends up with four spellings of
+   the same list — its README names this one as an assumed component. */
+.member-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.member-list a {
+    display: inline-block;
+    /* Comfortably past the 24px SC 2.5.8 target minimum. */
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-2);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.member-list a:hover,
+.member-list a:focus-visible {
+    border-color: var(--accent);
+}
+
+/* .page-widget — a widget dropped into an editable page's body by a
+   [widget ...] shortcode. It sits between the operator's own paragraphs, so it
+   needs the vertical rhythm a paragraph has and nothing else: the widget draws
+   its own panels, and a frame here would double every border. */
+.page-widget {
+    margin: var(--space-5) 0;
+}
+
 .tile {
     display: flex;
     gap: var(--space-3);

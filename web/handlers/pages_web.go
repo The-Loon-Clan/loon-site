@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"sort"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -52,14 +53,42 @@ type staffGroup struct {
 // regardless so this can never become the unbounded scan ListUsers exists to
 // avoid.
 func (w *web) staffPage(c *gin.Context) {
-	data := map[string]any{"Title": "Staff"}
+	// EditHref on the FALLBACK too, so an admin reading the page it shipped with
+	// can reach the editor from it — the same affordance the other prose pages
+	// have. Without it the only route to editing /staff is knowing that
+	// /admin/pages lists it, which is not a route anybody finds.
+	data := map[string]any{"Title": "Staff", "EditHref": "/admin/pages?edit=staff"}
 	if groups, err := w.staffGroups(c.Request.Context()); err == nil && len(groups) > 0 {
 		data["Groups"] = groups
 	}
 	w.render(c, "staff.html", data)
 }
 
+// staffFloorRole reads the staff widget's config: one role slug meaning "this
+// role and above". Blank is the staff floor, which is the same test the rest of
+// the site's chrome uses for IsMod.
+//
+// Roles BELOW contributor are refused rather than supported. "Everyone from
+// member up" is the whole membership, which is a directory and not a staff
+// list, and a widget that would happily render one on a public page is a
+// mistake waiting for a typo.
+func staffFloorRole(cfg string) (core.Role, bool) {
+	switch strings.ToLower(strings.TrimSpace(cfg)) {
+	case "", "staff", "mod", "moderator":
+		return core.RoleMod, true
+	case "admin":
+		return core.RoleAdmin, true
+	case "contributor":
+		return core.RoleContributor, true
+	}
+	return 0, false
+}
+
 func (w *web) staffGroups(ctx context.Context) ([]staffGroup, error) {
+	return w.staffGroupsFrom(ctx, core.RoleMod)
+}
+
+func (w *web) staffGroupsFrom(ctx context.Context, floor core.Role) ([]staffGroup, error) {
 	type row struct {
 		Username  string `db:"username"`
 		Role      int    `db:"role"`
@@ -67,14 +96,16 @@ func (w *web) staffGroups(ctx context.Context) ([]staffGroup, error) {
 		Avatar    string `db:"avatar_path"`
 	}
 	var rows []row
-	// Role >= RoleMod is the staff test the rest of the site uses (see
-	// chromeData's IsMod). Ordered highest-authority first so the page reads
-	// top-down like the org it describes.
+	// A FLOOR, not a set: the caller names the lowest role to include and gets
+	// it and everything above, which is what a role ladder means. Default
+	// RoleMod is the staff test the rest of the site uses (see chromeData's
+	// IsMod). Ordered highest-authority first so the page reads top-down like
+	// the org it describes.
 	if err := w.data.DB().SelectContext(ctx, &rows,
 		`SELECT username, role, COALESCE(avatar_path, '') AS avatar_path,
 		        to_char(created_at, 'DD Mon YYYY') AS created_at
 		   FROM users WHERE role >= $1 ORDER BY role DESC, username ASC LIMIT 200`,
-		int(core.RoleMod)); err != nil {
+		int(floor)); err != nil {
 		return nil, err
 	}
 	byRole := map[core.Role][]staffMember{}
@@ -155,7 +186,9 @@ func (w *web) mountSitePages(e *gin.Engine) {
 	// members-only, and a stale allow rule is how a private catalogue ends up
 	// in a public index.
 	e.GET("/robots.txt", w.robotsTxt)
-	e.GET("/staff", w.staffPage)
+	// Editable like the other prose pages, with the computed listing as the
+	// fallback — see prosePageOr.
+	e.GET("/staff", w.prosePageOr("staff", w.staffPage))
 	e.GET("/stats", w.statsPage)
 	// The prose pages: template-backed until an admin saves a replacement at
 	// /admin/pages (pagesadmin_web.go), and operator-created pages beside

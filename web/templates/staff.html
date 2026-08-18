@@ -11,33 +11,24 @@
      so a site with staff -- every real one -- rendered a page whose highest
      heading was the first group's h2, and had no name at all. Found by
      scripts/audit_a11y.py. */}}
-<header class="mb-3">
-    <h1 class="h3 m-0">Staff</h1>
-    <p class="text-muted small m-0 mt-1">Who runs this site, grouped by what they can do.</p>
+<header class="mb-3 d-flex justify-content-between align-items-start">
+    <div>
+        <h1 class="h3 m-0">Staff</h1>
+        <p class="text-muted small m-0 mt-1">Who runs this site, grouped by what they can do.</p>
+    </div>
+    {{/* This page is a built-in with an editable row behind it: an admin who
+         saves one replaces this template with their own words plus
+         [widget staff] wherever the grid belongs. */}}
+    {{if and .IsAdmin .EditHref}}
+    <a class="panel__action" href="{{.EditHref}}">Edit</a>
+    {{end}}
 </header>
 {{if .Groups}}
-{{range .Groups}}
-<section class="panelV2">
-    <header class="panel__header">
-        <h2 class="panel__heading">
-            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#shield"></use></svg>
-            {{.Name}}
-        </h2>
-        <div class="panel__actions"><span class="panel__action">{{len .Members}}</span></div>
-    </header>
-    <div class="panel__body">
-        <div class="tile-grid">
-            {{/* The shared user-card (site_chrome.html) — the same tile the
-                 follower and following lists render, so the three cannot
-                 drift. */}}
-            {{range .Members}}
-            {{template "user-card" (dict "Avatar" .Avatar "Name" .Username "Role" .Role "Meta" .RoleName
-                                         "Meta2" (cond .Since (print "Member since " .Since) ""))}}
-            {{end}}
-        </div>
-    </div>
-</section>
-{{end}}
+{{/* The listing is a SHARED partial (site_chrome.html) because the staff
+     widget renders the same thing — this page is now the fallback for an
+     editable /staff whose body says [widget staff], and a second copy of the
+     markup is how the two would start disagreeing. */}}
+{{template "staff-groups" .}}
 {{else}}
 <section class="panelV2">
     <div class="panel__body">No staff accounts yet.</div>

@@ -825,6 +825,40 @@
     </span>
 {{end}}
 
+{{/* --------------------------------------------------------- staff-groups --
+     The staff listing: one panel per role, tiles inside. Lives here because
+     TWO surfaces render it — the /staff page template and the placeable
+     `staff` widget, which is also what a [widget staff] shortcode in an
+     editable page body resolves to. A copy in each is how the page an
+     operator edits and the page they get would start to differ.
+
+     Dot: .Groups []staffGroup — Name, Members []staffMember. The caller
+     decides what "staff" means (the widget's config is a role floor); this
+     draws whatever it is handed. */}}
+{{define "staff-groups"}}
+{{range .Groups}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#shield"></use></svg>
+            {{.Name}}
+        </h2>
+        <div class="panel__actions"><span class="panel__action">{{len .Members}}</span></div>
+    </header>
+    <div class="panel__body">
+        <div class="tile-grid">
+            {{/* The shared user-card below — the same tile the follower and
+                 following lists render, so the three cannot drift. */}}
+            {{range .Members}}
+            {{template "user-card" (dict "Avatar" .Avatar "Name" .Username "Role" .Role "Meta" .RoleName
+                                         "Meta2" (cond .Since (print "Member since " .Since) ""))}}
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}
+{{end}}
+
 {{/* ----------------------------------------------------------- user-card --
      One member as a tile: avatar, role-coloured name, and up to two lines of
      meta. Used by /staff and by the follower/following lists, which is why it

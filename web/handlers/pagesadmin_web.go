@@ -35,6 +35,12 @@ var builtinPages = map[string]struct {
 	"faq":   {"/faq", "FAQ"},
 	"rules": {"/rules", "Rules"},
 	"about": {"/about", "About"},
+	// Staff is the fourth, and the reason the fallback below can be a HANDLER
+	// rather than a template name: its listing is computed, not written. An
+	// operator who saves a row for it gets their own words plus [widget staff]
+	// wherever they want the grid; one who never touches it keeps the page
+	// exactly as it shipped.
+	"staff": {"/staff", "Staff"},
 }
 
 // sitePageSlugPattern is a URL segment: lowercase, digits, single dashes.
@@ -52,6 +58,16 @@ func renderPageBody(p storage.SitePage) template.HTML {
 	return markdown.Render(p.BodyMD)
 }
 
+// pageFragment is renderPageBody plus the operator's widget shortcodes, which
+// is what every page route wants. Split from renderPageBody rather than folded
+// into it because the body's HTML depends only on the row, while a widget
+// depends on the viewer — and keeping the pure half pure is what lets the
+// format rules be tested without a request.
+func (w *web) pageFragment(c *gin.Context, p storage.SitePage) template.HTML {
+	viewer, _ := w.currentUser(c)
+	return w.expandWidgetShortcodes(c, renderPageBody(p), w.registry(), viewer)
+}
+
 // prosePage serves a built-in page's canonical route: the saved row when one
 // exists, the fallback template otherwise. The template name is a call-site
 // LITERAL, not a builtinPages field, so renderpage_test's pageNameWrappers
@@ -64,11 +80,32 @@ func (w *web) prosePage(slug, fallbackPage string) gin.HandlerFunc {
 		data := map[string]any{"Title": b.Title, "EditHref": "/admin/pages?edit=" + slug}
 		if p, ok := w.data.GetSitePage(c.Request.Context(), slug); ok {
 			data["Title"] = p.Title
-			data["Fragment"] = renderPageBody(p)
+			data["Fragment"] = w.pageFragment(c, p)
 			w.render(c, "site_page.html", data)
 			return
 		}
 		w.render(c, fallbackPage, data)
+	}
+}
+
+// prosePageOr is prosePage for a built-in whose fallback COMPUTES its data —
+// /staff reads the user table, so there is no template that can stand alone.
+//
+// The saved-row arm is identical, deliberately: whether the fallback is a
+// template or a handler is a fact about the page that has no row, and the two
+// arms diverging is how a page starts rendering differently depending on
+// whether an operator has ever opened it.
+func (w *web) prosePageOr(slug string, fallback gin.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if p, ok := w.data.GetSitePage(c.Request.Context(), slug); ok {
+			w.render(c, "site_page.html", map[string]any{
+				"Title":    p.Title,
+				"Fragment": w.pageFragment(c, p),
+				"EditHref": "/admin/pages?edit=" + slug,
+			})
+			return
+		}
+		fallback(c)
 	}
 }
 
@@ -89,7 +126,7 @@ func (w *web) customSitePage(c *gin.Context) {
 	}
 	w.render(c, "site_page.html", map[string]any{
 		"Title":    p.Title,
-		"Fragment": renderPageBody(p),
+		"Fragment": w.pageFragment(c, p),
 		"EditHref": "/admin/pages?edit=" + p.Slug,
 	})
 }
@@ -123,7 +160,7 @@ func (w *web) adminPages(c *gin.Context) {
 	}
 
 	var rows []pageRow
-	for _, slug := range []string{"about", "faq", "rules"} {
+	for _, slug := range []string{"about", "faq", "rules", "staff"} {
 		b := builtinPages[slug]
 		r := pageRow{Slug: slug, Title: b.Title, Href: b.Href}
 		if p, ok := bySlug[slug]; ok {
@@ -173,6 +210,10 @@ func (w *web) adminPages(c *gin.Context) {
 			}
 		}
 		data["NavGroupOptions"] = currentNav().Groups
+		// Only alongside the editor: the reference is about writing a body,
+		// and on the list it would be a table of widgets with nothing to put
+		// them in.
+		data["Widgets"] = w.shortcodeHelp()
 	}
 	w.render(c, "admin_pages.html", data)
 }
