@@ -1,16 +1,17 @@
 # Audit scripts
 
-Four sweeps that check the things nothing else does — the failures that return
+Five sweeps that check the things nothing else does — the failures that return
 200, render, and look fine.
 
 ```sh
-python scripts/audit_css.py           # static: no running site needed
-python scripts/audit_capabilities.py  # static
-python scripts/audit_links.py         # needs the site up
-python scripts/audit_a11y.py          # needs the site up
+python scripts/audit_css.py                        # static: no running site needed
+python scripts/audit_capabilities.py               # static
+python scripts/audit_resources.py ../loon-plugins  # static; the plugin tree is optional
+python scripts/audit_links.py                      # needs the site up
+python scripts/audit_a11y.py                       # needs the site up
 ```
 
-`deploy.sh` runs all four after a successful deploy and prints what they find.
+`deploy.sh` runs the four site-facing ones after a successful deploy and prints what they find.
 It does **not** fail the deploy on findings — see *Advisory, not blocking* below.
 
 Standard library only. A tool that needs `pip install` before it can tell you
@@ -26,6 +27,7 @@ Every one of them looks for a failure that **produces no error**:
 | `audit_links.py` | 404s, 5xx, and **200s whose HTML stops before `</footer>`** | A template that fails at execute time aborts mid-document and still returns 200. The page just looks short. |
 | `audit_a11y.py` | unnamed controls, missing/duplicate `h1`, heading skips, unlabelled navs, missing `aria-current` | All of it renders perfectly for a sighted mouse user. |
 | `audit_capabilities.py` | a capability a wired plugin asks for that no wired plugin provides | Consumers look these up optionally and degrade quietly, which is correct. Nothing anywhere reports the absence. |
+| `audit_resources.py` | hardcoded image paths, `<use href="#id">` with no such symbol, and member-facing sentences built in Go | A missing sprite draws an empty box — no error, no warning. A plugin naming a file under the host's `/static` is asserting the host ships it, and a host that does not shows a broken image. The third is a RATCHET, not a zero: the count may only go down. |
 
 They have earned their place:
 

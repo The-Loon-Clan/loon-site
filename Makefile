@@ -44,7 +44,7 @@ COVER_MIN ?= 22.0
 # LOON_TEST_DSN present means the substantial half is running.
 COVER_MIN_SERVICES ?= 33.0
 
-.PHONY: help check build test itest cover lint golint fmt sql contrast vuln grade html lh run clean
+.PHONY: help check build test itest cover lint golint fmt sql contrast resources vuln grade html lh run clean
 
 # `make` on its own explains itself, rather than silently building the first
 # target. Every target below already carried a `## name: description` line and
@@ -62,7 +62,7 @@ help:
 	@echo "  The Go toolchain runs in Docker by default. Pass GO=go to use the host's."
 
 ## check: everything CI runs
-check: fmt build lint golint sql contrast test cover
+check: fmt build lint golint sql contrast resources test cover
 
 ## build: compile every package
 build:
@@ -162,6 +162,16 @@ sql:
 contrast:
 	@$(PYTHON) scripts/contrast.py
 
+## resources: refuse hardcoded images, unresolvable icons, new text in Go
+##
+## In `check` for the same reason contrast is: it reads files, so it gates a
+## pull request rather than a release. It also reads the PLUGIN tree when one
+## is checked out beside this repo — a plugin's <use href="#id"> resolves
+## against the host's sprite sheet, so the host is the only place that check
+## can be made, and nothing was making it.
+resources:
+	@$(PYTHON) scripts/audit_resources.py $(wildcard ../loon-plugins)
+
 ## html: W3C validation of the running site (needs `make run` first)
 html:
 	@bash scripts/htmlvalidate.sh
@@ -237,6 +247,7 @@ grade:
 	@printf "  %-22s " "vet + linters"; if bash scripts/golangci.sh ./... 2>&1 | grep -q "^0 issues"; then echo "0 issues"; else echo "SEE make golint"; fi
 	@printf "  %-22s " "sql safety"; $(PYTHON) scripts/sqllint.py >/dev/null 2>&1 && echo "constants only" || echo "FAIL"
 	@printf "  %-22s " "contrast (WCAG AA)"; $(PYTHON) scripts/contrast.py >/dev/null 2>&1 && echo "all pairs pass" || echo "FAIL — run make contrast"
+	@printf "  %-22s " "resources"; $(PYTHON) scripts/audit_resources.py $(wildcard ../loon-plugins) >/dev/null 2>&1 && echo "no hardcoded images or new text in Go" || echo "FAIL — run make resources"
 	@printf "  %-22s " "vulnerabilities"; bash scripts/govulncheck.sh 2>&1 | grep -qi "No vulnerabilities found" && echo "0" || echo "SEE make vuln"
 	@printf "  %-22s " "mobile (390px)"; if curl -sf -o /dev/null http://localhost:8090/healthz 2>/dev/null; then 	   $(PYTHON) scripts/mobile.py >/dev/null 2>&1 && echo "every page fits" || echo "FAIL — run make mobile"; 	 else echo "skipped (site not running)"; fi
 	@printf "  %-22s " "error discards"; echo "$$(grep -rn '^[[:space:]]*_ = ' --include='*.go' . | grep -v _test | wc -l | tr -d ' ') (each carries its reason — docs/QUALITY.md)"
