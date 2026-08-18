@@ -73,6 +73,11 @@ func wireWikiPlugin(c *core.Core, engine *gin.Engine, w *web) error {
 		// See news_web.go: the token must be host-minted or it is not the one
 		// csrf.go checks. All seven wiki admin forms 403'd without it.
 		CSRFToken: middleware.Token,
+		// What this deployment calls itself. The plugin's index heading was
+		// "ameNZB Wiki" — the site it was lifted out of — because a plugin has
+		// no way to know the name and the previous author hardcoded theirs.
+		// One answer per deployment, so the host is the side that has it.
+		SiteName: w.siteName,
 	})
 	return nil
 }
