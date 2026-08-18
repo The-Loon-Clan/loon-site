@@ -1,0 +1,112 @@
+{{/* /series — the list of shows the index has anything of.
+
+     Data from series_web.go seriesIndexPage: .Series ([]pluginapi.SeriesRow),
+     .Total, .Query, .PaginationHTML. Empty .Series with no .Query means the
+     indexer published no series index at all, or has parsed nothing yet — two
+     states worth telling apart, which the empty branch below does.
+
+     A table rather than the poster grid /browse uses: a show here has no cover
+     art of its own (art is attached to RELEASES, and a show is not one), so a
+     grid would be rows of identical fallback tiles pretending to be posters. */}}
+
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
+    <li class="breadcrumb--active">Series</li>
+</ol>
+{{end}}
+
+{{define "content"}}
+<header>
+    <h1 class="h3 m-0">Series</h1>
+    <p class="text-muted small m-0 mt-1">Every episode of a show together — each season, each episode, every copy of it.</p>
+</header>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#tv"></use></svg>
+            Find a show
+            {{if .Total}}<span class="panel__grouping">{{.Total}} series</span>{{end}}
+        </h2>
+        {{if .Query}}
+        <div class="panel__actions">
+            <a class="panel__action" href="/series">Clear</a>
+        </div>
+        {{end}}
+    </header>
+    <div class="panel__body">
+        <form class="form" method="get" action="/series">
+            <div class="form__row">
+                <div class="form__group flex-grow-1">
+                    <label class="form__label" for="q">Show</label>
+                    <input class="form__input" type="search" id="q" name="q" value="{{.Query}}" placeholder="Search shows…">
+                </div>
+                <button class="form__button form__button--filled" type="submit">
+                    <svg class="icon" aria-hidden="true"><use href="#search"></use></svg>Search
+                </button>
+            </div>
+            <p class="form__help">
+                Names come from the release titles themselves, so punctuation and
+                spelling follow whatever the scene used. <a href="/browse">Browse by category</a>.
+            </p>
+        </form>
+    </div>
+</section>
+
+<section class="panelV2 panelV2--overflow">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
+            {{if .Query}}Matching “{{.Query}}”{{else}}Most released{{end}}
+        </h2>
+        {{if .Series}}<div class="panel__actions"><span class="panel__grouping">{{len .Series}} shown</span></div>{{end}}
+    </header>
+
+    {{if .Series}}
+    <div class="data-table-wrapper">
+        <table class="data-table data-table--stack">
+            <caption class="visually-hidden">Shows in the index</caption>
+            <thead>
+                <tr>
+                    <th>Series</th>
+                    <th class="data-table__num">Seasons</th>
+                    <th class="data-table__num">Releases</th>
+                    <th class="data-table__nowrap">Newest</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Series}}
+                <tr>
+                    <td>
+                        <div class="data-table__name">
+                            <svg class="icon data-table__name-icon" aria-hidden="true"><use href="#tv"></use></svg>
+                            <div class="data-table__name-body">
+                                <a class="data-table__title" href="/series/{{.Key}}">{{.Name}}</a>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="data-table__num">{{.Seasons}}</td>
+                    <td class="data-table__num">{{.Releases}}</td>
+                    {{/* Latest is a formatted date from the index, and empty
+                         when nothing on the show carries a posting time — an
+                         em dash rather than a blank cell, so "unknown" is
+                         visibly a value rather than a rendering failure. */}}
+                    <td class="data-table__nowrap">{{if .Latest}}{{.Latest}}{{else}}<span class="text-muted">&mdash;</span>{{end}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{with .PaginationHTML}}<div class="panel__body">{{.}}</div>{{end}}
+    {{else}}
+    <div class="panel__body">
+        <div class="empty">
+            {{if .Query}}No show matches “{{.Query}}”.
+            {{else}}No series yet. Shows appear here as the indexer reads episode numbers out of release titles.
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+</section>
+{{end}}

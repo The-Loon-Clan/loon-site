@@ -103,6 +103,21 @@
                     </ul>
                     {{end}}
 
+                    {{/* The show this is an episode of. Two links, because they
+                         answer two different questions a reader has here: "every
+                         other copy of THIS episode" and "everything of this
+                         show". Absent unless the title said so, which is a third
+                         of an index — a series link on a release that was never
+                         filed would lead to a page with one row on it. */}}
+                    {{if .SeriesKey}}
+                    <p class="meta__series">
+                        <svg class="icon icon--sm" aria-hidden="true"><use href="#tv"></use></svg>
+                        <a href="{{.EpisodeHref}}">Every copy of {{.EpisodeLabel}}</a>
+                        <span class="meta__series-sep" aria-hidden="true">·</span>
+                        <a href="/series/{{.SeriesKey}}">All of {{if .SeriesName}}{{.SeriesName}}{{else}}this show{{end}}</a>
+                    </p>
+                    {{end}}
+
                     <ul class="meta__chips">
                         <li class="meta-chip"><span class="meta-chip__name">Size</span><span class="meta-chip__value">{{.Size}}</span></li>
                         <li class="meta-chip"><span class="meta-chip__name">Posted</span><span class="meta-chip__value">{{.Posted}}</span></li>

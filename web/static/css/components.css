@@ -1274,7 +1274,7 @@ a.stat-tile:hover {
 .meta {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas: "poster title" "poster ids" "poster description" "poster chips" "poster links";
+    grid-template-areas: "poster title" "poster ids" "poster series" "poster description" "poster chips" "poster links";
     align-content: start;
     gap: 10px 24px;
     padding: var(--panel-body-padding);
@@ -1353,6 +1353,25 @@ a.stat-tile:hover {
     list-style: none;
 }
 
+/* The show this release is an episode of — two links, one to every copy of this
+   episode and one to the whole series.
+
+   A line of links rather than chips: a .meta-chip is a FACT about the release
+   (size, category, file count), and these are ways out of the page. Mixing them
+   into that row would make the facts look clickable and these look inert. */
+.meta__series {
+    grid-area: series;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: var(--fs-xs);
+    color: var(--muted-2);
+}
+
+.meta__series-sep { color: var(--muted-2); }
+
 .meta__chips {
     grid-area: chips;
     display: flex;
@@ -1414,7 +1433,7 @@ a.stat-tile:hover {
 @media only screen and (max-width: 620px) {
     .meta {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: "poster" "title" "ids" "description" "chips";
+        grid-template-areas: "poster" "title" "ids" "series" "description" "chips";
         justify-items: center;
         text-align: center;
     }
@@ -3703,3 +3722,100 @@ p a:not(.button):not(.pill),
     text-decoration: underline;
     text-underline-offset: 0.15em;
 }
+
+/* ------------------------------------------------------ episode groups ---- */
+
+/* /series/:key groups a show's releases by episode: one <tbody> per episode,
+   with a heading row above its rows. The grouping IS the markup, so this only
+   has to make it look like the structure it already is.
+
+   The heading cell keeps its <th scope="colgroup"> semantics and its place in
+   the table layout; the flex box is a <div> INSIDE it. Making the th itself
+   display:flex would take it out of table layout, and its colspan with it —
+   the row would then need display:block to compensate, which breaks the column
+   alignment the rows below depend on. */
+/* Each episode is its own <tbody>, which is what makes the group boundary
+   drawable here rather than on the last row of each group — and what restarts
+   the zebra striping per episode, so the first release of every group sits on
+   the same shade. */
+.episode { border-bottom: var(--data-table-tr-border); }
+
+.episode__head {
+    background: var(--surface-2);
+    /* An accent rail on the leading edge. In a table this long the heading rows
+       are what a reader scans, and the rail makes them findable at a glance
+       without shouting. */
+    border-left: 3px solid var(--primary);
+}
+
+/* The header-cell defaults are wrong for this one: "S03E07" is an identifier a
+   reader matches against a filename, not a column label, so the uppercasing and
+   the letter-spacing come back off. */
+.episode__head-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-4);
+    font-size: var(--fs-xs);
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.episode__link {
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+/* The heading IS the filter control: clicking S03E07 narrows the page to that
+   episode. So it has to look clickable, and it cannot do that by colour alone
+   in a table where every title is already a link — a dotted underline says
+   "this does something" without competing with the release titles under it. */
+a.episode__link {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: var(--muted-2);
+    text-underline-offset: 0.3em;
+}
+
+a.episode__link:hover {
+    color: var(--primary-tint);
+    text-decoration-style: solid;
+    text-decoration-color: currentColor;
+}
+
+.episode__count {
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+    font-weight: 500;
+}
+
+/* ---------------------------------------------------------- filter note --- */
+
+/* "You are looking at a filtered page, and here is the way out." Stated rather
+   than left to be inferred from a highlighted pill: a reader who does not
+   notice the filter takes a narrowed page for the whole truth. */
+.filter-note {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
+    margin: 0;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: var(--fs-xs);
+}
+
+/* The FIRST clear takes the right edge; any that follow sit beside it rather
+   than fighting for the same one. */
+.filter-note__clear {
+    color: var(--primary-tint);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.filter-note__clear:first-of-type { margin-left: auto; }

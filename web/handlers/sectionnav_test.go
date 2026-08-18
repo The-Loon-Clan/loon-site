@@ -420,7 +420,7 @@ func TestChromeLinksAreServed(t *testing.T) {
 	// point is to catch a typo in EITHER list, and deriving one from the other
 	// would make them agree by construction.
 	served := map[string]bool{
-		"/": true, "/browse": true, "/search": true, "/groups": true, "/trending": true,
+		"/": true, "/browse": true, "/series": true, "/search": true, "/groups": true, "/trending": true,
 		"/community/forums": true, "/community/forums/new": true, "/c": true,
 		"/news": true, "/playlists": true, "/store": true, "/store/history": true,
 		"/rules": true, "/faq": true, "/wiki": true, "/support": true, "/staff": true,

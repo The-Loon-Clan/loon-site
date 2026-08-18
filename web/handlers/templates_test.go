@@ -371,6 +371,11 @@ var structuralKeys = map[string]map[string]any{
 	"admin_dashboard.html": {"Dash": dashVM{}},
 	"profile.html":         {"Missing": true},
 	"home.html":            {"Blocks": []homeBlock{}},
+	// series.html has the same either/or contract profile.html has: seriesPage
+	// sets Missing for "no such show" and for a host with no series index, and
+	// the whole body sits in the else. Missing is the structural half — the
+	// populated half is exercised with real data below.
+	"series.html": {"Missing": true},
 }
 
 // chromeKeys are the keys views.go chromeData sets on EVERY render, in both
@@ -566,6 +571,42 @@ func TestPagesExecuteWithRealData(t *testing.T) {
 			"Section": &settingsSection{Slug: "usenet", Title: "Usenet",
 				Fragment: template.HTML("<div class=\"card\">cfg</div>")}},
 		"site_page.html": {"Title": "Inbox", "Page": template.HTML("<div class=\"card\">body</div>")},
+		"series_index.html": {"Title": "Series", "Query": "", "Total": 5284,
+			"Series": []pluginapi.SeriesRow{
+				{Key: "someshow", Name: "Some Show", Releases: 612, Seasons: 4, Latest: "2026-08-01"},
+				// No Latest: a show whose releases carry no posting time, which
+				// is the em-dash branch rather than a blank cell.
+				{Key: "anothertitle", Name: "Another Title", Releases: 18, Seasons: 1},
+			}},
+		// The whole populated body: two episode groups (one linkable, one a
+		// pack that is not), a mirrored release and an unmirrored one, so both
+		// arms of every branch on the page run.
+		"series.html": {"Title": "Some Show", "SeriesKey": "someshow", "SeriesName": "Some Show",
+			"Seasons": seasonChips("someshow", []pluginapi.SeriesSeason{
+				{Season: 1, Releases: 40, Episodes: 10},
+				{Season: 2, Releases: 36, Episodes: 9},
+			}, 2),
+			"Season": 2, "Episode": -1, "Filtered": true, "ClearHref": "/series/someshow",
+			"Releases": 3, "AtCap": false,
+			"Groups": []episodeGroup{
+				{Season: 2, Episode: 4, Label: "S02E04", Href: "/series/someshow?s=2&e=4",
+					Releases: []seriesRowVM{
+						{ID: 1, Title: "Some.Show.S02E04.1080p.WEB-DL.x264-GRP", Size: "1.4 GB",
+							Posted: "2026-08-01", Group: "alt.binaries.tv",
+							Tags: []string{"1080p", "WEB-DL", "x264"},
+							// Mirrored, with the tracker naming its own page.
+							OnTracker: true, TorrentHref: "/tracker/t/abc123", Seeders: 12, Leechers: 3},
+						{ID: 2, Title: "Some.Show.S02E04.720p.HDTV.x264-GRP", Size: "612 MB",
+							Posted: "2026-07-31", Tags: []string{"720p", "HDTV"}},
+					}},
+				{Season: 2, Pack: true, Label: "Season 2 · complete",
+					Releases: []seriesRowVM{
+						// Mirrored with no Href — the tracker published none, so
+						// the badge is a fact rather than a link.
+						{ID: 3, Title: "Some.Show.S02.COMPLETE.1080p.WEB.x265", Size: "9.1 GB",
+							Posted: "2026-07-20", OnTracker: true, Seeders: 0, Leechers: 0},
+					}},
+			}},
 		// Populated, because an EMPTY dashboard renders happily — see the note
 		// on structuralKeys. This is the case that fails if the tiles stop
 		// reaching the page.

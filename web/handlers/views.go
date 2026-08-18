@@ -85,7 +85,15 @@ type web struct {
 	// usenet plugin read capability, looked up on the extension registry after
 	// Boot (the plugin's ADMIN surface is no longer consumed here — the plugin
 	// renders its own views through loon's view system).
-	usenet        pluginapi.UsenetIndex
+	usenet pluginapi.UsenetIndex
+	// series answers about shows — the /series pages. Nil on a host whose
+	// indexer publishes no series index; every surface that uses it is gated.
+	series pluginapi.SeriesIndex
+	// mirrors answers which releases the TRACKER also carries, so a listing can
+	// offer both ways of getting the same content on one row. Nil on a pure
+	// indexer, and on a tracker that is configured off — see mirrors_web.go,
+	// which falls back to the site's own read when the seam is absent.
+	mirrors       pluginapi.TorrentMirrors
 	usenetAPI     pluginapi.UsenetNewznab // Newznab /api + /rss
 	catalog       pluginapi.Catalog       // taxonomy + names for /browse (filled after Boot)
 	catalogSink   pluginapi.CatalogSink   // scraper write side (filled after Boot)
@@ -130,6 +138,8 @@ type web struct {
 // it unreachable — templates_test.go fails on that mismatch in either direction.
 var pageTemplates = []string{
 	"home.html", "groups.html", "search.html", "browse.html", "release.html",
+	// Releases grouped by show (series_web.go).
+	"series_index.html", "series.html",
 	"trending.html", "bookmarks.html", "follows.html", "calendar.html",
 	"achievements.html", "forum_activity.html", "rewards.html", "subscriptions.html",
 	"invites.html", "gifts.html", "wishlist.html",
@@ -395,6 +405,12 @@ func (w *web) mount(e *gin.Engine) {
 	// suggest_web.go.
 	e.GET("/search/suggest", w.suggestPage)
 	e.GET("/browse", w.browse)
+	// Releases grouped by the show they belong to (series_web.go). Mounted
+	// unconditionally and gated INSIDE the handler: the capability is looked up
+	// after Boot, and routes are registered before it, so a nil check here would
+	// read a field nothing had filled yet.
+	e.GET("/series", w.seriesIndexPage)
+	e.GET("/series/:key", w.seriesPage)
 	e.GET("/release/:id", w.releasePage)
 	e.GET("/nzb/:id", w.nzbDownload)
 	// Fixed host pages: /staff /stats /rules /faq /about (pages_web.go).

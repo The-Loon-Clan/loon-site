@@ -95,8 +95,21 @@ func wireAdminAndViews(
 	if v, ok := c.Lookup(pluginapi.UsenetIndexName); ok {
 		wsrv.usenet, _ = v.(pluginapi.UsenetIndex)
 	}
+	// Shows rather than releases (pluginapi.SeriesIndex): the read behind
+	// /series. Absent on a host whose indexer does not offer it, which simply
+	// has no series pages — the nav entry is gated on it.
+	if v, ok := c.Lookup(pluginapi.SeriesIndexName); ok {
+		wsrv.series, _ = v.(pluginapi.SeriesIndex)
+	}
 	if v, ok := c.Lookup(pluginapi.UsenetNewznabName); ok {
 		wsrv.usenetAPI, _ = v.(pluginapi.UsenetNewznab)
+	}
+	// Which releases the tracker ALSO carries (pluginapi.TorrentMirrors), so a
+	// listing row can offer the NZB and the torrent together. Absent on a pure
+	// indexer and on an idle tracker; mirrors_web.go then falls back to this
+	// site's own read of the tracker schema, and to nothing beyond that.
+	if v, ok := c.Lookup(pluginapi.TorrentMirrorsName); ok {
+		wsrv.mirrors, _ = v.(pluginapi.TorrentMirrors)
 	}
 	// Daily reward: the plugin owns the once-per-day rule and the streak; the
 	// host only asks whether a claim is available, so the stat strip can offer

@@ -50,6 +50,9 @@ var navGroupDefaults = []storage.NavGroup{
 // footer link.
 var navDefaults = []storage.NavEntry{
 	{Key: "top:/browse", Href: "/browse", Label: "Browse", Grp: "releases", Ordinal: 10, Builtin: true},
+	// Beside Browse rather than under it: the two are different questions of
+	// the same index — "what is new" and "what do you have of this show".
+	{Key: "top:/series", Href: "/series", Label: "Series", Grp: "releases", Ordinal: 15, Builtin: true},
 	{Key: "top:/search", Href: "/search", Label: "Search", Grp: "releases", Ordinal: 20, Builtin: true},
 	{Key: "top:/groups", Href: "/groups", Label: "Newsgroups", Grp: "releases", Ordinal: 30, Builtin: true},
 	{Key: "top:/trending", Href: "/trending", Label: "Trending", Grp: "releases", Ordinal: 40, Builtin: true},
@@ -85,7 +88,7 @@ var navDefaults = []storage.NavEntry{
 // navIcons maps entry hrefs to sprite ids — the system's knowledge of what
 // glyph fits a shipped page. A custom link gets the tag glyph.
 var navIcons = map[string]string{
-	"/browse": "browse", "/search": "search", "/groups": "groups",
+	"/browse": "browse", "/series": "tv", "/search": "search", "/groups": "groups",
 	"/trending": "database", "/tracker": "download", "/api": "code",
 	"/community/forums": "forums", "/c": "users", "/playlists": "music",
 	"/news": "rss", "/rules": "shield", "/faq": "info", "/wiki": "book",
@@ -96,7 +99,10 @@ var navIcons = map[string]string{
 // navConditions are the flavour gates. An operator's "hidden" and a failing
 // condition both remove an entry; the difference is who decided.
 var navConditions = map[string]func() bool{
-	"/groups":  flavourIndexer,
+	"/groups": flavourIndexer,
+	// /series reads the NZB index, so a pure-tracker site has no series pages
+	// to offer — the same gate /groups and /api sit behind.
+	"/series":  flavourIndexer,
 	"/api":     flavourIndexer,
 	"/tracker": flavourTracker,
 }

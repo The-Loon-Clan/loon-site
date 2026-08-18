@@ -73,7 +73,10 @@ func (s releaseSource) Page(ctx context.Context, limit, offset int) ([]sitemap.E
 func (w *web) wireSitemap(engine *gin.Engine, baseURL string) {
 	cfg := sitemap.Config{
 		BaseURL:     baseURL,
-		StaticPaths: []string{"/", "/search", "/groups", "/p/guestbook"},
+		// /series is the index of shows, and the one static path here that
+		// leads somewhere a crawler cannot otherwise reach: a series page is
+		// /series/<key>, and no release page links to every key.
+		StaticPaths: []string{"/", "/search", "/groups", "/series", "/p/guestbook"},
 		TTL:         sitemapTTL,
 	}
 

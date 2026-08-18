@@ -38,6 +38,7 @@ type sitemapLink struct {
 var sitemapGroups = []sitemapGroup{
 	{Title: "Releases", Links: []sitemapLink{
 		{Href: "/browse", Label: "Browse", Note: "Everything indexed, by category"},
+		{Href: "/series", Label: "Series", Note: "Shows, season by season and episode by episode"},
 		{Href: "/search", Label: "Search", Note: "Search releases by name, group or category"},
 		{Href: "/groups", Label: "Newsgroups", Note: "The groups being crawled, and how much each holds"},
 		{Href: "/trending", Label: "Trending", Note: "Most grabbed, by window"},

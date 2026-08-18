@@ -201,6 +201,17 @@ type releaseVM struct {
 	Cover    string
 	Tags     []string
 	Files    []releaseFileVM
+	// The show this release is an episode of, when the title said so — the
+	// other direction of /series. Empty for the two thirds of an index that
+	// says nothing, and the page then shows no series link rather than one
+	// leading to a page with a single row on it.
+	SeriesKey  string
+	SeriesName string
+	// EpisodeLabel is "S03E07", or "Season 3 · complete" for a pack.
+	EpisodeLabel string
+	// EpisodeHref opens /series filtered to this exact episode — "every other
+	// copy of this", which is the question a reader on a release page has.
+	EpisodeHref string
 }
 
 func toReleaseVM(d pluginapi.ReleaseDetail) releaseVM {
@@ -210,6 +221,16 @@ func toReleaseVM(d pluginapi.ReleaseDetail) releaseVM {
 	}
 	if !d.Posted.IsZero() {
 		vm.Posted = d.Posted.Format("2006-01-02 15:04")
+	}
+	if d.SeriesKey != "" {
+		vm.SeriesKey, vm.SeriesName = d.SeriesKey, d.SeriesName
+		vm.EpisodeLabel = episodeLabel(d.Season, d.Episode, d.Pack)
+		// A pack is a whole season, so it filters to the season rather than to
+		// an episode number it does not have.
+		vm.EpisodeHref = "/series/" + d.SeriesKey + "?s=" + strconv.Itoa(d.Season)
+		if !d.Pack {
+			vm.EpisodeHref += "&e=" + strconv.Itoa(d.Episode)
+		}
 	}
 	for _, t := range []string{d.Resolution, d.Source, d.Codec, d.Audio, d.Language} {
 		if t != "" {
@@ -318,23 +339,23 @@ func (w *web) attachGrabs(ctx context.Context, rows []searchRow) []searchRow {
 // answer different questions from different plugins, and a host running the
 // indexer without the tracker should keep grabs and get nothing here. Returns
 // rows untouched when the tracker is off, so callers need no gate of their own.
+//
+// The lookup itself is releaseMirrors (mirrors_web.go) — the ONE place this
+// site asks which releases are also torrents, shared with the series pages so
+// the two cannot answer differently.
 func (w *web) attachSwarm(ctx context.Context, rows []searchRow) []searchRow {
 	if len(rows) == 0 {
 		return rows
 	}
-	ids := make([]int64, 0, len(rows))
-	for _, r := range rows {
-		ids = append(ids, r.ID)
-	}
-	swarms := w.data.SwarmCounts(ctx, ids)
-	if swarms == nil {
+	mirrors := w.releaseMirrors(ctx, releaseIDsOf(rows))
+	if len(mirrors) == 0 {
 		return rows
 	}
 	for i := range rows {
-		if s, ok := swarms[rows[i].ID]; ok {
+		if m, ok := mirrors[rows[i].ID]; ok {
 			rows[i].HasSwarm = true
-			rows[i].Seeders = s.Seeders
-			rows[i].Leechers = s.Leechers
+			rows[i].Seeders = m.Seeders
+			rows[i].Leechers = m.Leechers
 		}
 	}
 	return rows

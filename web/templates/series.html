@@ -1,0 +1,191 @@
+{{/* /series/:key — one show, its seasons, and every release grouped by episode.
+
+     The page the whole feature exists for: a reader looking for S01E01 wants
+     the 720p and the 1080p and the WEB-DL beside each other, not scattered
+     through a listing sorted by posting date.
+
+     Data from series_web.go seriesPage: .SeriesName, .SeriesKey, .Seasons
+     (chips with counts), .Groups (one per episode, newest first), .Season /
+     .Episode (-1 = unfiltered), .Filtered, .ClearHref, .AtCap. .Missing is the
+     no-such-show and no-series-index answer, and is the ONLY key set then — so
+     every branch below sits inside the else.
+
+     The filter is the URL: ?s= is a season, ?e= an episode inside it, and
+     removing one is removing it from the address. Every state of this page is
+     therefore linkable, and the back button behaves. */}}
+
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
+    {{if .Missing}}
+    <li class="breadcrumb--active">Series</li>
+    {{else}}
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/series">Series</a></li>
+    <li class="breadcrumb--active">{{.SeriesName}}</li>
+    {{end}}
+</ol>
+{{end}}
+
+{{define "content"}}
+{{if .Missing}}
+<p class="notice notice--info">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>No such series. <a href="/series">All series</a>.</span>
+</p>
+
+{{else}}
+<header>
+    <h1 class="h3 m-0">{{.SeriesName}}</h1>
+    <p class="text-muted small m-0 mt-1">
+        {{/* What this page is SHOWING, which is not the same as what the show
+             has: the counts move with the filter, and once the read hits its
+             bound the rows are a WINDOW on the scope rather than all of it.
+             Saying "300 releases" on a show with 518 would be false. */}}
+        {{if .AtCap}}Showing the newest {{.Releases}} of {{.Total}}
+        {{- if .EpisodeLabel}} releases of {{.EpisodeLabel}}.
+        {{- else if .Filtered}} releases in season {{.Season}}.
+        {{- else}} releases.{{end}}
+        {{else if .EpisodeLabel}}{{.Releases}} release{{if ne .Releases 1}}s{{end}} of {{.EpisodeLabel}}.
+        {{else if .Filtered}}{{.Releases}} release{{if ne .Releases 1}}s{{end}} in season {{.Season}}.
+        {{else}}{{.Releases}} release{{if ne .Releases 1}}s{{end}}, newest first.
+        {{end}}
+    </p>
+</header>
+
+{{/* The season strip. "All seasons" leads, because the way OUT of a filter has
+     to be as visible as the way in — and it is the first thing a reader reaches
+     for after clicking an episode. */}}
+{{with .Seasons}}
+<nav aria-label="Seasons">
+    <ul class="pill-row">
+        {{range .}}
+        <li>
+            <a class="pill{{if .Active}} pill--active{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}
+               title="{{.Releases}} release{{if ne .Releases 1}}s{{end}} of {{.Episodes}} episode{{if ne .Episodes 1}}s{{end}}">
+                {{.Label}}<span class="pill__count">{{.Releases}}</span>
+            </a>
+        </li>
+        {{end}}
+    </ul>
+</nav>
+{{end}}
+
+{{/* The active filter, stated and removable. A filtered page that does not say
+     it is filtered is a page a reader takes for the whole truth. */}}
+{{if .Filtered}}
+<p class="filter-note">
+    <svg class="icon icon--sm" aria-hidden="true"><use href="#tag"></use></svg>
+    <span>
+        Showing {{if .EpisodeLabel}}<strong>{{.EpisodeLabel}}</strong>{{else}}<strong>season {{.Season}}</strong>{{end}} only.
+    </span>
+    {{if .SeasonHref}}<a class="filter-note__clear" href="{{.SeasonHref}}">All of season {{.Season}}</a>{{end}}
+    <a class="filter-note__clear" href="{{.ClearHref}}">All seasons</a>
+</p>
+{{end}}
+
+<section class="panelV2 panelV2--overflow">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#tv"></use></svg>
+            Episodes
+        </h2>
+        {{/* Episodes, not releases — the number beside a heading has to count
+             the thing the heading names, or it contradicts the sentence above
+             it ("3 releases of S01E22" over a panel saying "1 shown"). */}}
+        {{if .Groups}}<div class="panel__actions"><span class="panel__grouping">{{len .Groups}} episode{{if ne (len .Groups) 1}}s{{end}}</span></div>{{end}}
+    </header>
+
+    {{if .Groups}}
+    <div class="data-table-wrapper">
+        <table class="data-table data-table--stack">
+            <caption class="visually-hidden">Releases of {{.SeriesName}}, grouped by episode</caption>
+            <thead>
+                <tr>
+                    <th>Release</th>
+                    <th class="data-table__num">Size</th>
+                    <th class="data-table__nowrap">Posted</th>
+                    <th class="data-table__shrink"><span class="visually-hidden">Download</span></th>
+                </tr>
+            </thead>
+            {{/* One <tbody> per episode — the grouping IS the markup, so a
+                 screen reader and a stylesheet see the same structure a sighted
+                 reader does. scope="colgroup" says the heading governs the rows
+                 below it rather than a column. */}}
+            {{range .Groups}}
+            <tbody class="episode">
+                <tr>
+                    <th class="episode__head" colspan="4" scope="colgroup">
+                        <div class="episode__head-inner">
+                            {{if .Href}}<a class="episode__link" href="{{.Href}}">{{.Label}}</a>
+                            {{else}}<span class="episode__link">{{.Label}}</span>{{end}}
+                            <span class="episode__count">{{len .Releases}} release{{if ne (len .Releases) 1}}s{{end}}</span>
+                        </div>
+                    </th>
+                </tr>
+                {{range .Releases}}
+                <tr>
+                    <td>
+                        <div class="data-table__name">
+                            <div class="data-table__name-body">
+                                <a class="data-table__title" href="/release/{{.ID}}">{{.Title}}</a>
+                                <div class="data-table__meta">
+                                    {{range .Tags}}<span class="tag tag--codec">{{.}}</span>{{end}}
+                                    {{/* Also on the tracker. Guarded on
+                                         OnTracker, never on the counts: 0
+                                         seeders is a real figure meaning a dead
+                                         torrent, and must not read the same as
+                                         a release nobody ever mirrored. */}}
+                                    {{if .OnTracker}}
+                                    {{/* The tracker names its own page (the
+                                         Href on the mirror), so this markup
+                                         never hardcodes its routes. Without one
+                                         the mirror is still stated, as a fact
+                                         rather than a link. */}}
+                                    {{if .TorrentHref}}
+                                    <a class="tag tag--seed" href="{{.TorrentHref}}"
+                                       title="Also on the tracker — {{.Seeders}} seeding, {{.Leechers}} leeching">
+                                        <svg class="icon icon--sm" aria-hidden="true"><use href="#users"></use></svg>{{.Seeders}}/{{.Leechers}}
+                                    </a>
+                                    {{else}}
+                                    <span class="tag tag--seed" title="Also on the tracker — {{.Seeders}} seeding, {{.Leechers}} leeching">
+                                        <svg class="icon icon--sm" aria-hidden="true"><use href="#users"></use></svg>{{.Seeders}}/{{.Leechers}}
+                                    </span>
+                                    {{end}}
+                                    {{end}}
+                                    {{if .Group}}<span>{{.Group}}</span>{{end}}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="data-table__num">{{.Size}}</td>
+                    <td class="data-table__nowrap">{{.Posted}}</td>
+                    <td class="data-table__shrink">
+                        <a class="button button--outlined button--sm" href="/nzb/{{.ID}}">
+                            <svg class="icon icon--sm" aria-hidden="true"><use href="#download"></use></svg>NZB
+                        </a>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+            {{end}}
+        </table>
+    </div>
+    {{if .AtCap}}
+    <div class="panel__body">
+        {{/* Says the bound out loud. A reader who scrolls to the end of a
+             capped list and is told nothing takes it for the whole show. */}}
+        <p class="m-0 small text-muted">That is the newest {{.Releases}} of {{.Total}}. Pick a season to see further back.</p>
+    </div>
+    {{end}}
+    {{else}}
+    <div class="panel__body">
+        <div class="empty">
+            {{if .Filtered}}Nothing here under this filter — <a href="{{.ClearHref}}">show every season</a>.
+            {{else}}No releases filed under this show yet.
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+</section>
+{{end}}
+{{end}}
