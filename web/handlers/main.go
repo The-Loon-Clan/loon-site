@@ -604,6 +604,12 @@ func Main() {
 		func(gc *gin.Context) string { return middleware.Token(gc) }); err != nil {
 		logger.Error("register medals csrf", "err", err)
 	}
+	// What icons this site HAS (icons_web.go), so a plugin can offer them in a
+	// picker instead of asking an operator to type a name they have no way to
+	// look up. Before Boot, like every seam a plugin resolves at Provision.
+	if err := c.Register(IconCatalogExtension, func() []string { return siteIcons() }); err != nil {
+		logger.Error("register icon catalogue", "err", err)
+	}
 	if err := c.Register("magic.csrf",
 		func(gc *gin.Context) string { return middleware.Token(gc) }); err != nil {
 		logger.Error("register magic csrf", "err", err)

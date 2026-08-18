@@ -70,8 +70,14 @@
                          /p/medals; an empty cabinet renders nothing. */}}
                     {{with .SubjectMedals}}
                     <div class="mt-2" style="display:flex;gap:0.35rem;flex-wrap:wrap;justify-content:center">
-                        {{range .}}<img src="{{.Icon}}" alt="{{.Name}} medal" title="{{.Name}}"
-                             style="width:28px;height:28px;object-fit:cover;border-radius:6px">{{end}}
+                        {{/* Sprite or image, exactly one set (pluginapi.WornMedal).
+                             The name rides on the title either way, since these
+                             are the only thing in the row and a member hovering
+                             a badge is asking what it is. */}}
+                        {{range .}}{{if .Sprite}}<svg class="icon" role="img" aria-label="{{.Name}} medal" title="{{.Name}}"
+                             style="width:28px;height:28px;color:var(--primary-tint)"><use href="#{{.Sprite}}"></use></svg>{{else}}<img
+                             src="{{.Icon}}" alt="{{.Name}} medal" title="{{.Name}}"
+                             style="width:28px;height:28px;object-fit:cover;border-radius:6px">{{end}}{{end}}
                     </div>
                     {{end}}
                     {{if and .User (not .IsSelf)}}
