@@ -38,6 +38,10 @@ func TestAccountMenuEntriesAreReachable(t *testing.T) {
 		// deliberately absent: it is no longer registered, so a menu entry
 		// pointing at it would 404.
 		"/p/api-key": true,
+		// Same category: the medals plugin registers the view, so w.mount
+		// never sees a route for it and this list is the only place that can
+		// say the page exists.
+		"/p/medals": true,
 		// The points economy, served by the store plugin rather than by
 		// w.mount — same category as /p/api-key above: named by hand because
 		// the host cannot see the route, verified by hand because of that.
@@ -159,6 +163,10 @@ func TestAccountMenuSelectsOneEntry(t *testing.T) {
 		{"/settings/privacy", "Privacy"},
 		{"/settings/notifications", "Alerts"},
 		{"/achievements", "Achievements"},
+		// Beside Achievements in Activity, not in Bonus Points — the page is a
+		// cabinet, and buying is one action on it. Listed here because that is
+		// exactly the kind of placement a later tidy-up reverses.
+		{"/p/medals", "Medals"},
 		{"/calendar", "Calendar"},
 		{"/p/inbox", "Notifications"},
 		{"/inbox", "Inbox"},

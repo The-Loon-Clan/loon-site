@@ -75,6 +75,17 @@ var accountMenu = []sectionTab{
 	}},
 	{Label: "Activity", Items: []sectionTab{
 		{Label: "Achievements", Href: "/achievements"},
+		// Beside Achievements, not in Bonus Points, though medals are bought
+		// with points. What the page IS is a cabinet: what you own and which
+		// ones you wear on your profile. Buying is one action on it, and a
+		// medal arrives at least as often from an achievement, a reward or the
+		// pot as from the shop — so filing it under "how points leave your
+		// balance" would describe the least of what it does.
+		//
+		// It asked for Community (the plugin's own NavHint) and was answered,
+		// for the same reason the store was: a shop sounds communal. Neither
+		// is. See navPlacement in admin_views.go for the other half of this.
+		{Label: "Medals", Href: "/p/medals"},
 		{Label: "Topics", Href: "/p/topics"},
 		{Label: "Posts", Href: "/p/posts"},
 		{Label: "Bookmarks", Href: "/bookmarks"},
@@ -181,7 +192,7 @@ func accountNav(path string) []sectionTab {
 // of the account within one click.
 var accountAreaPrefixes = []string{
 	"/u/", "/inbox", "/p/inbox", "/p/account", "/p/api-key",
-	"/p/topics", "/p/posts", "/settings/",
+	"/p/topics", "/p/posts", "/p/medals", "/settings/",
 	"/bookmarks", "/calendar", "/achievements", "/subscriptions", "/gifts", "/wishlist",
 	// The member's own tracker standing — see trackerAccountGroup.
 	"/hitrun", "/perks", "/seedlock",

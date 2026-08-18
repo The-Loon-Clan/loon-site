@@ -173,6 +173,10 @@ var navPlacedByHost = map[string]bool{
 	"/p/inbox":   true,
 	"/p/account": true,
 	"/p/api-key": true,
+	// account menu, Activity group — your medal cabinet. Re-homed out of the
+	// plugin's Community hint by navPlacement below; this is the half that
+	// stops it appearing a second time as a loose site link.
+	"/p/medals": true,
 }
 
 // navPlacement re-homes and re-labels a plugin page whose own NavHint puts it
@@ -219,6 +223,17 @@ var navPlacement = map[string]struct{ Group, Label string }{
 	// Both in Other, named for what they actually are, so the difference is
 	// visible in one menu instead of hidden across two.
 	"/p/stats": {Group: "Other", Label: "Site snapshot"},
+
+	// Medals asks for Community and is answered with NO group at all, which
+	// hands it to the ungrouped branch of siteNav — where navPlacedByHost
+	// above catches it, because the host writes it into the account menu by
+	// hand (sectionnav_web.go, Activity).
+	//
+	// Same correction the store needed, for the same reason: your cabinet of
+	// medals and which ones you wear is as personal as your balance, and it
+	// sat in Community because a shop sounds communal. A member looking for
+	// their own badges looks where Achievements is.
+	"/p/medals": {Group: "", Label: "Medals"},
 }
 
 // accountPluginPages is the fallback for a per-viewer plugin page the host has
