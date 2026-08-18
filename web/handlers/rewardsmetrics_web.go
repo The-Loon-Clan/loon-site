@@ -222,10 +222,26 @@ func registerAchievementMetrics(c *core.Core, db storage.Conn) error {
 	if err := c.Register("achievements.files", blob.Store(blob.NewLocal(uploadRoot, uploadURL))); err != nil {
 		return fmt.Errorf("register achievements files: %w", err)
 	}
-	if err := c.Register("achievements.icons", []string{
+	// CURATED, then checked against the sheet. The curation is the point — the
+	// whole catalogue would put #logo and #chevron-down in a picker where they
+	// mean nothing — but a curated name is still a name, and one that has been
+	// renamed out of the sprite sheet would sit in the dropdown offering an
+	// empty badge. Only ids the site can actually draw are published, and a
+	// curated one that has gone missing is said out loud rather than dropped
+	// silently, because the fix is to re-curate rather than to shrink.
+	wanted := []string{
 		"star", "verified", "shield", "coin", "film", "tv", "music", "book",
 		"comment", "users", "download", "server", "globe", "calendar",
-	}); err != nil {
+	}
+	var icons []string
+	for _, id := range wanted {
+		if drawableIcon(id) {
+			icons = append(icons, id)
+			continue
+		}
+		c.Logger.Warn("achievement icon curated but not in the sprite sheet", "icon", id)
+	}
+	if err := c.Register("achievements.icons", icons); err != nil {
 		return fmt.Errorf("register achievements icons: %w", err)
 	}
 	return nil

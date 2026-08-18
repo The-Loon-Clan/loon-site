@@ -63,6 +63,7 @@ var logKeys = map[string]string{
 	"mode":         "which of several modes a subsystem is in",
 	"flavour":      "the site flavour: indexer, torrent or both",
 	"href":         "the path or URL a nav entry links to",
+	"icon":         "a sprite id (#name) — logged when one is named and the sheet has no such symbol",
 	"area":         "which part of the site",
 	"source":       "a metadata source's name",
 	"provider":     "an external service",

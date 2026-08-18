@@ -52,3 +52,31 @@ func sortedStrings(s []string) bool {
 	}
 	return true
 }
+
+// An unlocked achievement takes the operator's icon INSTEAD of the state tick,
+// so a name with no symbol behind it does not degrade to a default — it draws
+// an empty space, and only on the unlocked row. That is how the "Night Watch"
+// badge came to have no icon while every locked one looked right: its row held
+// "moon", which this sprite sheet does not have.
+//
+// The check is at the DRAW rather than at the admin form because a row can
+// hold a name the form would never have offered — a seed, an SQL fix and an
+// older version of the form all write straight past a picker.
+func TestDrawableIconGuardsWhatTheSiteCanActuallyDraw(t *testing.T) {
+	// If this ever fails the guard below would pass by finding nothing, so it
+	// is asserted rather than assumed.
+	if !drawableIcon("verified") {
+		t.Fatal("the sprite sheet has no #verified")
+	}
+	for _, bad := range []string{
+		"moon",               // the real one: on night-watch, drew nothing
+		"trophy",             // the icon a badge most obviously wants and this sheet lacks
+		"",                   // no icon set at all
+		"Star",               // right symbol, wrong case — ids are exact
+		"/uploads/badge.png", // an image path in an icon field
+	} {
+		if drawableIcon(bad) {
+			t.Errorf("drawableIcon(%q) claims this site can draw it", bad)
+		}
+	}
+}

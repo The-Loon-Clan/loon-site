@@ -61,6 +61,29 @@ func achievementIcon(s achievements.AchievementState) string {
 	return "lock"
 }
 
+// drawableIcon reports whether this site can actually draw a sprite id.
+//
+// The operator's icon REPLACES the state icon on an unlocked badge, so a name
+// with no symbol behind it does not degrade — it renders an empty space where
+// the tick used to be, and only on the unlocked row, which is exactly how the
+// "Night Watch" badge came to have no icon while every locked one was fine.
+//
+// A row can hold a name the picker would never have offered: this catalogue is
+// years younger than the definitions, and a seed, an SQL fix or an older form
+// all write straight past it. So the check is at the DRAW, where it protects
+// every path, rather than only at the form.
+func drawableIcon(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, id := range siteIcons() {
+		if id == name {
+			return true
+		}
+	}
+	return false
+}
+
 // achievementsPage serves /achievements.
 func (w *web) achievementsPage(c *gin.Context) {
 	u, ok := w.viewer(c)
@@ -107,7 +130,7 @@ func (w *web) achievementsPage(c *gin.Context) {
 		// cannot, and a hidden-until-earned badge must not leak its image.
 		if a.State != achievements.AchievementUnlocked {
 			v.Image = ""
-		} else if a.Icon != "" {
+		} else if drawableIcon(a.Icon) {
 			v.Icon = a.Icon
 		}
 		if !a.EarnedAt.IsZero() {
