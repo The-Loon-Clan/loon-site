@@ -15,7 +15,18 @@ three different stages and pretending otherwise is how a lint becomes noise:
                    draw sprites now too (medals, the ranks groups widget, the
                    store's cards) and nothing was checking those at all.
 
-  C. GO SENTENCES  a RATCHET, not a zero. "Every user-visible string lives in
+  C. CSRF          enforced at ZERO. Every POST form must carry a hidden
+                   `_csrf` input. A host mounts CSRF middleware over the whole
+                   engine, so one without it answers 403 to every human who
+                   clicks it -- and audit_access.py CANNOT see this, because it
+                   probes destructive POSTs WITH a valid token by design (it
+                   tests the gate, not the form). A sweep on 18 Aug 2026 found
+                   58 tokenless forms across nine plugins: every admin action
+                   in usenet, ranks, events, achievements, messages and lists,
+                   plus the rewards page's own toggle and create. All of them
+                   had been refusing every operator who tried.
+
+  D. GO SENTENCES  a RATCHET, not a zero. "Every user-visible string lives in
                    templates, not in Go" is already a MUST in
                    loon-plugins/CHECKLIST.md section 10, and there are 33 of
                    them here. A check that failed on all 33 today would be
@@ -127,7 +138,29 @@ def icon_findings(symbols, files):
     return out
 
 
-# ── C. member-facing sentences built in Go ──────────────────────────────────
+# ── C. CSRF tokens ──────────────────────────────────────────────────────────
+
+# A POST form and its body. Non-greedy to </form>, so nested markup between two
+# forms cannot make one swallow the other's token.
+POST_FORM = re.compile(
+    r'(?is)<form(?=[\s>])[^>]*method\s*=\s*["\']post["\'][^>]*>.*?</form>')
+
+
+def csrf_findings(files):
+    """Every POST form with no hidden _csrf input."""
+    out = []
+    for path, rel, body in files:
+        for m in POST_FORM.finditer(body):
+            form = m.group(0)
+            if 'name="_csrf"' in form or "name='_csrf'" in form:
+                continue
+            action = re.search(r'action\s*=\s*"([^"]*)"', form)
+            out.append((rel, line_of(body, m.start()),
+                        action.group(1) if action else "(posts to itself)"))
+    return out
+
+
+# ── D. member-facing sentences built in Go ──────────────────────────────────
 
 # The sinks that put words in front of a person: a redirect carrying a message,
 # and a bare string response. Twelve characters or more, so "ok", "1" and slugs
@@ -233,6 +266,7 @@ def main():
     for name, root, files in trees:
         images = image_findings(root, files)
         icons = icon_findings(symbols, files)
+        tokenless = csrf_findings(files)
         sentences = sentence_count(files)
         baseline = SENTENCE_BASELINE.get(name)
 
@@ -243,6 +277,9 @@ def main():
         for rel, line, ref in icons:
             failed = True
             print("  UNKNOWN ICON     %s:%d  #%s  (renders as an empty box)" % (rel, line, ref))
+        for rel, line, action in tokenless:
+            failed = True
+            print("  NO CSRF TOKEN    %s:%d  posts to %s  (403s for every human)" % (rel, line, action))
         if baseline is None:
             print("  %d member-facing sentences built in Go (no baseline recorded "
                   "for this tree — add one to SENTENCE_BASELINE)" % sentences)
@@ -261,7 +298,9 @@ def main():
     if failed:
         print("\nresources: findings above.")
         return 1
-    print("\nresources: no hardcoded images, every icon resolves, no new text in Go.")
+    print()
+    print("resources: no hardcoded images, every icon resolves, every POST form "
+          "carries a token, and no new member-facing text in Go.")
     return 0
 
 

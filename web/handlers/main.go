@@ -596,6 +596,17 @@ func Main() {
 		func() (bool, bool) { return flavourIndexer(), flavourTracker() }); err != nil {
 		logger.Error("register store flavour", "err", err)
 	}
+	// The SHARED token seam every plugin resolves (pluginapi.CSRFTokenName).
+	//
+	// The three per-plugin keys below predate it and stay registered so nothing
+	// that already resolves one breaks; nothing new should add a fourth. The
+	// sweep that prompted this found 58 POST forms across nine plugins with no
+	// token at all — every admin action in usenet, ranks, events, achievements,
+	// messages and lists — each answering 403 to every operator who clicked it.
+	if err := c.Register(pluginapi.CSRFTokenName,
+		pluginapi.CSRFTokenFunc(func(gc *gin.Context) string { return middleware.Token(gc) })); err != nil {
+		logger.Error("register csrf token", "err", err)
+	}
 	if err := c.Register("games.csrf",
 		func(gc *gin.Context) string { return middleware.Token(gc) }); err != nil {
 		logger.Error("register games csrf", "err", err)
