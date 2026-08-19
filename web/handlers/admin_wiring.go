@@ -111,6 +111,12 @@ func wireAdminAndViews(
 	if v, ok := c.Lookup(pluginapi.TorrentMirrorsName); ok {
 		wsrv.mirrors, _ = v.(pluginapi.TorrentMirrors)
 	}
+	// And the write side: turning a release into a torrent on demand, which is
+	// how this site mirrors without pre-hashing 160,000 releases it has no
+	// bytes for. Absent = the release page offers no button.
+	if v, ok := c.Lookup(pluginapi.TorrentMirrorMakerName); ok {
+		wsrv.mirrorMaker, _ = v.(pluginapi.TorrentMirrorMaker)
+	}
 	// Daily reward: the plugin owns the once-per-day rule and the streak; the
 	// host only asks whether a claim is available, so the stat strip can offer
 	// a compact button and hide it once taken. Absent extension = no button,

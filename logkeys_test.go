@@ -39,6 +39,7 @@ var logKeys = map[string]string{
 
 	// what
 	"release":      "a release id",
+	"hash":         "a torrent's info hash",
 	"item":         "a moderation queue item id",
 	"flag":         "a cheat-flag id",
 	"slug":         "a plugin, widget, page or community slug",

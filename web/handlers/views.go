@@ -93,7 +93,11 @@ type web struct {
 	// offer both ways of getting the same content on one row. Nil on a pure
 	// indexer, and on a tracker that is configured off — see mirrors_web.go,
 	// which falls back to the site's own read when the seam is absent.
-	mirrors       pluginapi.TorrentMirrors
+	mirrors pluginapi.TorrentMirrors
+	// mirrorMaker is the write side of the same relationship: making a torrent
+	// for a release that has none. Nil wherever mirrors is, and the release
+	// page then offers no button rather than one that cannot work.
+	mirrorMaker   pluginapi.TorrentMirrorMaker
 	usenetAPI     pluginapi.UsenetNewznab // Newznab /api + /rss
 	catalog       pluginapi.Catalog       // taxonomy + names for /browse (filled after Boot)
 	catalogSink   pluginapi.CatalogSink   // scraper write side (filled after Boot)
@@ -400,6 +404,10 @@ func (w *web) mount(e *gin.Engine) {
 	// a third READING of user_follow rather than a third feature.
 	e.GET("/u/:name/friends", w.followPage(followKindFriends))
 	e.POST("/release/:id/bookmark", w.authed(w.bookmarkToggle)...)
+	// Make this release a torrent on the site's own tracker (mirrors_web.go).
+	// POST because it creates one, and behind auth because the tracker's pages
+	// need an account.
+	e.POST("/release/:id/torrent", w.authed(w.mirrorRelease)...)
 	e.GET("/search", w.search)
 	// The quick-search dropdown. A fragment, so it is never a page — see
 	// suggest_web.go.

@@ -180,6 +180,14 @@ func (w *web) releasePage(c *gin.Context) {
 	if u, okUser := w.currentUser(c); okUser && u != nil {
 		data["CanBookmark"] = true
 		data["Bookmarked"] = w.data.IsBookmarked(c.Request.Context(), u.ID, id)
+		// Offer the torrent only to a member who could actually use it: the
+		// tracker's own pages need an account and an entitlement, so the button
+		// on an anonymous page would be a control that leads to a login wall.
+		// Absent when this release already has one — the swarm panel above
+		// links to it, and two ways to reach one torrent is one too many.
+		if _, mirrored := data["Swarm"]; !mirrored && w.mirrorMaker != nil {
+			data["CanMirror"] = true
+		}
 	}
 	w.render(c, "release.html", data)
 }

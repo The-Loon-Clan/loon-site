@@ -63,6 +63,25 @@
                     <a class="button button--filled" href="/nzb/{{.ID}}">
                         <svg class="icon" aria-hidden="true"><use href="#download"></use></svg>Download NZB
                     </a>
+                    {{/* The other way to take this release. The torrent is made
+                         the first time somebody asks — this site indexes 160,000
+                         releases and pre-building a torrent for each would be
+                         gigabytes of info dictionaries nobody asked for.
+
+                         POST because it CREATES one. Set only for a signed-in
+                         viewer, only where a tracker is wired, and only while
+                         this release has no torrent yet — once it does, the
+                         swarm panel links to it and a second route to one
+                         torrent is one too many. */}}
+                    {{if $.CanMirror}}
+                    <form method="post" action="/release/{{.ID}}/torrent">
+                        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                        <button class="button button--outlined" type="submit"
+                                title="Register this release on the site's tracker and open it there. It keeps the release's own file list; the piece hashes are placeholders, because an index holds pointers to Usenet articles rather than the bytes.">
+                            <svg class="icon" aria-hidden="true"><use href="#users"></use></svg>Get .torrent
+                        </button>
+                    </form>
+                    {{end}}
                 </div>
             </header>
             {{/* The show's background art, behind the metadata block. Scraped

@@ -3,14 +3,10 @@ package handlers
 import (
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
-	"crypto/sha1"
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
 	"log/slog"
-	"strings"
 
-	"github.com/the-loon-clan/loon/bencode"
+	"github.com/the-loon-clan/loon-plugins/pluginapi"
+	"github.com/the-loon-clan/loon-plugins/tracker"
 )
 
 // Demo data for the BitTorrent tracker.
@@ -23,9 +19,12 @@ import (
 // while every .torrent the site hands out is one no client will accept — a
 // failure that surfaces on somebody else's machine, in a client, days later.
 //
-// So the dictionaries are built with loon/bencode, the same encoder the plugin
-// uses to rebuild a torrent per member, and demoseedtracker_web_test.go reads
-// the output back and checks the hash, the key order and the file lengths.
+// So the dictionaries are not built here at all: tracker.BuildTorrent is the
+// one builder in the ecosystem, exported by the plugin that owns what a torrent
+// is, and tested there against the bytes it produces. This file used to hold a
+// second copy of that encoder, which is a second thing to keep byte-identical
+// for no gain — "the demo's torrents hash differently from the real ones" is a
+// bug nobody would find by reading either copy.
 //
 // TWO GUARDS, AND THE FIRST ONE IS THE POINT
 //
@@ -109,27 +108,6 @@ var demoTrackerMembers = []struct {
 	{From: 2, Take: 6, Ratio: 0.8, Leeching: 2},
 }
 
-// Torrent shape. A release on Usenet is a rar set — an NFO, an SFV and a run of
-// volumes — and a torrent made from one carries the same files, so that is what
-// these describe. It also means file_count and files_json say something: a
-// listing whose Files column reads 1 on every row is a column with no content.
-const (
-	demoNFOBytes = 4 << 10   // an NFO is a few kilobytes of ASCII art and a description
-	demoSFVBytes = 1 << 10   // one CRC line per volume
-	demoVolBytes = 500 << 20 // 500 MiB volumes, the common posting size
-)
-
-// Piece length bounds and target, which are the conventions every torrent
-// creator follows rather than anything this project decided: powers of two
-// between 256 KiB and 16 MiB, chosen so the piece COUNT stays near 1500. Too
-// few pieces and a client cannot verify incrementally; too many and the
-// .torrent itself becomes megabytes of hashes.
-const (
-	demoMinPiece    = 256 << 10
-	demoMaxPiece    = 16 << 20
-	demoPieceTarget = 1500
-)
-
 // Minutes between one seeded accounting row's last_seen and the next, and the
 // ceiling it is never allowed to pass. See trackerStatsSeed: Store.Totals
 // counts seeding and leeching over a one-hour window, so a row staggered past
@@ -184,7 +162,12 @@ func trackerSeed(db storage.Conn, log *slog.Logger) {
 
 	hashes := make([]string, 0, len(picks))
 	for i, p := range picks {
-		t := buildDemoTorrent(p.Title, p.Size)
+		// The shared builder. No Files: the seeder knows a release's title and
+		// size and does not parse its NZB, so the tracker models the usual rar
+		// set — which is what these torrents have always described.
+		t := tracker.BuildTorrent(pluginapi.MirrorRequest{
+			ReleaseID: p.ID, Name: p.Title, Size: p.Size,
+		})
 		// added_at staggered so the listing's Added column reads as a
 		// catalogue that grew rather than one that appeared at once.
 		if _, err := db.Exec(`
@@ -301,172 +284,4 @@ func trackerStatsSeed(db storage.Conn, log *slog.Logger, hashes []string,
 		}
 	}
 	return rows
-}
-
-// demoTorrent is one built torrent, ready to insert.
-type demoTorrent struct {
-	InfoHash    string
-	Name        string
-	Size        int64
-	PieceLength int64
-	FileCount   int
-	FilesJSON   []byte
-	InfoBytes   []byte
-}
-
-// demoFile is one entry of the info dict's file list, and of files_json.
-type demoFile struct {
-	Path   string `json:"path"`
-	Length int64  `json:"length"`
-}
-
-// buildDemoTorrent turns a release name and size into a torrent.
-//
-// Deterministic all the way through — the piece hashes are a SHA-1 chain seeded
-// from the name — so re-running this on the same index produces the same
-// info_hash rather than a second copy of every torrent.
-func buildDemoTorrent(title string, size int64) demoTorrent {
-	name := demoTorrentName(title)
-	files := demoRarSet(name, size)
-	pieceLen := demoPieceLength(size)
-	pieces := demoPieces(name, int((size+pieceLen-1)/pieceLen))
-
-	info := demoInfoDict(name, files, pieceLen, pieces)
-	sum := sha1.Sum(info) //nolint:gosec // BitTorrent info hashes ARE SHA-1; this is the protocol, not a security choice
-	fj, err := json.Marshal(files)
-	if err != nil {
-		// Marshalling a []demoFile cannot fail — every field is a string or an
-		// int64 — so this is unreachable rather than handled. NULL is a legal
-		// files_json and nothing renders it, so a torrent survives it.
-		fj = nil
-	}
-	return demoTorrent{
-		InfoHash:    hex.EncodeToString(sum[:]),
-		Name:        name,
-		Size:        size,
-		PieceLength: pieceLen,
-		FileCount:   len(files),
-		FilesJSON:   fj,
-		InfoBytes:   info,
-	}
-}
-
-// demoInfoDict encodes the info dictionary.
-//
-// The keys are written in ascending order — files, name, piece length, pieces,
-// private — because bencode requires it and no client re-sorts before hashing.
-// A dict out of order still parses, still stores, and hashes to something the
-// tracker has never heard of.
-func demoInfoDict(name string, files []demoFile, pieceLen int64, pieces []byte) []byte {
-	var w bencode.Writer
-	w.BeginDict()
-	w.Str("files")
-	w.BeginList()
-	for _, f := range files {
-		w.BeginDict()
-		w.Str("length")
-		w.Int(f.Length)
-		// path is a LIST of components, not a string: it is how a torrent
-		// expresses a subdirectory, and a client reading a bare string here
-		// rejects the file.
-		w.Str("path")
-		w.BeginList()
-		w.Str(f.Path)
-		w.End()
-		w.End()
-	}
-	w.End()
-	w.Str("name")
-	w.Str(name)
-	w.Str("piece length")
-	w.Int(pieceLen)
-	w.Str("pieces")
-	w.Bytes(pieces)
-	// private (BEP 27): no DHT, no PEX, no peer exchange — the tracker is the
-	// only way to find peers. Set because this IS a private tracker, and a
-	// demo torrent that advertised itself as public would be teaching the
-	// wrong shape.
-	w.Str("private")
-	w.Int(1)
-	w.End()
-	return w.Out()
-}
-
-// demoRarSet models the release as it sits on Usenet.
-func demoRarSet(base string, size int64) []demoFile {
-	rest := size - demoNFOBytes - demoSFVBytes
-	if rest < demoVolBytes/8 {
-		// Too small to be worth splitting. Single file, and the length is the
-		// whole size so the dict still totals correctly.
-		return []demoFile{{Path: base + ".bin", Length: size}}
-	}
-	files := []demoFile{
-		{Path: base + ".nfo", Length: demoNFOBytes},
-		{Path: base + ".sfv", Length: demoSFVBytes},
-	}
-	vols := int((rest + demoVolBytes - 1) / demoVolBytes)
-	for i := range vols {
-		n := int64(demoVolBytes)
-		if i == vols-1 {
-			// The last volume carries the remainder, so the file lengths sum
-			// to exactly the release size. Off by one byte here and the
-			// torrent claims a size the database disagrees with.
-			n = rest - int64(vols-1)*demoVolBytes
-		}
-		files = append(files, demoFile{
-			Path: fmt.Sprintf("%s.part%02d.rar", base, i+1), Length: n,
-		})
-	}
-	return files
-}
-
-// demoPieceLength picks the power of two that keeps the piece count near the
-// target, within the conventional bounds.
-func demoPieceLength(size int64) int64 {
-	pl := int64(demoMinPiece)
-	for pl < demoMaxPiece && size/pl > demoPieceTarget {
-		pl <<= 1
-	}
-	return pl
-}
-
-// demoPieces produces count × 20 bytes of piece hashes.
-//
-// A SHA-1 chain from the name rather than crypto/rand, and the difference
-// matters: random bytes would give a different info_hash on every boot, so a
-// re-seed would double the catalogue instead of colliding with itself.
-//
-// The hashes do not describe any real data — nothing here has data — so a
-// client that actually fetched these pieces would fail to verify them. That is
-// true of every torrent on a demo with no content behind it, and the alternative
-// is hashing 35 GB of zeroes at boot.
-func demoPieces(seed string, count int) []byte {
-	if count < 1 {
-		count = 1
-	}
-	out := make([]byte, 0, count*sha1.Size)
-	h := sha1.Sum([]byte("loon-demo-torrent:" + seed)) //nolint:gosec // see buildDemoTorrent
-	for range count {
-		out = append(out, h[:]...)
-		h = sha1.Sum(h[:]) //nolint:gosec // see buildDemoTorrent
-	}
-	return out
-}
-
-// demoTorrentName makes a release title safe to use as a directory name.
-//
-// Only the separators and control characters, not a general scrub: a release
-// name is what a member recognises the torrent by, and rewriting the brackets
-// and dots out of it would leave something they cannot match to the index.
-func demoTorrentName(title string) string {
-	name := strings.Map(func(r rune) rune {
-		if r == '/' || r == '\\' || r < 0x20 {
-			return '.'
-		}
-		return r
-	}, strings.TrimSpace(title))
-	if name == "" {
-		return "release"
-	}
-	return name
 }
