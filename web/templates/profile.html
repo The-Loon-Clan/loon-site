@@ -152,7 +152,7 @@
 
              Each row still guards on its Has* flag: an unreachable capability
              drops the row rather than showing a zero nobody measured. */}}
-        {{if or .HasSubjectPoints .HasSubjectPosts .HasSubjectFollows .HasSubjectBookmarks .HasSubjectLastSeen}}
+        {{if or .HasSubjectPoints .HasSubjectPosts .HasSubjectFollows .HasSubjectBookmarks .HasSubjectLastSeen .HasSubjectRecruits}}
         <section class="panelV2">
             <header class="panel__header">
                 <h2 class="panel__heading">
@@ -169,6 +169,15 @@
                     <div class="key-value__group"><dt>Following</dt><dd><a href="/u/{{$.Subject.Username}}/following">{{.SubjectFollowing}}</a></dd></div>
                     {{end}}
                     {{if .HasSubjectBookmarks}}<div class="key-value__group"><dt>Bookmarks</dt><dd>{{.SubjectBookmarks}}</dd></div>{{end}}
+                    {{/* Only when the operator turned invite.public_stats on —
+                         see views.go. The chain figure appears only when it is
+                         bigger than the direct one, or the row repeats itself. */}}
+                    {{if .HasSubjectRecruits}}
+                    <div class="key-value__group">
+                        <dt>Invited</dt>
+                        <dd>{{.SubjectRecruits}}{{with .SubjectRecruitChain}} <span class="text-muted">&middot; {{.}} in their chain</span>{{end}}</dd>
+                    </div>
+                    {{end}}
                     {{if .HasSubjectLastSeen}}<div class="key-value__group"><dt>Last seen</dt><dd>{{timeAgo .SubjectLastSeen}}</dd></div>{{end}}
                 </dl>
             </div>

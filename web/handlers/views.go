@@ -624,6 +624,28 @@ func (w *web) profilePage(c *gin.Context) {
 			data["SubjectPosts"], data["HasSubjectPosts"] = n, true
 		}
 	}
+	// Who this member brought in — OFF unless an operator turned it on.
+	//
+	// Behind a setting rather than shown by default because it is a social
+	// graph: "alice recruited 30 people" is a fact about thirty other accounts
+	// as much as about alice, and publishing it should be a decision somebody
+	// made rather than one they inherited. The setting is invite.public_stats
+	// and it defaults to off (inviteoptions_web.go).
+	//
+	// Not exempted for self or staff. They have /invites and /admin/invites,
+	// which show the whole chain rather than a count — so an exemption here
+	// would add nothing except a second answer to maintain.
+	if currentInviteOptions().PublicStats {
+		if direct, chain, okR := w.data.RecruitCounts(ctx, subject.ID); okR && chain > 0 {
+			data["SubjectRecruits"], data["HasSubjectRecruits"] = direct, true
+			// Only when the chain is bigger than the direct count, because
+			// otherwise the second figure repeats the first and a tile that
+			// says "3 · 3 in chain" reads as though one of them is wrong.
+			if chain > direct {
+				data["SubjectRecruitChain"] = chain
+			}
+		}
+	}
 	// Bookmarks are PUBLIC on a profile the way UNIT3D shows them — a count,
 	// not the list. Has* rather than a bare zero, so an unreachable table
 	// leaves the tile an em dash instead of claiming nobody saved anything.

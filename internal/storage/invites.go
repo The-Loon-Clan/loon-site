@@ -556,3 +556,42 @@ func (st *Store) TopRecruiters(ctx context.Context, limit int) []RecruiterRow {
 	}
 	return rows
 }
+
+// RecruitCounts is one member's recruiting record: how many they invited
+// directly, and how many are beneath them in total.
+//
+// The per-member form of TopRecruiters, for a profile. Its own query rather
+// than filtering that board, because the board walks every edge in the table
+// to rank everybody and a profile needs one root — the difference is the whole
+// table versus one subtree, on a page that renders per request.
+//
+// ok is false when the read failed, which a caller must not render as zero:
+// "brought nobody in" and "we could not count" are different claims, and a
+// profile that conflates them is a profile quietly lying about somebody.
+func (st *Store) RecruitCounts(ctx context.Context, userID int64) (direct, chain int, ok bool) {
+	if userID <= 0 {
+		return 0, 0, false
+	}
+	var row struct {
+		Direct int `db:"direct"`
+		Chain  int `db:"chain"`
+	}
+	if err := st.db.GetContext(ctx, &row, `
+		WITH RECURSIVE tree AS (
+		    SELECT used_by AS member, 1 AS depth
+		      FROM invite_codes
+		     WHERE created_by = $1 AND used_by IS NOT NULL
+		    UNION ALL
+		    SELECT ic.used_by, t.depth + 1
+		      FROM invite_codes ic
+		      JOIN tree t ON ic.created_by = t.member
+		     WHERE ic.used_by IS NOT NULL AND t.depth < $2
+		)
+		SELECT count(DISTINCT member) FILTER (WHERE depth = 1) AS direct,
+		       count(DISTINCT member)                          AS chain
+		  FROM tree`, userID, InviteTreeDepth); err != nil {
+		slog.Error("recruit counts", "user", userID, "err", err)
+		return 0, 0, false
+	}
+	return row.Direct, row.Chain, true
+}

@@ -169,6 +169,14 @@ ones nobody has thought to type in.
 
 Still a READ. No table, no migration, no new column.
 
+**Extended 19 Aug 2026** into the invite system the genre actually has:
+invites addressed to an email and locked to it, the invitation email, a
+configurable validity window, withdraw-with-refund, soft delete, and the whole
+record kept (created / sent / claimed / revoked / deleted). Eight operator
+settings, defaulting to the conservative answer. Recruiting totals on a profile
+are one of them and default OFF — it is a social graph, and publishing one
+should be a decision.
+
 ## Cart / bulk grab — S
 
 Tick ten rows, get one zip of NZBs, or push them all to the downloader. nZEDb
