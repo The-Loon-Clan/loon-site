@@ -581,6 +581,56 @@ func (st *Store) MigrateInviteCodes() error {
 		    used_at     TIMESTAMPTZ
 		)`,
 		`CREATE INDEX IF NOT EXISTS invite_codes_creator ON invite_codes (created_by, created_at DESC)`,
+
+		// ── An invite becomes a record, not just a token ────────────────────
+		//
+		// Added rather than replaced: used_by and used_at keep their names even
+		// though "accepted_by / claimed_at" would read better, because the
+		// invite tree and every query behind /admin/invites are built on them
+		// and a rename buys nothing an operator can see.
+		//
+		// Every column below is nullable-and-empty by default, so the rows that
+		// existed before this migration stay valid and simply describe an older
+		// kind of invite: no email, never emailed, never revoked.
+
+		// WHO IT WAS ISSUED TO. Empty means an unlocked code — the only kind
+		// that existed before, and still what a site gets if it turns the email
+		// requirement off. Lowercased on write so matching never depends on how
+		// somebody typed it.
+		`ALTER TABLE invite_codes ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT ''`,
+		// The issuer's note to the recipient, and a staff-only one. Separate
+		// fields because they have different audiences and one of them must
+		// never reach the person being invited.
+		`ALTER TABLE invite_codes ADD COLUMN IF NOT EXISTS message TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE invite_codes ADD COLUMN IF NOT EXISTS internal_note TEXT NOT NULL DEFAULT ''`,
+
+		// WHEN THE MAIL WENT. NULL means never sent — a code the issuer copied
+		// by hand, or one whose send failed. Worth telling apart from "sent and
+		// ignored": the first is somebody to help, the second is not.
+		`ALTER TABLE invite_codes ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ`,
+
+		// REVOKED and DELETED are different events and both are kept.
+		//
+		// Revoked is a decision about the INVITE: it may no longer be redeemed.
+		// The row stays visible, because "this was cancelled, by whom, when" is
+		// exactly the history an invite ledger exists to hold.
+		//
+		// Deleted is a decision about the LIST: stop showing me this. It hides
+		// the row from the member's own page and changes nothing about whether
+		// the code works — a soft delete, so nothing an accountability chain
+		// depends on is ever actually destroyed.
+		`ALTER TABLE invite_codes ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ`,
+		`ALTER TABLE invite_codes ADD COLUMN IF NOT EXISTS revoked_by BIGINT`,
+		`ALTER TABLE invite_codes ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+
+		// The redemption path's index: find a live code by its normalised form.
+		// Partial on the rows that can still be redeemed, which is a small
+		// fraction of a mature table.
+		`CREATE INDEX IF NOT EXISTS invite_codes_open ON invite_codes (created_by)
+		     WHERE used_by IS NULL AND revoked_at IS NULL`,
+		// The email lock's lookup, and the "already invited that address" check.
+		`CREATE INDEX IF NOT EXISTS invite_codes_email ON invite_codes (email)
+		     WHERE email <> ''`,
 	}
 	for _, q := range stmts {
 		if _, err := st.db.Exec(q); err != nil {

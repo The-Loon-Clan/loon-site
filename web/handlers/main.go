@@ -205,14 +205,21 @@ func Main() {
 
 	// Reset/verify flow. The demo "mailer" just logs the message (link included)
 	// so you can follow it in the logs; a real host sends via SMTP.
+	//
+	// Built ONCE and shared: the reset flow takes it, and wsrv.mail holds it for
+	// everything else that mails a member (invites). A second closure here
+	// would be a second thing to point at a real SMTP server, and the one
+	// somebody forgot is the one whose mail silently stops.
+	demoMail := func(to, subject, body string) error {
+		logger.Info("email (demo mailer)", "to", to, "subject", subject, "body", body)
+		return nil
+	}
+	wsrv.mail = demoMail
 	wsrv.resetFlow = authtoken.Flow{
 		Tokens: st.tokens, Users: st.users, Hasher: password.Hasher{},
 		MinPwLen: minPasswordLen,
 		BaseURL:  getenvDefault("LOON_BASE_URL", "http://localhost:8090"),
-		Mail: func(to, subject, body string) error {
-			logger.Info("email (demo mailer)", "to", to, "subject", subject, "body", body)
-			return nil
-		},
+		Mail:     demoMail,
 	}
 	// gin-contrib session middleware (the prod scheme) must be installed before
 	// any route that logs in or reads the user.

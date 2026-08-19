@@ -15,6 +15,93 @@
     </p>
 </header>
 
+{{/* ── How invites behave on this site ──────────────────────────────────
+
+     Every control here changes what members can do, so each one says what it
+     costs rather than just what it is. The defaults are the conservative
+     answer — locked to an address, strict about matching, nothing public —
+     because an operator who never opens this page should not have accidentally
+     published who recruited whom. */}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#settings"></use></svg>
+            How invites work here
+        </h2>
+    </header>
+    <div class="panel__body">
+        <form class="form" method="post" action="/admin/invites/options">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__row">
+                <div class="form__group">
+                    <label class="form__label" for="ttl_hours">Invites expire after</label>
+                    <select class="form__input" id="ttl_hours" name="ttl_hours">
+                        {{$cur := .Opt.TTLHours}}
+                        {{range .TTLChoices}}
+                        <option value="{{.Hours}}"{{if eq .Hours $cur}} selected{{end}}>{{.Label}}</option>
+                        {{end}}
+                    </select>
+                </div>
+                <div class="form__group">
+                    <label class="form__label" for="max_pending">Pending invites per member</label>
+                    <input class="form__input" type="number" id="max_pending" name="max_pending"
+                           min="0" max="100" value="{{.Opt.MaxPending}}">
+                </div>
+            </div>
+            <p class="form__help">0 means no limit. The cap counts only invites that can still be claimed &mdash; an expired one does not hold a member back.</p>
+
+            <ul class="option-list">
+                <li>
+                    <label>
+                        <input type="checkbox" name="email_required" value="1" {{if .Opt.EmailRequired}}checked{{end}}>
+                        <strong>Invites go to an email address</strong>
+                    </label>
+                    <span class="option-list__note">Off means members mint a bare code and pass it on themselves. The chain still records who issued it.</span>
+                </li>
+                <li>
+                    <label>
+                        <input type="checkbox" name="email_strict" value="1" {{if .Opt.EmailStrict}}checked{{end}}>
+                        <strong>Only that address may use it</strong>
+                    </label>
+                    <span class="option-list__note">Off treats the address as where it was <em>sent</em> rather than who may redeem it &mdash; a forwarded invite then still works.</span>
+                </li>
+                <li>
+                    <label>
+                        <input type="checkbox" name="send_email" value="1" {{if .Opt.SendEmail}}checked{{end}}>
+                        <strong>Send the invitation email</strong>
+                    </label>
+                    <span class="option-list__note">Off records the invite and sends nothing, leaving the member to pass the code on. Useful on a site with no mail configured.</span>
+                </li>
+                <li>
+                    <label>
+                        <input type="checkbox" name="member_revoke" value="1" {{if .Opt.MemberRevoke}}checked{{end}}>
+                        <strong>Members can withdraw a pending invite</strong>
+                    </label>
+                    <span class="option-list__note">Staff can always withdraw one from the chain below, whatever this says.</span>
+                </li>
+                <li>
+                    <label>
+                        <input type="checkbox" name="refund_revoked" value="1" {{if .Opt.RefundRevoked}}checked{{end}}>
+                        <strong>Withdrawing gives the invite back</strong>
+                    </label>
+                    <span class="option-list__note">Off means an invite spent is spent. On is the fairer default and cannot be farmed &mdash; the refund only happens on a withdraw that actually cancelled something.</span>
+                </li>
+                <li>
+                    <label>
+                        <input type="checkbox" name="public_stats" value="1" {{if .Opt.PublicStats}}checked{{end}}>
+                        <strong>Show recruiting totals on profiles</strong>
+                    </label>
+                    <span class="option-list__note">How many members somebody brought in, on their public profile. Off by default: it is a social graph, and publishing one should be a decision.</span>
+                </li>
+            </ul>
+
+            <div class="form__row mt-2">
+                <button class="form__button form__button--filled" type="submit">Save</button>
+            </div>
+        </form>
+    </div>
+</section>
+
 <section class="panelV2">
     <header class="panel__header">
         <h2 class="panel__heading">
@@ -87,6 +174,71 @@
         {{end}}
     </div>
 </section>
+
+{{/* ── What they have OUT right now ─────────────────────────────────────
+
+     The chain below is who they already brought. This is who they are about
+     to, which is the half staff can still act on: an account issuing invites
+     to a run of throwaway addresses is visible here before any of them become
+     members. */}}
+{{with $.Issued}}
+<section class="panelV2 panelV2--overflow">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#send"></use></svg>
+            Invites {{$.Subject.Username}} has issued
+        </h2>
+        <div class="panel__actions"><span class="panel__grouping">{{len .}}</span></div>
+    </header>
+    <div class="data-table-wrapper">
+        <table class="data-table data-table--stack">
+            <caption class="visually-hidden">Invites this member has issued</caption>
+            <thead><tr>
+                <th>Sent to</th><th>Status</th><th class="data-table__nowrap">Issued</th>
+                <th class="data-table__shrink"><span class="visually-hidden">Actions</span></th>
+            </tr></thead>
+            <tbody>
+                {{range .}}
+                <tr>
+                    <td>
+                        <div class="data-table__name-body">
+                            {{if .Email}}<span class="data-table__title">{{.Email}}</span>
+                            {{else}}<span class="data-table__title text-muted">No address</span>{{end}}
+                            <div class="data-table__meta">
+                                <code>{{.Code}}</code>
+                                {{if and .Email (not .Sent)}}<span class="text-muted">never emailed</span>{{end}}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {{if .Spent}}<span class="chip chip--ok">Claimed by {{.UsedBy}}</span>
+                        {{else if .WasRevoked}}<span class="chip">Withdrawn</span>
+                        {{else if .Expired}}<span class="chip">Expired</span>
+                        {{else}}<span class="chip chip--warn">Waiting</span>{{end}}
+                    </td>
+                    <td class="data-table__nowrap">{{.Created}}</td>
+                    <td class="data-table__shrink">
+                        {{/* Staff can withdraw whatever the member-revoke
+                             setting says — that setting is about what MEMBERS
+                             may do. No refund on this path: the member did not
+                             ask for it, and handing an invite back to somebody
+                             staff just intervened in is the wrong default. */}}
+                        {{if .Pending}}
+                        <form method="post" action="/admin/invites/revoke" style="display:contents">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="code" value="{{.Code}}">
+                            <input type="hidden" name="user" value="{{$.Subject.Username}}">
+                            <button class="button button--outlined button--sm" type="submit">Withdraw</button>
+                        </form>
+                        {{end}}
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}
 
 {{/* ── The downline: what they brought ──────────────────────────────────── */}}
 <section class="panelV2">

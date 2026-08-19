@@ -81,6 +81,8 @@ func wireAdminAndViews(
 	// Who vouched for whom (invitesadmin_web.go). A READ of columns invite
 	// codes have always carried — no table, no migration.
 	admin.GET("/invites", wsrv.adminInvites)
+	admin.POST("/invites/options", wsrv.adminInvitesSave)
+	admin.POST("/invites/revoke", wsrv.adminInvitesRevoke)
 	// The page editor: where an operator puts registered widgets
 	// (widgetsadmin_web.go). One region at a time, chosen by ?region=.
 	mountWidgetsAdmin(admin, wsrv)

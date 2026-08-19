@@ -195,7 +195,7 @@ func TestEveryRowTypeScans(t *testing.T) {
 	})
 
 	t.Run("invites", func(t *testing.T) {
-		ok, err := st.MintInviteCode(ctx, alice, "ITEST-CODE-1", "24 hours")
+		ok, err := st.MintInviteCode(ctx, alice, "ITEST-CODE-1", "24 hours", "", "")
 		if err != nil || !ok {
 			t.Fatalf("MintInviteCode = %v, %v", ok, err)
 		}

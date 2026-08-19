@@ -74,6 +74,13 @@ type web struct {
 	cache     cache.Cache        // page cache (in-memory by default, redis if configured)
 	ipSalt    string             // salt for hashing client IPs before storing them
 	log       *slog.Logger
+	// mail sends one message. The SAME function the reset/verify flow uses —
+	// held here as well so anything else that needs to email a member goes
+	// through one seam, and a host that configures SMTP once has configured it
+	// for everything. nil is a real state: a host with no mailer, where the
+	// callers log rather than pretending the message went.
+	mail func(to, subject, body string) error
+
 	// data is the site's own SQL, behind one handle. It replaced eight
 	// package-level *sqlx.DB globals and the 44 nil guards that defended them.
 	data *storage.Store
@@ -394,6 +401,10 @@ func (w *web) mount(e *gin.Engine) {
 	e.POST("/gifts", w.authed(w.giftsSend)...)
 	e.GET("/invites", w.authed(w.invitesPage)...)
 	e.POST("/invites", w.authed(w.invitesCreate)...)
+	// Cancel a pending invite, and hide a dead one. Both POST because both
+	// write; revoke is the one that can hand an invite back (invitecodes_web.go).
+	e.POST("/invites/revoke", w.authed(w.invitesRevoke)...)
+	e.POST("/invites/delete", w.authed(w.invitesDelete)...)
 	e.POST("/u/:name/follow", w.authed(w.followToggle)...)
 	// Reporting an avatar opens (or votes on) a community moderation item —
 	// see communitymod_web.go.

@@ -3819,3 +3819,46 @@ a.episode__link:hover {
 }
 
 .filter-note__clear:first-of-type { margin-left: auto; }
+
+/* --------------------------------------------------------- option list ---- */
+
+/* A settings form where each switch changes what MEMBERS can do, so each one
+   carries a sentence saying what it costs rather than just what it is.
+
+   A list rather than a run of bare checkboxes: the note belongs to its switch,
+   and an <li> is what says so to a screen reader as well as to the eye. The
+   label wraps the input so the whole heading is a hit target — a 13px checkbox
+   is not one. */
+.option-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.option-list > li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 2px;
+}
+
+.option-list label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    cursor: pointer;
+    color: var(--text);
+}
+
+.option-list input[type="checkbox"] { flex: none; }
+
+/* Indented to the label's text, not the checkbox, so the note reads as
+   belonging to the setting rather than as another item in the list. */
+.option-list__note {
+    padding-left: calc(13px + 9px);
+    font-size: var(--fs-2xs);
+    color: var(--muted-2);
+}

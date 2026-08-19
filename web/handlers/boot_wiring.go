@@ -169,6 +169,13 @@ func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PG
 	if err := loadAccessSettings(context.Background(), data.DB()); err != nil {
 		logger.Error("load access settings", "err", err)
 	}
+	// Invite behaviour, for the same reason and right beside it: a restart must
+	// not quietly widen a rule an operator narrowed. Defaults are the
+	// conservative answer — locked to an address, strict about matching, no
+	// public disclosure of who recruited whom (inviteoptions_web.go).
+	if err := loadInviteSettings(context.Background(), data.DB()); err != nil {
+		logger.Error("load invite settings", "err", err)
+	}
 	// The site flavour (flavour_web.go). Before the plugin config snapshot is
 	// built: it decides which of the two content plugins boot.
 	if err := loadSiteFlavour(context.Background(), data.DB()); err != nil {

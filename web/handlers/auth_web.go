@@ -11,6 +11,8 @@ import (
 	"github.com/the-loon-clan/loon-baseline/session"
 
 	"github.com/the-loon-clan/loon-site/internal/request"
+
+	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
 // The doors: sign in, register, sign out, and the two token flows that let
@@ -137,8 +139,39 @@ func (w *web) registerPost(c *gin.Context) {
 		})
 		return
 	case RegInvite:
-		if !w.data.InviteCodeValid(c.Request.Context(), in.Invite) {
+		// One read, then three different answers, because "invalid" is a bad
+		// thing to tell somebody holding a real invite. A visitor whose code
+		// expired needs to ask for a new one; a visitor who typed the wrong
+		// address needs to fix the form; and only a visitor with a code that
+		// was never issued should be told it does not exist. Collapsing those
+		// into one refusal sends two of the three to the wrong remedy.
+		l := w.data.LookupInviteCode(c.Request.Context(), in.Invite)
+		switch {
+		case !l.Found:
 			again(http.StatusForbidden, "That invite code is not valid.")
+			return
+		case l.Reason == "used":
+			again(http.StatusForbidden, "That invite has already been used.")
+			return
+		case l.Reason == "revoked":
+			again(http.StatusForbidden, "That invite was withdrawn. Ask whoever sent it for another.")
+			return
+		case l.Reason == "expired":
+			again(http.StatusForbidden, "That invite has expired. Ask whoever sent it for another.")
+			return
+		}
+		// The email lock. Enforced only when the invite CARRIES an address —
+		// codes issued before the lock existed, and codes from a site running
+		// with it off, have none and stay usable by anybody holding them.
+		//
+		// Compared on the normalised form so capitals and stray whitespace are
+		// not a rejection, and gated on the strict setting so an operator can
+		// treat the address as "where it was sent" rather than "who may use
+		// it".
+		if l.Email != "" && currentInviteOptions().EmailStrict &&
+			storage.NormaliseEmail(in.Email) != l.Email {
+			again(http.StatusForbidden, "That invite was sent to a different email address. "+
+				"Sign up with the address it was sent to.")
 			return
 		}
 	}

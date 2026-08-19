@@ -13,9 +13,26 @@
     <p class="text-muted small m-0 mt-1">Codes you have issued, and what became of them.</p>
 </header>
 
+{{/* The handler sends a KEY, not a sentence — user-visible text belongs here,
+     where the i18n catalogue can reach it. An unrecognised key still renders
+     something rather than an empty notice: a redirect carrying a key nobody
+     wrote a line for is a bug, and a blank box hides it. */}}
 {{with .Err}}
 <div class="notice notice--warning">
-    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg><span>{{.}}</span>
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>
+        {{if eq . "no-email"}}Enter the email address to invite.
+        {{else if eq . "bad-email"}}That does not look like an email address.
+        {{else if eq . "taken"}}That address already has an account or an invite waiting.
+        {{else if eq . "long-note"}}That note is too long.
+        {{else if eq . "too-many"}}You already have as many invites waiting as this site allows. Withdraw one to send another.
+        {{else if eq . "none-left"}}You have no invites left.
+        {{else if eq . "mint-failed"}}Could not create an invite. Try again.
+        {{else if eq . "revoke-off"}}Withdrawing invites is turned off on this site.
+        {{else if eq . "revoke-failed"}}That invite could not be withdrawn &mdash; it may already have been claimed.
+        {{else if eq . "remove-failed"}}That invite could not be removed.
+        {{else}}Something went wrong ({{.}}).{{end}}
+    </span>
 </div>
 {{end}}
 
@@ -36,18 +53,40 @@
         <h2 class="panel__heading">
             <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#plus"></use></svg>You have {{.Balance}}
         </h2>
-        {{if .Balance}}
-        <div class="panel__actions">
-            <form method="post" action="/invites" style="display:contents">
-                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
-                <button class="button button--primary button--sm" type="submit">Create a code</button>
-            </form>
-        </div>
-        {{end}}
     </header>
     <div class="panel__body">
         {{if .Balance}}
-        <p class="text-muted small m-0">Each code works once and expires after two weeks.</p>
+        {{/* The address IS the invite now. It is the first field because it is
+             the decision — everything else here is optional — and it carries
+             type="email" so a phone offers the right keyboard and the browser
+             catches the obvious typo before the server has to. */}}
+        <form class="form" method="post" action="/invites">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div class="form__row">
+                <div class="form__group flex-grow-1">
+                    <label class="form__label" for="invite-email">
+                        Email address{{if not .Opt.EmailRequired}} <span class="text-muted">(optional)</span>{{end}}
+                    </label>
+                    <input class="form__input" type="email" id="invite-email" name="email"
+                           {{if .Opt.EmailRequired}}required{{end}}
+                           placeholder="them@example.com" autocomplete="off">
+                </div>
+                <button class="form__button form__button--filled" type="submit">
+                    <svg class="icon" aria-hidden="true"><use href="#send"></use></svg>Send invite
+                </button>
+            </div>
+            <div class="form__group">
+                <label class="form__label" for="invite-message">A note to them <span class="text-muted">(optional)</span></label>
+                <textarea class="form__input" id="invite-message" name="message" rows="2"
+                          maxlength="500" placeholder="Hi — thought you would like this."></textarea>
+            </div>
+            <p class="form__help">
+                {{if .Opt.EmailRequired}}The invite is locked to that address: only somebody signing up with it can use the code.
+                {{else}}Leave the address blank for a code you pass on yourself.{{end}}
+                It works once and expires after {{.Opt.TTLLabel}}.
+                {{if .Opt.MaxPending}} You can have {{.Opt.MaxPending}} waiting at a time.{{end}}
+            </p>
+        </form>
         {{else}}
         <div class="empty">No invites left. You can buy more in the <a href="/store">points store</a>.</div>
         {{end}}
@@ -65,18 +104,63 @@
     <div class="data-table-wrapper">
         <table class="data-table">
             <caption class="visually-hidden">Invite codes you have issued</caption>
-            <thead><tr><th>Code</th><th>Status</th><th>Issued</th><th>Expires</th></tr></thead>
+            <thead><tr>
+                <th>Sent to</th><th>Status</th><th class="data-table__nowrap">Issued</th>
+                <th class="data-table__nowrap">Expires</th>
+                <th class="data-table__shrink"><span class="visually-hidden">Actions</span></th>
+            </tr></thead>
             <tbody>
+                {{$opt := .Opt}}{{$csrf := .CSRFToken}}
                 {{range .Codes}}
                 <tr>
-                    <td><code>{{.Code}}</code></td>
                     <td>
-                        {{if .Spent}}<span class="chip chip--ok">Used by {{.UsedBy}}</span>
+                        <div class="data-table__name-body">
+                            {{if .Email}}<span class="data-table__title">{{.Email}}</span>
+                            {{else}}<span class="data-table__title text-muted">No address &mdash; pass it on yourself</span>{{end}}
+                            <div class="data-table__meta">
+                                <code>{{.Code}}</code>
+                                {{/* Whether the mail went is worth showing. An invite
+                                     that was never emailed is somebody to help; one
+                                     that was sent and ignored is not, and the two
+                                     look identical without this. */}}
+                                {{if .Email}}
+                                    {{if .Sent}}<span>emailed {{.Sent}}</span>
+                                    {{else}}<span class="text-muted">not emailed &mdash; send them the code</span>{{end}}
+                                {{end}}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {{if .Spent}}<span class="chip chip--ok">Claimed by {{.UsedBy}}{{if .Claimed}} &middot; {{.Claimed}}{{end}}</span>
+                        {{else if .WasRevoked}}<span class="chip">Withdrawn{{if .Revoked}} &middot; {{.Revoked}}{{end}}</span>
                         {{else if .Expired}}<span class="chip">Expired</span>
-                        {{else}}<span class="chip chip--warn">Unused</span>{{end}}
+                        {{else}}<span class="chip chip--warn">Waiting</span>{{end}}
                     </td>
                     <td class="data-table__nowrap">{{.Created}}</td>
-                    <td class="data-table__nowrap">{{.Expires}}</td>
+                    <td class="data-table__nowrap">{{if .Pending}}{{.Expires}}{{else}}<span class="text-muted">&mdash;</span>{{end}}</td>
+                    <td class="data-table__shrink">
+                        <div class="data-table__actions">
+                        {{/* Withdraw only while it can still be claimed — on a
+                             spent invite it would be a button that cannot do
+                             anything. Remove is the opposite: it is for the rows
+                             that are already over. */}}
+                        {{if and .Pending $opt.MemberRevoke}}
+                        <form method="post" action="/invites/revoke" style="display:contents">
+                            <input type="hidden" name="_csrf" value="{{$csrf}}">
+                            <input type="hidden" name="code" value="{{.Code}}">
+                            <button class="button button--outlined button--sm" type="submit"
+                                    title="Cancel this invite{{if $opt.RefundRevoked}} and take the invite back{{end}}">Withdraw</button>
+                        </form>
+                        {{else if not .Pending}}
+                        <form method="post" action="/invites/delete" style="display:contents">
+                            <input type="hidden" name="_csrf" value="{{$csrf}}">
+                            <input type="hidden" name="code" value="{{.Code}}">
+                            <button class="button button--outlined button--sm" type="submit"
+                                    title="Hide this from your list. The record is kept.">Remove</button>
+                        </form>
+                        {{end}}
+                        </div>
+                    </td>
                 </tr>
                 {{end}}
             </tbody>
