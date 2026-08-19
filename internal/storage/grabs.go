@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+
+	"github.com/the-loon-clan/loon-plugins/pluginapi"
 )
 
 // RecordGrab writes one row. Best-effort by design: a download that succeeded
@@ -103,4 +105,41 @@ func (st *Store) UploaderGrabTotals(ctx context.Context, since time.Time) (map[i
 		out[r.ReleaseID] = r.N
 	}
 	return out, nil
+}
+
+// RecentGrabs lists what one member downloaded, newest first, with the title
+// the index holds for each.
+//
+// The read behind pluginapi.DownloadGrabLookup: a download client reports on a
+// JOB, which has a name and no release id, so matching that name needs the
+// small set of releases this member actually chose. Scoping it to one member is
+// what makes matching by name safe — the alternative is comparing a mangled job
+// name against 160,000 titles and taking the closest.
+//
+// DISTINCT ON (release_id): a member who grabbed the same release three times
+// has one release to offer a matcher, not three, and the newest grab is the one
+// whose timing lines up with a job finishing now.
+//
+// Joins usenet.nzbs, which the host already does for the subscription digest —
+// grabs are the host's table and titles are the indexer's, and the alternative
+// is 200 capability lookups to render one match.
+func (st *Store) RecentGrabs(ctx context.Context, userID int64, limit int) ([]pluginapi.GrabbedRelease, error) {
+	if userID <= 0 {
+		return nil, nil
+	}
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	var rows []pluginapi.GrabbedRelease
+	err := st.db.SelectContext(ctx, &rows, SQL(`
+		SELECT DISTINCT ON (g.release_id) g.release_id AS id, n.title
+		  FROM release_grab g
+		  JOIN usenet.nzbs n ON n.id = g.release_id
+		 WHERE g.user_id = $1
+		 ORDER BY g.release_id, g.created_at DESC
+		 LIMIT $2`), userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
 }

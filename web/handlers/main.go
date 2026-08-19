@@ -71,6 +71,12 @@ import (
 	_ "github.com/the-loon-clan/loon-plugins/medals"
 	"github.com/the-loon-clan/loon-plugins/store"
 
+	// downloads: the callback a member's SABnzbd or NZBGet posts when a job
+	// finishes. Self-contained over three lookups (auth.apikey, usenet.recheck,
+	// usenet.grabs), all registered just before core.Boot, so the import is the
+	// wiring — but the endpoint refuses everything until auth.apikey exists,
+	// which is deliberate and logged.
+	_ "github.com/the-loon-clan/loon-plugins/downloads"
 	// events owns scheduled windows — the WHEN other plugins hang behaviour on.
 	// Lifted out of rewards, which now GATES on it: rewards links its admin page
 	// at /admin/p/events, and without this import that link 404s. Self-contained
@@ -724,6 +730,34 @@ func Main() {
 	// an operator arranging a page should not be able to tell which came from
 	// where. See widgetsbuiltin_web.go.
 	wsrv.registerBuiltinWidgets(c)
+
+	// ── What the downloads plugin needs from this host ──────────────────────
+	//
+	// REGISTERED, not looked up: these go the other way. The plugin's report
+	// endpoint is machine-facing, so it cannot use a session — it needs to
+	// know which member a key belongs to, and which releases that member
+	// downloaded, and both of those are the host's to answer.
+	//
+	// BEFORE core.Boot, and that placement is the whole of the bug this fixed.
+	// Plugins look these up in Start, Start runs inside Boot, and registering
+	// them in the admin wiring — which runs after Boot returns — meant the
+	// plugin logged all three as absent and refused every report while the
+	// host believed it had wired them.
+	if err := c.Register(pluginapi.APIKeyResolverName,
+		pluginapi.APIKeyResolver(apiKeyResolver{st.apiKeys})); err != nil {
+		logger.Error("register api key resolver", "err", err)
+	}
+	if err := c.Register(pluginapi.DownloadGrabLookupName,
+		pluginapi.DownloadGrabLookup(data)); err != nil {
+		logger.Error("register grab lookup", "err", err)
+	}
+	// NOT registered: pluginapi.ReleaseRecheckName. This demo runs the indexer
+	// in internal mode, where the usenet plugin owns its own nzbs table and
+	// there is no host-side recheck flag to set — see the health backend's own
+	// note that internal mode never yields a user-requested row. So a failure
+	// report here is recorded and nothing more, which the plugin logs at boot
+	// and says on its member page. A host running the indexer in sink mode
+	// registers this and gets the other half.
 
 	rt, err := core.Boot(ctx, c)
 	if err != nil {

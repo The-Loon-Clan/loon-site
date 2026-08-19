@@ -41,7 +41,19 @@ func CSRF() gin.HandlerFunc {
 		// which doesn't embed the host CSRF token — a production host (see the
 		// prod indexer's AdminHandler.JobConfig) uses its own config handler
 		// that carries it. Exempt it rather than fork the framework's template.
-		if p := c.FullPath(); p == "/api" || p == "/rss" || p == "/admin/jobs/config" {
+		// /api/downloads/report is the same case one step further: it is a POST
+		// made by a script running inside a member's SABnzbd or NZBGet, which
+		// has no browser, no session and no page to have been issued a token
+		// on. It carries the member's API key like the two above, and the
+		// plugin refuses outright when no resolver is registered — so the
+		// credential is real, it is simply not a cookie.
+		//
+		// Listed by exact path rather than a /api prefix: a prefix would exempt
+		// every future route under it, including one somebody adds for a
+		// browser form, and that is the kind of blanket rule this file exists
+		// to avoid.
+		if p := c.FullPath(); p == "/api" || p == "/rss" || p == "/admin/jobs/config" ||
+			p == "/api/downloads/report" {
 			c.Next()
 			return
 		}
