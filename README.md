@@ -246,6 +246,12 @@ and states where it leads, where it is behind, and what stands between it and a
 release. Short version: the best test ratio and the only measured coverage of
 the four, and the only one running everything in a single process.
 
+[docs/FEATURE-GAPS.md](docs/FEATURE-GAPS.md) is the other half of that question:
+what the genre offers that this site has never had at all, sized by what it
+would cost to build HERE. Short version — the reward systems are ahead of the
+field and the ordinary things are behind it, so the cheapest wins are all
+boring ones.
+
 ## Releases
 
 Tagging `v*` runs the full checks against that commit, publishes a multi-arch

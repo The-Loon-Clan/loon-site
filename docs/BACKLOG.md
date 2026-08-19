@@ -8,6 +8,12 @@ survives.
 Ordered by what I would pick up first. Nothing here is blocking; the site is
 healthy as of Aug 2026 (125 pages crawled, no 5xx, no truncated pages).
 
+Everything here is about work already STARTED. Features the genre has that this
+site has never had at all — release comments, freeleech tokens, send-to-SABnzbd,
+saved searches, an invite tree — live in
+[FEATURE-GAPS.md](FEATURE-GAPS.md) instead, because "wrong" and "absent" are
+different problems and mixing them buries the first.
+
 ---
 
 ## 1. Host↔plugin contracts fail silently
