@@ -59,6 +59,7 @@ func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup
 		navItem{Href: "/moderation", Label: "Community"},
 		navItem{Href: "/admin/access", Label: "Access"},
 		navItem{Href: "/admin/covers", Label: "Cover art"},
+		navItem{Href: "/admin/invites", Label: "Invite chain"},
 		navItem{Href: "/admin/contracts", Label: "Contracts"},
 		navItem{Href: "/admin/pages", Label: "Pages"},
 		navItem{Href: "/admin/nav", Label: "Navigation"},

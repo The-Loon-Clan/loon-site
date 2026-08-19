@@ -78,6 +78,9 @@ func wireAdminAndViews(
 	// Where cover art comes from (coversadmin_web.go + covermode_web.go).
 	admin.GET("/covers", wsrv.adminCovers)
 	admin.POST("/covers", wsrv.adminCoversSave)
+	// Who vouched for whom (invitesadmin_web.go). A READ of columns invite
+	// codes have always carried — no table, no migration.
+	admin.GET("/invites", wsrv.adminInvites)
 	// The page editor: where an operator puts registered widgets
 	// (widgetsadmin_web.go). One region at a time, chosen by ?region=.
 	mountWidgetsAdmin(admin, wsrv)

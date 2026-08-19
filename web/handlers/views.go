@@ -144,6 +144,8 @@ var pageTemplates = []string{
 	"home.html", "groups.html", "search.html", "browse.html", "release.html",
 	// Releases grouped by show (series_web.go).
 	"series_index.html", "series.html",
+	// The staff view of who vouched for whom (invitesadmin_web.go).
+	"admin_invites.html",
 	"trending.html", "bookmarks.html", "follows.html", "calendar.html",
 	"achievements.html", "forum_activity.html", "rewards.html", "subscriptions.html",
 	"invites.html", "gifts.html", "wishlist.html",

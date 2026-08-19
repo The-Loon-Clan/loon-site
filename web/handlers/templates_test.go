@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/the-loon-clan/loon-site/internal/i18n"
+	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	site "github.com/the-loon-clan/loon-site"
 
@@ -571,6 +572,25 @@ func TestPagesExecuteWithRealData(t *testing.T) {
 			"Section": &settingsSection{Slug: "usenet", Title: "Usenet",
 				Fragment: template.HTML("<div class=\"card\">cfg</div>")}},
 		"site_page.html": {"Title": "Inbox", "Page": template.HTML("<div class=\"card\">body</div>")},
+		// The staff invite chain, populated both ways — the upline is the half
+		// that did not exist before, and an empty one is a REAL answer, so the
+		// case below is the populated one and the no-data sweep covers the other.
+		"admin_invites.html": {"Title": "Invite chain", "Query": "carol", "MaxDepth": 5,
+			"Subject": &core.User{ID: 3, Username: "carol", Role: core.RoleUser},
+			"Upline": []storage.InviteUplineRow{
+				{Distance: 1, Username: "bob", Role: int(core.RoleUser), Joined: "01 Mar 2026", Invited: 4},
+				{Distance: 2, Username: "alice", Role: int(core.RoleAdmin), Joined: "02 Jan 2026", Invited: 9},
+			},
+			"Tree": []storage.InviteTreeRow{
+				{Depth: 1, Indent: 0, Username: "dave", Role: int(core.RoleUser), Joined: "10 Apr 2026", Invited: 2},
+				{Depth: 2, Indent: 1, Username: "erin", Role: int(core.RoleUser), Joined: "12 Apr 2026"},
+			},
+			"Totals": storage.InviteTreeTotals{People: 2, Generations: 2},
+			"Recruiters": []storage.RecruiterRow{
+				{UserID: 1, Username: "alice", Role: int(core.RoleAdmin), Direct: 9, Descendants: 31, LastInvited: "18 Aug 2026"},
+				// No LastInvited: the em-dash branch rather than a blank cell.
+				{UserID: 2, Username: "bob", Role: int(core.RoleUser), Direct: 4, Descendants: 4},
+			}},
 		"series_index.html": {"Title": "Series", "Query": "", "Total": 5284,
 			"Series": []pluginapi.SeriesRow{
 				{Key: "someshow", Name: "Some Show", Releases: 612, Seasons: 4, Latest: "2026-08-01"},

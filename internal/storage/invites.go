@@ -196,3 +196,142 @@ func (st *Store) MintInviteCode(ctx context.Context, userID int64, code, ttl str
 	}
 	return true, tx.Commit()
 }
+
+// ── Reading the chain the other way, and from the outside ───────────────────
+//
+// InviteTree above walks DOWN from a member: who they brought, and who those
+// people brought. It is the member's own view, and /invites has rendered it
+// since codes landed.
+//
+// What follows is the half a moderator needs, and it is a different question
+// asked of the same two columns. The schema comment on invite_codes states the
+// purpose outright — "if an account turns out to be a problem, 'who vouched for
+// them' is the first question, and a schema that cannot answer it makes
+// invite-only a formality" — and until now nothing asked it. The chain could
+// only be walked downward, by the one person who could not be asked about it
+// impartially: the recruiter themselves.
+
+// InviteUplineRow is one member in the chain that vouched for somebody.
+type InviteUplineRow struct {
+	// Distance is 1 for the direct inviter, 2 for whoever invited them, and so
+	// on — how many degrees of vouching separate them from the account in
+	// question.
+	Distance int    `db:"distance"`
+	Username string `db:"username"`
+	Role     int    `db:"role"`
+	Joined   string `db:"joined"`
+	// Invited is how many that member has brought in total. A recruiter with
+	// one bad account is unlucky; one with forty is the actual problem, and
+	// this is the number that tells them apart.
+	Invited int `db:"invited"`
+}
+
+// InviteUpline returns who vouched for a member, nearest first.
+//
+// The mirror of InviteTree — the same recursion over the same two columns with
+// created_by and used_by swapped — and the same depth cap for the same reason:
+// the invariant that an account is invited once is an invariant of the SITE,
+// not of the table, and a recursive query should not stake a database
+// connection on a uniqueness nothing enforces.
+//
+// An empty result is the ordinary answer for a founder, for anyone who joined
+// while registration was open, and for a seeded account. That is not a gap to
+// fill with a guess: "nobody vouched for them" and "we do not know" are the
+// same fact here, and the page says the honest version of it.
+func (st *Store) InviteUpline(ctx context.Context, userID int64) []InviteUplineRow {
+	if userID <= 0 {
+		return nil
+	}
+	var rows []InviteUplineRow
+	if err := st.db.SelectContext(ctx, &rows, `
+		WITH RECURSIVE up AS (
+		    SELECT ic.created_by AS user_id, 1 AS distance
+		      FROM invite_codes ic
+		     WHERE ic.used_by = $1
+		    UNION ALL
+		    SELECT ic.created_by, u.distance + 1
+		      FROM invite_codes ic
+		      JOIN up u ON ic.used_by = u.user_id
+		     WHERE u.distance < $2
+		)
+		SELECT up.distance,
+		       usr.username,
+		       usr.role,
+		       to_char(usr.created_at, 'DD Mon YYYY') AS joined,
+		       (SELECT count(*) FROM invite_codes c2
+		         WHERE c2.created_by = usr.id AND c2.used_by IS NOT NULL) AS invited
+		  FROM up
+		  JOIN users usr ON usr.id = up.user_id
+		 ORDER BY up.distance`, userID, InviteTreeDepth); err != nil {
+		// Logged, never swallowed — for the reason InviteTree gives: an empty
+		// chain and a failed query look identical on the page, and "nobody
+		// vouched for them" is a confident answer to a question that was never
+		// asked.
+		slog.Error("invite upline read", "user", userID, "err", err)
+		return nil
+	}
+	return rows
+}
+
+// RecruiterRow is one member on the recruiters overview.
+type RecruiterRow struct {
+	UserID   int64  `db:"user_id"`
+	Username string `db:"username"`
+	Role     int    `db:"role"`
+	// Direct is how many accounts they personally brought in. Descendants is
+	// the whole subtree beneath them, which is the number that matters: a
+	// recruiter who brought three people who each brought ten is responsible
+	// for thirty-three accounts, and a page ranking on Direct alone would list
+	// them below somebody who brought four and stopped.
+	Direct      int    `db:"direct"`
+	Descendants int    `db:"descendants"`
+	LastInvited string `db:"last_invited"`
+}
+
+// TopRecruiters ranks members by the size of the chain beneath them.
+//
+// The ENTRY POINT for the staff page, and it exists because the obvious design
+// does not work: a lookup box alone requires already suspecting somebody, and
+// the accounts worth looking at are precisely the ones nobody has thought to
+// type in. Ranking by subtree size surfaces them without being asked.
+func (st *Store) TopRecruiters(ctx context.Context, limit int) []RecruiterRow {
+	if limit <= 0 || limit > 200 {
+		limit = 25
+	}
+	var rows []RecruiterRow
+	// One recursive pass over the whole table, then a group-by: the subtree
+	// size for every recruiter at once. The alternative — a per-recruiter
+	// recursive subquery — re-walks the same edges once per row.
+	if err := st.db.SelectContext(ctx, &rows, `
+		WITH RECURSIVE edges AS (
+		    SELECT created_by AS root, used_by AS descendant, 1 AS depth
+		      FROM invite_codes
+		     WHERE used_by IS NOT NULL
+		    UNION ALL
+		    SELECT e.root, ic.used_by, e.depth + 1
+		      FROM invite_codes ic
+		      JOIN edges e ON ic.created_by = e.descendant
+		     WHERE ic.used_by IS NOT NULL AND e.depth < 5
+		)
+		SELECT u.id AS user_id, u.username, u.role,
+		       -- DISTINCT on both, and the join to invite_codes is a SUBQUERY
+		       -- rather than a LEFT JOIN. Joining it here multiplies every edge
+		       -- row by the recruiter's code count: alice with two codes and two
+		       -- direct invites reported four. Descendants survived only because
+		       -- it already counted DISTINCT, which is what made the bug look
+		       -- like a plausible number instead of an obvious one.
+		       count(DISTINCT e.descendant) FILTER (WHERE e.depth = 1) AS direct,
+		       count(DISTINCT e.descendant)                            AS descendants,
+		       COALESCE((SELECT to_char(max(ic.used_at), 'DD Mon YYYY')
+		                   FROM invite_codes ic
+		                  WHERE ic.created_by = u.id AND ic.used_by IS NOT NULL), '') AS last_invited
+		  FROM edges e
+		  JOIN users u ON u.id = e.root
+		 GROUP BY u.id, u.username, u.role
+		 ORDER BY descendants DESC, direct DESC, u.username
+		 LIMIT $1`, limit); err != nil {
+		slog.Error("top recruiters read", "err", err)
+		return nil
+	}
+	return rows
+}

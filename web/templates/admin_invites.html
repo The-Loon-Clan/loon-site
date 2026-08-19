@@ -1,0 +1,183 @@
+{{/* The staff view of the invite chain.
+
+     Two surfaces, and the order is deliberate. The recruiters board comes
+     FIRST because a lookup box alone requires already suspecting somebody, and
+     the accounts worth looking at are the ones nobody has thought to type in.
+     The lookup is for when you arrive with a name. */}}
+
+{{define "content"}}
+<header>
+    <h1 class="h3 m-0">Invite chain</h1>
+    <p class="text-muted small m-0 mt-1">
+        Who vouched for whom. Read from the <code>created_by</code> and <code>used_by</code>
+        columns every invite code has always carried &mdash; nothing here is a new record,
+        it is the question those columns were kept for.
+    </p>
+</header>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#search"></use></svg>
+            Look up a member
+        </h2>
+        {{if .Query}}
+        <div class="panel__actions"><a class="panel__action" href="/admin/invites">Clear</a></div>
+        {{end}}
+    </header>
+    <div class="panel__body">
+        <form class="form" method="get" action="/admin/invites">
+            <div class="form__row">
+                <div class="form__group flex-grow-1">
+                    <label class="form__label" for="user">Username</label>
+                    <input class="form__input" type="search" id="user" name="user" value="{{.Query}}"
+                           placeholder="Who vouched for&hellip;">
+                </div>
+                <button class="form__button form__button--filled" type="submit">
+                    <svg class="icon" aria-hidden="true"><use href="#search"></use></svg>Trace
+                </button>
+            </div>
+        </form>
+    </div>
+</section>
+
+{{if .NotFound}}
+<p class="notice notice--info">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>No member called &ldquo;{{.Query}}&rdquo;.</span>
+</p>
+{{end}}
+
+{{with .Subject}}
+{{/* ── The upline: who vouched, nearest first ──────────────────────────── */}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#shield"></use></svg>
+            Who vouched for {{.Username}}
+        </h2>
+    </header>
+    <div class="panel__body">
+        {{if $.NoUpline}}
+        {{/* A real answer, not a gap. See InviteUpline: "nobody vouched for
+             them" and "we do not know" are the same fact here, and inventing a
+             difference would be worse than stating it. */}}
+        <p class="m-0 text-muted">
+            Nobody &mdash; no invite code was redeemed for this account. That is the ordinary
+            state for a founder, for anyone who joined while registration was open, and for a
+            seeded account.
+        </p>
+        {{else}}
+        <ul class="invite-tree">
+            {{range $.Upline}}
+            <li class="invite-tree__row invite-tree__row--d{{.Distance}}">
+                <span class="invite-tree__branch" aria-hidden="true"></span>
+                {{template "user-tag" (dict "Name" .Username "Role" .Role)}}
+                <span class="text-muted small">
+                    {{if eq .Distance 1}}invited them directly{{else}}{{.Distance}} steps up{{end}}
+                    &middot; joined {{.Joined}}
+                </span>
+                {{/* The number that separates unlucky from responsible: one bad
+                     account is chance, forty is a pattern. */}}
+                {{if .Invited}}<span class="chip chip--accent">invited {{.Invited}}</span>{{end}}
+                <a class="small" href="/admin/invites?user={{.Username}}">trace</a>
+            </li>
+            {{end}}
+        </ul>
+        {{end}}
+    </div>
+</section>
+
+{{/* ── The downline: what they brought ──────────────────────────────────── */}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#users"></use></svg>
+            What {{.Username}} brought
+        </h2>
+        {{with $.Totals}}
+        {{if .People}}
+        <div class="panel__actions">
+            <span class="panel__grouping">
+                {{.People}} account{{if ne .People 1}}s{{end}} over
+                {{.Generations}} generation{{if ne .Generations 1}}s{{end}}
+            </span>
+        </div>
+        {{end}}
+        {{end}}
+    </header>
+    <div class="panel__body">
+        {{if $.Tree}}
+        <ul class="invite-tree">
+            {{range $.Tree}}
+            <li class="invite-tree__row invite-tree__row--d{{.Indent}}">
+                <span class="invite-tree__branch" aria-hidden="true"></span>
+                {{template "user-tag" (dict "Name" .Username "Role" .Role)}}
+                <span class="text-muted small">joined {{.Joined}}</span>
+                {{if .Invited}}<span class="chip chip--accent">invited {{.Invited}}</span>{{end}}
+                <a class="small" href="/admin/invites?user={{.Username}}">trace</a>
+            </li>
+            {{end}}
+        </ul>
+        <p class="m-0 mt-2 small text-muted">
+            Capped at {{$.MaxDepth}} generations &mdash; an invite chain cannot cycle in
+            practice, but the recursion does not stake a database connection on it.
+        </p>
+        {{else}}
+        <p class="m-0 text-muted">Nobody &mdash; no code this member issued has been redeemed.</p>
+        {{end}}
+    </div>
+</section>
+{{end}}
+
+{{/* ── The board: who to look at without being told ─────────────────────── */}}
+<section class="panelV2 panelV2--overflow">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#database"></use></svg>
+            Biggest chains
+        </h2>
+        {{if .Recruiters}}<div class="panel__actions"><span class="panel__grouping">{{len .Recruiters}} shown</span></div>{{end}}
+    </header>
+
+    {{if .Recruiters}}
+    <div class="data-table-wrapper">
+        <table class="data-table data-table--stack">
+            <caption class="visually-hidden">Members ranked by the size of the invite chain beneath them</caption>
+            <thead>
+                <tr>
+                    <th>Member</th>
+                    <th class="data-table__num" title="Accounts they personally invited">Direct</th>
+                    <th class="data-table__num" title="Everybody beneath them, all generations">Chain</th>
+                    <th class="data-table__nowrap">Last invited</th>
+                    <th class="data-table__shrink"><span class="visually-hidden">Trace</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Recruiters}}
+                <tr>
+                    <td>{{template "user-tag" (dict "Name" .Username "Role" .Role)}}</td>
+                    <td class="data-table__num">{{.Direct}}</td>
+                    {{/* Ranked on this, not on Direct: somebody who brought three
+                         people who each brought ten is responsible for
+                         thirty-three accounts, and ordering by Direct would file
+                         them below somebody who brought four and stopped. */}}
+                    <td class="data-table__num">{{.Descendants}}</td>
+                    <td class="data-table__nowrap">
+                        {{if .LastInvited}}{{.LastInvited}}{{else}}<span class="text-muted">&mdash;</span>{{end}}
+                    </td>
+                    <td class="data-table__shrink">
+                        <a class="button button--outlined button--sm" href="/admin/invites?user={{.Username}}">Trace</a>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="panel__body">
+        <div class="empty">No invite code has been redeemed yet, so there is no chain to show.</div>
+    </div>
+    {{end}}
+</section>
+{{end}}

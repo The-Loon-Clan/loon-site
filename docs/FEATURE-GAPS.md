@@ -35,7 +35,7 @@ economy features — none of these need a swarm.
 - [ ] **Thanks / kudos between members** — `S` — one click, both parties get something
 - [ ] **General leaderboards** — `S` — top grabbers, top uploaders, top posters, week and all time
 - [ ] **Polls** — `S` — staff use them for rule changes, members for arguments
-- [ ] **Invite tree** — `S` — who invited whom, walkable, so a bad recruiter is one click
+- [x] **Invite tree** — `S` — who invited whom, walkable, so a bad recruiter is one click
 - [ ] **Cart / bulk grab** — `S` — tick ten rows, one zip or one push to the downloader
 - [ ] **Saved searches that notify** — `M` — "tell me when anything matching this lands"
 - [ ] **MediaInfo and screenshots** — `M` — how you pick between six copies of one episode
@@ -143,14 +143,31 @@ changes and category decisions; members use them for arguments.
 widget shortcode (`[widget slug config]`) makes a poll placeable on any page
 the day it exists.
 
-## Invite tree — S
+## Invite tree — S — DONE 19 Aug 2026
 
 Who invited whom, as a walkable tree, so a bad recruiter's whole subtree is one
 click for staff. Universal on invite-only sites, and the reason invites are
 taken seriously anywhere.
 
-**Here:** invites are issued and redeemed, but the edge is not kept as a
-relationship anyone can query. One column and a staff page.
+**This entry was wrong when written.** It claimed "the edge is not kept as a
+relationship anyone can query". The edge was always kept — `invite_codes`
+records `created_by` and `used_by`, and its own schema comment says why — and
+the member-facing half had been rendering it at `/invites` since codes landed:
+your own downline, five generations, with join dates and an "invited N" chip.
+A reminder to check the tree before believing a gap list, this one included.
+
+**What was actually missing** was the other direction and the other audience.
+The chain could only be walked DOWNWARD, by the one person who cannot be asked
+about it impartially — the recruiter. Nothing answered the question the schema
+comment names as the whole point: *who vouched for this account*.
+
+Built as `/admin/invites`: the upline (who vouched, nearest first, with each
+one's total recruits), the downline, and a board ranking members by subtree
+size. The board is load-bearing rather than decorative — a lookup box alone
+requires already suspecting somebody, and the accounts worth looking at are the
+ones nobody has thought to type in.
+
+Still a READ. No table, no migration, no new column.
 
 ## Cart / bulk grab — S
 
