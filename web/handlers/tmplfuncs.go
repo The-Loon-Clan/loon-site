@@ -120,6 +120,13 @@ func tmplHelpers() template.FuncMap {
 		// about forty of them with nothing but a display name — see
 		// cosmetics_web.go on why that shape forces a cache.
 		"nameFX":    nameEffectClass,
+		// The other three cosmetic slots. avatarFX is called INSIDE the avatar
+		// template, so every picture on the site gets its owner's frame with no
+		// call site changing; profileFX and memberTitle have one call site each,
+		// on the profile page.
+		"avatarFX":    avatarEffectClass,
+		"profileFX":   profileEffectClass,
+		"memberTitle": memberTitle,
 		"roleLabel": roleLabel,
 		"eqID":      eqID,
 		"hasPrefix": strings.HasPrefix,

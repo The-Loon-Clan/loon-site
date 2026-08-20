@@ -51,9 +51,16 @@
 {{end}}
 {{/* <aside> first in the DOM: it is the subject of the page, so it should be
      read first and it must come first when the split stacks at 867px. */}}
+{{/* The member's own ground behind their card, if they wear one, and their
+     approved title under their name. Both resolved by username — see
+     cosmetics_web.go — so this page passes nothing extra through its view
+     model, and a site without the cosmetics plugin renders exactly the markup
+     it did before. */}}
+{{$ground := profileFX .Subject.Username}}
+{{$title := memberTitle .Subject.Username}}
 <div class="sidebar2">
     <aside>
-        <section class="panelV2">
+        <section class="panelV2{{if $ground}} {{$ground}}{{end}}">
             <div class="panel__body">
                 <div class="user-stat-card">
                     {{template "avatar" dict "Path" .SubjectAvatar "Name" .Subject.Username "Size" "lg" "Class" "user-stat-card__avatar" "Px" 128}}
@@ -108,6 +115,15 @@
                         <span class="visually-hidden">Email verified</span>
                         {{end}}
                     </h1>
+                    {{/* Their own words, above the role. Above rather than
+                         below because the role is what the SITE says they are
+                         and the title is what they say they are, and a reader
+                         glancing at a profile wants the person before the
+                         category. Staff passed these words; see the queue at
+                         /admin/p/titles. */}}
+                    {{with $title.Text}}
+                    <p class="user-stat-card__title{{if $title.FX}} {{$title.FX}}{{end}}">{{.}}</p>
+                    {{end}}
                     <span class="user-stat-card__rank">{{roleName .Subject.Role}}</span>
                     {{if not .Subject.CreatedAt.IsZero}}
                     <p class="user-stat-card__stat">Member since {{shortDate .Subject.CreatedAt}}</p>

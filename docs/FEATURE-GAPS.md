@@ -31,7 +31,7 @@ economy features — none of these need a swarm.
 
 - [ ] **Send to SABnzbd / NZBGet** — `S` — one click queues the NZB instead of saving it
 - [x] **Comments on a release** — `S` — the most-used social surface on any site of this kind
-- [x] **Cosmetics as store items** — `S` — eight name effects, bought or granted; no custom text
+- [x] **Cosmetics as store items** — `S` — four slots, sixteen effects, and reviewed custom titles
 - [x] **Thanks / kudos between members** — `S` — one click; the author is paid, the giver is not
 - [ ] **General leaderboards** — `S` — top grabbers, top uploaders, top posters, week and all time
 - [x] **Polls** — `S` — one widget, placed wherever the question belongs
@@ -127,10 +127,23 @@ a currency that otherwise inflates.
 kinds from any plugin. Ranks and medals already prove the display side, and
 medals' icon picker already reads `icons.catalogue`.
 
-Built as the `cosmetics` plugin: eight NAME EFFECTS — four still auras, four
-that move (pulse, shimmer, rainbow, sparkle). Every other reward on this site
-pays in numbers, and a number is invisible to everybody except its owner; this
-is the only one anybody else can see, which is the whole of why it works.
+Built as the `cosmetics` plugin. Every other reward on this site pays in
+numbers, and a number is invisible to everybody except its owner; this is the
+only one anybody else can see, which is the whole of why it works.
+
+**Four slots**, because a slot is a PLACE rather than a kind of effect:
+
+| Slot | What it draws | Catalogue |
+|---|---|---|
+| Username | wherever a name appears | 8 text effects |
+| Title | the member's own words, under the name | the same 8 |
+| Avatar frame | a ring around the picture | 4 rings |
+| Profile background | the ground behind the profile card | 4 washes |
+
+Name and title share a catalogue on purpose: an aura is an aura whether it is
+on a username or the line under it, and somebody who owns one should be able to
+put it on either without buying it twice. You can wear a gold aura on your name
+and a rainbow on your title.
 
 The host's own `user-tag` template is what made it worth doing. It carried the
 note that donor sparkle backgrounds and group gradients were *"deliberately NOT
@@ -155,8 +168,31 @@ fails silently — the sale succeeds, the name renders plain — so
 `TestEveryEffectHasCSS` asserts the stylesheet covers every entry, and a second
 test asserts every animated one is answered under reduced motion.
 
-**Not done: custom titles.** User-supplied words rendered beside a name on
-every page they appear on is a moderation surface, and a different feature.
+**Custom titles are not a cosmetic**, and are built as the exception. They are
+text somebody TYPED, published beside their name on every page they appear on —
+the highest-leverage piece of user-supplied text on the site per character, and
+the only part of this plugin with a moderation surface. So the shop sells the
+RIGHT to propose one and staff pass the words; buying publishes nothing.
+
+Two things that only showed up once it ran:
+
+- Editing an approved title used to take it down until review. The words being
+  PROPOSED and the words SHOWING are now separate columns, so a member who
+  changes one word keeps their title up, and a refused edit costs them nothing
+  they already had.
+- Editing always returns to the queue, including over an approved title —
+  otherwise the queue is bypassable in two moves: submit something harmless,
+  get it passed, edit it into anything.
+
+Rejections require a reason and the member reads it: a title turned down with
+no explanation is one they send straight back.
+
+The input filter is NOT moderation and does not pretend to be — no character
+check substitutes for a person reading it. What it removes is the tricks that
+are about the RENDERING rather than the words: control characters, the bidi
+overrides that let text escape its own element and reorder the username drawn
+beside it, combining marks stacked deep enough to paint over the row above, and
+whitespace runs that make a short title occupy a tall one.
 
 ## Thanks / kudos between members — S — DONE 20 Aug 2026
 

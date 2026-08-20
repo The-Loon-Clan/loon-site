@@ -1052,6 +1052,13 @@
 {{- with .Size}}{{$cls = printf "%s avatar--%s" $cls .}}{{end -}}
 {{- if .Round}}{{$cls = printf "%s avatar--round" $cls}}{{end -}}
 {{- with .Class}}{{$cls = printf "%s %s" $cls .}}{{end -}}
+{{/* The owner's frame, if they wear one (cosmetics_web.go). Applied HERE
+     rather than passed in, so every avatar on the site gets it and not one
+     call site changes — the same bargain user-tag makes for names. Name is
+     what identifies them; a caller that passes only a Path gets no frame,
+     which is correct, because nothing on that call knows whose picture it
+     is. */}}
+{{- with avatarFX (str .Name)}}{{$cls = printf "%s %s" $cls .}}{{end -}}
 {{/* Path through str, exactly as Name below already is. A caller may hand this
      a *string — a nullable avatar_path off a LEFT JOIN — and a NON-NIL pointer
      to "" is truthy in a template, so {{if .Path}} took the image branch and

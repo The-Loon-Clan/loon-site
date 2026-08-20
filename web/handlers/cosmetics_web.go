@@ -40,10 +40,33 @@ var registry atomic.Pointer[core.Core]
 func SetCosmetics(c *core.Core) { registry.Store(c) }
 
 // nameEffectClass returns the class to put on a rendered username, or "".
-func nameEffectClass(name string) string {
+func nameEffectClass(name string) string { return slotClass(pluginapi.SlotName, name) }
+
+// avatarEffectClass is the frame around a member's picture. Applied inside the
+// avatar template itself, so every avatar on the site gets it and no call site
+// changes — the same bargain user-tag makes for names.
+func avatarEffectClass(name string) string { return slotClass(pluginapi.SlotAvatar, name) }
+
+// profileEffectClass is the ground behind a profile card. One call site, since
+// there is one profile page.
+func profileEffectClass(name string) string { return slotClass(pluginapi.SlotProfile, name) }
+
+func slotClass(slot, name string) string {
 	c := registry.Load()
 	if c == nil {
 		return ""
 	}
-	return pluginapi.NameClass(c, name)
+	return pluginapi.SlotClass(c, slot, name)
+}
+
+// memberTitle is a member's approved words and the effect worn on them.
+//
+// Returns the zero Title for almost everybody, which is what the caller checks:
+// a title is bought, written and passed by staff before it exists at all.
+func memberTitle(name string) pluginapi.Title {
+	c := registry.Load()
+	if c == nil {
+		return pluginapi.Title{}
+	}
+	return pluginapi.MemberTitle(c, name)
 }

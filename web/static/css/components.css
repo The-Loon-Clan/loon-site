@@ -4428,3 +4428,199 @@ a.episode__link:hover {
         gap: var(--space-4);
     }
 }
+
+/* ---------------------------------------------------------------------------
+   Avatar frames
+
+   A ring around the picture, drawn as a BOX-SHADOW rather than a border because
+   a border changes the element's size: every avatar on the site is laid out
+   beside text at a fixed width, and a 3px border would shove forty rows of a
+   listing sideways for the one member who bought a frame.
+
+   Sized in em so one rule serves the 30px avatar in a table and the 128px one
+   on a profile. Everything here has to survive being 30 pixels across, which is
+   why the frames are rings and not scenes.
+   --------------------------------------------------------------------------- */
+
+.fx-frame-gold { box-shadow: 0 0 0 2px #f6c45a, 0 0 9px rgba(246, 196, 90, .55); }
+.fx-frame-ice  { box-shadow: 0 0 0 2px #8ad4f5, 0 0 9px rgba(138, 212, 245, .55); }
+
+/* Hotter at the bottom, which is what makes it read as heat rather than as a
+   second gold ring. */
+.fx-frame-ember {
+    box-shadow:
+        0 0 0 2px #f58a63,
+        0 2px 11px rgba(214, 66, 22, .7),
+        0 0 6px rgba(245, 138, 99, .4);
+}
+
+/* The moving ring, and the FOURTH attempt at it — the three that did not work
+   are worth recording, because each looked correct in the stylesheet:
+     - a conic-gradient pseudo-element inset by -3px, which .avatar clips away
+       entirely with its own overflow: hidden;
+     - the same with overflow forced visible, which then unclips the square
+       fallback tile inside a round avatar;
+     - and either of those on an <img> avatar, where ::before is never
+       generated at all because a replaced element has no content box to
+       generate it in.
+   A box-shadow has none of those problems: not clipped by overflow, drawn on
+   an img as readily as a span, and outside the border box so it adds nothing
+   to the layout — which matters, because every avatar on this site sits in a
+   row beside text at a fixed width and a 3px border would shove forty rows of
+   a listing sideways for the one member who bought a frame. */
+.fx-frame-prism { animation: fx-ring 7s linear infinite; }
+
+@keyframes fx-ring {
+    0%   { box-shadow: 0 0 0 2px #f6c45a, 0 0 9px rgba(246, 196, 90, .55); }
+    33%  { box-shadow: 0 0 0 2px #8ad4f5, 0 0 9px rgba(138, 212, 245, .55); }
+    66%  { box-shadow: 0 0 0 2px #e599f7, 0 0 9px rgba(229, 153, 247, .55); }
+    100% { box-shadow: 0 0 0 2px #f6c45a, 0 0 9px rgba(246, 196, 90, .55); }
+}
+
+/* ---------------------------------------------------------------------------
+   Profile grounds
+
+   Painted on the profile card's own panel, so the gradient sits behind the
+   avatar, the name and the figures without touching any of them.
+
+   The panel keeps its own background underneath — these are layered ON, at low
+   opacity, rather than replacing it. A ground that replaced the surface colour
+   would take the card's contrast with it, and every figure on it is text
+   somebody has to read.
+   --------------------------------------------------------------------------- */
+
+.fx-bg-aurora,
+.fx-bg-ember,
+.fx-bg-deep,
+.fx-bg-drift {
+    position: relative;
+    overflow: hidden;
+    /* The card's own children sit above the wash. */
+    isolation: isolate;
+}
+
+/* .panel__body paints --panel-bg AGAIN, opaquely, over the whole card — so the
+   wash was drawn on the panel and then covered by its own body, and the effect
+   rendered as nothing on a page where the class was demonstrably applied. The
+   panel underneath is already the same colour, so dropping the repeat costs
+   the card nothing and lets the ground through. */
+.fx-bg-aurora > .panel__body,
+.fx-bg-ember > .panel__body,
+.fx-bg-deep > .panel__body,
+.fx-bg-drift > .panel__body {
+    background: transparent;
+}
+
+.fx-bg-aurora::before,
+.fx-bg-ember::before,
+.fx-bg-deep::before,
+.fx-bg-drift::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* The alphas here started around .3 and were invisible in place — a wash that
+   reads clearly as a swatch disappears entirely once it is 20% of a tall card
+   behind an avatar and eight rows of figures. Judged at the size it is
+   actually seen, which is the only size that counts. */
+.fx-bg-aurora::before {
+    background:
+        radial-gradient(120% 70% at 15% 0%, rgba(102, 217, 232, .42), transparent 64%),
+        radial-gradient(120% 70% at 85% 15%, rgba(229, 153, 247, .38), transparent 64%);
+}
+
+.fx-bg-ember::before {
+    background: radial-gradient(130% 85% at 50% 112%, rgba(224, 76, 26, .50), transparent 68%);
+}
+
+.fx-bg-deep::before {
+    background: linear-gradient(180deg, rgba(38, 58, 120, .58), rgba(56, 156, 214, .22));
+}
+
+/* Drift is the aurora, moving. One gradient twice the card's width, slid back
+   and forth — no transform, so nothing reflows. */
+.fx-bg-drift::before {
+    background: linear-gradient(
+        100deg,
+        rgba(102, 217, 232, .40), rgba(229, 153, 247, .34),
+        rgba(145, 167, 255, .40), rgba(102, 217, 232, .40));
+    background-size: 220% 100%;
+    animation: fx-sweep 18s linear infinite;
+}
+
+/* The title a member wrote, under their name on their profile. */
+.user-stat-card__title {
+    margin: 0;
+    font-size: var(--fs-sm);
+    font-style: italic;
+    color: var(--muted-2);
+    text-wrap: balance;
+}
+
+/* The sample of a ground on the chooser: a small card on the wash, because a
+   swatch of the gradient alone says nothing about what it looks like behind
+   the thing it goes behind. */
+.fx-ground {
+    display: block;
+    padding: var(--space-6) var(--space-4);
+    border-radius: var(--radius-sm, 6px);
+    background: var(--surface);
+}
+
+.fx-ground__card {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm, 6px);
+    background: var(--surface-2);
+    font-weight: 600;
+    font-size: var(--fs-xs);
+}
+
+/* ---------------------------------------------------------------------------
+   The staff queue for titles
+   --------------------------------------------------------------------------- */
+
+.title-queue { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
+
+.title-queue__item {
+    padding-bottom: var(--space-8);
+    border-bottom: 1px solid var(--border);
+}
+
+.title-queue__item:last-child { padding-bottom: 0; border-bottom: 0; }
+
+.title-queue__head { display: flex; align-items: baseline; gap: var(--space-4); }
+.title-queue__who { font-weight: 600; }
+
+/* The words, quoted and plain. Big enough to read carefully, and set in the
+   body face rather than the member's chosen effect — a moderator is judging
+   the words, and rendering them in a rainbow is the submitter decorating their
+   own review. */
+.title-queue__text {
+    margin: var(--space-4) 0;
+    padding: var(--space-4) var(--space-6);
+    border-left: 3px solid var(--border);
+    background: var(--surface-2);
+    font-size: var(--fs-md);
+    /* A title is one line by construction (cleanTitle folds newlines), but a
+       long unbroken run of characters would still push the panel wide. */
+    overflow-wrap: anywhere;
+}
+
+.title-queue__prev { margin: 0 0 var(--space-4); }
+
+.title-queue__form { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
+.title-queue__form .form__input { flex: 1 1 18rem; min-width: 0; }
+.title-queue__buttons { display: flex; gap: var(--space-3); }
+
+/* --- motion off ---------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    /* Both keep a still frame rather than losing the effect: somebody who
+       bought the prism ring still gets a ring, parked on one colour. */
+    .fx-frame-prism { animation: none; box-shadow: 0 0 0 2px #8ad4f5, 0 0 9px rgba(138, 212, 245, .55); }
+    .fx-bg-drift::before { animation: none; background-position: 30% 0; }
+}

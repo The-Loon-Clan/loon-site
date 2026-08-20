@@ -158,7 +158,10 @@ func storeSeed(db storage.Conn, log *slog.Logger) {
 		        400, 'cosmetic', '', 0, -1, true, 35),
 		       ('Gold aura (30 days)',
 		        'A warm gold halo on your name, for a month.',
-		        150, 'cosmetic', 'glow-gold', 30, -1, true, 36)`); err != nil {
+		        150, 'cosmetic', 'glow-gold', 30, -1, true, 36),
+		       ('Custom title',
+		        'Your own words under your name. Staff read every one before it appears.',
+		        1200, 'custom_title', '', 0, -1, true, 37)`); err != nil {
 		log.Warn("store seed: cosmetics", "err", err)
 	}
 	// Flair, at the prices the pointstore's own shop charged before that page
