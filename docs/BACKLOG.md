@@ -544,26 +544,63 @@ Packages, so a genuinely sold-out tier shows as claimed instead of vanishing.
 
 ## 16. Everything built this week is verified by hand, not by CI
 
-**The evidence:** `loon-plugins/GRADES.md` now carries a section listing ten
-plugins missing from its grading table. Three of them — `cosmetics`, `polls`,
-`applications` — have **no test file at all**, and this host is the same story
-in the other direction: the cart, the derived contents panel and the image
-intake all landed with tests, and the cosmetics slots, the poll widget and the
-comments thanks toggle did not.
+**Mostly paid off, 20 Aug 2026.** The plugin half is done; what remains is
+recorded at the bottom.
 
-**Why it matters more than a coverage number.** Hand-verification against a
+**The evidence, as it stood:** `loon-plugins/GRADES.md` carried a section
+listing ten plugins missing from its grading table. Three of them —
+`cosmetics`, `polls`, `applications` — had **no test file at all**, and this
+host was the same story in the other direction: the cart, the derived contents
+panel and the image intake all landed with tests, and the cosmetics slots, the
+poll widget and the comments thanks toggle did not.
+
+**Why it mattered more than a coverage number.** Hand-verification against a
 running site is genuinely good — it caught things no unit test would have, three
 CSS faults among them, each of which had its class applied, its rule matching
 and its test passing. What it does not do is survive the next refactor, run in
 CI, or run at all for a contributor who has not got a database and two seeded
 accounts.
 
-**The specific gaps, all pure functions:** `cosmetics.cleanTitle` (strips bidi
-overrides from text published beside a username — security-adjacent),
-`applications.looksLikeEmail`/`hashIP` plus the enumeration rule that a known
-and an unknown address must answer identically, and
-`polls.showResults`/`percent`/`slugify`/`Poll.Closed`, which is a
-three-policy × voted × closed matrix and nothing more.
+**What was written.** Every plugin package that had no test file now has one:
+`cosmetics`, `polls`, `applications`, and then the rest of the sweep —
+`stats`, `backups`, `playlists`, `scraper/sources/theporndb`, and
+`scripts/lint-sql`. Only `anidbscraper` is still bare, deliberately: its bodies
+are stubs awaiting extraction, so a test would pin a placeholder.
+
+The tests were aimed at decisions rather than lines:
+
+- `cosmetics.cleanTitle` — the eleven bidi overrides each get a case, because
+  those characters reorder what is drawn *around* them, which on this site is
+  somebody else's username.
+- `applications.submit` — the enumeration rule: a known address and an unknown
+  one must answer identically, and the only case that differs is a duplicate,
+  which reveals an application to the person who made it.
+- `polls.showResults` — the three-policy × voted × closed matrix, including
+  that an unrecognised policy falls back to *withholding* rather than to
+  publishing.
+- `stats` and `backups` — "every early return after `SetRunning` must end the
+  run". Five plugins state that rule in a comment and nothing enforced it.
+
+**Two faults the tests found**, which is the part worth keeping:
+
+- `playlists.owned()` compared the stored owner against a viewer id that is
+  **0 for anonymous**, so a `user_id = 0` row would have been owned by every
+  signed-out visitor. Unreachable today — every write route sits behind
+  `RequireUser` — but a check that claims to stand on its own was leaning on
+  the middleware.
+- `lint-sql`, the guard that keeps SQL in that repo constant-only, could be
+  stepped around by **naming your string**: it skips bare identifier arguments,
+  so `q := fmt.Sprintf(...)` then `tx.ExecContext(ctx, q)` passed in silence.
+  Now closed, narrowed to strings that are both built dynamically and open with
+  a SQL verb so a Sprint'ed value bound as `$1` is not mistaken for a query.
+
+**What is still open.** This host's own suite is in better shape than the
+plugins were — 59 test files under `web/handlers`, and only `cmd/loonsite` (a
+main) and `plugins/guestbook` (the demo plugin) have none — but the store-level
+ownership rules that were verified only by transcript still are: `cosmetics`
+`Equip`, the comments withheld-body path, and `mediainfo`'s `SummariesFor` /
+`RemoveReport`. Each needs a database, so paying them off means a test harness
+this repo does not have rather than more table tests.
 
 ---
 
