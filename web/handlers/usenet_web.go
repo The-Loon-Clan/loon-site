@@ -144,6 +144,13 @@ func (w *web) releasePage(c *gin.Context) {
 	}
 	vm := toReleaseVM(d)
 	data := map[string]any{"Title": d.Title, "Release": vm}
+	// What the NZB's file list PROVES (fileinfo_web.go). Derived, so it is
+	// always true and always available — as opposed to the mediainfo panel
+	// below it, which is somebody's word. The two are drawn separately so a
+	// reader can tell which is which.
+	if contents := describeFiles(d.Files); contents.Meaningful() {
+		data["Contents"] = contents
+	}
 	if w.catalogCovers != nil {
 		if url, has, _ := w.catalogCovers.ReleaseCover(c.Request.Context(), id); has {
 			vm.Cover = url

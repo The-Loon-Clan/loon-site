@@ -4740,3 +4740,53 @@ a.episode__link:hover {
     margin-left: 4px;
     font-variant-numeric: tabular-nums;
 }
+
+/* ---------------------------------------------------------------------------
+   "What is in it" — the facts an NZB's file list proves (fileinfo_web.go)
+   --------------------------------------------------------------------------- */
+
+.contents {
+    display: grid;
+    /* Auto-fit rather than a fixed count: this panel has between two and seven
+       facts depending on the release, and a three-column grid holding two
+       leaves a hole where a reader looks for a third. */
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: var(--space-6);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* One fact. Nothing to set — the grid places it and the label and value inside
+   carry the type — but declared rather than left implicit, because a class with
+   no rule anywhere is indistinguishable from a typo to the next reader, and
+   audit_css.py says so. */
+.contents__fact { min-width: 0; }
+
+/* The subtitle row carries a bag of language tags and needs the full width
+   wherever the grid gives it one. */
+.contents__fact--wide { grid-column: 1 / -1; }
+
+.contents__label {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.contents__value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* A payload share low enough to be worth remarking on. Coloured rather than
+   flagged with an icon, because it is a figure and the colour IS the remark. */
+.contents__value--warn { color: var(--danger, var(--primary)); }
+
+.contents__note { margin: var(--space-8) 0 0; }

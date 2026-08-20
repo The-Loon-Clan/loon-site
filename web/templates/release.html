@@ -159,6 +159,92 @@
             </div>
         </section>
 
+        {{/* What the NZB PROVES, above the raw list — the derived answer to
+             "which of these six copies do I want" (fileinfo_web.go).
+
+             Deliberately separate from the mediainfo panel further down, and
+             worded so a reader can tell them apart: everything here comes from
+             the file list this site holds, and everything there is somebody's
+             word about a file they downloaded. Conflating the two would put a
+             stranger's claim and a fact under one heading. */}}
+        {{with $.Contents}}
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading">
+                    <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#info"></use></svg>
+                    What is in it
+                </h2>
+                <div class="panel__actions"><span class="panel__grouping">{{.Files}} file{{if ne .Files 1}}s{{end}}</span></div>
+            </header>
+            <div class="panel__body">
+                <ul class="contents">
+                    {{if .Container}}
+                    <li class="contents__fact">
+                        <span class="contents__label">Container</span>
+                        <span class="contents__value">{{.Container}}</span>
+                    </li>
+                    {{end}}
+                    {{/* Only when the NZB actually names the media files. A rar
+                         set hides them inside the archive, and "0 episodes"
+                         there would read as "this has no video in it". */}}
+                    {{if .MediaFiles}}
+                    <li class="contents__fact">
+                        <span class="contents__label">{{if gt .MediaFiles 1}}Media files{{else}}Media file{{end}}</span>
+                        <span class="contents__value">{{.MediaFiles}}</span>
+                    </li>
+                    {{end}}
+                    {{if .Subtitles}}
+                    <li class="contents__fact contents__fact--wide">
+                        <span class="contents__label">Subtitle files</span>
+                        <span class="contents__value">
+                            {{range .Subtitles}}<span class="tag tag--sm">{{.}}</span>{{end}}
+                            {{/* Both figures: six files can be three languages,
+                                 and a reader wants to know which they are
+                                 looking at. */}}
+                            {{if ne .SubtitleFiles (len .Subtitles)}}<span class="small text-muted">{{.SubtitleFiles}} files</span>{{end}}
+                        </span>
+                    </li>
+                    {{end}}
+                    {{if .RecoveryPct}}
+                    <li class="contents__fact">
+                        <span class="contents__label" title="par2 recovery posted alongside, as a share of the whole post">Recovery</span>
+                        <span class="contents__value">{{.RecoveryPct}}%</span>
+                    </li>
+                    {{end}}
+                    {{/* The figure the structural-junk work is about: what is
+                         missing from 100 is what you download that is not the
+                         film. Shown only when it is worth remarking on —
+                         a healthy post is 85–95% payload and saying so on every
+                         page would train people to ignore it. */}}
+                    {{if and .PayloadPct (lt .PayloadPct 70)}}
+                    <li class="contents__fact">
+                        <span class="contents__label" title="How much of the download is the media itself">Payload</span>
+                        <span class="contents__value contents__value--warn">{{.PayloadPct}}%</span>
+                    </li>
+                    {{end}}
+                    {{if .HasSample}}
+                    <li class="contents__fact">
+                        <span class="contents__label">Sample</span>
+                        <span class="contents__value">Included</span>
+                    </li>
+                    {{end}}
+                    {{if .HasNFO}}
+                    <li class="contents__fact">
+                        <span class="contents__label">NFO</span>
+                        <span class="contents__value">Included</span>
+                    </li>
+                    {{end}}
+                </ul>
+                <p class="contents__note small text-muted">
+                    Read from the NZB's own file list, so it is what the post
+                    contains rather than what anybody says about it. Bitrate,
+                    audio tracks and muxed subtitles are not in an NZB — those
+                    come from members below.
+                </p>
+            </div>
+        </section>
+        {{end}}
+
         {{if .Files}}
         <section class="panelV2">
             <header class="panel__header">
