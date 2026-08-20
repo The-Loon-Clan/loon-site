@@ -52,6 +52,15 @@ func demoSeed(db storage.Conn, log *slog.Logger) {
 	// from releases already in the index — and the only one gated on a feature
 	// flag as well as an empty table.
 	trackerSeed(db, log)
+	// Where the comments widget goes. CONFIGURATION, not content — the line
+	// this file draws is content an operator curates versus content members
+	// generate, and a widget placement is squarely the first. It seeds nothing
+	// anybody said; it decides where the box appears.
+	//
+	// Worth doing because the alternative is a release page with no comment
+	// section until somebody opens the widget editor and knows to look for it,
+	// which is a feature that ships switched off by accident.
+	widgetSeed(db, log)
 }
 
 // ranksSeed creates the rank ladder.
@@ -215,3 +224,47 @@ func newsSeed(db storage.Conn, log *slog.Logger) {
 	}
 	log.Info("seeded demo news posts", "posts", 2)
 }
+
+// widgetSeed puts the widgets a fresh site should already have somewhere.
+//
+// Idempotent through PlaceWidget's ON CONFLICT DO NOTHING, and it does NOT
+// re-add anything an operator removed on purpose — the placement row is gone
+// in that case and this would put it back. So it is guarded on the region
+// being untouched, the same "seed only when empty" rule every other seeder
+// here follows.
+func widgetSeed(db storage.Conn, log *slog.Logger) {
+	if !db.Valid() {
+		return
+	}
+	// SEED ONCE, not seed-if-empty. The first version guarded on the region
+	// being empty and did nothing at all, because the tracker plugin already
+	// places a swarm widget there — so the rule meant "only on a site with no
+	// tracker", which is not a rule anybody chose.
+	//
+	// A marker instead. It also fixes the thing seed-if-empty gets wrong in
+	// the other direction: an operator who removes this widget on purpose gets
+	// it back on the next restart, because the placement row is gone and
+	// "absent" is exactly what the guard was reading as "never seeded".
+	var seeded string
+	if err := db.Get(&seeded, `SELECT value FROM site_settings WHERE key = $1`, widgetSeedKey); err == nil && seeded != "" {
+		return
+	}
+	if _, err := db.Exec(`
+		INSERT INTO widget_placement (region, slug, position, enabled)
+		VALUES ('release-main', 'comments', 0, TRUE)
+		ON CONFLICT (region, slug) DO NOTHING`); err != nil {
+		log.Warn("widget seed: comments", "err", err)
+		return
+	}
+	if _, err := db.Exec(`
+		INSERT INTO site_settings (key, value) VALUES ($1, '1')
+		ON CONFLICT (key) DO UPDATE SET value = '1'`, widgetSeedKey); err != nil {
+		log.Warn("widget seed: marker", "err", err)
+	}
+	log.Info("seeded widget placement", "region", "release-main", "slug", "comments")
+}
+
+// widgetSeedKey marks that the default placements have been laid down. Its
+// value is never read beyond "is it set" — what matters is that it survives an
+// operator deleting the placement it created.
+const widgetSeedKey = "seeded.widgets.v1"

@@ -192,6 +192,11 @@
             </div>
         </section>
         {{end}}
+
+        {{/* Full-width widgets, under the files — see widgets_web.go on why
+             the release page has two regions. This is where a conversation
+             goes; the aside is for figures. */}}
+        {{with $.MainWidgets}}{{template "widget-region" .}}{{end}}
     </div>
 
     <aside>

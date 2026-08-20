@@ -172,8 +172,19 @@ func (w *web) releasePage(c *gin.Context) {
 	// release widget can read the id instead of parsing the URL. Kind as well
 	// as id: an id alone is how a release widget renders against a thread id.
 	core.SetWidgetItem(c, "release", id)
-	if ws := w.renderRegion(c, "release"); len(ws) > 0 {
+	// TWO regions, because they are different shapes of space. The aside is a
+	// narrow column beside the details, which suits a swarm figure and ruins a
+	// conversation; the main one is full width under the files, which is where
+	// anything with paragraphs in it belongs.
+	//
+	// Both carry the same subject — a widget in either can ask what release
+	// this is — so the split is about layout and nothing else.
+	regions := w.renderRegions(c, "release", "release-main")
+	if ws := regions["release"]; len(ws) > 0 {
 		data["RegionWidgets"] = ws
+	}
+	if ws := regions["release-main"]; len(ws) > 0 {
+		data["MainWidgets"] = ws
 	}
 	// Bookmarked is set ONLY for a signed-in viewer, so the button is absent
 	// rather than rendered in a false "not saved" state for anonymous readers.

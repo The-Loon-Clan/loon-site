@@ -71,6 +71,11 @@ import (
 	_ "github.com/the-loon-clan/loon-plugins/medals"
 	"github.com/the-loon-clan/loon-plugins/store"
 
+	// comments: the conversation under a release. Renders as a widget in the
+	// "release" region the release page already declares, so the host names it
+	// nowhere — the import plus a default placement (demoseed_web.go) is the
+	// whole wiring.
+	_ "github.com/the-loon-clan/loon-plugins/comments"
 	// applications: a front door for a closed site. Adds a registration MODE
 	// (pluginapi.RegistrationMode) that the access page offers beside the
 	// built-in three, and turns an approval into a real invite through the

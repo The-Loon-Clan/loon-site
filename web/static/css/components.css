@@ -3862,3 +3862,94 @@ a.episode__link:hover {
     font-size: var(--fs-2xs);
     color: var(--muted-2);
 }
+
+/* ------------------------------------------------------------ comments ---- */
+
+/* The conversation under a release (the comments plugin's widget).
+   
+   Styled HERE rather than in the plugin because markup is the host's design
+   vocabulary — the same rule the tracker's templates follow. A plugin shipping
+   its own stylesheet is a second theme to keep in step, and the first thing to
+   drift is the one nobody looks at on a dark background. */
+.comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.comment {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line-soft, var(--border));
+}
+.comment:first-child { padding-top: 0; }
+.comment:last-child { border-bottom: 0; padding-bottom: 0; }
+
+.comment__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
+.comment__author { color: var(--text-strong); font-size: var(--fs-sm); }
+.comment__when   { color: var(--muted-2); font-size: var(--fs-3xs); }
+
+/* Said out loud rather than hidden: a comment that changed after people
+   replied to it is a different comment. */
+.comment__edited {
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+    font-style: italic;
+}
+
+.comment__body {
+    margin: 0;
+    color: var(--text);
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+    /* A release comment can carry a pasted filename or a log line with no
+       spaces in it, which would otherwise push the whole panel sideways. */
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+/* A removed comment's body, shown to staff only. Dimmed and struck so it is
+   never mistaken for live text on the page. */
+.comment__body--withheld {
+    color: var(--muted-2);
+    text-decoration: line-through;
+    text-decoration-color: var(--muted-2);
+}
+
+.comment__note {
+    margin: 4px 0 0;
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+    font-style: italic;
+}
+
+.comment--removed { opacity: .75; }
+
+.comment__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* The edit box, closed until asked for. A textarea open under every one of
+   your own comments would double the height of the thread. */
+.comment__edit > summary {
+    cursor: pointer;
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+    list-style: none;
+}
+.comment__edit > summary:hover { color: var(--primary-tint); }
+.comment__edit[open] { display: block; width: 100%; }
+.comment__edit textarea { margin-top: 6px; }

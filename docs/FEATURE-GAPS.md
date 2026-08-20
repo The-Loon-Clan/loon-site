@@ -30,7 +30,7 @@ Everything an indexer-flavour site needs, including the site-wide community and
 economy features — none of these need a swarm.
 
 - [ ] **Send to SABnzbd / NZBGet** — `S` — one click queues the NZB instead of saving it
-- [ ] **Comments on a release** — `S` — the most-used social surface on any site of this kind
+- [x] **Comments on a release** — `S` — the most-used social surface on any site of this kind
 - [ ] **Cosmetics as store items** — `S` — name colours, avatar frames, profile backgrounds, titles
 - [ ] **Thanks / kudos between members** — `S` — one click, both parties get something
 - [ ] **General leaderboards** — `S` — top grabbers, top uploaders, top posters, week and all time
@@ -93,7 +93,7 @@ about NZB generation (`usenet/assemble.go` on segment byte ceilings and
 
 **This is the single cheapest visible win in the document.**
 
-## Comments on a release — S
+## Comments on a release — S — DONE 20 Aug 2026
 
 Every Gazelle and UNIT3D site has a comment thread under each release, and it
 is the most-used social surface on the whole site: *is this the good encode*,
@@ -106,6 +106,16 @@ this is a thread keyed to a release id rather than a new system.
 **Watch for:** a comment belongs to the RELEASE, not to the torrent mirrored
 from it — otherwise mirroring later strands the conversation on the wrong
 object.
+
+Built as the `comments` plugin, keyed `(subject_kind, subject_id)` — which
+answers the warning above and means the next thing that wants comments is a new
+value in one column. Rendered as a WIDGET in the release page's region, so no
+host template names it. The estimate said "a thread keyed to a release id"
+using the forum; a forum thread turned out to be the wrong shape — a comment is
+attached to a thing, not filed under a category.
+
+**Still open:** a comment count on listing rows. It needs a seam and a host
+change of its own, so it did not ship with this.
 
 ## Cosmetics as store items — S
 
