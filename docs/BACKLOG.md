@@ -15,7 +15,7 @@ problems and mixing them buries the first.
 
 ---
 
-## 1. Host↔plugin contracts fail silently
+## 1. Host↔plugin contracts fail silently — DONE
 
 **The pattern, hit four times in one day:**
 
@@ -74,6 +74,18 @@ Not covered, and worth knowing:
   used across three plugins' templates and defined in no stylesheet, so every
   destructive button rendered like a safe one. A sweep for classes referenced
   in templates but never defined is the same audit in another medium.
+  `scripts/audit_css.py` is that sweep, and it has since caught two more —
+  `.cart-pill` and `.contents__fact`, both shipped as hooks with no rule behind
+  them. Note its scope: it reads HOST templates only, so a class used in a
+  plugin's template and defined in the host's stylesheet is invisible to it in
+  both directions. The cosmetics `fx-*` classes are exactly that shape, and
+  they needed a test of their own (`TestEveryEffectHasCSS`) rather than this.
+
+**Marked done 20 Aug 2026.** `/admin/contracts` and
+`scripts/audit_capabilities.py` both exist and run; the entry described the fix
+as built and then sat unticked for four days, which is its own small version of
+the problem it is about. The three "not covered" items above are still not
+covered and are the reason this is worth reading rather than deleting.
 
 ---
 
@@ -527,3 +539,63 @@ form should refuse 0 rather than silently creating a tier nobody can buy.
 
 The host side IS fixed: help_donate.html renders FundedPackages as well as
 Packages, so a genuinely sold-out tier shows as claimed instead of vanishing.
+
+---
+
+## 16. Everything built this week is verified by hand, not by CI
+
+**The evidence:** `loon-plugins/GRADES.md` now carries a section listing ten
+plugins missing from its grading table. Three of them — `cosmetics`, `polls`,
+`applications` — have **no test file at all**, and this host is the same story
+in the other direction: the cart, the derived contents panel and the image
+intake all landed with tests, and the cosmetics slots, the poll widget and the
+comments thanks toggle did not.
+
+**Why it matters more than a coverage number.** Hand-verification against a
+running site is genuinely good — it caught things no unit test would have, three
+CSS faults among them, each of which had its class applied, its rule matching
+and its test passing. What it does not do is survive the next refactor, run in
+CI, or run at all for a contributor who has not got a database and two seeded
+accounts.
+
+**The specific gaps, all pure functions:** `cosmetics.cleanTitle` (strips bidi
+overrides from text published beside a username — security-adjacent),
+`applications.looksLikeEmail`/`hashIP` plus the enumeration rule that a known
+and an unknown address must answer identically, and
+`polls.showResults`/`percent`/`slugify`/`Poll.Closed`, which is a
+three-policy × voted × closed matrix and nothing more.
+
+---
+
+## 17. A cart can hold release ids that resolve to nothing
+
+**What happens:** `/cart/add` takes ids from a POST and stores them without
+asking the index whether they exist. A made-up id is stored, never renders, and
+the cart page reports "N are no longer on the index" — which is the correct
+message for a release that aged out and a misleading one for an id nobody ever
+had.
+
+**Why it was left:** checking costs a lookup per id on a path whose whole point
+is arriving with fifty of them, and `pluginapi.UsenetIndex` has no batch
+existence call. The bound is on the cart's TOTAL instead (`cartCap`, 500), so
+the abuse is capped rather than prevented.
+
+**What would fix it:** a batch `ExistingIDs(ctx, []int64) []int64` on the index
+contract. One query, and the cart could then refuse silently rather than store
+and explain.
+
+---
+
+## 18. `mediainfo.SummariesFor` exists and nothing consumes it
+
+The mediainfo plugin can answer "HEVC at 10.4 Mb/s · E-AC-3 JOC 6 channels" for
+a batch of releases, which is exactly the line the **series page** wants — six
+copies of one episode, and currently only filename tags to choose between them.
+That page is named in FEATURE-GAPS as the reason the feature was worth building,
+and it is the one page that still cannot show it.
+
+It is a store method with no contract, deliberately: inventing one before there
+is a second side is how SEAMS.md's bare-string tier grows. The consumer comes
+first, then the contract.
+
+---

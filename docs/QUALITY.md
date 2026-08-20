@@ -31,8 +31,15 @@ Numbers taken Aug 2026. Re-run them rather than trusting this table.
 | — explicit discards | `grep '^\s*_ = '` (non-test) | **all triaged**; each carries its reason |
 | — log-and-continue | `grep 'log.Error('` in web/handlers | **52** |
 | — wrapped with `%w` | `grep '%w'` | 28 |
-| Test depth | `make cover` | 34.7% with services / 23.0% without |
-| SQL safety | `scripts/sqllint.py` | clean |
+| Test depth | `make cover` | 34.7% / 23.0% — **stale**, taken Aug 2026 and not re-run since a week of feature work. Re-measure before quoting it. |
+| SQL safety | `scripts/sqllint.py` | clean — 215 files, no SQL built from anything but constants |
+| Accessibility, whole site | `scripts/audit_a11y.py` | **0 findings across 48 pages** |
+| Dead links & truncation | `scripts/audit_links.py` | 0 dead, 0 error, 0 truncated, 0 tokenless across 250 pages |
+| Access control | `scripts/audit_access.py` | 358 routes, 125 GETs probed — staff routes refuse non-staff, destructive POSTs refuse members holding a valid token |
+| Form tokens, icons, images | `scripts/audit_resources.py` | clean, and it ratchets: **33** member-facing sentences built in Go, and a 34th fails the run |
+| Undefined CSS classes | `scripts/audit_css.py` | **11** — host templates only; see the scope note in BACKLOG §1 |
+| Unwired capabilities | `scripts/audit_capabilities.py` | **0 unfilled across 35 wired plugins** — catches a capability consumed by a wired plugin and provided only by an unwired one |
+| Phone layout | `scripts/mobile.py` | every page fits 390px |
 | Vulnerabilities | `scripts/govulncheck.sh` | 0 — but it read 1 the day after this was written |
 | HTML validity | `scripts/htmlvalidate.sh` | 16 errors, all one cause (below) |
 | Accessibility | `scripts/lighthouse.sh` + `scripts/contrast.py` | **100** (was 90) |
@@ -48,6 +55,20 @@ Numbers taken Aug 2026. Re-run them rather than trusting this table.
 Bold rows are gaps with no measurement at all. That is the point of the table:
 it is a map of what nobody is checking, not a report card on what is already
 good.
+
+**Eight of those rows were missing until 20 Aug 2026**, which is worth saying
+out loud in a document whose whole thesis is that a score not produced by a
+command is a vibe. The audits existed, ran on every change and produced numbers;
+they were simply never written down here, so this page understated its own
+coverage while claiming to be the map of it. Adding a command and not adding its
+row is the same failure as not measuring at all — the row is how anybody else
+learns the command exists.
+
+The ratchet on `audit_resources.py` is the one row that behaves differently from
+the rest: it does not report a number to read, it **fails** when the number goes
+up. A member-facing sentence built in Go is a sentence no translator will find,
+so the count is pinned at 33 and a 34th breaks the run until it moves into a
+template. That is the shape more of these rows should have.
 
 ## Reading the error-handling numbers
 
