@@ -594,13 +594,40 @@ The tests were aimed at decisions rather than lines:
   Now closed, narrowed to strings that are both built dynamically and open with
   a SQL verb so a Sprint'ed value bound as `$1` is not mistaken for a query.
 
-**What is still open.** This host's own suite is in better shape than the
-plugins were — 59 test files under `web/handlers`, and only `cmd/loonsite` (a
-main) and `plugins/guestbook` (the demo plugin) have none — but the store-level
-ownership rules that were verified only by transcript still are: `cosmetics`
-`Equip`, the comments withheld-body path, and `mediainfo`'s `SummariesFor` /
-`RemoveReport`. Each needs a database, so paying them off means a test harness
-this repo does not have rather than more table tests.
+**The store-level rules are done too (20 Aug).** The line above this one used
+to say they needed "a test harness this repo does not have". That was wrong.
+`loon-plugins` already held **thirty-one** integration tests — and every one of
+them read its own environment variable (`ACHIEVEMENTS_TEST_DSN`,
+`NEWS_TEST_DSN`, `RANKS_TEST_DSN`, eight more), not one of which was set by
+anything. They all skipped, on every run, and the suite reported green. A
+harness that nothing invokes is indistinguishable from no harness, which is how
+it came to be described as absent.
+
+So: one `pluginapi/pgtest` (scratch schema, the plugin's own embedded
+migrations, one variable — `LOON_TEST_DSN`, the same name this repo's
+`make itest` already exported), `scripts/itest.sh` + a Makefile in
+`loon-plugins`, and a CI job with a Postgres service. `itest.sh` also exports
+the ten legacy names, so the thirty-one existing tests run now without editing
+thirty-one files that several people own. 61 packages, green.
+
+Written on it: `cosmetics.Equip` (ownership and expiry, both of which live
+inside the statement), the `comments` delete/edit rules, and `mediainfo`'s
+`SummariesFor` / `RemoveReport`.
+
+**And a third fault, found the moment it ran.** `comments.Delete` expressed
+"staff" by passing **0** in place of the caller's id, with the clause reading
+`($3 = 0 OR user_id = $3)` — so the sentinel meaning *staff* and the id meaning
+*nobody is signed in* were the same value, and a non-staff call with user id 0
+removed anybody's comment. The routes were the only thing preventing it. It is
+now a boolean parameter, matching `mediainfo.RemoveReport`, which had it right.
+
+**What is still open.** This host's own suite is in decent shape — 59 test
+files under `web/handlers`, and only `cmd/loonsite` (a main) and
+`plugins/guestbook` (the demo plugin) have none. Two things remain in the
+plugins repo: the `store` adoption-importer tests skip because the SQL file
+they read (`deploy/import/store_from_profile.sql`) was never carried over from
+the indexer repo this plugin came from, and `anidbscraper` still has no tests
+because its bodies are stubs.
 
 ---
 
