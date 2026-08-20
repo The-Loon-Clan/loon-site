@@ -797,9 +797,15 @@
      such a row the tag still gets its role colour, it just does not link
      separately.
 
-     Deliberately NOT ported from UNIT3D: donor sparkle backgrounds, custom
-     per-user icon uploads and group gradient "effects". None has a data source
-     here, and inventing one would be fabrication. */}}
+     Name EFFECTS are drawn here too, from the cosmetics plugin: {{nameFX}}
+     returns a class or "" (cosmetics_web.go). It sits on the inner link rather
+     than the outer span so it decorates the TEXT and not the role colour's
+     container — and a site without the plugin gets "" for every name, which is
+     the same markup as before.
+
+     Still deliberately NOT ported from UNIT3D: custom per-user icon uploads,
+     and per-GROUP gradients. The first has no data source here; the second
+     would fight the effect a member chose for themselves. */}}
 {{define "user-tag"}}
     {{- $slug := roleSlug .Role -}}
     {{/* str, because a nullable plugin column arrives as *string and
@@ -808,16 +814,17 @@
          a way nothing reports. */}}
     {{- $name := str .Name -}}
     {{- $url := .URL -}}{{if not $url}}{{$url = print "/u/" $name}}{{end -}}
+    {{- $fx := nameFX $name -}}
     {{- $icon := "" -}}
     {{- if .Icon}}{{$icon = "user"}}{{if or (eq $slug "admin") (eq $slug "mod")}}{{$icon = "shield"}}{{else if eq $slug "contributor"}}{{$icon = "star"}}{{end}}{{end -}}
     <span class="user-tag user-tag--{{$slug}}">
         {{- if .Plain -}}
-        <span class="user-tag__link" title="{{roleLabel .Role}}">
+        <span class="user-tag__link{{if $fx}} {{$fx}}{{end}}" title="{{roleLabel .Role}}">
             {{- if $icon}}<svg class="icon user-tag__icon" aria-hidden="true"><use href="#{{$icon}}"></use></svg>{{end -}}
             {{$name}}
         </span>
         {{- else -}}
-        <a class="user-tag__link" href="{{$url}}" title="{{roleLabel .Role}}">
+        <a class="user-tag__link{{if $fx}} {{$fx}}{{end}}" href="{{$url}}" title="{{roleLabel .Role}}">
             {{- if $icon}}<svg class="icon user-tag__icon" aria-hidden="true"><use href="#{{$icon}}"></use></svg>{{end -}}
             {{$name}}
         </a>

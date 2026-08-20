@@ -87,6 +87,12 @@ import (
 	// [widget poll rule-change] in a page body, or the Poll widget dropped in a
 	// region. Self-contained (Storage + Auth), so the import is the wiring.
 	_ "github.com/the-loon-clan/loon-plugins/polls"
+	// cosmetics: what a username looks like. The plugin sells and records an
+	// effect; DRAWING it is the host's half — a class on the user-tag and the
+	// CSS behind it — so this import is only half the wiring. The other half is
+	// SetCosmetics below, the fx-* rules in components.css, and the test that
+	// asserts the two agree about every slug in the catalogue.
+	_ "github.com/the-loon-clan/loon-plugins/cosmetics"
 	// downloads: the callback a member's SABnzbd or NZBGet posts when a job
 	// finishes. Self-contained over three lookups (auth.apikey, usenet.recheck,
 	// usenet.grabs), all registered just before core.Boot, so the import is the
@@ -795,6 +801,13 @@ func Main() {
 		logger.Error("core.Boot", "err", err)
 		os.Exit(1)
 	}
+
+	// Name effects (cosmetics_web.go). AFTER Boot, unlike the block above, and
+	// for the mirror-image reason: this one is a capability the host CONSUMES
+	// rather than provides, and a plugin registers its own during Provision —
+	// which runs inside Boot. Asking before it would find nothing and every
+	// name on the site would render plain.
+	SetCosmetics(c)
 
 	// The contract audit (contracts_web.go), AFTER Boot — extensions are
 	// registered during each plugin's Provision, so before Boot every one of

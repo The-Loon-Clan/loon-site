@@ -31,7 +31,7 @@ economy features — none of these need a swarm.
 
 - [ ] **Send to SABnzbd / NZBGet** — `S` — one click queues the NZB instead of saving it
 - [x] **Comments on a release** — `S` — the most-used social surface on any site of this kind
-- [ ] **Cosmetics as store items** — `S` — name colours, avatar frames, profile backgrounds, titles
+- [x] **Cosmetics as store items** — `S` — eight name effects, bought or granted; no custom text
 - [x] **Thanks / kudos between members** — `S` — one click; the author is paid, the giver is not
 - [ ] **General leaderboards** — `S` — top grabbers, top uploaders, top posters, week and all time
 - [x] **Polls** — `S` — one widget, placed wherever the question belongs
@@ -117,7 +117,7 @@ attached to a thing, not filed under a category.
 **Still open:** a comment count on listing rows. It needs a seam and a host
 change of its own, so it did not ship with this.
 
-## Cosmetics as store items — S
+## Cosmetics as store items — S — DONE 20 Aug 2026
 
 Name colours, avatar frames, profile backgrounds, custom titles. Perceived
 value is wildly out of proportion to build cost, and it is the classic sink for
@@ -126,6 +126,37 @@ a currency that otherwise inflates.
 **Here:** the `store.itemtype.*` seam was opened for charity and takes new
 kinds from any plugin. Ranks and medals already prove the display side, and
 medals' icon picker already reads `icons.catalogue`.
+
+Built as the `cosmetics` plugin: eight NAME EFFECTS — four still auras, four
+that move (pulse, shimmer, rainbow, sparkle). Every other reward on this site
+pays in numbers, and a number is invisible to everybody except its owner; this
+is the only one anybody else can see, which is the whole of why it works.
+
+The host's own `user-tag` template is what made it worth doing. It carried the
+note that donor sparkle backgrounds and group gradients were *"deliberately NOT
+ported — none has a data source here, and inventing one would be fabrication"*.
+This is that data source.
+
+**Two flags a buyer sees before buying**, and both exist because of a way this
+could have gone wrong quietly:
+
+- `Tinted` — the effect brings its own colour and REPLACES the name's. A rank
+  can tint a username, and an effect that always painted itself gold would
+  silently delete an earned staff colour. The untinted ones work in
+  `currentColor` and compose.
+- `Animated` — it moves, and therefore does nothing under
+  `prefers-reduced-motion`. Without saying so, a still preview on such a
+  machine reads as a broken purchase.
+
+**The catalogue is a CONTRACT in `pluginapi`, not plugin-private**, because an
+effect is two halves in two repositories: the plugin sells it, the host draws
+it, and drawing it is CSS in the host's stylesheet. A slug they disagree about
+fails silently — the sale succeeds, the name renders plain — so
+`TestEveryEffectHasCSS` asserts the stylesheet covers every entry, and a second
+test asserts every animated one is answered under reduced motion.
+
+**Not done: custom titles.** User-supplied words rendered beside a name on
+every page they appear on is a moderation surface, and a different feature.
 
 ## Thanks / kudos between members — S — DONE 20 Aug 2026
 

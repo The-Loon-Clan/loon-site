@@ -4180,3 +4180,251 @@ a.episode__link:hover {
        a filter or a search that happens to sit in the row. */
     background: var(--surface-2);
 }
+
+/* ---------------------------------------------------------------------------
+   Name effects (cosmetics)
+
+   The drawn half of pluginapi.Effects. Every slug in that catalogue MUST have a
+   rule here — TestEveryEffectHasCSS enforces it — because the plugin selling an
+   effect the stylesheet cannot draw fails silently: the sale succeeds and the
+   name renders exactly as before.
+
+   TWO FAMILIES, and the difference is the one thing a buyer is told before
+   buying. The UNTINTED effects work in currentColor, so a name that a rank has
+   already tinted keeps its colour and simply gains a halo — an effect that
+   always painted itself gold would quietly delete an earned staff colour. The
+   TINTED ones set their own colour and are the deliberate exception.
+
+   MOTION IS OPTIONAL, always. Everything animated below degrades to its own
+   still frame under prefers-reduced-motion — never to nothing, because a member
+   who paid for an effect must still see one. A username is text somebody is
+   trying to READ, in a table of forty of them, so the animations are slow and
+   none of them moves the glyphs.
+   --------------------------------------------------------------------------- */
+
+/* The sample on /p/cosmetics. Sized up from a table row because an effect
+   chosen at 12px is an effect nobody can see. */
+.fx-preview {
+    font-size: var(--fs-lg);
+    font-weight: 700;
+    /* The gradient effects paint into a background box; without this they
+       clip to the line box and lose their descenders. */
+    display: inline-block;
+    padding: 2px 0;
+}
+
+/* --- untinted: whatever colour the name already is ----------------------- */
+
+.fx-aura {
+    text-shadow:
+        0 0 4px color-mix(in srgb, currentColor 70%, transparent),
+        0 0 11px color-mix(in srgb, currentColor 45%, transparent);
+}
+
+.fx-pulse {
+    text-shadow:
+        0 0 4px color-mix(in srgb, currentColor 70%, transparent),
+        0 0 11px color-mix(in srgb, currentColor 45%, transparent);
+    animation: fx-breathe 3.4s ease-in-out infinite;
+}
+
+@keyframes fx-breathe {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: .62; }
+}
+
+/* --- tinted: the effect brings its own colour ---------------------------- */
+
+/* Each is a pair — the letters, and two shadows for near and far falloff. The
+   colours are stated as literals rather than tokens on purpose: a gold aura is
+   gold in both themes, and a token that flipped with the theme would make
+   somebody's bought effect a different effect at night. */
+.fx-glow-gold {
+    color: #f6c45a;
+    text-shadow: 0 0 5px rgba(246, 196, 90, .75), 0 0 13px rgba(224, 150, 22, .45);
+}
+
+.fx-glow-ice {
+    color: #8ad4f5;
+    text-shadow: 0 0 5px rgba(138, 212, 245, .75), 0 0 13px rgba(56, 156, 214, .45);
+}
+
+.fx-glow-ember {
+    color: #f58a63;
+    text-shadow: 0 0 5px rgba(245, 138, 99, .8), 0 0 13px rgba(214, 66, 22, .5);
+}
+
+/* --- gradient text ------------------------------------------------------- */
+
+/* Shared plumbing for the two effects that paint the glyphs from a background.
+   -webkit- prefixes and not the standard property alone: background-clip: text
+   is still prefixed in Safari, and without the fill-color line the text renders
+   in its own colour with the gradient invisible behind it. */
+.fx-shimmer,
+.fx-rainbow {
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+}
+
+/* A band of light crossing a warm neutral. The base colours are legible in
+   their own right, so the still frame is a two-tone name rather than a smear. */
+.fx-shimmer {
+    background-image: linear-gradient(
+        100deg,
+        #c9a227 0%, #c9a227 38%,
+        #fff3c4 48%, #ffffff 52%, #fff3c4 56%,
+        #c9a227 66%, #c9a227 100%);
+    background-size: 280% 100%;
+    animation: fx-sweep 4.5s linear infinite;
+}
+
+@keyframes fx-sweep {
+    from { background-position: 130% 0; }
+    to   { background-position: -30% 0; }
+}
+
+/* Saturated but not fully — a 100%-saturation spectrum on small text vibrates
+   against a dark ground and is genuinely hard to read. */
+.fx-rainbow {
+    background-image: linear-gradient(
+        90deg,
+        #ff6b6b, #ffa94d, #ffe066, #8ce99a, #66d9e8, #91a7ff, #e599f7, #ff6b6b);
+    background-size: 200% 100%;
+    animation: fx-sweep 7s linear infinite;
+}
+
+/* --- particles ----------------------------------------------------------- */
+
+/* Motes drifting up off the letters.
+
+   Built from two pseudo-elements carrying several box-shadow dots each, rather
+   than one element per mote: a name is inline content in a table cell, and this
+   adds no nodes to a page that already renders forty of them. The two run at
+   different durations and offsets so the pattern does not read as a loop. */
+.fx-sparkle {
+    position: relative;
+    text-shadow:
+        0 0 4px color-mix(in srgb, currentColor 70%, transparent),
+        0 0 11px color-mix(in srgb, currentColor 40%, transparent);
+}
+
+.fx-sparkle::before,
+.fx-sparkle::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 55%;
+    width: 2px;
+    height: 2px;
+    border-radius: 50%;
+    /* aria-hidden by construction: pseudo-elements are not in the accessibility
+       tree, so a screen reader hears the name and nothing else. */
+    pointer-events: none;
+    background: transparent;
+}
+
+.fx-sparkle::before {
+    box-shadow:
+        0.6em 0 0 currentColor,
+        2.1em -.15em 0 currentColor,
+        3.4em .1em 0 currentColor;
+    animation: fx-rise 3.1s ease-out infinite;
+}
+
+.fx-sparkle::after {
+    box-shadow:
+        1.4em .1em 0 currentColor,
+        2.8em -.1em 0 currentColor,
+        4.2em 0 0 currentColor;
+    animation: fx-rise 3.9s ease-out infinite .8s;
+}
+
+@keyframes fx-rise {
+    0%   { opacity: 0; transform: translateY(0) scale(.6); }
+    25%  { opacity: .9; }
+    100% { opacity: 0; transform: translateY(-1.15em) scale(1); }
+}
+
+/* --- motion off ---------------------------------------------------------- */
+
+/* Every animated effect keeps a still frame. Somebody who bought Rainbow and
+   runs their machine with motion reduced still gets a rainbow name — they just
+   get the one it is pointing at rather than a cycle. */
+@media (prefers-reduced-motion: reduce) {
+    .fx-pulse,
+    .fx-shimmer,
+    .fx-rainbow {
+        animation: none;
+    }
+    .fx-shimmer  { background-position: 40% 0; }
+    .fx-rainbow  { background-position: 0 0; }
+    /* Sparkle is the one that cannot degrade: motes that do not move are three
+       dots parked beside a name. Dropped entirely, leaving the halo, which is
+       the part of the effect that reads as an effect. */
+    .fx-sparkle::before,
+    .fx-sparkle::after {
+        display: none;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   The chooser at /p/cosmetics
+   --------------------------------------------------------------------------- */
+
+.fx-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.fx-card {
+    display: grid;
+    /* Preview, then words, then the control. The preview is FIRST and fixed
+       because these rows are scanned down the left edge — the whole page is a
+       comparison between eight samples, and a preview that started at a
+       different x on every row would make that impossible. */
+    grid-template-columns: minmax(9rem, 14rem) 1fr auto;
+    align-items: center;
+    gap: var(--space-6);
+    padding: var(--space-6);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 6px);
+    background: var(--surface-2);
+}
+
+.fx-card--worn { border-color: var(--primary); }
+
+.fx-card__preview {
+    /* Its own ground, a shade off the card, because several of these effects
+       are glows and a glow needs somewhere to fall. */
+    padding: var(--space-4) var(--space-6);
+    border-radius: var(--radius-sm, 6px);
+    background: var(--surface);
+    text-align: center;
+    overflow: hidden;
+}
+
+.fx-card__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.fx-card__desc { margin: var(--space-2) 0 0; color: var(--muted-2); }
+.fx-card__expiry { margin: var(--space-2) 0 0; }
+
+@media (max-width: 700px) {
+    /* Stacked, with the preview across the top: at phone width three columns
+       leave the sample too narrow to judge, which is the only thing this page
+       is for. */
+    .fx-card {
+        grid-template-columns: 1fr;
+        gap: var(--space-4);
+    }
+}

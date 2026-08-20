@@ -145,6 +145,22 @@ func storeSeed(db storage.Conn, log *slog.Logger) {
 		        1000, 'invite', '1', 0, 25, true, 30)`); err != nil {
 		log.Warn("store seed: invite", "err", err)
 	}
+	// Name effects, in BOTH shapes the cosmetic type supports, because the
+	// difference is the thing an operator has to see to understand the type: a
+	// def with no reward_ref sells the catalogue and the buyer picks, a def
+	// with one sells that effect alone. The pinned row is also the VIP shape —
+	// a single effect on a clock — which is otherwise only describable in
+	// prose.
+	if _, err := db.Exec(`
+		INSERT INTO store.items (name, description, points_cost, reward_type, reward_ref, reward_days, stock, active, sort_order)
+		VALUES ('Name effect',
+		        'Pick an effect for your username. Own several and switch whenever you like.',
+		        400, 'cosmetic', '', 0, -1, true, 35),
+		       ('Gold aura (30 days)',
+		        'A warm gold halo on your name, for a month.',
+		        150, 'cosmetic', 'glow-gold', 30, -1, true, 36)`); err != nil {
+		log.Warn("store seed: cosmetics", "err", err)
+	}
 	// Flair, at the prices the pointstore's own shop charged before that page
 	// was retired — the items moved, the economy did not.
 	if _, err := db.Exec(`

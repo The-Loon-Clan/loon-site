@@ -115,6 +115,11 @@ func tmplHelpers() template.FuncMap {
 		// number someone typed once. See password_web.go.
 		"pwmin":     func() int { return minPasswordLen },
 		"roleSlug":  roleSlug,
+		// nameFX is the cosmetics class for a username, or "". A HELPER rather
+		// than a field on every view model, because user-tag is called from
+		// about forty of them with nothing but a display name — see
+		// cosmetics_web.go on why that shape forces a cache.
+		"nameFX":    nameEffectClass,
 		"roleLabel": roleLabel,
 		"eqID":      eqID,
 		"hasPrefix": strings.HasPrefix,
