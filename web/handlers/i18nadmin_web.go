@@ -169,6 +169,18 @@ func registerI18nSeams(c *core.Core, w *web) error {
 		func(gc *gin.Context, slug string) (string, bool) { return w.resolveI18n(gc, slug) }); err != nil {
 		return err
 	}
+	// The DECLARED contract, which is what a plugin should resolve: one key,
+	// one interface, any number of consumers. The four per-plugin keys around
+	// it are what this replaced — the same two closures registered four times,
+	// which is what the comment below used to be describing rather than
+	// apologising for.
+	if err := c.Register(pluginapi.MessageCatalogueName,
+		pluginapi.MessageCatalogue(hostCatalogue{w})); err != nil {
+		return err
+	}
+
+	// Kept so a plugin pinned to an older pluginapi keeps working. Nothing new
+	// should add a fifth — see SEAMS.md on the tier these belonged to.
 	// The medals plugin reads the same catalogue through its own keys — one
 	// key per consumer, the same closures.
 	if err := c.Register("medals.l10n.slugs",
@@ -180,4 +192,21 @@ func registerI18nSeams(c *core.Core, w *web) error {
 		return err
 	}
 	return c.Register(pluginapi.I18nDeclarerName, pluginapi.I18nDeclarer(w.declareI18n))
+}
+
+// hostCatalogue adapts this host to pluginapi.MessageCatalogue.
+//
+// A named type rather than a struct literal of funcs, because a Lookup asserts
+// on the exact type: registering a bare func where an interface is expected
+// hands every plugin a value that asserts to nothing, silently — which is the
+// failure the comment above registerI18nSeams already warns about for the
+// declarer.
+type hostCatalogue struct{ w *web }
+
+func (h hostCatalogue) Slugs(ctx context.Context) ([]string, error) {
+	return h.w.data.I18nSlugs(ctx)
+}
+
+func (h hostCatalogue) Resolve(gc *gin.Context, slug string) (string, bool) {
+	return h.w.resolveI18n(gc, slug)
 }

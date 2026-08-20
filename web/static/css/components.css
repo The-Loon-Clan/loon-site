@@ -5025,3 +5025,16 @@ a.episode__link:hover {
     gap: var(--space-3);
     flex: none;
 }
+
+/* A plugin's own report on itself (/admin/plugins). Three states, and the
+   middle one is the reason the column exists: "degraded" is a plugin that is
+   running perfectly and not doing its job.
+
+   .health carries no rule of its own — .tag already gives it the shape, and the
+   state modifier gives it the colour — but it is declared so the base class is
+   not an undefined one in a template (audit_css.py), and because a hook with no
+   rule anywhere is indistinguishable from a typo to the next reader. */
+.health { text-transform: lowercase; }
+.health--ok       { color: var(--success, var(--primary)); }
+.health--degraded { color: var(--warning, var(--primary-tint)); }
+.health--failing  { color: var(--danger, var(--primary)); }

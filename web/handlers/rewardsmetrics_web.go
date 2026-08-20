@@ -219,7 +219,14 @@ func registerAchievementMetrics(c *core.Core, db storage.Conn) error {
 	// wiki's upload root, so /uploads/* is already statically served; icons is
 	// the sprite subset that makes sense on a badge — offering the whole sheet
 	// would put #logo and #chevron-down in a picker where they mean nothing.
-	if err := c.Register("achievements.files", blob.Store(blob.NewLocal(uploadRoot, uploadURL))); err != nil {
+	files := blob.Store(blob.NewLocal(uploadRoot, uploadURL))
+	// The DECLARED contract: one store for every plugin that takes an upload,
+	// with the plugin choosing the name it saves under. The per-plugin key
+	// below is kept so a plugin pinned to an older pluginapi keeps working.
+	if err := c.Register(pluginapi.FileStoreName, files); err != nil {
+		return fmt.Errorf("register file store: %w", err)
+	}
+	if err := c.Register("achievements.files", files); err != nil {
 		return fmt.Errorf("register achievements files: %w", err)
 	}
 	// CURATED, then checked against the sheet. The curation is the point — the
@@ -240,6 +247,14 @@ func registerAchievementMetrics(c *core.Core, db storage.Conn) error {
 			continue
 		}
 		c.Logger.Warn("achievement icon curated but not in the sprite sheet", "icon", id)
+	}
+	// Published as a CURATED SET rather than as a second icon catalogue, which
+	// is the distinction that survives this being a declared contract: the
+	// site's full sheet is icons.catalogue and this is the subset that reads as
+	// a badge. A func, so re-curating does not need a restart.
+	if err := c.Register(pluginapi.IconSetPrefix+"achievement-badge",
+		pluginapi.IconCatalogue(func() []string { return icons })); err != nil {
+		return fmt.Errorf("register achievement badge icons: %w", err)
 	}
 	if err := c.Register("achievements.icons", icons); err != nil {
 		return fmt.Errorf("register achievements icons: %w", err)

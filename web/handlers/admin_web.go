@@ -12,6 +12,8 @@ import (
 
 	"github.com/the-loon-clan/loon-site/internal/config"
 	"github.com/the-loon-clan/loon/core"
+
+	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	"github.com/the-loon-clan/loon/schedule"
 )
 
@@ -164,6 +166,13 @@ type pluginRow struct {
 	// Flavours is which half of the site this plugin belongs to, or empty for
 	// the majority that belong to both.
 	Flavours string
+	// Health is what the plugin says about itself, empty when it publishes no
+	// reporter. "Running" answers the smaller half of the question — a scraper
+	// with no API key and an IRC bot that has not connected since Tuesday both
+	// look exactly like healthy plugins from here.
+	Health     string
+	HealthWhy  string
+	HealthMore string
 	// Running says whether it actually booted. A plugin compiled into this
 	// binary and skipped by the site flavour is the whole point of the page
 	// showing it at all — "it is not here" and "it is switched off" look
@@ -174,15 +183,27 @@ type pluginRow struct {
 func (w *web) adminPlugins(c *gin.Context) {
 	var rows []pluginRow
 	booted := map[string]bool{}
+	// Every reporter, in one scan, before the loop — a lookup per row would be
+	// a registry walk per plugin on a page that lists all of them.
+	health := map[string]pluginapi.Health{}
+	if reg := w.registry(); reg != nil {
+		for _, h := range pluginapi.PluginHealth(reg) {
+			health[h.Key] = h.Value.Health(c.Request.Context())
+		}
+	}
 	if w.rt != nil {
 		for _, p := range w.rt.Plugins() {
 			md := p.Metadata()
 			booted[md.Name] = true
-			rows = append(rows, pluginRow{
+			row := pluginRow{
 				Name: md.Name, Version: md.Version,
 				Description: md.Description, Requires: strings.Join(md.Requires, ", "),
 				Flavours: strings.Join(md.Flavours, ", "), Running: true,
-			})
+			}
+			if h, ok := health[md.Name]; ok {
+				row.Health, row.HealthWhy, row.HealthMore = string(h.State), h.Summary, h.Detail
+			}
+			rows = append(rows, row)
 		}
 	}
 	// Everything compiled in but NOT booted. Named only — the metadata lives

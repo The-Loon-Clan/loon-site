@@ -27,6 +27,7 @@
                 <thead>
                     <tr>
                         <th>Name</th>
+                        <th>Health</th>
                         <th>Version</th>
                         <th>Half</th>
                         <th>Requires</th>
@@ -37,6 +38,18 @@
                 {{range .Plugins}}
                     <tr>
                         <td class="data-table__nowrap"><code>{{.Name}}</code></td>
+                        {{/* What the plugin says about ITSELF. Blank for one
+                             that publishes no reporter, rather than a green
+                             tick — "nobody asked" and "it says it is fine" are
+                             different claims, and only one of them is
+                             evidence. */}}
+                        <td class="data-table__nowrap">
+                            {{if .Health}}
+                            <span class="tag tag--sm health health--{{.Health}}"
+                                  {{if .HealthMore}}title="{{.HealthMore}}"{{end}}>{{.Health}}</span>
+                            {{if .HealthWhy}}<div class="small text-muted">{{.HealthWhy}}</div>{{end}}
+                            {{else}}<span class="text-muted">&mdash;</span>{{end}}
+                        </td>
                         <td class="data-table__nowrap text-muted">{{.Version}}</td>
                         {{/* Which half of the site it belongs to
                              (core.Metadata.Flavours). Most declare nothing and
