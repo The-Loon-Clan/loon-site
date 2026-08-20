@@ -3882,7 +3882,7 @@ a.episode__link:hover {
 
 .comment {
     padding: 14px 0;
-    border-bottom: 1px solid var(--line-soft, var(--border));
+    border-bottom: 1px solid var(--border);
 }
 .comment:first-child { padding-top: 0; }
 .comment:last-child { border-bottom: 0; padding-bottom: 0; }
@@ -3953,3 +3953,45 @@ a.episode__link:hover {
 .comment__edit > summary:hover { color: var(--primary-tint); }
 .comment__edit[open] { display: block; width: 100%; }
 .comment__edit textarea { margin-top: 6px; }
+
+/* The thanks button on a comment.
+   
+   Not a .button: it sits inline with the edit and remove controls and would
+   otherwise be the loudest thing in a quiet row. A count that lives INSIDE the
+   control, so a wrapped actions row keeps the number glued to its label — the
+   same reason .pill__count exists. */
+.comment__thanks {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill, 999px);
+    background: transparent;
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.comment__thanks:hover {
+    border-color: var(--primary);
+    color: var(--text);
+}
+
+/* Given. Filled rather than merely recoloured, because :hover already tints
+   the border — an outline-only "given" state is indistinguishable from
+   whatever the pointer happens to be over. */
+.comment__thanks--given {
+    border-color: var(--primary-soft-strong, var(--primary));
+    background: var(--primary-soft);
+    color: var(--primary-tint);
+}
+
+/* The count with no button behind it — your own comment, or a signed-out
+   reader. Same shape so the row does not jump when it becomes a control. */
+.comment__thanks--static { cursor: default; border-color: transparent; }
+.comment__thanks--static:hover { border-color: transparent; color: var(--muted-2); }
+
+.comment__thanks-count { font-variant-numeric: tabular-nums; opacity: .8; }

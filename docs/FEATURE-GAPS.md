@@ -32,7 +32,7 @@ economy features — none of these need a swarm.
 - [ ] **Send to SABnzbd / NZBGet** — `S` — one click queues the NZB instead of saving it
 - [x] **Comments on a release** — `S` — the most-used social surface on any site of this kind
 - [ ] **Cosmetics as store items** — `S` — name colours, avatar frames, profile backgrounds, titles
-- [ ] **Thanks / kudos between members** — `S` — one click, both parties get something
+- [x] **Thanks / kudos between members** — `S` — one click; the author is paid, the giver is not
 - [ ] **General leaderboards** — `S` — top grabbers, top uploaders, top posters, week and all time
 - [ ] **Polls** — `S` — staff use them for rule changes, members for arguments
 - [x] **Invite tree** — `S` — who invited whom, walkable, so a bad recruiter is one click
@@ -127,7 +127,7 @@ a currency that otherwise inflates.
 kinds from any plugin. Ranks and medals already prove the display side, and
 medals' icon picker already reads `icons.catalogue`.
 
-## Thanks / kudos between members — S
+## Thanks / kudos between members — S — DONE 20 Aug 2026
 
 A one-click thanks on an upload or a post, where both parties get a little
 something. The cheapest engagement mechanic there is, and it feeds the economy
@@ -135,6 +135,18 @@ already built.
 
 **Here:** the points ledger and the multiplier system are done; this is a
 button and an economy rule.
+
+Built into the `comments` plugin, on comments. The classic target is an UPLOAD
+and this index is crawled — a release has no uploader to credit — so a comment,
+which always has an author, is the one place a thanks can reach a person. If
+uploads are ever wired, thanking one is the same rule against a different
+subject.
+
+**The note above was wrong about "both parties".** Only the author earns.
+Paying somebody to press thanks is how a site grows thanks-farming rings, and
+the cap that would stop it is not on thanks (one per comment already) but on
+COMMENTS, which are unlimited — two accounts can generate as many as they like
+and thank each other's.
 
 ## General leaderboards — S
 
