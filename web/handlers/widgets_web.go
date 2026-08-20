@@ -41,6 +41,7 @@ var widgetRegions = []widgetRegion{
 	{"profile", "Profile page", "Under a member's details. Widgets here can read whose profile it is."},
 	{"release", "Release page", "Beside a release's details. Widgets here can read which release it is."},
 	{"listing", "Listing pages", "Above browse and search results."},
+	{"register", "Sign-up page", "Beside the registration form. Where a plugin that owns how people join — an application queue, a waiting list — puts its call to action."},
 	{"footer", "Footer", "The bottom of every page."},
 }
 

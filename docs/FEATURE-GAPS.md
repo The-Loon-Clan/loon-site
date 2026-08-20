@@ -42,7 +42,7 @@ economy features — none of these need a swarm.
 - [ ] **Failed-download reporting → health** — `M` — the downloader reports back, health absorbs it
 - [ ] **Duplicate / trump detection** — `M` — stop the catalogue quietly holding five of one thing
 - [ ] **Collectible sets with trading** — `M` — lootbox drops belong to sets, duplicates trade
-- [ ] **Applications / interviews** — `M` — signup windows with a written application and a queue
+- [x] **Applications / interviews** — `M` — signup windows with a written application and a queue
 
 ## Tracker
 
@@ -236,13 +236,20 @@ duplicates are tradeable between members, completing a set pays out.
 things between members. This is a set definition, a duplicate rule and a
 completion payout — three tables on top of two working systems.
 
-## Applications / interviews — M
+## Applications / interviews — M — DONE 20 Aug 2026
 
 Open-signup windows with a written application and a staff queue — how
 AnimeBytes and most closed sites actually recruit, rather than pure invites.
 
 **Here:** registration is invite-or-open. `tickets` is a staff queue that
 already works; an application is a ticket with a form and a decision.
+
+Built as the `applications` plugin, plus the seam the estimate missed: the
+registration mode was a hardcoded three-value enum, so a plugin could not add a
+way to join at all. `pluginapi.RegistrationMode` fixes that — a plugin registers
+a mode under a prefix and the host renders it beside the built-in three — and
+`pluginapi.InviteIssuer` is how an approval opens the door without the plugin
+minting its own codes.
 
 ---
 

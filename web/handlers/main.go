@@ -71,6 +71,11 @@ import (
 	_ "github.com/the-loon-clan/loon-plugins/medals"
 	"github.com/the-loon-clan/loon-plugins/store"
 
+	// applications: a front door for a closed site. Adds a registration MODE
+	// (pluginapi.RegistrationMode) that the access page offers beside the
+	// built-in three, and turns an approval into a real invite through the
+	// issuer registered above. Self-contained — the import is the wiring.
+	_ "github.com/the-loon-clan/loon-plugins/applications"
 	// downloads: the callback a member's SABnzbd or NZBGet posts when a job
 	// finishes. Self-contained over three lookups (auth.apikey, usenet.recheck,
 	// usenet.grabs), all registered just before core.Boot, so the import is the
@@ -750,6 +755,14 @@ func Main() {
 	// them in the admin wiring — which runs after Boot returns — meant the
 	// plugin logged all three as absent and refused every report while the
 	// host believed it had wired them.
+	// Opening the door on a plugin's behalf (pluginapi.InviteIssuer): an
+	// application queue decides WHO may join, the host still decides HOW — same
+	// mint, same window, same email, same chain. Before Boot like the rest,
+	// because plugins resolve it in Start.
+	if err := c.Register(pluginapi.InviteIssuerName,
+		pluginapi.InviteIssuer(inviteIssuer{wsrv})); err != nil {
+		logger.Error("register invite issuer", "err", err)
+	}
 	if err := c.Register(pluginapi.APIKeyResolverName,
 		pluginapi.APIKeyResolver(apiKeyResolver{st.apiKeys})); err != nil {
 		logger.Error("register api key resolver", "err", err)
@@ -816,6 +829,10 @@ func Main() {
 	// The group takes the LOOSER gate and each route carries its own, rather
 	// than the other way round: the stricter gate is then written next to the
 	// stricter page, where it is read.
+	// The access layer resolves plugin-registered registration modes off the
+	// registry, so it needs the booted Core. After Boot: before it, no plugin
+	// has registered anything and every mode would read as unknown.
+	SetPluginRegistry(c)
 	wireAdminAndViews(c, wsrv, engine, data, conn, st, rt, inbox, ctx, stop, logger, redisClient)
 
 }

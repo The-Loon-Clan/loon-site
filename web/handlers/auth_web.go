@@ -13,6 +13,7 @@ import (
 	"github.com/the-loon-clan/loon-site/internal/request"
 
 	"github.com/the-loon-clan/loon-site/internal/storage"
+	"strings"
 )
 
 // The doors: sign in, register, sign out, and the two token flows that let
@@ -104,10 +105,43 @@ func (w *web) registerPage(c *gin.Context) {
 	// a closed site should SAY it is closed, not 404 the page a visitor was
 	// invited to by a link. "Registration is closed" is information; a dead
 	// link is a puzzle.
-	w.render(c, "register.html", map[string]any{
-		"Title":   "Register",
+	info := registrationModeInfo()
+	data := map[string]any{
+		"Title": "Register",
+		// RegMode drives the template's existing branches, and a plugin mode
+		// that forbids direct signup renders as CLOSED — the same page, since
+		// "you cannot sign up here" is the same message however it was decided.
+		// The widget below is what says where to go instead.
 		"RegMode": registrationMode(),
-	})
+		"Mode":    info,
+	}
+	// A visitor arriving WITH an invite gets the form, whatever the mode says
+	// about strangers: the invite email links here with ?invite=CODE, and the
+	// person who follows it needs somewhere to type their username. Everybody
+	// else gets the mode's call to action.
+	//
+	// So AllowsSignup hides the form from people who have nothing, rather than
+	// from people who were invited — which is the same distinction the POST
+	// makes, kept in step deliberately.
+	invited := info.RequiresInvite && strings.TrimSpace(c.Query("invite")) != ""
+	switch {
+	case invited:
+		// Rendered as the built-in invite mode, which is exactly what it is
+		// from here: a form with an invite box. Reusing that branch rather
+		// than adding a third means the invite field, its help text and its
+		// required flag cannot drift between the two ways of reaching it.
+		data["RegMode"] = RegInvite
+	case !info.AllowsSignup && info.Key != RegClosed:
+		data["RegMode"] = RegClosed
+	}
+	data["Invite"] = strings.TrimSpace(c.Query("invite"))
+	// Operator-placed widgets for the sign-up page. This is where a plugin that
+	// owns how people join — an application queue, a waiting list — puts its
+	// call to action, so the host never learns what those are.
+	if ws := w.renderRegion(c, "register"); len(ws) > 0 {
+		data["RegionWidgets"] = ws
+	}
+	w.render(c, "register.html", data)
 }
 
 func (w *web) registerPost(c *gin.Context) {
@@ -131,6 +165,32 @@ func (w *web) registerPost(c *gin.Context) {
 	// Enforced HERE as well as in the template, because the template only
 	// hides the form. A closed site whose POST still works is open to anyone
 	// who kept the page open, or who has ever used curl.
+	// A mode a PLUGIN added behaves by its two flags rather than by name — see
+	// pluginapi.RegistrationModeInfo. Checked before the built-in switch so a
+	// registered mode never falls through to the open-signup default.
+	if info := registrationModeInfo(); info.Key != RegOpen && info.Key != RegInvite && info.Key != RegClosed {
+		switch {
+		case info.RequiresInvite:
+			// Checked FIRST, and that order is the whole correctness of the
+			// application flow. AllowsSignup governs whether the PAGE offers a
+			// form; it does not govern who may submit one. An approved
+			// applicant arrives from the invite email holding a code, and
+			// reading AllowsSignup as "nobody may register" refused exactly
+			// the people the mode exists to admit.
+			//
+			// Handled as the built-in invite mode from here, so the plugin
+			// gets redemption, the email lock and the race guard without
+			// reimplementing any of them.
+			in.RegMode = RegInvite
+		case !info.AllowsSignup:
+			// No form and no invite path: the mode is closed by another name.
+			c.Status(http.StatusForbidden)
+			w.render(c, "register.html", map[string]any{
+				"Title": "Register", "RegMode": RegClosed, "Mode": info,
+			})
+			return
+		}
+	}
 	switch in.RegMode {
 	case RegClosed:
 		c.Status(http.StatusForbidden)
@@ -199,7 +259,12 @@ func (w *web) registerPost(c *gin.Context) {
 	// After Register on purpose. Redeeming first would burn the code when
 	// registration then fails on a taken username — the visitor loses an invite
 	// they were given and has nothing to show for it.
-	if registrationMode() == RegInvite && !w.data.RedeemInviteCode(c.Request.Context(), invite, u.ID) {
+	// in.RegMode, NOT registrationMode(). A plugin mode that requires an invite
+	// is normalised to RegInvite above, and reading the raw setting here missed
+	// that — the code was VALIDATED and never consumed, so one invite could
+	// create any number of accounts. That is precisely what the comment below
+	// says this line exists to prevent, defeated by asking the wrong question.
+	if in.RegMode == RegInvite && !w.data.RedeemInviteCode(c.Request.Context(), invite, u.ID) {
 		// The account exists and the code did not stick — a race with another
 		// registration on the same code. Say so rather than leaving them signed
 		// in via a gate that did not open.

@@ -10,6 +10,9 @@ import (
 	"sync/atomic"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/the-loon-clan/loon-plugins/pluginapi"
+	"github.com/the-loon-clan/loon/core"
 )
 
 // Who may reach this site, and who may join it — the two questions every
@@ -127,8 +130,57 @@ func saveAccessSettings(ctx context.Context, reg, browse string) error {
 	return nil
 }
 
+// validReg accepts the three built-in modes and any a plugin registered.
+//
+// The plugin ones are looked up rather than listed, because the whole point of
+// the seam is that this file does not know what they are. An unknown mode is
+// still refused — a site running on a mode nothing implements would enforce
+// whatever the register handler's default branch happens to do, which is the
+// failure the access settings exist to prevent.
 func validReg(s string) bool {
-	return s == RegOpen || s == RegInvite || s == RegClosed
+	if s == RegOpen || s == RegInvite || s == RegClosed {
+		return true
+	}
+	_, ok := pluginapi.RegistrationModeByKey(pluginRegistry(), s)
+	return ok
+}
+
+// pluginRegistry is the Core the host booted, for the lookups above. Set once
+// during wiring; nil before that, which the pluginapi helpers handle by
+// returning nothing — so a mode check during boot is "not a plugin mode"
+// rather than a panic.
+var pluginRegistry_ *core.Core
+
+func pluginRegistry() *core.Core { return pluginRegistry_ }
+
+// SetPluginRegistry hands the access layer the booted Core.
+func SetPluginRegistry(c *core.Core) { pluginRegistry_ = c }
+
+// registrationModeInfo describes the ACTIVE mode: what the register page
+// should do, whatever mode is set.
+//
+// The built-in three are spelled out here rather than registered like the
+// plugin ones, because they are the host's own policy and a host that could
+// not register an account without a plugin installed would be a strange host.
+func registrationModeInfo() pluginapi.RegistrationModeInfo {
+	switch m := registrationMode(); m {
+	case RegOpen:
+		return pluginapi.RegistrationModeInfo{Key: RegOpen, Label: "Open", AllowsSignup: true}
+	case RegInvite:
+		return pluginapi.RegistrationModeInfo{Key: RegInvite, Label: "Invite only",
+			AllowsSignup: true, RequiresInvite: true}
+	case RegClosed:
+		return pluginapi.RegistrationModeInfo{Key: RegClosed, Label: "Closed"}
+	default:
+		if info, ok := pluginapi.RegistrationModeByKey(pluginRegistry(), m); ok {
+			return info
+		}
+		// A stored mode nothing implements — the plugin that added it was
+		// removed. Treated as CLOSED, which is the safe direction: the
+		// alternative is a site that silently reopened because somebody
+		// uninstalled something.
+		return pluginapi.RegistrationModeInfo{Key: m, Label: m}
+	}
 }
 
 func validBrowse(s string) bool {

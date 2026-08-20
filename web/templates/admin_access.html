@@ -46,6 +46,14 @@
                     </div>
                     <div class="key-value__group">
                         <dt><label for="reg-closed"><input type="radio" id="reg-closed" name="registration" value="closed" {{if eq .Registration "closed"}}checked{{end}}> Closed</label></dt>
+                        {{/* Modes a PLUGIN added (pluginapi.RegistrationMode).
+                             Rendered from the registry rather than listed here,
+                             which is the whole point of the seam: this template
+                             does not know what an application queue is. */}}
+                        {{range .PluginModes}}
+                        <dt><label for="reg-{{.Key}}"><input type="radio" id="reg-{{.Key}}" name="registration" value="{{.Key}}" {{if eq $.Registration .Key}}checked{{end}}> {{.Label}}</label></dt>
+                        <dd>{{.Description}}</dd>
+                        {{end}}
                         <dd class="text-muted">Nobody may register. Staff create accounts.</dd>
                     </div>
                 </dl>

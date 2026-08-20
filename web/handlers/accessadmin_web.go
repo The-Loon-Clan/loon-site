@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/the-loon-clan/loon-plugins/pluginapi"
 )
 
 // /admin/access — the two mode switches, and a map of what they do to every
@@ -80,6 +82,7 @@ var accessRoutes = []struct{ Path, Label, Note string }{
 	{"/support/public", "Public tickets", ""},
 	{"/wiki/recent", "Recent wiki changes", ""},
 	{"/p/guestbook", "Guestbook", "A plugin page."},
+	{"/p/apply", "Apply to join", "A plugin page, and PUBLIC by necessity: the audience is somebody with no account and no invite. Only meaningful while the registration mode above is set to Apply."},
 	{"/p/achievements", "Achievements", "A plugin page. The catalogue half — what can be earned here — is public by the plugin's own choice; the personal half renders only for whoever is signed in."},
 	{"/p/downloads", "Download reports", "A plugin page: the setup for a download client's callback script. Members only — it hands over a file carrying your API key."},
 	{"/api/downloads/report", "Download report callback", "POST from a member's SABnzbd or NZBGet. Authenticates with an API key, not a session, so it is exempt from the CSRF gate like /api."},
@@ -169,7 +172,11 @@ func isPerViewer(p string) bool {
 // adminAccess serves GET /admin/access.
 func (w *web) adminAccess(c *gin.Context) {
 	w.render(c, "admin_access.html", map[string]any{
-		"Title":        "Access",
+		"Title": "Access",
+		// Whatever plugins added, rendered as radio buttons beside the built-in
+		// three. Empty on a host with no such plugin, which is most of them —
+		// the template ranges, so nothing appears rather than an empty heading.
+		"PluginModes":  pluginapi.RegistrationModes(pluginRegistry()),
 		"Registration": registrationMode(),
 		"Browsing":     browsingMode(),
 		"Flavour":      siteFlavour(),

@@ -2,6 +2,8 @@ package storage
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 )
@@ -594,4 +596,29 @@ func (st *Store) RecruitCounts(ctx context.Context, userID int64) (direct, chain
 		return 0, 0, false
 	}
 	return row.Direct, row.Chain, true
+}
+
+// MintInviteUncharged creates an invite without spending anybody's balance.
+//
+// For an invite the SITE issued rather than a member — a staff approval of an
+// application, say. It still records who approved it in created_by, so the
+// invite chain answers "who vouched for them" with a person; what it does not
+// do is take that person's allowance, because admitting somebody is the site's
+// decision and rationing it against a moderator's personal invites would be an
+// accident rather than a policy.
+//
+// createdBy may be 0 for an automated approval. The column is NOT NULL, so
+// that stores as 0 — an id no user has — and the chain reads it as an invite
+// nobody vouched for, which is the honest description of one the system issued.
+func (st *Store) MintInviteUncharged(ctx context.Context, createdBy int64, code, ttl, email, message string) error {
+	if code == "" {
+		return errors.New("mint invite: no code")
+	}
+	if _, err := st.db.ExecContext(ctx, `
+		INSERT INTO invite_codes (code, created_by, expires_at, email, message)
+		VALUES ($1, $2, now() + $3::interval, $4, $5)`,
+		code, createdBy, ttl, NormaliseEmail(email), strings.TrimSpace(message)); err != nil {
+		return fmt.Errorf("mint invite: %w", err)
+	}
+	return nil
 }

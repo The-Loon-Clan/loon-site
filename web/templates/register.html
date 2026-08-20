@@ -1,11 +1,29 @@
 {{define "content"}}
+{{/* Operator-placed widgets for this page (widgets_web.go, region
+     "register"). Above everything, because when sign-ups are not open this is
+     the only thing on the page that tells a visitor what to do instead. */}}
+{{with .RegionWidgets}}{{template "widget-region" .}}{{end}}
 {{if eq .RegMode "closed"}}
 <section class="panelV2">
     <header class="panel__header">
-        <h1 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#lock"></use></svg>Registration is closed</h1>
+        <h1 class="panel__heading"><svg class="icon panel__heading-icon" aria-hidden="true"><use href="#lock"></use></svg>
+            {{if .Mode.ActionLabel}}Sign-ups are not open{{else}}Registration is closed{{end}}</h1>
     </header>
     <div class="panel__body">
+        {{/* A mode a PLUGIN added says where to go instead — see
+             pluginapi.RegistrationModeInfo. Rendered from the MODE rather than
+             from a placed widget, because a widget nobody has placed yet leaves
+             this page a dead end, and the person configuring the site never
+             sees the logged-out version of it. */}}
+        {{if .Mode.ActionLabel}}
+        <p>{{with .Mode.Description}}{{.}}{{end}}</p>
+        <p class="m-0">
+            <a class="button button--filled" href="{{.Mode.ActionHref}}">{{.Mode.ActionLabel}}</a>
+            <span class="text-muted small">Already have an account? <a href="/login">Sign in</a>.</span>
+        </p>
+        {{else}}
         <p class="m-0">This site is not accepting new accounts at the moment. If you already have one, <a href="/login">sign in</a>.</p>
+        {{end}}
     </div>
 </section>
 {{else}}
