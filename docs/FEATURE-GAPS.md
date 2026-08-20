@@ -34,7 +34,7 @@ economy features — none of these need a swarm.
 - [ ] **Cosmetics as store items** — `S` — name colours, avatar frames, profile backgrounds, titles
 - [x] **Thanks / kudos between members** — `S` — one click; the author is paid, the giver is not
 - [ ] **General leaderboards** — `S` — top grabbers, top uploaders, top posters, week and all time
-- [ ] **Polls** — `S` — staff use them for rule changes, members for arguments
+- [x] **Polls** — `S` — one widget, placed wherever the question belongs
 - [x] **Invite tree** — `S` — who invited whom, walkable, so a bad recruiter is one click
 - [ ] **Cart / bulk grab** — `S` — tick ten rows, one zip or one push to the downloader
 - [ ] **Saved searches that notify** — `M` — "tell me when anything matching this lands"
@@ -156,7 +156,7 @@ kind run on them.
 **Here:** there is a donations leaderboard, a trending page and a stats page —
 the data is all sitting there unranked.
 
-## Polls — S
+## Polls — S — DONE 20 Aug 2026
 
 UNIT3D ships a polls system as a headline feature. Staff use them for rule
 changes and category decisions; members use them for arguments.
@@ -164,6 +164,24 @@ changes and category decisions; members use them for arguments.
 **Here:** `roadmap` has voting on ideas, which is a different thing. The page
 widget shortcode (`[widget slug config]`) makes a poll placeable on any page
 the day it exists.
+
+Built as the `polls` plugin, and that last note turned out to be the whole
+design. A poll is never the destination — it belongs on the front page during a
+rule change, in the sidebar of the forum it concerns, in the body of the news
+post arguing for it — so there is no /polls page and no template names a poll.
+The plugin is ONE widget taking a poll's name as its per-placement setting:
+`[widget poll rule-change]` in a page body, or the same widget dropped in a
+region. Two placements are two different polls.
+
+Three results policies, because when the tally becomes readable is the only
+real editorial decision and a boolean cannot hold it: after voting (the
+default — a tally you can see before answering moves how you answer), always,
+and on close. A closed poll shows results under all three.
+
+**Voting pays nothing, deliberately.** Every points-bearing action here is one
+you could usefully do MORE of; a poll wants considered answers from people who
+care, and paying for them buys a room full of members clicking the first option
+to collect.
 
 ## Invite tree — S — DONE 19 Aug 2026
 

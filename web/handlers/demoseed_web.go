@@ -61,6 +61,12 @@ func demoSeed(db storage.Conn, log *slog.Logger) {
 	// section until somebody opens the widget editor and knows to look for it,
 	// which is a feature that ships switched off by accident.
 	widgetSeed(db, log)
+	// One poll, in the sidebar. Unlike the placement above this DOES write
+	// content — a question — which is the line this file otherwise draws. It
+	// is on the right side of it for the same reason the news posts are: an
+	// operator writes it, nobody is quoted, and a widget whose whole claim is
+	// "place a poll anywhere" is worth one you can actually see placed.
+	pollSeed(db, log)
 }
 
 // ranksSeed creates the rank ladder.
@@ -263,6 +269,68 @@ func widgetSeed(db storage.Conn, log *slog.Logger) {
 	}
 	log.Info("seeded widget placement", "region", "release-main", "slug", "comments")
 }
+
+// pollSeed gives the demo a poll to look at, in the sidebar where one belongs.
+//
+// The polls plugin ships no content of its own, correctly — a plugin that
+// invented a question would be putting words in an operator's mouth. But this
+// is the reference host, and a feature nobody can see is a feature nobody
+// evaluates: the whole point of the widget is that a poll can be placed
+// anywhere, and that claim is worth ONE placement somebody can actually look
+// at.
+//
+// Its own marker rather than a bump of widgetSeedKey. Bumping that key would
+// re-run the comments placement too, which is precisely the thing its comment
+// warns about — an operator who removed that widget on purpose would get it
+// back.
+func pollSeed(db storage.Conn, log *slog.Logger) {
+	if !db.Valid() {
+		return
+	}
+	var seeded string
+	if err := db.Get(&seeded, `SELECT value FROM site_settings WHERE key = $1`, pollSeedKey); err == nil && seeded != "" {
+		return
+	}
+	// A question the demo can actually answer for itself, rather than a
+	// stand-in: somebody clicking around this site has an opinion about what it
+	// should index, and none of the alternatives is a wrong answer.
+	if _, err := db.Exec(`
+		WITH p AS (
+			INSERT INTO polls.polls (slug, question, results)
+			VALUES ('demo-what-next', 'What should a site like this index?', 'after_vote')
+			ON CONFLICT (slug) DO NOTHING
+			RETURNING id
+		)
+		INSERT INTO polls.poll_options (poll_id, ordinal, label)
+		SELECT p.id, o.ordinal, o.label
+		  FROM p, (VALUES
+			(0, 'Usenet, and nothing else'),
+			(1, 'Torrents, and nothing else'),
+			(2, 'Both, with one page per release')
+		  ) AS o(ordinal, label)`); err != nil {
+		log.Warn("poll seed", "err", err)
+		return
+	}
+	// Placed in the right sidebar, which is empty on a fresh site — so the
+	// poll is the thing that makes the column exist rather than something
+	// squeezed in beside an existing widget.
+	if _, err := db.Exec(`
+		INSERT INTO widget_placement (region, slug, position, enabled, config)
+		VALUES ('sidebar-right', 'poll', 0, TRUE, 'demo-what-next')
+		ON CONFLICT (region, slug) DO NOTHING`); err != nil {
+		log.Warn("poll seed: placement", "err", err)
+		return
+	}
+	if _, err := db.Exec(`
+		INSERT INTO site_settings (key, value) VALUES ($1, '1')
+		ON CONFLICT (key) DO UPDATE SET value = '1'`, pollSeedKey); err != nil {
+		log.Warn("poll seed: marker", "err", err)
+	}
+	log.Info("seeded demo poll", "slug", "demo-what-next", "region", "sidebar-right")
+}
+
+// pollSeedKey marks that the demo poll and its placement have been laid down.
+const pollSeedKey = "seeded.poll.v1"
 
 // widgetSeedKey marks that the default placements have been laid down. Its
 // value is never read beyond "is it set" — what matters is that it survives an

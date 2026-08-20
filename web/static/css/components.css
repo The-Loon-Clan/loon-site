@@ -3995,3 +3995,188 @@ a.episode__link:hover {
 .comment__thanks--static:hover { border-color: transparent; color: var(--muted-2); }
 
 .comment__thanks-count { font-variant-numeric: tabular-nums; opacity: .8; }
+
+/* ---------------------------------------------------------------------------
+   Polls
+
+   Written for a card of UNKNOWN width. The operator decides where a poll goes
+   — a 250px sidebar, the full front page, the middle of a page body — and the
+   widget is never told which, so nothing here sets a width and the bars are
+   percentages of whatever they land in.
+   --------------------------------------------------------------------------- */
+
+.poll__question {
+    margin: 0 0 var(--space-6);
+    font-weight: 600;
+    line-height: 1.4;
+    /* A question is read as one sentence, so it should not break into a
+       one-word last line. */
+    text-wrap: balance;
+}
+
+/* The ballot ------------------------------------------------------------- */
+
+.poll__options {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    border: 0;
+}
+
+/* The whole row is the target, not the 13px radio. A ballot answered by
+   mis-clicking the row beside the one you meant is a ballot that misreports
+   the question. */
+.poll__option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 7px 10px;
+    border-radius: var(--radius-sm, 6px);
+    line-height: 1.35;
+    cursor: pointer;
+}
+
+.poll__option:hover { background: var(--surface-2); }
+
+.poll__option input { cursor: pointer; margin: 0; flex: none; }
+
+/* Keyboard focus lands on the radio, so the ROW takes the ring — the control
+   is the row, and an outline around 13px of it says otherwise. */
+.poll__option:has(input:focus-visible) {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+}
+
+/* The results ------------------------------------------------------------ */
+
+.poll__results {
+    display: flex;
+    flex-direction: column;
+    /* Wider than the ballot's gap on purpose: a result row is a label AND a
+       bar, so the 4px step that separates single-line rows leaves this reading
+       as one block of stripes. */
+    gap: var(--space-5);
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    list-style: none;
+}
+
+.poll__result-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: 4px;
+    font-size: var(--fs-xs);
+    line-height: 1.3;
+}
+
+.poll__result-label { min-width: 0; }
+
+.poll__result-count {
+    flex: none;
+    font-weight: 600;
+    /* Percentages stack in a column and are compared down it. */
+    font-variant-numeric: tabular-nums;
+}
+
+/* The raw count beside the percentage, quieter: a share answers "what does the
+   room think", the count answers "is that four people or four hundred", and
+   only the first is what somebody came for. */
+.poll__result-votes {
+    margin-left: 5px;
+    color: var(--muted-2);
+    font-weight: 400;
+}
+
+.poll__bar {
+    height: 6px;
+    border-radius: var(--radius-pill, 999px);
+    background: var(--surface-2);
+    overflow: hidden;
+}
+
+.poll__bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--primary);
+    /* Zero percent still draws a sliver, so an option nobody picked reads as
+       an option with no votes rather than as a rendering that failed. */
+    min-width: 2px;
+}
+
+/* Your own answer. Marked on the BAR rather than with a tick beside the label,
+   because the bar is what the eye is already on. */
+.poll__result--mine .poll__bar-fill { background: var(--primary-tint, var(--primary)); }
+.poll__result--mine .poll__result-label { font-weight: 600; }
+.poll__result--mine .poll__result-label::after {
+    content: " \2713";
+    color: var(--primary);
+}
+
+.poll__total {
+    margin: 0;
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Changing your answer ---------------------------------------------------- */
+
+/* Folded away: present, and not the loudest thing on a card whose point is the
+   result you are looking at. */
+.poll__change { margin-top: var(--space-3); }
+
+.poll__change > summary {
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+    cursor: pointer;
+}
+
+.poll__change > summary:hover { color: var(--text); }
+
+.poll__change .poll__ballot { margin-top: var(--space-2); }
+
+.poll__closes { margin: var(--space-4) 0 0; }
+
+/* Beside the question, not in a header — the widget has no header of its own,
+   because the host draws one. */
+.poll__closed { margin-left: var(--space-4); vertical-align: middle; }
+
+/* The comment box, which used to be its own .panel__body inside a card this
+   widget no longer draws. */
+.comment-post { margin-top: var(--space-8); }
+
+/* Admin ------------------------------------------------------------------- */
+
+.poll__shortcode { white-space: nowrap; font-size: var(--fs-3xs); }
+
+.poll__admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+/* The delete fold. Coloured only once it is OPEN — a red summary in every row
+   makes a table of polls look like a table of problems. */
+.poll__danger > summary {
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+    cursor: pointer;
+}
+
+.poll__danger[open] > summary { color: var(--danger, var(--primary)); }
+
+.poll__danger[open] {
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 6px);
+    /* Its own box once open, so the confirmation field cannot be mistaken for
+       a filter or a search that happens to sit in the row. */
+    background: var(--surface-2);
+}

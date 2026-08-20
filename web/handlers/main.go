@@ -81,6 +81,12 @@ import (
 	// built-in three, and turns an approval into a real invite through the
 	// issuer registered above. Self-contained — the import is the wiring.
 	_ "github.com/the-loon-clan/loon-plugins/applications"
+	// polls: one question, placed wherever it belongs. The whole plugin is a
+	// widget that takes a poll's name as its per-placement setting, so the host
+	// names no poll anywhere and an operator places one the day they write it —
+	// [widget poll rule-change] in a page body, or the Poll widget dropped in a
+	// region. Self-contained (Storage + Auth), so the import is the wiring.
+	_ "github.com/the-loon-clan/loon-plugins/polls"
 	// downloads: the callback a member's SABnzbd or NZBGet posts when a job
 	// finishes. Self-contained over three lookups (auth.apikey, usenet.recheck,
 	// usenet.grabs), all registered just before core.Boot, so the import is the
