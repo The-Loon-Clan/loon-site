@@ -614,6 +614,25 @@ Written on it: `cosmetics.Equip` (ownership and expiry, both of which live
 inside the statement), the `comments` delete/edit rules, and `mediainfo`'s
 `SummariesFor` / `RemoveReport`.
 
+**The `0` sentinel sweep (20 Aug).** Three of these turned up by accident in
+two days, so the fourth was looked for deliberately — and the framing was
+wrong in a way worth recording. "The routes are gated" was the reason each one
+was called defence-in-depth; the routes are behind `Authenticate()`, which
+**lets anonymous requests through in the site's public access mode**. So the
+comparisons really are reached with a viewer id of 0.
+
+What holds them up instead is that no row is owned by 0 — measured, not
+assumed: 63 identity columns across every schema in the live database, and the
+only 0 is a `login_logs` row for a failed sign-in, which is correct. Nothing
+enforces it.
+
+`pluginapi.OwnedBy` / `VisibleTo` now state the rule once, applied at every
+site that decides whether to show something private, and
+`scripts/audit-sentinels` (baselined, in `make check` and CI) finds new ones.
+Ten baselined with reasons: seven in-memory store doubles, and three in
+`requests/`, which are the same shape and are left for that workstream —
+one line each, and the baseline says which line.
+
 **And a third fault, found the moment it ran.** `comments.Delete` expressed
 "staff" by passing **0** in place of the caller's id, with the clause reading
 `($3 = 0 OR user_id = $3)` — so the sentinel meaning *staff* and the id meaning
