@@ -54,6 +54,16 @@ var accessRoutes = []struct{ Path, Label, Note string }{
 	// the login the moment browsing is set to members. That is worth stating
 	// rather than leaving to be inferred from the absence of a row.
 	{"/nzb/:id", "NZB download", "The file itself, not a page about it. Follows the browsing mode."},
+	// The operational endpoints (ops_web.go). PUBLIC on purpose and listed here
+	// so that is a decision an operator can see rather than an omission: an
+	// orchestrator probes them before it has any credentials, and a readiness
+	// check behind a login is a readiness check that always fails.
+	//
+	// /metrics is deliberately NOT among them — it sits behind the admin gate,
+	// because its payload names every job, every plugin, the member count and
+	// the exact build.
+	{"/readyz", "Readiness probe", "Public. 200 when this instance can serve, 503 when the database is unreachable or the site is in maintenance. A load balancer reads it before it has credentials."},
+	{"/versionz", "Build identity", "Public. Version, commit, Go version and uptime as JSON. Says what is running, which is already in /healthz's body — no secret, and a deploy script should not have to parse prose."},
 	{"/community/forums", "Forums", ""},
 	{"/c", "Communities", ""},
 	{"/news", "News", ""},

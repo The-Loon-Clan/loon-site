@@ -174,7 +174,16 @@ GO_SENTENCE = re.compile(
 #
 # Measured 18 Aug 2026.
 SENTENCE_BASELINE = {
-    "loon-demo-site": 33,
+    # 34 as of 20 Aug 2026. The one that moved it is /readyz's
+    # "database unreachable", and it is the exception this rule did not
+    # anticipate rather than a slip: a readiness probe's body is a protocol
+    # response read by a load balancer, never rendered to anybody, and putting
+    # it in a template would mean a probe that renders HTML.
+    #
+    # Raising this needs a reason in the commit message and that is the whole
+    # of the one available. Everything a MEMBER reads still belongs in a
+    # template.
+    "loon-demo-site": 34,
     "loon-plugins": 111,
 }
 

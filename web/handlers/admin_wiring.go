@@ -77,6 +77,14 @@ func wireAdminAndViews(
 	// Beside /admin/access, which answers the other question — access is what
 	// KIND of site this is and waits for a restart, features are what it is
 	// doing right now and do not.
+	// /metrics lives behind the ADMIN gate rather than at the root beside
+	// /healthz, and that placement is the security decision: the payload names
+	// every job, every plugin and its health, the member count and the exact
+	// build. It is a reconnaissance summary of the deployment, and it is
+	// exactly the sort of endpoint that gets left open because "it is just
+	// numbers". A deployment that wants an unauthenticated scrape should bind
+	// a second listener on an internal interface rather than open this one.
+	admin.GET("/metrics", wsrv.metricsEndpoint)
 	admin.GET("/features", wsrv.adminFeatures)
 	admin.POST("/features", wsrv.adminFeaturesSave)
 	admin.GET("/nav", wsrv.adminNavEditor)

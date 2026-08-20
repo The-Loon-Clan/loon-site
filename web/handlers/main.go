@@ -194,6 +194,9 @@ func Main() {
 	engine.GET("/healthz", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok %s", BuildInfo())
 	})
+	// /readyz and /versionz are mounted after wsrv exists — see below. The
+	// liveness probe above needs nothing and is deliberately kept here, next to
+	// the comment explaining why it checks nothing.
 
 	// --- Demo users + username/password login. A real host wires its session
 	// store + users table here; the demo keeps two in-memory users whose
@@ -213,6 +216,13 @@ func Main() {
 		os.Exit(1)
 	}
 	wsrv := newWeb(st.users, st.sessionSecret, logger, data)
+
+	// READINESS, beside the liveness probe above in meaning if not in position
+	// — ops_web.go has the argument for why conflating the two turns a database
+	// blip into an outage. /versionz answers "what is actually running there"
+	// for a person or a deploy script, which a status code cannot.
+	engine.GET("/readyz", wsrv.ready)
+	engine.GET("/versionz", wsrv.version)
 	wsrv.apiKeys = st.apiKeys
 	wsrv.loginLog = st.loginLog
 	wsrv.ipSalt = string(st.sessionSecret) // demo salt; a real host uses a dedicated ip_salt secret
@@ -302,6 +312,12 @@ func Main() {
 	// Members-only browsing (access_web.go). After the session middleware,
 	// because it has to know who you are, and after maintenance so a site in
 	// maintenance says so rather than bouncing you to a login you cannot use.
+	// Request timing (ops_web.go). FIRST among the wsrv middleware, so the
+	// duration it records is the one a member actually waited — including the
+	// login gate below, the maintenance check and every plugin's own middleware.
+	// Installed after the gates would measure only what got past them, which
+	// silently excludes exactly the slow paths worth finding.
+	engine.Use(wsrv.measureRequests())
 	engine.Use(wsrv.requireLoginMiddleware())
 	// Hit-and-run enforcement (hitrun_web.go). Installed HERE, before the
 	// plugins mount, because gin applies middleware to routes registered after
