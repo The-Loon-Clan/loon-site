@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/the-loon-clan/loon-site/internal/config"
+	"github.com/the-loon-clan/loon/core"
 	"github.com/the-loon-clan/loon/schedule"
 )
 
@@ -159,18 +161,49 @@ type pluginRow struct {
 	Version     string
 	Description string
 	Requires    string
+	// Flavours is which half of the site this plugin belongs to, or empty for
+	// the majority that belong to both.
+	Flavours string
+	// Running says whether it actually booted. A plugin compiled into this
+	// binary and skipped by the site flavour is the whole point of the page
+	// showing it at all — "it is not here" and "it is switched off" look
+	// identical from the outside, and only one of them is fixed by a setting.
+	Running bool
 }
 
 func (w *web) adminPlugins(c *gin.Context) {
 	var rows []pluginRow
+	booted := map[string]bool{}
 	if w.rt != nil {
 		for _, p := range w.rt.Plugins() {
 			md := p.Metadata()
+			booted[md.Name] = true
 			rows = append(rows, pluginRow{
 				Name: md.Name, Version: md.Version,
 				Description: md.Description, Requires: strings.Join(md.Requires, ", "),
+				Flavours: strings.Join(md.Flavours, ", "), Running: true,
 			})
 		}
 	}
-	w.render(c, "admin_plugins.html", map[string]any{"Title": "Plugins", "Plugins": rows})
+	// Everything compiled in but NOT booted. Named only — the metadata lives
+	// on an instance and skipped plugins were never constructed, so a name is
+	// genuinely all there is. That is still the useful half: an operator
+	// looking for the tracker's admin page needs to know it is off rather than
+	// missing.
+	var skipped []pluginRow
+	for _, name := range core.RegisteredNames() {
+		if !booted[name] {
+			skipped = append(skipped, pluginRow{Name: name})
+		}
+	}
+	sort.Slice(skipped, func(i, j int) bool { return skipped[i].Name < skipped[j].Name })
+
+	w.render(c, "admin_plugins.html", map[string]any{
+		"Title":   "Plugins",
+		"Plugins": rows,
+		"Skipped": skipped,
+		// What the site is, so the page can say WHY something is off rather
+		// than only that it is.
+		"Flavour": siteFlavour(),
+	})
 }

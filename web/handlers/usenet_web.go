@@ -168,11 +168,18 @@ func (w *web) releasePage(c *gin.Context) {
 			}
 		}
 	}
-	// The swarm, when this release also exists as a torrent on the tracker.
-	// Absent for a release that has none — which is nearly all of them — so the
-	// page shows a swarm or says nothing, never "0 seeders", which reads as a
-	// dead torrent rather than no torrent.
-	if sw, okSwarm := w.data.ReadTrackerSwarm(c.Request.Context(), id); okSwarm {
+	// The swarm, when the site HAS a tracker and this release also exists as a
+	// torrent on it. Absent for a release with none — which is nearly all of
+	// them — so the page shows a swarm or says nothing, never "0 seeders",
+	// which reads as a dead torrent rather than no torrent.
+	//
+	// The flavour check is not redundant with the read. This reads the
+	// tracker's own table, which SURVIVES the tracker being switched off, so a
+	// site that ran as "both" and moved to indexer-only kept drawing a swarm
+	// panel whose "Download torrent" button pointed at a route that no longer
+	// exists. Found by running the link audit against a flavour nobody had
+	// audited — the same fault, in a third place.
+	if sw, okSwarm := w.data.ReadTrackerSwarm(c.Request.Context(), id); okSwarm && flavourTracker() {
 		data["Swarm"] = sw
 	}
 	// Tell widgets WHAT this page is about before rendering their region, so a

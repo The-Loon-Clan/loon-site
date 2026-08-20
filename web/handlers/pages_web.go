@@ -163,10 +163,16 @@ func (w *web) statsPage(c *gin.Context) {
 			data["ForumPosts"] = posts
 		}
 	}
-	// The tracker, when there is one and it holds something. Absent otherwise,
-	// so a site without it reads exactly as it did rather than advertising a
-	// tracker with nothing on it.
-	if ts, ok := w.data.ReadTrackerSiteStats(ctx); ok {
+	// The tracker, when the site HAS one and it holds something. Absent
+	// otherwise, so a site without it reads exactly as it did rather than
+	// advertising a tracker with nothing on it.
+	//
+	// The flavour check is not redundant with the read. These figures come
+	// from the tracker's own tables, which SURVIVE the tracker being switched
+	// off — so a site that ran as "both" and moved to indexer-only kept
+	// reporting torrents and linking to /tracker, which by then was a 404.
+	// Found by running the link audit against a flavour nobody had audited.
+	if ts, ok := w.data.ReadTrackerSiteStats(ctx); ok && flavourTracker() {
 		data["HasTrackerStats"] = true
 		data["TrackerTorrents"] = ts.Torrents
 		data["TrackerSeeders"] = ts.Seeders

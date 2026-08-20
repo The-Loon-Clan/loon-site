@@ -448,7 +448,14 @@ func Main() {
 	logger.Info("process role", "mode", role, "runs_jobs", config.RunsJobs())
 
 	c, err := core.New(core.Deps{
-		Process:   role,
+		Process: role,
+		// What kind of site this is (flavour_web.go). core.Boot skips plugins
+		// whose Metadata.Flavours share nothing with it, so a torrent-only
+		// deployment never provisions the crawler and an indexer-only one
+		// never mounts announce — without this host keeping a list of which
+		// plugins are which, which is a list that goes wrong the day somebody
+		// writes a plugin it has not heard of.
+		Flavours: coreFlavours(),
 		Users:     usersSvc,
 		Auth:      auth,
 		RBAC:      core.NewRBAC(),

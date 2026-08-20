@@ -1,6 +1,10 @@
 package handlers
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/the-loon-clan/loon/core"
+)
 
 // The flavour is one value deciding two halves; this pins the mapping so a
 // future fourth flavour cannot quietly leave one half undefined.
@@ -47,4 +51,45 @@ func TestValidFlavourIsAClosedSet(t *testing.T) {
 			t.Errorf("%q accepted — an unknown mode is a form bug, not a state", bad)
 		}
 	}
+}
+
+// TestCoreFlavoursMapsSettingToSet pins the translation between the operator's
+// three choices and the SET core.Boot filters plugins with. The interesting row
+// is "both": it is one setting value and two elements, which is the whole
+// reason core takes a set rather than a mode.
+func TestCoreFlavoursMapsSettingToSet(t *testing.T) {
+	cases := map[string][]string{
+		FlavourIndexer: {core.FlavourIndexer},
+		FlavourTorrent: {core.FlavourTracker},
+		FlavourBoth:    {core.FlavourIndexer, core.FlavourTracker},
+	}
+	for setting, want := range cases {
+		flavourMode.Store(setting)
+		got := coreFlavours()
+		if len(got) != len(want) {
+			t.Errorf("%s: got %v, want %v", setting, got, want)
+			continue
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("%s: got %v, want %v", setting, got, want)
+				break
+			}
+		}
+	}
+	flavourMode.Store(FlavourIndexer)
+}
+
+// TestCoreFlavoursIsNeverEmpty. An empty set means "every flavour" to
+// core.Boot, so a mapping that returned nothing would silently boot the tracker
+// on a site that had asked for an indexer — the failure being fail-OPEN is
+// exactly why it is worth a test rather than a reading.
+func TestCoreFlavoursIsNeverEmpty(t *testing.T) {
+	for _, f := range []string{FlavourIndexer, FlavourTorrent, FlavourBoth} {
+		flavourMode.Store(f)
+		if len(coreFlavours()) == 0 {
+			t.Errorf("%s mapped to an empty set, which core reads as every flavour", f)
+		}
+	}
+	flavourMode.Store(FlavourIndexer)
 }

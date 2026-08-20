@@ -39,6 +39,16 @@ func (w *web) releaseMirrors(ctx context.Context, releaseIDs []int64) map[int64]
 	if len(releaseIDs) == 0 {
 		return nil
 	}
+	// No tracker half, no mirrors — checked BEFORE either source, because the
+	// fallback below reads the tracker's own tables and those outlive the
+	// tracker being switched off. A site that ran as "both" and moved to
+	// indexer-only went on drawing swarm badges on every listing and a
+	// "Download torrent" button on every release page, each pointing at a
+	// route that no longer exists. The seam alone would have been enough; the
+	// fallback is what made it wrong.
+	if !flavourTracker() {
+		return nil
+	}
 	// Deduplicated before asking: a listing can legitimately carry the same
 	// release twice, and neither source should be handed the repeat.
 	seen := make(map[int64]bool, len(releaseIDs))

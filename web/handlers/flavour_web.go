@@ -4,6 +4,8 @@ import (
 	"github.com/the-loon-clan/loon-site/internal/config"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
+	"github.com/the-loon-clan/loon/core"
+
 	"context"
 	"net/http"
 	"sync/atomic"
@@ -102,4 +104,28 @@ func saveSiteFlavour(ctx context.Context, v string) error {
 
 func validFlavour(s string) bool {
 	return s == FlavourIndexer || s == FlavourTorrent || s == FlavourBoth
+}
+
+// coreFlavours maps this site's setting onto the SET of halves core.Boot
+// filters plugins with (core.Metadata.Flavours).
+//
+// The mapping exists because the two vocabularies are deliberately different.
+// The setting is what an operator picks — three named choices, one of which is
+// "both" — and core's is what is switched ON, which is a set. A set is the
+// right shape downstream: every consumer asks "is the tracker half on", never
+// "which of three modes is this", and the moment "both" is a value rather than
+// two elements every one of those consumers grows a three-way switch.
+//
+// It is also why the host's own word stays "torrent" while core's is "tracker".
+// Renaming the setting would mean a migration on every existing deployment to
+// gain nothing a reader of this function cannot see.
+func coreFlavours() []string {
+	var out []string
+	if flavourIndexer() {
+		out = append(out, core.FlavourIndexer)
+	}
+	if flavourTracker() {
+		out = append(out, core.FlavourTracker)
+	}
+	return out
 }

@@ -30,9 +30,26 @@ func testWeb(m pluginapi.TorrentMirrors) *web {
 	return &web{log: slog.New(slog.DiscardHandler), mirrors: m}
 }
 
+// withTracker turns the tracker half on for one test and puts it back.
+//
+// Every test in this file is about what happens when a release IS a torrent,
+// which is a question only a site with a tracker asks — and the package's
+// default flavour is indexer-only, where releaseMirrors correctly answers
+// "there are no mirrors" before reaching anything these tests are pinning.
+// Stating the precondition is the point: the guard is what stops an
+// indexer-only site drawing swarm badges out of tables the tracker left
+// behind.
+func withTracker(t *testing.T) {
+	t.Helper()
+	before := siteFlavour()
+	flavourMode.Store(FlavourBoth)
+	t.Cleanup(func() { flavourMode.Store(before) })
+}
+
 // A listing can legitimately carry the same release twice, and neither source
 // should be handed the repeat — nor a zero, which is not a release id.
 func TestReleaseMirrorsAsksOncePerRelease(t *testing.T) {
+	withTracker(t)
 	f := &fakeMirrors{out: map[int64]pluginapi.TorrentMirror{}}
 	testWeb(f).releaseMirrors(context.Background(), []int64{7, 7, 0, 9, 7})
 	if len(f.seen) != 2 || f.seen[0] != 7 || f.seen[1] != 9 {
@@ -42,6 +59,7 @@ func TestReleaseMirrorsAsksOncePerRelease(t *testing.T) {
 
 // An unresolvable badge must not take down the listing it decorates.
 func TestReleaseMirrorsSwallowsAFailure(t *testing.T) {
+	withTracker(t)
 	f := &fakeMirrors{err: errors.New("tracker is having a day")}
 	if got := testWeb(f).releaseMirrors(context.Background(), []int64{7}); got != nil {
 		t.Errorf("got %v on a failed lookup, want nothing rather than a wrong answer", got)
@@ -51,6 +69,7 @@ func TestReleaseMirrorsSwallowsAFailure(t *testing.T) {
 // Nothing to ask about is not a question. The nil short-circuit is what keeps a
 // pure indexer — and every empty page — from touching the seam at all.
 func TestReleaseMirrorsAsksNothingForNothing(t *testing.T) {
+	withTracker(t)
 	f := &fakeMirrors{}
 	for _, ids := range [][]int64{nil, {}, {0}, {-1}} {
 		f.seen = nil
@@ -69,6 +88,7 @@ func TestReleaseMirrorsAsksNothingForNothing(t *testing.T) {
 // And the guard is presence, never the counts: 0 seeders is a real figure
 // meaning a dead torrent, and a release with no torrent must not look the same.
 func TestAttachSwarmMarksPresenceNotCounts(t *testing.T) {
+	withTracker(t)
 	f := &fakeMirrors{out: map[int64]pluginapi.TorrentMirror{
 		1: {InfoHash: "abc", Seeders: 0, Leechers: 0},
 	}}

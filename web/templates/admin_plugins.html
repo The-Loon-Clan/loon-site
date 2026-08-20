@@ -3,7 +3,10 @@
 
 <header>
     <h1 class="h3 m-0">Plugins</h1>
-    <p class="text-muted small m-0 mt-1">Plugins compiled into this build.</p>
+    <p class="text-muted small m-0 mt-1">
+        Plugins compiled into this build. This site's flavour is
+        <strong>{{.Flavour}}</strong> — see <a href="/admin/access">Access</a>.
+    </p>
 </header>
 
 {{/* Fully host-authored (no plugin fragment lands on this page), so it uses the
@@ -13,7 +16,7 @@
     <header class="panel__header">
         <h2 class="panel__heading">
             <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#server"></use></svg>
-            Registered<span class="panel__grouping">({{len .Plugins}})</span>
+            Running<span class="panel__grouping">({{len .Plugins}})</span>
         </h2>
     </header>
     <div class="panel__body panel__body--flush">
@@ -25,6 +28,7 @@
                     <tr>
                         <th>Name</th>
                         <th>Version</th>
+                        <th>Half</th>
                         <th>Requires</th>
                         <th>Description</th>
                     </tr>
@@ -34,6 +38,16 @@
                     <tr>
                         <td class="data-table__nowrap"><code>{{.Name}}</code></td>
                         <td class="data-table__nowrap text-muted">{{.Version}}</td>
+                        {{/* Which half of the site it belongs to
+                             (core.Metadata.Flavours). Most declare nothing and
+                             run on any site, which is drawn as an em dash
+                             rather than as "both" — "both" would read as a
+                             choice somebody made, and the truth is that a
+                             forum was never asked. */}}
+                        <td class="data-table__nowrap">
+                            {{if .Flavours}}<span class="tag tag--sm">{{.Flavours}}</span>
+                            {{else}}<span class="text-muted">&mdash;</span>{{end}}
+                        </td>
                         <td>{{if .Requires}}<code>{{.Requires}}</code>{{else}}<span class="text-muted">&mdash;</span>{{end}}</td>
                         <td>{{.Description}}</td>
                     </tr>
@@ -45,6 +59,37 @@
 </section>
 {{else}}
 <div class="empty">No plugins registered.</div>
+{{end}}
+
+{{/* Compiled in and NOT running. The page's reason for existing: from the
+     outside, "this site has no tracker" and "the tracker is switched off" look
+     identical, and only one of them is fixed by changing a setting.
+
+     Names only, and that is not laziness — metadata lives on an instance, and a
+     plugin core.Boot skipped was never constructed, so a name is all there
+     genuinely is. */}}
+{{with .Skipped}}
+<section class="panelV2 mt-3">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#info"></use></svg>
+            Not running<span class="panel__grouping">({{len .}})</span>
+        </h2>
+    </header>
+    <div class="panel__body">
+        <p class="text-muted m-0 mb-2">
+            Compiled into this build and skipped at boot — by the site flavour,
+            by this process kind, or by the plugin's own <code>enabled</code>
+            setting. Changing the flavour on
+            <a href="/admin/access">Access</a> takes effect at the next restart:
+            a plugin that did not boot has no routes to mount, and a tracker
+            that did keeps its announce endpoints until the process goes away.
+        </p>
+        <ul class="option-list">
+            {{range .}}<li><code>{{.Name}}</code></li>{{end}}
+        </ul>
+    </div>
+</section>
 {{end}}
 {{end}}
 
