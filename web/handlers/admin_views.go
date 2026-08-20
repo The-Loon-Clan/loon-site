@@ -25,17 +25,28 @@ import (
 type navItem struct {
 	Href  string
 	Label string
+	// Feature is the core.Feature key this entry belongs to, empty for most.
+	// Carried rather than resolved at build time because the bar is built ONCE
+	// at boot and a feature toggle has to move it on the next request.
+	Feature string
 }
 
 // wireViews mounts every registered view and stores the lookup tables the
 // render path needs. Called once after core.Boot.
 func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup) {
-	w.settingsViews = c.Views(core.SlotAdminSettings)
-	w.sitePages = c.Views(core.SlotSitePage)
-	w.siteWidgets = c.Views(core.SlotSiteWidget)
-	w.userWidgets = c.Views(core.SlotUserWidget) // /u/<name> profile cards
+	// AllViews, not Views, everywhere in this function — and the distinction is
+	// the whole of how a runtime toggle works. Views hides anything whose
+	// feature is off, and this runs ONCE at boot: a feature switched off at
+	// boot would never have its route mounted, and switching it back on could
+	// then do nothing until a restart. So everything is mounted, and the
+	// feature is consulted per request instead — in the nav filters below, and
+	// in the gate wrapped around each handler.
+	w.settingsViews = c.AllViews(core.SlotAdminSettings)
+	w.sitePages = c.AllViews(core.SlotSitePage)
+	w.siteWidgets = c.AllViews(core.SlotSiteWidget)
+	w.userWidgets = c.AllViews(core.SlotUserWidget) // /u/<name> profile cards
 	w.jobsWidgets = map[string]core.View{}
-	for _, v := range c.Views(core.SlotJobsWidget) {
+	for _, v := range c.AllViews(core.SlotJobsWidget) {
 		w.jobsWidgets[v.Anchor] = v
 	}
 
@@ -47,8 +58,10 @@ func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup
 		{Href: "/admin", Label: "Dashboard"},
 		{Href: "/admin/settings", Label: "Settings"},
 	}
-	for _, v := range c.Views(core.SlotAdminPage) {
-		w.adminNav = append(w.adminNav, navItem{Href: "/admin/p/" + v.Slug, Label: v.Title})
+	for _, v := range c.AllViews(core.SlotAdminPage) {
+		w.adminNav = append(w.adminNav, navItem{
+			Href: "/admin/p/" + v.Slug, Label: v.Title, Feature: v.Feature,
+		})
 	}
 	w.adminNav = append(w.adminNav,
 		// The moderation queues are not /admin routes (they gate at RoleMod and
@@ -80,21 +93,22 @@ func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup
 		}
 	}
 
-	// Standalone admin pages.
-	for _, v := range c.Views(core.SlotAdminPage) {
+	// Standalone admin pages. Each carries the feature gate in front of its
+	// handler, because the route is mounted whether the feature is on or not.
+	for _, v := range c.AllViews(core.SlotAdminPage) {
 		v := v
-		admin.GET("/p/"+v.Slug, w.viewPage(v))
+		admin.GET("/p/"+v.Slug, w.viewFeatureGate(v.Feature), w.viewPage(v))
 		for name, fn := range v.Actions {
-			admin.POST("/p/"+v.Slug+"/"+name, w.viewAction(v, fn))
+			admin.POST("/p/"+v.Slug+"/"+name, w.viewFeatureGate(v.Feature), w.viewAction(v, fn))
 		}
 	}
 
-	// Public-facing pages, gated per view (Public / MinRole).
+	// Public-facing pages, gated per view (Public / MinRole) and per feature.
 	for _, v := range w.sitePages {
 		v := v
-		engine.GET("/p/"+v.Slug, w.sitePage(v))
+		engine.GET("/p/"+v.Slug, w.viewFeatureGate(v.Feature), w.sitePage(v))
 		for name, fn := range v.Actions {
-			engine.POST("/p/"+v.Slug+"/"+name, w.siteAction(v, fn))
+			engine.POST("/p/"+v.Slug+"/"+name, w.viewFeatureGate(v.Feature), w.siteAction(v, fn))
 		}
 	}
 
@@ -133,6 +147,16 @@ type siteNavEntry struct {
 	href, label, group string
 	weight             int
 	view               core.View
+}
+
+// viewLive answers the per-request question about a plugin page: may this
+// viewer see it, and is its feature on?
+//
+// Both, in one place, because the nav is built once at boot and filtered on
+// every render — so anything that can change between those two moments has to
+// be asked here or it is never asked at all.
+func (w *web) viewLive(v core.View, u *core.User) bool {
+	return v.AllowsUser(u) && core.FeatureOn(w.registry(), v.Feature)
 }
 
 // navNode is one rendered top-level nav item: a plain link (Children nil) or a
@@ -265,7 +289,7 @@ func (w *web) siteNav(c *gin.Context) ([]navNode, map[string][]navItem, []navIte
 		e := w.siteNavEntries[i]
 		if e.group == "" {
 			switch {
-			case !e.view.AllowsUser(u):
+			case !w.viewLive(e.view, u):
 			case navPlacedByHost[e.href]:
 				// already on the account menu, written by hand
 			case accountPluginPages[e.href]:
@@ -280,7 +304,7 @@ func (w *web) siteNav(c *gin.Context) ([]navNode, map[string][]navItem, []navIte
 		var kids []navItem
 		for i < len(w.siteNavEntries) && w.siteNavEntries[i].group == e.group {
 			ge := w.siteNavEntries[i]
-			if ge.view.AllowsUser(u) {
+			if w.viewLive(ge.view, u) {
 				kids = append(kids, navItem{Href: ge.href, Label: ge.label})
 			}
 			i++

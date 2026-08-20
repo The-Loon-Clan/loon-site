@@ -1,0 +1,95 @@
+{{define "content"}}
+{{template "admin-subnav" .}}
+
+<header>
+    <h1 class="h3 m-0">Features</h1>
+    <p class="text-muted small m-0 mt-1">
+        Capabilities this site has, and whether they are switched on. Changes
+        take effect on the next page load — nothing here needs a restart, which
+        is what separates it from <a href="/admin/access">Access</a>, where the
+        site's flavour decides which plugins boot at all.
+    </p>
+</header>
+
+{{if .Saved}}
+<p class="notice notice--success mt-2">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#check"></use></svg>
+    <span>Saved. It is live now.</span>
+</p>
+{{end}}
+
+{{if .Features}}
+<section class="panelV2 mt-3">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#settings"></use></svg>
+            Switches<span class="panel__grouping">({{len .Features}})</span>
+        </h2>
+    </header>
+    <div class="panel__body">
+        <ul class="feature-list">
+            {{$csrf := .CSRFToken}}
+            {{range .Features}}
+            <li class="feature{{if not .On}} feature--off{{end}}">
+                <div class="feature__body">
+                    <div class="feature__head">
+                        <strong class="feature__title">{{.Title}}</strong>
+                        <code class="feature__key">{{.Key}}</code>
+                        {{/* Where the current answer came from. "Off" and "off
+                             because that is how it ships" are different things
+                             to be looking at when deciding whether to touch
+                             it. */}}
+                        {{if .Decided}}<span class="tag tag--sm">Set here</span>
+                        {{else}}<span class="tag tag--sm">Default</span>{{end}}
+                    </div>
+                    <p class="feature__desc">{{.Description}}</p>
+                    {{/* What the toggle actually reaches, read from the
+                         registrations rather than a list somebody maintains.
+                         The difference between a page that says "thanks" and
+                         one that says which card stops appearing. */}}
+                    {{with .Surfaces}}
+                    <p class="feature__surfaces small text-muted">
+                        Governs: {{range $i, $s := .}}{{if $i}} · {{end}}{{$s}}{{end}}
+                    </p>
+                    {{end}}
+                </div>
+
+                {{/* One form per switch, and one switch per submission. A page
+                     of checkboxes saved together is one where somebody who came
+                     to change a single thing also silently reverts anything
+                     that moved underneath them since the page loaded — and
+                     these turn parts of a live site off. */}}
+                <form class="feature__actions" method="post" action="/admin/features">
+                    <input type="hidden" name="_csrf" value="{{$csrf}}">
+                    <input type="hidden" name="key" value="{{.Key}}">
+                    {{if .On}}
+                    <button class="button button--outlined button--sm" type="submit" name="state" value="off">
+                        Switch off
+                    </button>
+                    {{else}}
+                    <button class="button button--filled button--sm" type="submit" name="state" value="on">
+                        Switch on
+                    </button>
+                    {{end}}
+                    {{/* Only when there is a decision to forget. "Off" and
+                         "whatever the plugin ships, whatever that becomes" are
+                         different intentions, and without this an operator who
+                         tried something off has no way back to the second. */}}
+                    {{if .Decided}}
+                    <button class="button button--text button--sm" type="submit" name="state" value="clear"
+                            title="Forget this decision and follow the plugin's default ({{if .Default}}on{{else}}off{{end}})">
+                        Use default
+                    </button>
+                    {{end}}
+                </form>
+            </li>
+            {{end}}
+        </ul>
+    </div>
+</section>
+{{else}}
+<div class="empty mt-3">
+    No plugin on this site has declared a switchable feature yet.
+</div>
+{{end}}
+{{end}}

@@ -4975,3 +4975,53 @@ a.episode__link:hover {
 }
 
 .mi__foot { margin: var(--space-8) 0 0; }
+
+/* ---------------------------------------------------------------------------
+   Feature switches (/admin/features)
+   --------------------------------------------------------------------------- */
+
+.feature-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.feature {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-6);
+    padding-bottom: var(--space-8);
+    border-bottom: 1px solid var(--border);
+}
+
+.feature:last-child { padding-bottom: 0; border-bottom: 0; }
+
+/* Switched off. Dimmed rather than hidden or struck through — the row is still
+   the control for turning it back on, and it has to stay readable to be one. */
+.feature--off .feature__title,
+.feature--off .feature__desc { opacity: .65; }
+
+.feature__body { flex: 1 1 22rem; min-width: 0; }
+
+.feature__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-4);
+}
+
+.feature__key { font-size: var(--fs-3xs); color: var(--muted-2); }
+.feature__desc { margin: var(--space-3) 0 0; }
+.feature__surfaces { margin: var(--space-2) 0 0; }
+
+.feature__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex: none;
+}

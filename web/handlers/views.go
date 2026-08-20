@@ -158,7 +158,7 @@ var pageTemplates = []string{
 	"invites.html", "gifts.html", "wishlist.html",
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
-	"admin_jobs.html", "admin_plugins.html", "admin_dashboard.html",
+	"admin_jobs.html", "admin_plugins.html", "admin_features.html", "admin_dashboard.html",
 	"admin_access.html", "admin_contracts.html", "admin_covers.html",
 	// The message catalogue (i18nadmin_web.go).
 	"admin_i18n.html",
@@ -899,7 +899,10 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	// lossy one. RequestURI() is EscapedPath + "?" + RawQuery, i.e. already the
 	// rooted same-origin form backLink() accepts.
 	data["PathQuery"] = c.Request.URL.RequestURI()
-	data["AdminNav"] = w.adminNav
+	// The admin bar, minus anything whose feature is switched off. Filtered
+	// HERE and not at build time: the bar is assembled once at boot, and a
+	// toggle has to move it on the next request.
+	data["AdminNav"] = w.liveAdminNav()
 	// Plugin site pages the viewer may open: SiteNav is the top-level nodes,
 	// SiteNavGroup the ones that asked to sit inside a dropdown the host writes
 	// itself (see hostNavGroups), SiteNavAccount the per-viewer pages that

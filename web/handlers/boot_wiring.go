@@ -181,6 +181,15 @@ func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PG
 	if err := loadSiteFlavour(context.Background(), data.DB()); err != nil {
 		logger.Error("load site flavour", "err", err)
 	}
+	// Feature flags (features_web.go). Loaded here, beside the flavour, and
+	// for the opposite reason: the flavour has to be known before the plugin
+	// config snapshot is built, while this only has to be in memory before the
+	// first render — but a page that renders before the decided set is loaded
+	// would show every feature at its default, which is a flicker nobody can
+	// explain.
+	if err := loadFeatures(context.Background(), data.DB()); err != nil {
+		logger.Error("load features", "err", err)
+	}
 	// Where cover art comes from — see covermode_web.go. Loaded before the
 	// scraper can run, so the first matched cover already obeys the setting.
 	if err := loadCoverMode(context.Background(), data.DB()); err != nil {

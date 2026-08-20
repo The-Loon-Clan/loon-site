@@ -66,6 +66,8 @@ var logKeys = map[string]string{
 	"kind":           "a variant of the thing being logged",
 	"mode":           "which of several modes a subsystem is in",
 	"flavour":        "the site flavour: indexer, torrent or both",
+	"feature":        "a core.Feature key an operator switched, e.g. comments.thanks",
+	"state":          "what a switch was moved to: on, off, or clear (follow the default)",
 	"href":           "the path or URL a nav entry links to",
 	"icon":           "a sprite id (#name) — logged when one is named and the sheet has no such symbol",
 	"area":           "which part of the site",

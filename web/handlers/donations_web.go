@@ -77,6 +77,36 @@ func (s siteSettings) SetSetting(ctx context.Context, key, value string) error {
 	return err
 }
 
+// SettingsWithPrefix reads every key under a prefix, for a caller that keeps a
+// SET of settings rather than a handful of named ones — the feature flags, one
+// row per decision. Absent keys are simply absent; an empty map is a site that
+// has decided nothing, not an error.
+func (s siteSettings) SettingsWithPrefix(ctx context.Context, prefix string) (map[string]string, error) {
+	var rows []struct {
+		Key   string `db:"key"`
+		Value string `db:"value"`
+	}
+	if err := s.db.SelectContext(ctx, &rows,
+		`SELECT key, value FROM site_settings WHERE key LIKE $1`, prefix+"%"); err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(rows))
+	for _, r := range rows {
+		out[r.Key] = r.Value
+	}
+	return out, nil
+}
+
+// DeleteSetting forgets a key.
+//
+// Deleting is not the same as writing a falsy value, which is why this exists:
+// for the feature flags, "off" and "whatever the plugin ships as its default"
+// are different intentions, and only an absent row can express the second.
+func (s siteSettings) DeleteSetting(ctx context.Context, key string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM site_settings WHERE key = $1`, key)
+	return err
+}
+
 // wireDonationsPlugin installs the SetDeps seams. Always called — the plugin
 // registers at init and Provision fails loudly without deps — but every gate
 // below returns false unless LOON_DONATIONS=1.

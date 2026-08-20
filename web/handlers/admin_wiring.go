@@ -73,6 +73,12 @@ func wireAdminAndViews(
 	admin.POST("/pages", wsrv.adminPagesSave)
 	admin.POST("/pages/delete", wsrv.adminPagesDelete)
 	// The menu editor (navadmin_web.go).
+	// Feature flags (features_web.go): what this site has switched off today.
+	// Beside /admin/access, which answers the other question — access is what
+	// KIND of site this is and waits for a restart, features are what it is
+	// doing right now and do not.
+	admin.GET("/features", wsrv.adminFeatures)
+	admin.POST("/features", wsrv.adminFeaturesSave)
 	admin.GET("/nav", wsrv.adminNavEditor)
 	admin.POST("/nav", wsrv.adminNavSave)
 	// Where cover art comes from (coversadmin_web.go + covermode_web.go).

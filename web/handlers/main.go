@@ -449,6 +449,12 @@ func Main() {
 
 	c, err := core.New(core.Deps{
 		Process: role,
+		// Which capabilities are switched on today (features_web.go). Wired at
+		// construction rather than after Boot, because plugins declare their
+		// features during Provision and core.Views/Widgets consult this from
+		// the first render onward — a service arriving later would leave a
+		// window where every feature reported its default.
+		FeatureState: hostFeatures{},
 		// What kind of site this is (flavour_web.go). core.Boot skips plugins
 		// whose Metadata.Flavours share nothing with it, so a torrent-only
 		// deployment never provisions the crawler and an indexer-only one
