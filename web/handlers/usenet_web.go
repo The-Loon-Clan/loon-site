@@ -316,6 +316,21 @@ type searchRow struct {
 	Source     string    // "BluRay"/"WEB-DL" etc; "" when unknown
 	Cover      string    // cover-art URL; "" = none, render the fallback tile
 	Tags       []string  // the non-empty Resolution/Source/Codec/Audio/Language
+	// Selectable and InCart are the cart's tick box (cart_web.go).
+	//
+	// ON THE ROW rather than on the page data, and that is not a preference:
+	// release-row is called as {{template "release-row" .}} with a searchRow as
+	// the dot, so inside it `$` IS the row — the page data is unreachable from
+	// there. Threading it in would mean calling the row with a dict at six call
+	// sites and rewriting every field reference in its body.
+	//
+	// Selectable is off for anonymous viewers and for the home page, so a tick
+	// box only ever appears where it does something.
+	Selectable bool
+	// InCart draws the tick already ticked and disabled. Without it a member
+	// re-ticks what they already have, presses add, and is told nothing was
+	// added — which reads as a broken button rather than as work already done.
+	InCart bool
 	// Grabs is how many times the NZB has been downloaded. ZERO means "not
 	// measured on this path", not "nobody grabbed it" — only the pages that
 	// call attachGrabs populate it, and the templates guard on it so an

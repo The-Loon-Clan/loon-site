@@ -1,0 +1,145 @@
+{{/* /cart — the selection, and the four things to do with it.
+
+     The releases render through the SAME release-row every listing uses, tick
+     box included. The tick means "select"; what a selection DOES is decided by
+     the form it belongs to, and on this page that form is the remove form. So
+     the cart looks like the page it was filled from rather than a second table
+     that would drift from it.
+
+     .InCart is deliberately NOT set here. Every row on this page is in the
+     cart, and the row draws an in-cart tick as checked and disabled — which on
+     a listing means "already collected" and here would mean nothing could be
+     removed. */}}
+
+{{define "breadcrumbs"}}
+<ol class="breadcrumbsV2">
+    <li class="breadcrumbV2"><a class="breadcrumb__link" href="/" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#home"></use></svg></a></li>
+    <li class="breadcrumb--active">Cart</li>
+</ol>
+{{end}}
+
+{{define "content"}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h1 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#store"></use></svg>
+            Cart
+        </h1>
+        {{if .Results}}<div class="panel__actions"><span class="panel__grouping">{{len .Results}}</span></div>{{end}}
+    </header>
+
+    <div class="panel__body">
+        {{if .Done}}
+        <p class="notice {{if or (eq .Done "failed") (eq .Done "empty") (eq .Done "full") (eq .Done "noindex")}}notice--warning{{else}}notice--success{{end}}">
+            <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+            <span>
+                {{if eq .Done "saved"}}{{.N}} added to your bookmarks. Anything already saved stayed saved.
+                {{else if eq .Done "collected"}}{{.N}} added to the collection. Anything already in it stayed put.
+                {{else if eq .Done "nocollection"}}Choose a collection first.
+                {{else if eq .Done "nocollections"}}This site has no collections.
+                {{else if eq .Done "empty"}}Nothing could be packed — those releases are no longer on the index.
+                {{else if eq .Done "full"}}Your cart is full. Take what is in it first, or empty it.
+                {{else if eq .Done "noindex"}}This site has no index configured, so there are no NZBs to pack.
+                {{else}}That did not work.{{end}}
+            </span>
+        </p>
+        {{end}}
+
+        {{if .Missing}}
+        {{/* Said rather than swallowed. A cart that shrank between visits is
+             alarming; "three of them aged off the index" is the answer, and it
+             is the honest one — a Usenet index is not a library. */}}
+        <p class="notice notice--warning">
+            <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+            <span>{{.Missing}} release{{if ne .Missing 1}}s are{{else}} is{{end}} no longer on the index and {{if ne .Missing 1}}have{{else}}has{{end}} been left out.</span>
+        </p>
+        {{end}}
+
+        {{if .Results}}
+        <p class="m-0 text-muted">
+            Everything you ticked while browsing. Take it all at once, keep it, or file it.
+        </p>
+        {{else}}
+        <p class="m-0 text-muted">
+            Nothing here yet. Tick releases on <a href="/browse">browse</a> or
+            <a href="/search">search</a> and they collect here.
+        </p>
+        {{end}}
+    </div>
+
+    {{if .Results}}
+    {{/* The three destinations, ABOVE the table: this is what the page is for,
+         and somebody who came here to press one should not scroll past forty
+         rows to find it. Three separate forms rather than one with three submit
+         buttons, because they go to three routes — and a button that quietly
+         means "and also this other thing" is how a cart somebody meant to file
+         gets zipped instead. */}}
+    <div class="panel__body cart-actions">
+        <form method="post" action="/cart/zip">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <button class="button button--filled" type="submit">
+                <svg class="icon" aria-hidden="true"><use href="#download"></use></svg>Download all as a zip
+            </button>
+        </form>
+
+        <form method="post" action="/cart/bookmark">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <button class="button button--outlined" type="submit">
+                <svg class="icon" aria-hidden="true"><use href="#star"></use></svg>Save all to bookmarks
+            </button>
+        </form>
+
+        {{/* Only when a collections plugin answered. A site without one simply
+             does not offer the choice, rather than offering a dead control. */}}
+        {{with .Collections}}
+        <form class="cart-actions__collect" method="post" action="/cart/collect">
+            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+            <label class="visually-hidden" for="cart-collection">Collection</label>
+            <select class="form__input" id="cart-collection" name="collection">
+                {{range .}}<option value="{{.Slug}}">{{.Name}} ({{.Count}})</option>{{end}}
+            </select>
+            <button class="button button--outlined" type="submit">
+                <svg class="icon" aria-hidden="true"><use href="#folder"></use></svg>Add all to
+            </button>
+        </form>
+        {{end}}
+
+        <form method="post" action="/cart/clear">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <button class="button button--text" type="submit">Empty the cart</button>
+        </form>
+    </div>
+
+    <div class="panel__body panel__body--flush">
+        <div class="data-table-wrapper">
+            <table class="data-table">
+                <caption class="visually-hidden">Releases in your cart</caption>
+                <thead>
+                    <tr>
+                        <th>Release</th>
+                        <th class="data-table__nowrap">Category</th>
+                        <th class="data-table__num">Size</th>
+                        <th class="data-table__num" title="NZB downloads">Grabs</th>
+                        <th class="data-table__nowrap">Added</th>
+                        <th class="data-table__shrink"><span class="visually-hidden">Download</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Results}}{{template "release-row" .}}{{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {{/* The tick boxes above name this form (form="cart-form" on each), so on
+         this page a tick means "remove this one". */}}
+    <div class="panel__body">
+        <form class="cart-bar" id="cart-form" method="post" action="/cart/remove">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <p class="cart-bar__note">Tick rows to take them back out.</p>
+            <button class="button button--outlined button--sm" type="submit">Remove ticked</button>
+        </form>
+    </div>
+    {{end}}
+</section>
+{{end}}

@@ -337,6 +337,12 @@ func Main() {
 		os.Exit(1)
 	}
 
+	// The cart (cart_web.go) — a selection accumulated across listings.
+	if err := data.MigrateCart(); err != nil {
+		logger.Error("cart migrate", "err", err)
+		os.Exit(1)
+	}
+
 	// Widget placements (widgets_web.go) — WHERE an operator has put each
 	// registered widget. The widgets themselves come from plugins at boot and
 	// live in memory; this table only remembers the arrangement.

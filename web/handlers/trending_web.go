@@ -79,6 +79,7 @@ func (w *web) trending(c *gin.Context) {
 	}
 	rows := w.trendingRows(ctx, days, trendingRows)
 	data["Results"] = rows
+	w.cartData(c, data, rows)
 	w.render(c, "trending.html", data)
 }
 

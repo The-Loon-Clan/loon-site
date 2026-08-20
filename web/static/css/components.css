@@ -4624,3 +4624,119 @@ a.episode__link:hover {
     .fx-frame-prism { animation: none; box-shadow: 0 0 0 2px #8ad4f5, 0 0 9px rgba(138, 212, 245, .55); }
     .fx-bg-drift::before { animation: none; background-position: 30% 0; }
 }
+
+/* ---------------------------------------------------------------------------
+   The cart
+
+   Tick releases across listings, then do one thing with all of them. No
+   JavaScript anywhere in it — the two tricks that make that work are the
+   form="" attribute on each checkbox (a <form> cannot legally wrap a <tbody>)
+   and :has(input:checked) below.
+   --------------------------------------------------------------------------- */
+
+/* The tick, inside the first cell beside the poster. Given a real target area
+   rather than the browser's 13px box: this sits in a dense table row and a
+   mis-click puts the wrong release in somebody's cart. */
+.cart-tick {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 26px;
+    height: 26px;
+    margin-right: var(--space-2);
+    border-radius: var(--radius-sm, 6px);
+    cursor: pointer;
+}
+
+.cart-tick:hover { background: var(--surface-2); }
+
+.cart-tick input { cursor: pointer; margin: 0; }
+
+/* Already in the cart: the box is checked and disabled, so the row says
+   "collected" and cannot be collected twice. Kept legible rather than greyed
+   into nothing, because it is carrying information. */
+.cart-tick input:disabled { cursor: default; opacity: .85; }
+.cart-tick:has(input:disabled) { cursor: default; }
+.cart-tick:has(input:disabled):hover { background: transparent; }
+
+/* Keyboard focus lands on the checkbox; the ring goes on the label, which is
+   the actual target. */
+.cart-tick:has(input:focus-visible) {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+}
+
+/* The bar under a listing. */
+.cart-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-6);
+    border-top: 1px solid var(--border);
+}
+
+.cart-bar__note {
+    flex: 1 1 14rem;
+    margin: 0;
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+}
+
+/* THE WHOLE NO-JAVASCRIPT TRICK.
+
+   The bar is dimmed and its buttons unreachable until something is ticked, and
+   the selector is the page asking the table a question: does anything inside
+   this listing have a checked box? No script, no state to keep in sync, and
+   nothing to go stale.
+
+   Written as :not(:has(...)) — the RESTING state is the styled one — so a
+   browser that does not understand :has fails the whole selector, ignores the
+   rule, and leaves the bar fully usable. The degraded state is a working
+   control, which is the only acceptable direction for this to fail in. */
+/* The subject is the PANEL, not the table wrapper. The bar has to sit outside
+   .data-table-wrapper — that element scrolls horizontally, and a control inside
+   it slides away with a wide table — so the two are no longer siblings, and the
+   only element that contains both is the panel around them. */
+.panelV2:not(:has(.cart-tick input:checked)) .cart-bar {
+    opacity: .55;
+}
+
+.panelV2:not(:has(.cart-tick input:checked)) .cart-bar button {
+    pointer-events: none;
+}
+
+/* The cart page's own row of destinations. */
+.cart-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-5);
+}
+
+.cart-actions__collect {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.cart-actions__collect .form__input {
+    /* Wide enough for a real collection name and its count, narrow enough that
+       it does not push the buttons onto their own line at tablet width. */
+    width: auto;
+    min-width: 12rem;
+}
+
+/* The header pill. Nothing of its own to set — .stat-figure already carries the
+   shape the points figure and the tracker's widget use, and the cart belongs in
+   that set rather than looking like a second system. Declared so the class is
+   not an undefined one in a template (audit_css.py), and because a hook with no
+   rule is indistinguishable from a typo to the next reader. */
+.cart-pill { /* shape comes from .stat-figure */ }
+
+/* The count. Absent when the cart is empty rather than showing a zero — a badge
+   reading 0 is a control asking to be pressed for nothing. */
+.cart-pill__count {
+    margin-left: 4px;
+    font-variant-numeric: tabular-nums;
+}

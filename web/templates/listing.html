@@ -35,6 +35,37 @@
 <tr>
     <td>
         <div class="data-table__name">
+            {{/* The cart tick. INSIDE the first cell rather than in a column of
+                 its own, because of the warning further down this file: five
+                 tables share this row, and a new column means five headers to
+                 keep in step where one missed <th> silently misaligns a whole
+                 table.
+
+                 form="cart-form" is what makes this work with no JavaScript. A
+                 <form> cannot legally wrap a <tbody>, so the form sits beside
+                 the table and each checkbox names it — the browser does the
+                 association, and no listing template had to be restructured.
+
+                 Rendered only for a signed-in viewer: a cart belongs to an
+                 account, and a tick box that silently does nothing is worse
+                 than no tick box.
+
+                 Selectable and InCart are fields on the ROW, not on the page —
+                 inside this define `$` is the searchRow, so the page data is
+                 not reachable from here at all. See the note on searchRow. */}}
+            {{if .Selectable}}
+            {{/* aria-label on the INPUT, naming the release. A wrapping
+                 <label> is valid HTML and does associate the two, but it is
+                 the weaker form: the a11y audit does not count it, and neither
+                 do several screen readers in table context. Naming the release
+                 rather than saying "select" also means a member tabbing a
+                 listing hears WHICH row they are on. */}}
+            <label class="cart-tick">
+                <input type="checkbox" form="cart-form" name="id" value="{{.ID}}"
+                       aria-label="Select {{.Title}}"
+                       {{if .InCart}}checked disabled{{end}}>
+            </label>
+            {{end}}
             <span class="list-row__thumb list-row__thumb--poster">
                 {{if .Cover}}<img src="{{.Cover}}" alt="" loading="lazy">
                 {{else}}<span class="poster__fallback poster__fallback--h{{$h}}"><span class="poster__fallback-label">{{initials .Title}}</span></span>{{end}}
@@ -144,3 +175,35 @@
     {{- else}}{{$c.Label}}{{end}}
 </th>
 {{- end}}
+
+{{/* ==========================================================================
+     THE CART FORM AND ITS BAR — the other half of the tick box above.
+
+     Rendered by every page that renders release-row with .CartOn set. The form
+     is deliberately OUTSIDE the table: a <form> cannot legally wrap a <tbody>,
+     so the checkboxes name it with form="cart-form" and the browser does the
+     association. That is what let a cart arrive without restructuring a single
+     listing table.
+
+     The bar shows only when something is ticked, through :has(input:checked)
+     in the stylesheet — no script, nothing to keep in sync, and on a browser
+     without :has it simply stays visible, which is a working control rather
+     than a broken one.
+
+     Dot: the page data. .CartBack is the path to return to.
+     ========================================================================== */}}
+{{define "cart-bar"}}
+{{if .CartOn}}
+<form class="cart-bar" id="cart-form" method="post" action="/cart/add">
+    <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    <input type="hidden" name="back" value="{{.CartBack}}">
+    <p class="cart-bar__note">
+        Tick releases to collect them. They stay in your cart while you keep browsing.
+    </p>
+    <button class="button button--filled button--sm" type="submit">
+        <svg class="icon" aria-hidden="true"><use href="#plus"></use></svg>Add ticked to cart
+    </button>
+    <a class="button button--outlined button--sm" href="/cart">Open cart</a>
+</form>
+{{end}}
+{{end}}

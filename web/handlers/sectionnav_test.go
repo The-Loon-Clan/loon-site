@@ -30,7 +30,7 @@ func TestAccountMenuEntriesAreReachable(t *testing.T) {
 		"/store/history": true, "/inbox": true, "/p/inbox": true,
 		"/p/account": true, "/settings/privacy": true, "/settings/notifications": true,
 		"/settings/profile": true, "/settings/security": true,
-		"/bookmarks": true, "/calendar": true, "/achievements": true, "/subscriptions": true,
+		"/bookmarks": true, "/cart": true, "/calendar": true, "/achievements": true, "/subscriptions": true,
 		"/gifts": true, "/wishlist": true,
 		"/p/topics": true, "/p/posts": true,
 		// A plugin page named on the menu by hand rather than left to the
@@ -455,6 +455,10 @@ func TestChromeLinksAreServed(t *testing.T) {
 		// Rendered only when a source registered, but when it renders it has
 		// to resolve — the link is how the licence's credit is reachable.
 		"/credits": true,
+		// The cart pill in the header bar, rendered only while the member has
+		// something in it — and served whenever it renders, since both come
+		// from the same table (chromeData -> storage.CartCount).
+		"/cart": true,
 		// The tracker plugin's own index, linked from the top bar's ratio
 		// figures. Served by the plugin rather than the host, and mounted only
 		// when LOON_TRACKER is set — which is exactly the condition under

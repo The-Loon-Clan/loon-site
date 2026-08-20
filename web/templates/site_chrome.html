@@ -323,6 +323,19 @@
 
                      Points stays: it is the host's own figure and has no
                      widget competing with it. */}}
+                {{/* The cart, when there is something in it. Absent when empty
+                     rather than showing a zero — a badge reading 0 is a control
+                     asking to be pressed for nothing, and the cart is reachable
+                     from every listing's own bar anyway. */}}
+                {{if .CartCount}}
+                <li>
+                    <a class="stat-figure cart-pill" href="/cart" title="Releases you have collected">
+                        <svg class="icon" aria-hidden="true"><use href="#store"></use></svg>
+                        <span class="stat-figure__value cart-pill__count">{{.CartCount}}</span>
+                        <span class="visually-hidden">releases in your cart</span>
+                    </a>
+                </li>
+                {{end}}
                 {{if .HasPoints}}
                 <li>
                     {{/* The same .stat-figure shape the tracker's widget uses,

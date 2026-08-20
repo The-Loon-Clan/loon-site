@@ -117,6 +117,7 @@
             </table>
         </div>
     </div>
+    {{template "cart-bar" $}}
     <div class="panel__body">
         <p class="m-0 small text-muted">Showing {{len .Results}} of {{.Total}} release{{if ne .Total 1}}s{{end}} in {{.CatName}}.</p>
     </div>

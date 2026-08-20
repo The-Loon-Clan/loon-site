@@ -41,6 +41,7 @@ func (w *web) bookmarksPage(c *gin.Context) {
 		rows = w.attachSwarm(ctx, w.attachGrabs(ctx, rows))
 	}
 	data["Results"] = rows
+	w.cartData(c, data, rows)
 	w.render(c, "bookmarks.html", data)
 }
 

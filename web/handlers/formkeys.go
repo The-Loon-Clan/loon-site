@@ -34,4 +34,8 @@ const (
 	querySaved = "saved"
 	queryDone  = "done"
 	queryToken = "token"
+	// queryCount rides beside queryDone when the banner has a figure to
+	// report: "6 added to your bookmarks". Separate from the outcome key
+	// because the outcome is what happened and this is how much of it.
+	queryCount = "n"
 )

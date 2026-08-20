@@ -153,7 +153,7 @@ var pageTemplates = []string{
 	"series_index.html", "series.html",
 	// The staff view of who vouched for whom (invitesadmin_web.go).
 	"admin_invites.html",
-	"trending.html", "bookmarks.html", "follows.html", "calendar.html",
+	"trending.html", "bookmarks.html", "cart.html", "follows.html", "calendar.html",
 	"achievements.html", "forum_activity.html", "rewards.html", "subscriptions.html",
 	"invites.html", "gifts.html", "wishlist.html",
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
@@ -192,6 +192,9 @@ var sharedPartials = map[string][]string{
 	"search.html":               {"listing.html", "facets.html"},
 	"trending.html":             {"listing.html"},
 	"bookmarks.html":            {"listing.html"},
+	// The cart renders the shared release-row, tick box and all — see
+	// cart.html's own note on why the tick means "remove" there.
+	"cart.html":                 {"listing.html"},
 	"release.html":              {"bookmark_button.html"},
 	"profile.html":              {"follow_button.html"},
 	"wishlist.html":             {"wishlist_item.html"},
@@ -376,6 +379,16 @@ func (w *web) mount(e *gin.Engine) {
 	// WRITES, so it is POST — a GET that mutates is one prefetching browser
 	// away from bookmarking somebody's whole history for them.
 	e.GET("/bookmarks", w.authed(w.bookmarksPage)...)
+	// The cart (cart_web.go) — a selection accumulated across listings, and the
+	// four things it can empty into. Every one is a POST because every one
+	// writes; /cart/zip writes a grab per NZB it packs.
+	e.GET("/cart", w.authed(w.cartPage)...)
+	e.POST("/cart/add", w.authed(w.cartAdd)...)
+	e.POST("/cart/remove", w.authed(w.cartRemove)...)
+	e.POST("/cart/clear", w.authed(w.cartClear)...)
+	e.POST("/cart/bookmark", w.authed(w.cartBookmark)...)
+	e.POST("/cart/collect", w.authed(w.cartCollect)...)
+	e.POST("/cart/zip", w.authed(w.cartZip)...)
 	// Calendar (calendar_web.go) — the member's own dated things, so it is
 	// login-gated inside the handler like /bookmarks rather than by role.
 	e.GET("/calendar", w.authed(w.calendarPage)...)
@@ -798,6 +811,14 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 				data["HasPoints"] = true
 			}
 		}
+		// The cart badge. Set only when there is something in it, so the
+		// template's {{if .CartCount}} hides an empty cart — which is the
+		// bell-badge rule rather than the stat-tile one: a cart with nothing in
+		// it is not information, it is a control asking to be pressed for
+		// nothing, and every listing links to it anyway.
+		if n, ok := w.data.CartCount(c.Request.Context(), u.ID); ok && n > 0 {
+			data["CartCount"] = n
+		}
 		// No tracker figures in the chrome. They were rendered twice — these
 		// keys AND the tracker-standing widget, which an operator can place in
 		// the same header bar — and two sources for one number is a thing to
@@ -1202,7 +1223,9 @@ func (w *web) browse(c *gin.Context) {
 			data["Facets"] = buildFacets(rows, f, "/browse", keepParams(c, "cat"))
 			// The table's headers ARE the sort control — see sortColumns.
 			data["SortCols"] = sortColumns(f, "/browse", keepParams(c, "cat"))
-			data["Results"] = f.apply(rows)
+			shown := f.apply(rows)
+			data["Results"] = shown
+			w.cartData(c, data, shown)
 			data["Filter"] = f
 			// Total is the category's real size from the index. The filtered
 			// count is len(Results) and the template shows both — conflating
@@ -1289,7 +1312,9 @@ func (w *web) search(c *gin.Context) {
 			// matches something; the results are what is left after applying.
 			data["Facets"] = buildFacets(rows, f, "/search", keepParams(c, "q"))
 			data["SortCols"] = sortColumns(f, "/search", keepParams(c, "q"))
-			data["Results"] = f.apply(rows)
+			shown := f.apply(rows)
+			data["Results"] = shown
+			w.cartData(c, data, shown)
 			data["Filter"] = f
 		}
 	}

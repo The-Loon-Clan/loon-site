@@ -115,6 +115,36 @@ func (st *Store) MigrateAvatarMod() error {
 	return nil
 }
 
+// MigrateCart creates the selection a member accumulates across pages.
+//
+// Deliberately shaped like release_bookmark, because it is the same kind of
+// thing — a member's own set of release ids — and the difference is only what
+// it MEANS. A bookmark is "I want to keep this"; a cart row is "I am about to
+// do something with this". Two tables rather than a `kind` column on one,
+// because they empty into each other: a cart's most common destination is the
+// bookmarks, and a self-referential move is far easier to reason about between
+// two tables than within one.
+func (st *Store) MigrateCart() error {
+	stmts := []SQL{
+		`CREATE TABLE IF NOT EXISTS release_cart (
+		    user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		    release_id BIGINT NOT NULL,
+		    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+		    PRIMARY KEY (user_id, release_id)
+		)`,
+		// "my cart, in the order I ticked things" is the only listing query,
+		// and the primary key already serves the membership tests.
+		`CREATE INDEX IF NOT EXISTS idx_release_cart_user
+		     ON release_cart (user_id, created_at)`,
+	}
+	for _, q := range stmts {
+		if _, err := st.db.Exec(q); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // MigrateBookmarks creates the table. Idempotent.
 func (st *Store) MigrateBookmarks() error {
 	stmts := []SQL{

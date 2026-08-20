@@ -36,7 +36,7 @@ economy features — none of these need a swarm.
 - [ ] **General leaderboards** — `S` — top grabbers, top uploaders, top posters, week and all time
 - [x] **Polls** — `S` — one widget, placed wherever the question belongs
 - [x] **Invite tree** — `S` — who invited whom, walkable, so a bad recruiter is one click
-- [ ] **Cart / bulk grab** — `S` — tick ten rows, one zip or one push to the downloader
+- [x] **Cart / bulk grab** — `S` — tick rows across pages, then zip, save or file the lot
 - [ ] **Saved searches that notify** — `M` — "tell me when anything matching this lands"
 - [ ] **MediaInfo and screenshots** — `M` — how you pick between six copies of one episode
 - [ ] **Failed-download reporting → health** — `M` — the downloader reports back, health absorbs it
@@ -284,13 +284,42 @@ settings, defaulting to the conservative answer. Recruiting totals on a profile
 are one of them and default OFF — it is a social graph, and publishing one
 should be a decision.
 
-## Cart / bulk grab — S
+## Cart / bulk grab — S — DONE 20 Aug 2026
 
 Tick ten rows, get one zip of NZBs, or push them all to the downloader. nZEDb
 has had "send to cart" and "send to my queue" for over a decade.
 
 **Here:** `lists` already downloads a whole list; what is missing is selection
 on a listing page.
+
+That last sentence was the whole of it. This site could already save a release,
+collect releases and download a release — the only thing it could not do was
+any of those to TEN releases, and a season is ten rows.
+
+So the cart is a SELECTION, and its value is that it survives leaving the page:
+tick four on page one of a browse, three on page two, one from a search, then
+do one thing with all eight. It empties four ways — a zip of every NZB, the
+bookmarks, a collection, or back out.
+
+**No JavaScript**, on two tricks worth remembering:
+
+- The checkboxes are inside the table and the form is not. A `<form>` cannot
+  legally wrap a `<tbody>`, so each checkbox carries `form="cart-form"` and the
+  browser does the association — which is why not one listing table had to be
+  restructured.
+- The action bar dims until something is ticked, via
+  `:not(:has(.cart-tick input:checked))`. Written so the RESTING state is the
+  styled one, meaning a browser without `:has` ignores the rule and leaves the
+  bar fully usable — the degraded state is a working control.
+
+The tick also sits inside the first cell rather than in a column of its own,
+because `listing.html`'s own comment warns what a column costs: five tables
+share that row, and a missed `<th>` silently misaligns one of them.
+
+**Favourites and collections already existed** and were not rebuilt. What they
+lacked was a way to fill them in bulk, which is what the cart is. Collections
+are reached through a new `pluginapi.CollectionSink`, so the host offers "add
+all to…" without knowing that collections are the `playlists` plugin.
 
 ## Saved searches that notify — M
 
