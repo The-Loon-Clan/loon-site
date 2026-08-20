@@ -38,7 +38,7 @@ economy features — none of these need a swarm.
 - [x] **Invite tree** — `S` — who invited whom, walkable, so a bad recruiter is one click
 - [x] **Cart / bulk grab** — `S` — tick rows across pages, then zip, save or file the lot
 - [ ] **Saved searches that notify** — `M` — "tell me when anything matching this lands"
-- [ ] **MediaInfo and screenshots** — `M` — how you pick between six copies of one episode
+- [x] **MediaInfo and screenshots** — `M` — derived from the NZB, plus what members contribute
 - [ ] **Failed-download reporting → health** — `M` — the downloader reports back, health absorbs it
 - [ ] **Duplicate / trump detection** — `M` — stop the catalogue quietly holding five of one thing
 - [ ] **Collectible sets with trading** — `M` — lootbox drops belong to sets, duplicates trade
@@ -332,7 +332,7 @@ new releases against them. The crawler has the hook point, and the notify seam
 and the inbox are both built. Pairs naturally with an RSS feed per saved search
 — the Newznab `/api` + `/rss` plumbing already exists.
 
-## MediaInfo and screenshots — M
+## MediaInfo and screenshots — M — DONE 20 Aug 2026
 
 Resolution, bitrate, audio tracks, subtitle languages, and a handful of frames.
 It is how a member picks between six copies of one episode.
@@ -340,6 +340,27 @@ It is how a member picks between six copies of one episode.
 **Here:** the series page puts six copies of one episode in front of a reader
 with only the filename tags to choose from — which is exactly the page that
 makes this worth having. `img` and `uploads` are the seams.
+
+**The constraint that shaped it:** an index holds pointers to Usenet articles,
+not the bytes. Nothing here can open a file and read its bitrate, and
+pretending otherwise is how a feature ends up fabricating. So it is two panels,
+and a reader can always tell which is which:
+
+| | |
+|---|---|
+| **What is in it** | Derived from the NZB's own file list, so always true and always there: container, media file count, subtitle files and their languages, recovery share, and how much of the download is not the film |
+| **Media details** | Contributed by members who downloaded it — MediaInfo, chapters, screenshots — with an author and a date on every one |
+
+Bitrate, audio tracks, muxed subtitles and chapters are simply not in an NZB.
+The only honest way to have them is for somebody holding the file to say so,
+and for the page to say that is what it is.
+
+**Screenshots are fetched, never hotlinked**, through a new
+`pluginapi.ImageIntake` on the host. Fetching a URL somebody typed is a request
+the SERVER makes, from inside the network, to an address an attacker chose —
+the cloud metadata endpoint, a private subnet, or on the production host a way
+to make the site reveal its real address behind the VPN. That is the host's
+risk to manage once, not every plugin's to manage separately.
 
 ## Failed-download reporting, fed into health — M
 

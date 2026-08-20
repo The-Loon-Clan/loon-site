@@ -35,6 +35,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 
+	"github.com/the-loon-clan/loon/blob"
 	"github.com/the-loon-clan/loon/core"
 	"github.com/the-loon-clan/loon/schedule"
 
@@ -93,6 +94,13 @@ import (
 	// SetCosmetics below, the fx-* rules in components.css, and the test that
 	// asserts the two agree about every slug in the catalogue.
 	_ "github.com/the-loon-clan/loon-plugins/cosmetics"
+	// mediainfo: the half of "what is in this release" that an NZB cannot
+	// prove — bitrate, audio tracks, muxed subtitles, chapters — contributed
+	// by the members who downloaded it, plus screenshots. Its screenshots go
+	// through the ImageIntake registered below rather than being fetched by
+	// the plugin, which is the point of that seam: fetching a URL somebody
+	// typed is the host's risk to manage, not a plugin's.
+	_ "github.com/the-loon-clan/loon-plugins/mediainfo"
 	// downloads: the callback a member's SABnzbd or NZBGet posts when a job
 	// finishes. Self-contained over three lookups (auth.apikey, usenet.recheck,
 	// usenet.grabs), all registered just before core.Boot, so the import is the
@@ -793,6 +801,16 @@ func Main() {
 	if err := c.Register(pluginapi.DownloadGrabLookupName,
 		pluginapi.DownloadGrabLookup(data)); err != nil {
 		logger.Error("register grab lookup", "err", err)
+	}
+	// Fetching an image a MEMBER named (imageintake_web.go). Registered by the
+	// host and not implemented in the plugin that wants it, because the
+	// address rules, the egress policy and the size cap are one thing to get
+	// right rather than one per plugin — and getting it wrong is a request
+	// this server makes, from inside the network, to an address somebody else
+	// chose.
+	if err := c.Register(pluginapi.ImageIntakeName,
+		pluginapi.ImageIntake(newImageIntake(blob.NewLocal(uploadRoot, uploadURL)))); err != nil {
+		logger.Error("register image intake", "err", err)
 	}
 	// NOT registered: pluginapi.ReleaseRecheckName. This demo runs the indexer
 	// in internal mode, where the usenet plugin owns its own nzbs table and

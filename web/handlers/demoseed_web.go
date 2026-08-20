@@ -276,9 +276,13 @@ func widgetSeed(db storage.Conn, log *slog.Logger) {
 	}
 	if _, err := db.Exec(`
 		INSERT INTO widget_placement (region, slug, position, enabled)
-		VALUES ('release-main', 'comments', 0, TRUE)
+		VALUES ('release-main', 'comments', 10, TRUE),
+		       -- Media details ABOVE the conversation, because it answers the
+		       -- question somebody arrived with ("is this the copy I want")
+		       -- and the comments answer the one they have after.
+		       ('release-main', 'mediainfo', 0, TRUE)
 		ON CONFLICT (region, slug) DO NOTHING`); err != nil {
-		log.Warn("widget seed: comments", "err", err)
+		log.Warn("widget seed: release panels", "err", err)
 		return
 	}
 	if _, err := db.Exec(`

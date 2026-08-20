@@ -4790,3 +4790,188 @@ a.episode__link:hover {
 .contents__value--warn { color: var(--danger, var(--primary)); }
 
 .contents__note { margin: var(--space-8) 0 0; }
+
+/* ---------------------------------------------------------------------------
+   Contributed media details (the mediainfo plugin)
+
+   Deliberately quieter than the derived "What is in it" panel above it. That
+   one states facts read from the NZB; this one is somebody's word, and the
+   design should not lend it more authority than it has — hence the author line
+   at the top of every report and the muted footnote at the bottom.
+   --------------------------------------------------------------------------- */
+
+/* --- screenshots ---------------------------------------------------------- */
+
+.shots {
+    display: grid;
+    /* Auto-fit, because a release has between one and twenty-four frames and a
+       fixed column count leaves a hole under the last row of either. */
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: var(--space-5);
+    margin: 0 0 var(--space-9);
+    padding: 0;
+    list-style: none;
+}
+
+.shots__link { display: block; line-height: 0; }
+
+.shots__img {
+    width: 100%;
+    /* A fixed ratio so a grid of frames is a grid rather than a staircase —
+       screenshots arrive at whatever the source cropped them to. cover rather
+       than contain, because letterboxing a letterboxed frame is two black
+       bars. */
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: var(--radius-sm, 6px);
+    background: var(--surface-2);
+}
+
+.shots__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+}
+
+/* --- one report ----------------------------------------------------------- */
+
+.mi {
+    padding: var(--space-8) 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.mi:last-of-type { border-bottom: 0; }
+
+/* Withheld by staff, visible only to them. Dimmed rather than hidden, because
+   the point of showing it to a moderator is that it is legible. */
+.mi--removed { opacity: .6; }
+
+.mi__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.mi__author { font-weight: 600; }
+.mi__when, .mi__edited { color: var(--muted-2); font-size: var(--fs-3xs); }
+
+/* The one-line answer — "HEVC at 10.4 Mb/s · E-AC-3 JOC 6 channels" — pushed
+   to the end of the header line, where the eye lands after the name. */
+.mi__summary {
+    margin-left: auto;
+    color: var(--text);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+}
+
+.mi__remove { margin-left: var(--space-3); }
+.mi__note { margin: 0 0 var(--space-4); color: var(--muted-2); font-size: var(--fs-3xs); }
+
+/* --- tracks --------------------------------------------------------------- */
+
+.mi__tracks {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: var(--space-6);
+}
+
+.mi__track {
+    padding: var(--space-6);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 6px);
+    background: var(--surface-2);
+    min-width: 0;
+}
+
+.mi__track-name {
+    margin: 0 0 var(--space-4);
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* Name/value pairs in two columns. A definition list because that is what it
+   is, and because the pairing survives with the stylesheet off — which for a
+   panel that is entirely name/value is most of its structure. */
+.mi__fields {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 3px var(--space-5);
+    margin: 0;
+    font-size: var(--fs-xs);
+}
+
+.mi__fields dt { color: var(--muted-2); white-space: nowrap; }
+.mi__fields dd {
+    margin: 0;
+    /* MediaInfo emits long single tokens — codec ids, HDR strings — and one of
+       them would otherwise widen the whole grid. */
+    overflow-wrap: anywhere;
+}
+
+/* --- chapters ------------------------------------------------------------- */
+
+/* Folded: a film has thirty and they would be the tallest thing on the page,
+   but somebody looking for where the recap ends wants them one click away
+   rather than gone. */
+.mi__chapters { margin-top: var(--space-6); }
+
+.mi__chapters > summary {
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+    cursor: pointer;
+}
+
+.mi__chapters > summary:hover { color: var(--text); }
+
+.mi__chapter-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+    gap: 2px var(--space-6);
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--fs-xs);
+}
+
+.mi__chapter-list li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-4);
+    min-width: 0;
+}
+
+.mi__chapter-at {
+    color: var(--muted-2);
+    /* Timestamps read down a column and must line up. */
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- the form ------------------------------------------------------------- */
+
+.mi__add { margin-top: var(--space-8); }
+
+.mi__add > summary {
+    color: var(--muted-2);
+    font-size: var(--fs-3xs);
+    cursor: pointer;
+}
+
+.mi__add > summary:hover { color: var(--text); }
+
+/* Monospace, because MediaInfo's output is column-aligned with spaces and a
+   proportional face turns a paste somebody is checking into a mess. */
+.mi__paste {
+    font-family: var(--font-mono);
+    font-size: var(--fs-3xs);
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+}
+
+.mi__foot { margin: var(--space-8) 0 0; }
