@@ -240,9 +240,15 @@ var (
 // adminContracts serves GET /admin/contracts.
 func (w *web) adminContracts(c *gin.Context) {
 	found := auditContracts(c.Request.Context(), contractsCore, storage.Wrap(contractsDB))
+	// The event directory sits on the same page: an extension is something you
+	// call, an event is something that happens to you, and an author needs
+	// both. See eventdir_web.go on why it was not shown anywhere until now.
+	events, orphans := eventDirectory(contractsCore)
 	w.render(c, "admin_contracts.html", map[string]any{
 		"Title":    "Contracts",
 		"Findings": found,
+		"Events":   events,
+		"Orphans":  orphans,
 		// Shown even when empty, and that is the point: a page that only
 		// appears when something is wrong cannot be used to check that nothing
 		// is.

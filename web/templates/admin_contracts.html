@@ -63,4 +63,97 @@
         </p>
     </div>
 </section>
+
+{{/* The event directory. core has built this table for a while and nothing
+     rendered it, so the directory existed and was invisible — the same failure
+     SEAMS.md exists to prevent one level up. An extension is something you
+     CALL; an event is something that HAPPENS to you. */}}
+<section class="panelV2 mt-4">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#bell"></use></svg>
+            Events plugins announce
+        </h2>
+    </header>
+    <div class="panel__body">
+        {{if .Events}}
+        <div class="data-table-wrapper">
+            <table class="data-table">
+                <caption class="visually-hidden">Every event a plugin on this site declares, with who emits it, whether it can be counted, and which plugins listen</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Event</th>
+                        <th scope="col">Emitter</th>
+                        <th scope="col">Kind</th>
+                        <th scope="col">Counts</th>
+                        <th scope="col">Listeners</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Events}}
+                    <tr>
+                        <td>
+                            <code>{{.Name}}</code>
+                            {{if .Unstable}}<span class="tag tag--warning">unstable</span>{{end}}
+                            <div class="text-muted small">{{.Summary}}</div>
+                            {{if .Payload}}<div class="text-muted small"><code>{{.Payload}}</code></div>{{end}}
+                        </td>
+                        <td class="small">{{.Emitter}}</td>
+                        <td class="small">{{.Kind}}</td>
+                        <td class="small">
+                            {{/* Countable decides whether an achievement can be
+                                 SCORED on this, as opposed to merely triggered
+                                 by it. A total of a free action measures
+                                 clicking, which is why several deliberately say
+                                 no. */}}
+                            {{if .Countable}}yes{{else}}<span class="text-muted">no</span>{{end}}
+                        </td>
+                        <td class="small">
+                            {{if .Subscribers}}
+                                {{range $i, $s := .Subscribers}}{{if $i}}, {{end}}{{$s}}{{end}}
+                            {{else}}
+                                {{/* Normal, not a finding: most events exist so
+                                     that something MAY react later. */}}
+                                <span class="text-muted">none yet</span>
+                            {{end}}
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        {{else}}
+        <p class="text-muted small m-0">No plugin on this site declares an event.</p>
+        {{end}}
+    </div>
+</section>
+
+{{if .Orphans}}
+{{/* A subscription to an event nothing declares. Its own block because an
+     orphan is INDISTINGUISHABLE FROM WORKING: a listener for an event that
+     never fires is silent, and silence is what it would look like if it were
+     fine. Either the name is a typo or the emitter is not installed here. */}}
+<section class="panelV2 mt-4">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#info"></use></svg>
+            Listening for events nothing declares
+        </h2>
+    </header>
+    <div class="panel__body">
+        <ul class="m-0">
+            {{range .Orphans}}
+            <li class="small">
+                <code>{{.Name}}</code> &mdash;
+                {{range $i, $s := .Subscribers}}{{if $i}}, {{end}}{{$s}}{{end}}
+            </li>
+            {{end}}
+        </ul>
+        <p class="text-muted small m-0 mt-3">
+            Either the name is misspelled, or the plugin that emits it is not installed
+            on this site. Both look exactly like an event that has not happened yet.
+        </p>
+    </div>
+</section>
+{{end}}
 {{end}}
