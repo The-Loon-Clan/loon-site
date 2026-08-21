@@ -3053,6 +3053,18 @@ a.cal-ev:hover { background: var(--surface-3); }
 .tag--danger { color: var(--danger); border-color: var(--danger-soft); }
 .tag--info { color: var(--info); border-color: var(--info-soft); }
 
+/* A denser tag, for a cell or a row of them where the default padding is what
+   makes the line feel crowded. Used by /admin/features, /admin/plugins and the
+   release page's subtitle chips, all of which asked for it before it existed:
+   the class was written in three templates and defined in no stylesheet, so
+   every one of them rendered at the default size. */
+.tag--sm {
+    padding: 1px 5px;
+    gap: 3px;
+    letter-spacing: 0.03em;
+}
+
+
 /* Status chips on /admin/access and /invites: "open", "expired". Same idea as
    .chip--accent, in the two colours those pages actually needed. */
 .chip--ok { color: var(--success); background: var(--success-soft); border-color: var(--success-soft); }

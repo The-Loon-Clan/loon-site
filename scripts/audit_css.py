@@ -58,6 +58,20 @@ RUNTIME = {
     # with the blocks above -- deleting three names to satisfy a linter written
     # in this repo would be the tail wagging the dog.
     "achievements__unlocked", "achievements__pending", "achievement__statistics",
+    # ...and the fourth, which was simply missed from the list above when it
+    # was written. Same panel, same convention, same reason.
+    "achievements__progress",
+
+    # base.html names its two widget regions on the <aside> itself:
+    #
+    #     <aside class="sidebar sidebar--left">
+    #
+    # .sidebar does the layout and the modifiers style nothing, deliberately —
+    # they say WHICH region this is, which is the only thing distinguishing two
+    # otherwise identical asides in the DOM. Worth keeping for anyone reading
+    # the markup or writing a selector against one side, and worth naming here
+    # so the next person does not delete them as dead.
+    "sidebar--left", "sidebar--right",
 }
 
 
@@ -95,8 +109,27 @@ def used():
 
 
 def defined():
-    """Every class name any stylesheet writes a rule for."""
+    """Every class name any stylesheet writes a rule for.
+
+    INLINE <style> BLOCKS COUNT TOO. A standalone page that carries its own
+    rules is styling its classes just as much as a .css file is, and reading
+    only the stylesheets reported six of dev_compare.html's own classes --
+    .pane, .stage, .box, .hint, .primary, .sel -- as undefined while the rules
+    for them sat forty lines above the markup. Six false positives out of
+    eleven findings is enough to make the whole list look untrustworthy, which
+    is how a check stops being run.
+    """
     out = set()
+    for dirpath, _dirs, files in os.walk(TEMPLATES):
+        for fn in files:
+            if not fn.endswith(".html"):
+                continue
+            with open(os.path.join(dirpath, fn), encoding="utf-8") as fh:
+                text = fh.read()
+            for block in re.findall(r"<style[^>]*>(.*?)</style>", text, re.S | re.I):
+                block = re.sub(r"/\*.*?\*/", " ", block, flags=re.S)
+                for cls in re.findall(r"\.(-?[A-Za-z_][A-Za-z0-9_-]*)", block):
+                    out.add(cls)
     for dirpath, _dirs, files in os.walk(STYLES):
         for fn in files:
             if not fn.endswith(".css"):

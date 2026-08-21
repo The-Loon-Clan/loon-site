@@ -44,7 +44,7 @@ COVER_MIN ?= 22.0
 # LOON_TEST_DSN present means the substantial half is running.
 COVER_MIN_SERVICES ?= 33.0
 
-.PHONY: help check build test itest cover lint golint fmt sql ctlchars contrast resources vuln grade html lh run clean
+.PHONY: help check build test itest cover lint golint fmt sql ctlchars css capabilities contrast resources vuln grade html lh run clean
 
 # `make` on its own explains itself, rather than silently building the first
 # target. Every target below already carried a `## name: description` line and
@@ -62,7 +62,7 @@ help:
 	@echo "  The Go toolchain runs in Docker by default. Pass GO=go to use the host's."
 
 ## check: everything CI runs
-check: fmt build lint golint ctlchars sql contrast resources test cover
+check: fmt build lint golint ctlchars sql css capabilities contrast resources test cover
 
 ## build: compile every package
 build:
@@ -161,6 +161,33 @@ sql:
 ## comment in loon-plugins.
 ctlchars:
 	@$(PYTHON) scripts/audit_ctlchars.py . $(wildcard ../loon) $(wildcard ../loon-plugins) $(wildcard ../loon-baseline)
+
+## css: classes the templates use and no stylesheet defines
+##
+## A class that does not exist has no effect and raises no error, so the element
+## renders as though the class were absent -- indistinguishable from being
+## styled to look plain. `.button--danger` and `.text-danger` were used across
+## the forum, communities, admin and host templates and defined NOWHERE, so
+## every Delete and Remove on the site looked like the safe button beside it.
+##
+## The script existed and nothing ran it. When first wired it exited 1 with
+## eleven findings, six of which were its own false positives -- it read only
+## .css files and missed a page that carried its own <style> block.
+css:
+	@$(PYTHON) scripts/audit_css.py
+
+## capabilities: a wired plugin asking for something no wired plugin provides
+##
+## Optional lookups degrade quietly, correctly -- a host that has not installed
+## the provider is a legitimate configuration -- and the cost of that lands on
+## the host, which gets no signal at all. Rewards ran without event gating for
+## as long as the events plugin went unwired, and what noticed was the link
+## crawler seeing a 404.
+##
+## Static: it reads the host's imports and the plugins' Lookup calls, so it
+## needs no running site.
+capabilities:
+	@$(PYTHON) scripts/audit_capabilities.py
 
 ## contrast: theme colour pairs against the WCAG AA minimum
 ##
