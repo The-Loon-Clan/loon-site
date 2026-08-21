@@ -184,14 +184,14 @@ SENTENCE_BASELINE = {
     # of the one available. Everything a MEMBER reads still belongs in a
     # template.
     "loon-demo-site": 34,
-    # 106 as of 20 Aug 2026, down from 111 — medals' fourteen moved into its
-    # templates.
+    # 86 as of 20 Aug 2026, down from 111 — medals' fourteen and communities'
+    # twenty moved into templates.
     #
     # It was found at 115, ABOVE the recorded baseline: four had crept past and
     # nothing reported it, because this file only reads a plugin tree when one
     # is passed, and `make resources` is what passes it. Running the script
     # bare checks the host alone and says nothing about the other 876 files.
-    "loon-plugins": 106,
+    "loon-plugins": 86,
 }
 
 
