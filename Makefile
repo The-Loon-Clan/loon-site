@@ -183,8 +183,13 @@ contrast:
 ## is checked out beside this repo — a plugin's <use href="#id"> resolves
 ## against the host's sprite sheet, so the host is the only place that check
 ## can be made, and nothing was making it.
+## loon-baseline IS SCANNED TOO, and it was not until 21 Aug 2026. That scope
+## gap is why eight POST forms there — change password, regenerate API key, the
+## admin set-role and reset-password forms — carried no CSRF token and answered
+## 403 to everyone who clicked them, invisibly, for as long as the host had
+## CSRF middleware. A check's blind spot is wherever its argument list stops.
 resources:
-	@$(PYTHON) scripts/audit_resources.py $(wildcard ../loon-plugins)
+	@$(PYTHON) scripts/audit_resources.py $(wildcard ../loon-plugins) $(wildcard ../loon-baseline)
 
 ## html: W3C validation of the running site (needs `make run` first)
 html:
