@@ -77,27 +77,27 @@
                 <tbody>
                 {{range .Categories}}
                 <tr>
-                    <td><input form="cat-{{.ID}}" name="name" class="form-control form-control-sm" value="{{.Name}}" required></td>
+                    <td><input aria-label="Name" form="cat-{{.ID}}" name="name" class="form-control form-control-sm" value="{{.Name}}" required></td>
                     <td>
                         <div class="d-flex gap-1 flex-wrap">
-                            <input form="cat-{{.ID}}" name="description" class="form-control form-control-sm flex-grow-1" value="{{.Description}}">
+                            <input aria-label="Description, icon &amp; colour" form="cat-{{.ID}}" name="description" class="form-control form-control-sm flex-grow-1" value="{{.Description}}">
                             {{/* Icon name (Bootstrap Icons) + palette color. The demo
                                  doesn't ship the icons font, so no glyph preview here
                                  — values still round-trip for hosts that render them. */}}
-                            <input form="cat-{{.ID}}" name="icon" class="form-control form-control-sm" value="{{.Icon}}" title="Bootstrap Icons name" style="max-width:140px">
-                            <select form="cat-{{.ID}}" name="color" class="form-select form-select-sm" style="max-width:100px">
+                            <input aria-label="Description, icon &amp; colour" form="cat-{{.ID}}" name="icon" class="form-control form-control-sm" value="{{.Icon}}" title="Bootstrap Icons name" style="max-width:140px">
+                            <select aria-label="Description, icon &amp; colour" form="cat-{{.ID}}" name="color" class="form-select form-select-sm" style="max-width:100px">
                                 {{$cur := .Color}}
                                 {{range $c := $.Colors}}<option value="{{$c}}" {{if eq $c $cur}}selected{{end}}>{{$c}}</option>{{end}}
                             </select>
                         </div>
                     </td>
-                    <td><input form="cat-{{.ID}}" name="ordinal" type="number" class="form-control form-control-sm" value="{{.Ordinal}}"></td>
+                    <td><input aria-label="Ordinal" form="cat-{{.ID}}" name="ordinal" type="number" class="form-control form-control-sm" value="{{.Ordinal}}"></td>
                     <td class="data-table__num">{{.ThreadCount}}t / {{.PostCount}}p</td>
                     <td class="data-table__shrink">
                         <div class="d-flex gap-1 flex-wrap align-items-center">
                             <button form="cat-{{.ID}}" class="btn btn-sm btn-outline-secondary py-0">Save</button>
                             <button form="cat-del-{{.ID}}" class="btn btn-sm btn-outline-danger py-0">Delete</button>
-                            <select form="cat-merge-{{.ID}}" name="dst" class="form-select form-select-sm py-0" style="max-width:130px">
+                            <select aria-label="Actions" form="cat-merge-{{.ID}}" name="dst" class="form-select form-select-sm py-0" style="max-width:130px">
                                 {{$src := .ID}}
                                 {{range $.Categories}}{{if ne .ID $src}}<option value="{{.ID}}">&rarr; {{.Name}}</option>{{end}}{{end}}
                             </select>

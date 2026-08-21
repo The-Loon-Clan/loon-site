@@ -81,6 +81,7 @@ class Page(HTMLParser):
         self._prescanned = set()
         self._nav_depth = None
         self._in_current_nav = False
+        self._label_depth = None
 
     def set_labels(self, names):
         """Seed the label targets found in the pre-pass (see check)."""
@@ -90,8 +91,17 @@ class Page(HTMLParser):
         a = dict(attrs)
         if "id" in a:
             self.ids.append(a["id"])
-        if tag == "label" and "for" in a:
-            self._labels_for.add(a["for"])
+        if tag == "label":
+            if "for" in a:
+                self._labels_for.add(a["for"])
+            # A WRAPPING label names what it contains, with no `for` and no id:
+            #
+            #     <label>Enabled <input type="checkbox" name="enabled"></label>
+            #
+            # is a valid association that HTML has always had. Not tracking it
+            # reported correctly-labelled checkboxes as unnamed, which is the
+            # kind of false positive that gets an audit switched off.
+            self._label_depth = len(self._stack)
 
         if re.fullmatch(r"h[1-6]", tag):
             self._heading = (int(tag[1]), [])
@@ -117,6 +127,7 @@ class Page(HTMLParser):
                 named = bool(
                     a.get("aria-label") or a.get("aria-labelledby") or a.get("title")
                     or (a.get("id") and a["id"] in (self._labels_for | self._prescanned))
+                    or self._label_depth is not None
                 )
                 self.controls.append((tag, name or a.get("id", "?"), named, a.get("id", "")))
 
@@ -136,6 +147,8 @@ class Page(HTMLParser):
             self._heading = None
         if tag == "nav":
             self._nav_depth = None
+        if tag == "label":
+            self._label_depth = None
         while self._stack and self._stack[-1] != tag:
             self._stack.pop()
         if self._stack:
@@ -252,7 +265,12 @@ def pages_to_check():
     except Exception as exc:  # noqa: BLE001 - a crawl failure must not hide the seeds
         print("a11y: discovery failed (%s); checking the seeds only" % exc)
         return sorted(SEEDS)
-    for path in discovered:
+    # SORTED, and it is not cosmetic. discover() returns a SET, so iterating it
+    # raw picks an arbitrary member as each shape's representative — a
+    # different page every run, and with it a different finding count. The
+    # baseline then flaps between two numbers and the check that is supposed to
+    # be a ratchet becomes noise somebody learns to re-run until it passes.
+    for path in sorted(discovered):
         chosen.setdefault(shape(path), path)
     return sorted(chosen.values())
 
@@ -294,12 +312,10 @@ def pages_to_check():
 #
 # Measured 21 Aug 2026.
 A11Y_BASELINE = {
-    "/admin/p/usenet": 92,
     "/admin/p/groups": 63,
-    "/admin/forum-categories": 38,
+    "/admin/p/usenet": 58,
+    "/admin/forum-categories": 23,
     "/admin/store": 21,
-    "/admin/p/achievements": 13,
-    "/admin/invites": 7,
     "/admin/p/users": 5,
     "/admin/news": 4,
     "/p/account": 4,
@@ -308,6 +324,7 @@ A11Y_BASELINE = {
     "/admin/wiki": 2,
     "/store/history": 2,
     "/admin/donate": 1,
+    "/admin/invites": 1,
     "/admin/messages": 1,
     "/admin/p/events": 1,
     "/admin/p/login-log": 1,
