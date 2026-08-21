@@ -93,7 +93,7 @@ def crawl():
         # than counted per page, so one tokened form cannot vouch for a
         # tokenless one beside it.
         for m in re.finditer(
-                r'<form[^>]*method=.?post[^>]*>(.*?)</form>',
+                r'<form\b[^>]*\bmethod=.?post[^>]*>(.*?)</form>',
                 body, re.I | re.S):
             if 'name="_csrf"' not in m.group(0):
                 action = re.search(r'action="([^"]*)"', m.group(0))

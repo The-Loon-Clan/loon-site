@@ -53,6 +53,22 @@ CALL = re.compile(r'\b(?:Query|QueryRow|Exec|Select|Get)(?:Context)?\s*\(')
 
 SKIP_DIRS = {'.git', 'node_modules', '__pycache__', 'examples', 'docs'}
 
+# What makes a DOUBLE-QUOTED literal look like SQL rather than prose.
+#
+# Stated here rather than inline because these are the patterns that went
+# wrong: one carried a literal backspace (0x08) where a \\b was meant, so it
+# could never match and the rule built on it was dead for its whole life.
+# A stray byte is visible on a line of its own next to its neighbours; it is
+# not visible buried in the middle of an if-expression.
+#
+# Two tests, because a bare clause word is not evidence -- "Gift from " + to
+# is a ledger description and it matches FROM. Either the literal OPENS with
+# a statement verb, or it carries a two-word clause marker that English does
+# not produce by accident.
+OPENS_A_STATEMENT = r'"\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|WITH)\b'
+STATEMENT_SHAPE = (r'\b(INSERT\s+INTO|DELETE\s+FROM|ORDER\s+BY|GROUP\s+BY|'
+                  r'LEFT\s+JOIN|INNER\s+JOIN)\b|\sWHERE\s|\sSET\s|\sVALUES\s*\(')
+
 
 def allowed(lines, i):
     """True when this line carries an explicit, reasoned suppression."""
@@ -175,18 +191,53 @@ def scan(path):
     # per-line regex sees a self-contained `...` and finds nothing to complain
     # about, which is exactly what it did while a textbook injection sat in
     # front of it.
-    for m in re.finditer(r'`\s*\+\s*([a-zA-Z_][\w.]*)', src):
-        frag = m.group(1)
+    # BOTH QUOTE STYLES. This was backtick-only for a long time, on the
+    # reasoning that this project's statements are multi-line raw strings. That
+    # holds inside internal/storage, where Conn's methods take the named type
+    # SQL and a `string` expression will not compile at all -- the compiler is
+    # the guard there, not this. It does NOT hold in the twenty-odd call sites
+    # outside it that use a raw sqlx handle, where "SELECT ... " + name is
+    # ordinary Go that builds and runs.
+    for m in re.finditer(r'([`"])\s*\+\s*([a-zA-Z_][\w.]*)', src):
+        quote, frag = m.group(1), m.group(2)
         if frag.split('.')[0] in consts:
             continue
-        # Is this string SQL at all? Scanning the whole file for
-        # backtick-plus-identifier finds every raw string ever concatenated,
-        # including `attachment; filename="` + name + `"` — a Content-Disposition
-        # header with no database anywhere near it. Requiring a SQL word in the
-        # text just before the splice keeps the rule on its subject.
-        window = src[max(0, m.start() - 400):m.start()]
+        # Is this string SQL at all? The two quote styles need DIFFERENT
+        # evidence, and using one test for both is what produced false
+        # positives the moment this was widened past backticks:
+        #
+        #     {fromID, -amount, fromBal, "Gift to " + to}   a parameter VALUE
+        #     key := "rewards.payout." + k                  a registry key
+        #
+        # Both sit within 400 characters of a statement, because ordinary
+        # strings live next to SQL all the time.
+        if quote == '`':
+            # A raw string here IS a statement, split across lines, so the
+            # fragment beside the + often carries no keyword of its own:
+            #
+            #        WHERE ` + where + `
+            #
+            # The neighbourhood is the only evidence there is. Requiring a SQL
+            # word nearby keeps the rule off `attachment; filename="` + name —
+            # a Content-Disposition header with no database near it.
+            evidence = src[max(0, m.start() - 400):m.start()]
+        else:
+            # A double-quoted string is usually not SQL, so it has to say so
+            # itself: walk back to its opening quote and look only in there.
+            #
+            # And a bare clause word is not enough evidence. "Gift from " + to
+            # is a LEDGER DESCRIPTION, and it matched FROM — English uses these
+            # words. So a double-quoted splice must look like a STATEMENT:
+            # opening with a verb, or carrying a two-word clause marker that
+            # prose does not produce by accident.
+            start = src.rfind('"', 0, m.start())
+            lit = src[start:m.start()] if start >= 0 else ''
+            if not re.match(OPENS_A_STATEMENT, lit, re.IGNORECASE) and \
+               not re.search(STATEMENT_SHAPE, lit, re.IGNORECASE):
+                continue
+            evidence = lit
         if not re.search(r'\b(SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|JOIN|VALUES|SET|ORDER\s+BY)\b',
-                         window, re.IGNORECASE):
+                         evidence, re.IGNORECASE):
             continue
         line_no = src.count('\n', 0, m.start()) + 1
         if allowed(lines, line_no - 1):
@@ -221,8 +272,21 @@ def scan(path):
         # off rather than obeyed.
         if 'Sprintf(' in line:
             after = line[line.index('Sprintf(') + len('Sprintf('):].lstrip()
-            if after[:1] in ('`', '"') and re.match(r'[`"]\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)',
-                                                    after, re.IGNORECASE):
+            # A VERB IS NOT ENOUGH. This rule carried a stray backspace in its
+            # pattern for its whole life, so it matched nothing at all; the
+            # moment that was fixed it flagged
+            #
+            #     fmt.Sprintf("select users.%s in the user_display view ...")
+            #
+            # a human-readable message — exactly the noise the note above
+            # predicted, arriving the instant the rule could speak. A statement
+            # has structure as well as a verb, so the format must carry a
+            # second SQL word too.
+            if after[:1] in ('`', '"') and \
+               re.match(r'[`"]\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|WITH)\b',
+                        after, re.IGNORECASE) and \
+               re.search(r'\b(FROM|WHERE|SET|VALUES|INTO|TABLE|JOIN|RETURNING)\b',
+                         after, re.IGNORECASE):
                 out.append((path, i + 1, 'fmt.Sprintf builds SQL', line.strip()))
 
         # 3. a statement handed over as a bare variable

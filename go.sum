@@ -102,6 +102,8 @@ github.com/the-loon-clan/loon v0.0.0-20260821001924-fce264faacd4 h1:QS6mIXEHI7TY
 github.com/the-loon-clan/loon v0.0.0-20260821001924-fce264faacd4/go.mod h1:pjoJ1ytxef54ZKrOG/N8NsfriO4ZIwyadx3fnGb1Llw=
 github.com/the-loon-clan/loon v0.0.0-20260821050920-6a2556aa3fc1 h1:wcs+YFWoPcrHJKb0zwzzAjy6znkjVEWe9LCincCmdTU=
 github.com/the-loon-clan/loon v0.0.0-20260821050920-6a2556aa3fc1/go.mod h1:pjoJ1ytxef54ZKrOG/N8NsfriO4ZIwyadx3fnGb1Llw=
+github.com/the-loon-clan/loon v0.0.0-20260821053740-4a312c4b3afc h1:UJAorqAuDgooRD8uZlRyxNu9UiArnHdRUO3bAJxWxl4=
+github.com/the-loon-clan/loon v0.0.0-20260821053740-4a312c4b3afc/go.mod h1:pjoJ1ytxef54ZKrOG/N8NsfriO4ZIwyadx3fnGb1Llw=
 github.com/the-loon-clan/loon-baseline v0.0.0-20260817084941-34a6e2db16d4 h1:7cXKe3Ue8LHvgvdyQJ1D1Lp46jlq0YwCQ06FSNbo+do=
 github.com/the-loon-clan/loon-baseline v0.0.0-20260817084941-34a6e2db16d4/go.mod h1:g/XTNVQuzMeEajZ069RcWrMpn1/N+10Lv1NsU4wIKis=
 github.com/the-loon-clan/loon-plugins v0.0.0-20260821043358-2116795a2b24 h1:x5INK9CRB46/wcrry3c34uPU4WOF1ciMG6GqCF3GCDw=

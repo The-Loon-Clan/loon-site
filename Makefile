@@ -44,7 +44,7 @@ COVER_MIN ?= 22.0
 # LOON_TEST_DSN present means the substantial half is running.
 COVER_MIN_SERVICES ?= 33.0
 
-.PHONY: help check build test itest cover lint golint fmt sql contrast resources vuln grade html lh run clean
+.PHONY: help check build test itest cover lint golint fmt sql ctlchars contrast resources vuln grade html lh run clean
 
 # `make` on its own explains itself, rather than silently building the first
 # target. Every target below already carried a `## name: description` line and
@@ -62,7 +62,7 @@ help:
 	@echo "  The Go toolchain runs in Docker by default. Pass GO=go to use the host's."
 
 ## check: everything CI runs
-check: fmt build lint golint sql contrast resources test cover
+check: fmt build lint golint ctlchars sql contrast resources test cover
 
 ## build: compile every package
 build:
@@ -145,8 +145,22 @@ fmt:
 ## outside, from it finding nothing wrong.
 PYTHON ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 
+## THE SELF-TEST RUNS FIRST, and it is not ceremony. sqllint's fmt.Sprintf rule
+## carried a stray backspace in its regex and matched nothing for its whole
+## life; a clean run over the tree was read as proof it worked. A detector that
+## has never refused anything and one that CANNOT refuse anything look
+## identical from outside. This makes them look different.
 sql:
+	@$(PYTHON) scripts/sqllint_selftest.py
 	@$(PYTHON) scripts/sqllint.py
+
+## ctlchars: stray control characters, which hide dead code in plain sight
+##
+## Runs over the sibling repos too, because the accident is a paste and pastes
+## do not respect repository boundaries — one of the three found was in a Go
+## comment in loon-plugins.
+ctlchars:
+	@$(PYTHON) scripts/audit_ctlchars.py . $(wildcard ../loon) $(wildcard ../loon-plugins) $(wildcard ../loon-baseline)
 
 ## contrast: theme colour pairs against the WCAG AA minimum
 ##

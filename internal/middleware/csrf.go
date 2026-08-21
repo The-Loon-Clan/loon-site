@@ -36,11 +36,16 @@ const (
 // irrelevant and harmful there and is skipped.
 func CSRF() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// /api, /rss authenticate by api_key (no session cookie). And
-		// /admin/jobs/config is rendered by loon/schedule's built-in handler,
-		// which doesn't embed the host CSRF token — a production host (see the
-		// prod indexer's AdminHandler.JobConfig) uses its own config handler
-		// that carries it. Exempt it rather than fork the framework's template.
+		// /api, /rss authenticate by api_key (no session cookie).
+		//
+		// /admin/jobs/config USED TO BE HERE, and it was the one exemption that
+		// was not an API route: a browser-rendered admin form, exempted because
+		// loon/schedule's bundled handler could not embed a host token and
+		// forking the framework's template was the alternative. schedule now
+		// reads the token off the gin context (schedule.CSRFContextKey, which
+		// is the key this middleware already sets below), so the form carries
+		// one and the route is gated like every other.
+		//
 		// /api/downloads/report is the same case one step further: it is a POST
 		// made by a script running inside a member's SABnzbd or NZBGet, which
 		// has no browser, no session and no page to have been issued a token
@@ -52,7 +57,7 @@ func CSRF() gin.HandlerFunc {
 		// every future route under it, including one somebody adds for a
 		// browser form, and that is the kind of blanket rule this file exists
 		// to avoid.
-		if p := c.FullPath(); p == "/api" || p == "/rss" || p == "/admin/jobs/config" ||
+		if p := c.FullPath(); p == "/api" || p == "/rss" ||
 			p == "/api/downloads/report" {
 			c.Next()
 			return
