@@ -152,12 +152,17 @@
                     <td>{{shortDate .ReceivedAt}}</td>
                     <td>
                         {{/* DonorUserID is a *int and is NULL for tip-jar
-                             donations and admin fiat entries with no account
-                             to attribute to — {{with}} both dereferences it
-                             and skips the nil case. DonorLabel is the
-                             free-text fallback the admin typed. */}}
+                             donations and admin fiat entries with no account to
+                             attribute to. {{with}} skips the nil case — but it
+                             does NOT dereference, whatever the comment that
+                             used to be here said, so dot is still a *int and
+                             `index $names .` failed with "value has type *int".
+                             html/template streams, so the page 200'd and simply
+                             stopped at the first attributed donation. nameByID
+                             takes the pointer. DonorLabel is the free-text
+                             fallback the admin typed. */}}
                         {{with .DonorUserID}}
-                            {{$n := index $names .}}
+                            {{$n := nameByID $names .}}
                             {{if $n}}{{template "user-tag" (dict "Name" $n)}}{{else}}<span class="text-muted">user {{.}}</span>{{end}}
                         {{else}}
                             <span class="text-muted">unattributed</span>

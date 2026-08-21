@@ -9,6 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/the-loon-clan/loon/core"
+
+	"github.com/the-loon-clan/loon-plugins/pluginapi"
 )
 
 // Host side of loon's view system: plugins render fragments, the demo wraps
@@ -63,6 +65,25 @@ func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup
 			Href: "/admin/p/" + v.Slug, Label: v.Title, Feature: v.Feature,
 		})
 	}
+	// Plugin admin surfaces that are a route GROUP rather than a single view.
+	//
+	// SlotAdminPage mounts one GET plus POST actions, which is the whole of a
+	// plugin whose admin surface is one page. It is not enough for wiki (topic
+	// and post editors), donations (costs, log, points) or news (an edit page),
+	// so those mount their own groups — and until this loop existed they were
+	// served and named in no nav at all. Seventeen admin routes were reachable
+	// only by knowing the URL; see scripts/audit_adminnav.py, which fails if
+	// that comes back.
+	//
+	// A contributed entry is a LINK and nothing else: the route is already
+	// mounted and already gated by whatever mounted it, so appearing here
+	// cannot widen anything.
+	for _, e := range pluginapi.AdminNavEntries(c) {
+		w.adminNav = append(w.adminNav, navItem{
+			Href: e.Href, Label: e.Label, Feature: e.Feature,
+		})
+	}
+
 	w.adminNav = append(w.adminNav,
 		// The moderation queues are not /admin routes (they gate at RoleMod and
 		// RoleAdmin respectively), but this is where staff look for them — and
@@ -79,6 +100,11 @@ func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup
 		navItem{Href: "/admin/i18n", Label: "Localization"},
 		navItem{Href: "/admin/widgets", Label: "Widgets"},
 		navItem{Href: "/admin/jobs", Label: "Jobs"},
+		// Both of these shipped without a link and were reachable only by URL —
+		// features on 20 Aug with the runtime toggles, metrics the same day
+		// with /metrics. A page nobody can find is a page nobody uses.
+		navItem{Href: "/admin/features", Label: "Features"},
+		navItem{Href: "/admin/metrics", Label: "Metrics"},
 		navItem{Href: "/admin/plugins", Label: "Plugins"})
 
 	// Settings: one PAGE per section, plus each section's actions. The bare

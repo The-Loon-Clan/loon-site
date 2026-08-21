@@ -129,6 +129,18 @@ func tmplHelpers() template.FuncMap {
 		"memberTitle": memberTitle,
 		"roleLabel": roleLabel,
 		"eqID":      eqID,
+		// nameByID resolves a nullable user id against a map of display names.
+		//
+		// It exists because `index $names .` does NOT work on a *int, and the
+		// failure is the worst kind: html/template streams, so the page returns
+		// 200 and simply stops at the first attributed row. /admin/donate did
+		// that for as long as it existed — under a comment asserting that
+		// {{with}} dereferences a pointer, which it does not; it only skips nil
+		// and leaves dot as the pointer.
+		//
+		// Nobody noticed because the page was in no nav and the link crawler
+		// never reached it. See scripts/audit_adminnav.py.
+		"nameByID": nameByID,
 		"hasPrefix": strings.HasPrefix,
 		"navActive": navActive,
 		"inGroup":   inGroup,
@@ -516,4 +528,42 @@ func dict(kv ...any) (map[string]any, error) {
 		m[k] = kv[i+1]
 	}
 	return m, nil
+}
+
+// nameByID looks a display name up by a user id that may be a pointer, a nil
+// pointer, or any of the integer types a plugin's view model happens to use.
+//
+// Returns "" when there is no name — the caller decides what to show, because
+// "unattributed" and "user 41" are different statements and only the template
+// knows which one it means.
+func nameByID(names map[int]string, id any) string {
+	var n int
+	switch v := id.(type) {
+	case nil:
+		return ""
+	case int:
+		n = v
+	case int32:
+		n = int(v)
+	case int64:
+		n = int(v)
+	case *int:
+		if v == nil {
+			return ""
+		}
+		n = *v
+	case *int32:
+		if v == nil {
+			return ""
+		}
+		n = int(*v)
+	case *int64:
+		if v == nil {
+			return ""
+		}
+		n = int(*v)
+	default:
+		return ""
+	}
+	return names[n]
 }
