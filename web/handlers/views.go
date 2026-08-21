@@ -187,11 +187,11 @@ var pageTemplates = []string{
 // file both sets name. listing.html holds the release-row and cat-icon blocks
 // that /, /browse and /search render as one table.
 var sharedPartials = map[string][]string{
-	"home.html":                 {"listing.html"},
-	"browse.html":               {"listing.html", "facets.html"},
-	"search.html":               {"listing.html", "facets.html"},
-	"trending.html":             {"listing.html"},
-	"bookmarks.html":            {"listing.html"},
+	"home.html":      {"listing.html"},
+	"browse.html":    {"listing.html", "facets.html"},
+	"search.html":    {"listing.html", "facets.html"},
+	"trending.html":  {"listing.html"},
+	"bookmarks.html": {"listing.html"},
 	// The cart renders the shared release-row, tick box and all — see
 	// cart.html's own note on why the tick means "remove" there.
 	"cart.html":                 {"listing.html"},

@@ -113,13 +113,13 @@ func tmplHelpers() template.FuncMap {
 		// pwmin is the minimum password length, so a form's minlength attribute
 		// and its help text quote the number the server enforces rather than a
 		// number someone typed once. See password_web.go.
-		"pwmin":     func() int { return minPasswordLen },
-		"roleSlug":  roleSlug,
+		"pwmin":    func() int { return minPasswordLen },
+		"roleSlug": roleSlug,
 		// nameFX is the cosmetics class for a username, or "". A HELPER rather
 		// than a field on every view model, because user-tag is called from
 		// about forty of them with nothing but a display name — see
 		// cosmetics_web.go on why that shape forces a cache.
-		"nameFX":    nameEffectClass,
+		"nameFX": nameEffectClass,
 		// The other three cosmetic slots. avatarFX is called INSIDE the avatar
 		// template, so every picture on the site gets its owner's frame with no
 		// call site changing; profileFX and memberTitle have one call site each,
@@ -127,8 +127,8 @@ func tmplHelpers() template.FuncMap {
 		"avatarFX":    avatarEffectClass,
 		"profileFX":   profileEffectClass,
 		"memberTitle": memberTitle,
-		"roleLabel": roleLabel,
-		"eqID":      eqID,
+		"roleLabel":   roleLabel,
+		"eqID":        eqID,
 		// nameByID resolves a nullable user id against a map of display names.
 		//
 		// It exists because `index $names .` does NOT work on a *int, and the
@@ -140,7 +140,7 @@ func tmplHelpers() template.FuncMap {
 		//
 		// Nobody noticed because the page was in no nav and the link crawler
 		// never reached it. See scripts/audit_adminnav.py.
-		"nameByID": nameByID,
+		"nameByID":  nameByID,
 		"hasPrefix": strings.HasPrefix,
 		"navActive": navActive,
 		"inGroup":   inGroup,

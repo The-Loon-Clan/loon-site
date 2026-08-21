@@ -84,7 +84,7 @@ func (w *web) cartPage(c *gin.Context) {
 		"Missing": missing,
 		"Done":    c.Query(queryDone),
 		"N":       c.Query(queryCount),
-		"CartOn": true,
+		"CartOn":  true,
 	}
 	// The ticks, on — but NOT through cartData, which would also set InCart.
 	// Every row here IS in the cart, and an in-cart tick renders checked and

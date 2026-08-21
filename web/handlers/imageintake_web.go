@@ -120,13 +120,13 @@ func publicIP(ip net.IP) bool {
 	// 169.254.169.254 is link-local and already refused above; these are the
 	// ranges Go's helpers do not cover.
 	for _, cidr := range []string{
-		"100.64.0.0/10",  // carrier-grade NAT, and what Tailscale uses
-		"192.0.0.0/24",   // IETF protocol assignments
-		"192.0.2.0/24",   // TEST-NET-1
-		"198.18.0.0/15",  // benchmarking
-		"198.51.100.0/24",// TEST-NET-2
-		"203.0.113.0/24", // TEST-NET-3
-		"240.0.0.0/4",    // reserved
+		"100.64.0.0/10",   // carrier-grade NAT, and what Tailscale uses
+		"192.0.0.0/24",    // IETF protocol assignments
+		"192.0.2.0/24",    // TEST-NET-1
+		"198.18.0.0/15",   // benchmarking
+		"198.51.100.0/24", // TEST-NET-2
+		"203.0.113.0/24",  // TEST-NET-3
+		"240.0.0.0/4",     // reserved
 		"::/128", "64:ff9b::/96", "2001:db8::/32",
 	} {
 		if _, n, err := net.ParseCIDR(cidr); err == nil && n.Contains(ip) {

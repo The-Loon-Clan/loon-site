@@ -477,7 +477,7 @@ func Main() {
 		// never mounts announce — without this host keeping a list of which
 		// plugins are which, which is a list that goes wrong the day somebody
 		// writes a plugin it has not heard of.
-		Flavours: coreFlavours(),
+		Flavours:  coreFlavours(),
 		Users:     usersSvc,
 		Auth:      auth,
 		RBAC:      core.NewRBAC(),
