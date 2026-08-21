@@ -116,8 +116,13 @@
         <form class="form" method="get" action="/admin/invites">
             <div class="form__row">
                 <div class="form__group flex-grow-1">
-                    <label class="form__label" for="user">Username</label>
-                    <input class="form__input" type="search" id="user" name="user" value="{{.Query}}"
+                    {{/* invite-user, not user: the sprite ships <symbol id="user">
+                         and two elements with one id break every label-for and
+                         aria-* pointing at either. The NAME stays "user" —
+                         that is the query parameter and renaming it would
+                         change the URL. */}}
+                    <label class="form__label" for="invite-user">Username</label>
+                    <input class="form__input" type="search" id="invite-user" name="user" value="{{.Query}}"
                            placeholder="Who vouched for&hellip;">
                 </div>
                 <button class="form__button form__button--filled" type="submit">

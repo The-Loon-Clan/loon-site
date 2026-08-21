@@ -313,21 +313,14 @@ def pages_to_check():
 # Measured 21 Aug 2026.
 A11Y_BASELINE = {
     "/admin/p/groups": 63,
-    "/admin/p/usenet": 58,
+    "/admin/p/usenet": 56,
     "/admin/forum-categories": 22,
-    "/admin/store": 20,
+    "/admin/store": 19,
     "/admin/p/users": 4,
-    "/p/account": 4,
-    "/admin/news": 3,
-    "/admin/p/maintenance": 3,
-    "/admin/invites": 1,
-    "/admin/p/medals": 1,
-    "/admin/p/services": 1,
-    "/admin/wiki": 1,
-    "/help/donate": 1,
-    "/p/api-key": 1,
+    "/p/account": 3,
+    "/admin/news": 2,
+    "/admin/p/maintenance": 2,
     "/p/guestbook": 1,
-    "/store/history": 1,
 }
 
 def main():

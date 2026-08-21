@@ -563,7 +563,7 @@
                  Other entry — it is the one link a site wants visible. Shown
                  only when the deployment actually accepts donations. */}}
             {{if .DonateEnabled}}
-            <li class="nav-tab"><a class="{{if hasPrefix $p "/help/donate"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/help/donate"><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#coin"></use></svg>Donate</a></li>
+            <li class="nav-tab"><a class="{{if hasPrefix $p "/help/donate"}}nav-tab--active__link{{else}}nav-tab__link{{end}}" href="/help/donate"{{if hasPrefix $p "/help/donate"}} aria-current="page"{{end}}><svg class="icon nav-tab__icon" aria-hidden="true"><use href="#coin"></use></svg>Donate</a></li>
             {{end}}
         </ul>
     </nav>
