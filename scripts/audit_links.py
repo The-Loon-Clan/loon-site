@@ -111,7 +111,7 @@ def crawl():
             came_from.setdefault(target, path)
             queue.append(target)
 
-    return pages, dead, errors, truncated, tokenless
+    return pages, dead, errors, truncated, tokenless, seen
 
 
 def main():
@@ -119,7 +119,7 @@ def main():
     if not _site.login():
         raise SystemExit("audit: could not sign in as %s" % _site.USER)
 
-    pages, dead, errors, truncated, tokenless = crawl()
+    pages, dead, errors, truncated, tokenless, _ = crawl()
     print("links: crawling %d pages" % pages)
 
     for label, rows in (("DEAD (404)", dead), ("ERROR (5xx)", errors)):
@@ -143,3 +143,16 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def discover():
+    """Every path the crawl reached, for another audit to check.
+
+    Exported so the accessibility audit does not maintain a second list of
+    pages and a second idea of what is destructive. A page shape added to the
+    site turns up here the day it is linked, which a hand-written list cannot
+    do -- and did not: 53 of 65 /p/ and /admin/ routes were missing from the
+    a11y list when this was written.
+    """
+    _, _, _, _, _, seen = crawl()
+    return seen

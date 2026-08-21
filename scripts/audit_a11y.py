@@ -29,11 +29,22 @@ from html.parser import HTMLParser
 
 sys.path.insert(0, __file__.rsplit("/", 1)[0].rsplit("\\", 1)[0])
 import _site  # noqa: E402
+import audit_links  # noqa: E402
 
-# A representative page per shape rather than the whole site: these checks are
-# about TEMPLATES, and crawling 200 pages to test the same listing template
-# forty times buys nothing but noise.
-PAGES = [
+# SEEDS, not the list. These are checked always; everything the link crawler
+# reaches is added to them (see pages_to_check).
+#
+# The curated list used to BE the list, and 53 of the site's 65 /p/ and
+# /admin/ routes were missing from it -- every plugin admin page, most member
+# pages. The audit printed "0 findings across 48 pages" the whole time, which
+# was true and read as "the site is clean". Nothing was wrong with the checks;
+# the argument list stopped early, the same way `make resources` was never
+# handed loon-baseline.
+#
+# What seeds still earn their place: pages a crawl cannot produce because no
+# link points at them with the right query string (/admin/pages?edit=faq), and
+# pages worth checking even if a nav entry that links to them is ever removed.
+SEEDS = [
     "/", "/browse", "/search", "/groups", "/trending", "/stats", "/staff",
     "/about", "/rules", "/faq", "/sitemap", "/news", "/wiki",
     "/community/forums", "/c", "/support",
@@ -199,27 +210,164 @@ def check(path, body):
     return out
 
 
+
+# Paths whose next segment names an INSTANCE rather than a page. Forty release
+# pages exercise one template, so one of them is the whole of the signal.
+#
+# Everything else is its own shape, deliberately: /admin/p/medals and
+# /admin/p/rewards share a prefix and are entirely different templates, and a
+# collapser clever enough to fold those would hide exactly the pages this
+# change exists to reach.
+INSTANCE_PREFIXES = (
+    "/u/", "/release/", "/series/", "/nzb/", "/c/", "/wiki/", "/news/",
+    "/forum/", "/community/thread/", "/p/lists/", "/g/",
+)
+
+
+def shape(path):
+    """The template a path exercises, as far as a URL can say."""
+    # A numeric segment is always an id.
+    collapsed = re.sub(r"/\d+(?=/|$)", "/:id", path)
+    for prefix in INSTANCE_PREFIXES:
+        if collapsed.startswith(prefix) and len(collapsed) > len(prefix):
+            rest = collapsed[len(prefix):]
+            # Keep one more segment for sub-pages: /u/alice/followers is a
+            # different template from /u/alice.
+            tail = rest.split("/", 1)
+            return prefix + ":x" + ("/" + tail[1] if len(tail) > 1 else "")
+    return collapsed
+
+
+def pages_to_check():
+    """The seeds, plus one page per shape the crawler reached.
+
+    Sorted so a diff of the output is readable, and so the run order does not
+    depend on set iteration.
+    """
+    chosen = {}
+    for path in SEEDS:
+        chosen.setdefault(shape(path), path)
+    try:
+        discovered = audit_links.discover()
+    except Exception as exc:  # noqa: BLE001 - a crawl failure must not hide the seeds
+        print("a11y: discovery failed (%s); checking the seeds only" % exc)
+        return sorted(SEEDS)
+    for path in discovered:
+        chosen.setdefault(shape(path), path)
+    return sorted(chosen.values())
+
+
+# What the audit found the first time it looked at the whole site, per shape.
+#
+# 534 findings across 109 pages, from a check that had been reporting "0
+# findings across 48 pages". Not a regression -- 53 of the site's 65 /p/ and
+# /admin/ routes had never been checked, so this is the first measurement
+# rather than a change.
+#
+# 503 of the 534 are ONE THING: an admin form label with no `for` and no
+# wrapping, sitting beside its input --
+#
+#     <label class="form-label">Name *</label>
+#     <input type="text" name="name" ...>
+#
+# which looks like a label, is not one, and leaves a screen reader announcing
+# "edit text". Six admin pages carry almost all of it.
+#
+# PER SHAPE, NOT A TOTAL. A single number lets a new page's findings hide
+# behind another page's fix. Keyed like this, a page that gets worse fails even
+# when the site's total fell, and a shape with no entry fails on its FIRST
+# finding -- which is the property actually worth having, because it is what
+# stops the next page being added with the same markup.
+#
+# Lower an entry in the same commit that fixes one. Raising one needs a reason
+# in the commit message and there is not currently a good one.
+#
+# Measured 21 Aug 2026.
+A11Y_BASELINE = {
+    "/admin/store": 153,
+    "/admin/p/rewards": 118,
+    "/admin/p/usenet": 94,
+    "/admin/p/groups": 63,
+    "/admin/forum-categories": 38,
+    "/admin/p/achievements": 13,
+    "/admin/p/events": 8,
+    "/admin/invites": 7,
+    "/admin/news": 5,
+    "/admin/p/users": 5,
+    "/admin/wiki": 5,
+    "/admin/messages": 4,
+    "/p/account": 4,
+    "/admin/p/maintenance": 3,
+    "/admin/p/services": 2,
+    "/store/history": 2,
+    "/admin/donate": 1,
+    "/admin/p/login-log": 1,
+    "/admin/p/medals": 1,
+    "/admin/tickets": 1,
+    "/help/donate": 1,
+    "/p/achievements": 1,
+    "/p/api-key": 1,
+    "/p/guestbook": 1,
+    "/p/stats": 1,
+    "/perks": 1,
+}
+
 def main():
     _site.require_site()
     if not _site.login():
         raise SystemExit("audit: could not sign in as %s" % _site.USER)
 
+    pages = pages_to_check()
     total, checked = 0, 0
-    for path in PAGES:
+    counts = {}
+    for path in pages:
         code, body = _site.get(path)
         if code != 200:
             # Not a finding: a page may legitimately redirect or be gated.
             continue
+        # HTML only. /tracker/download/<hash> answers 200 with a .torrent, and
+        # parsing 18KB of bencode as markup reported "no <h1>: the page has no
+        # name" five times — a true statement about a file that is not a page.
+        # Checked by content rather than by path, so the next binary endpoint
+        # is handled without anybody remembering to add it.
+        if "<html" not in body[:600].lower():
+            continue
         checked += 1
         found = check(path, body)
-        if found:
-            print("  %s" % path)
-            for f in found:
-                print("     %s" % f)
-            total += len(found)
+        if not found:
+            continue
+        allowed = A11Y_BASELINE.get(shape(path), 0)
+        counts[shape(path)] = counts.get(shape(path), 0) + len(found)
+        total += len(found)
+        # Printed either way: the debt is meant to be visible, not hidden by a
+        # green exit. Only the excess fails.
+        print("  %s%s" % (path, "" if allowed else "   NEW"))
+        for f in found:
+            print("     %s" % f)
 
-    print("a11y: %d finding(s) across %d pages" % (total, checked))
-    return 1 if total else 0
+    # Both numbers: "0 findings" means nothing without how much was looked at,
+    # which is the whole reason this audit was reporting clean.
+    print("a11y: %d finding(s) across %d pages (%d shapes offered, %d seeds)"
+          % (total, checked, len(pages), len(SEEDS)))
+
+    over = [(s, n, A11Y_BASELINE.get(s, 0)) for s, n in sorted(counts.items())
+            if n > A11Y_BASELINE.get(s, 0)]
+    if over:
+        print("\nWORSE THAN THE BASELINE:")
+        for s, n, was in over:
+            print("  %-40s %d, baseline %d" % (s, n, was))
+        return 1
+
+    stale = sorted(s for s, was in A11Y_BASELINE.items() if counts.get(s, 0) < was)
+    if stale:
+        print("\nBASELINE STALE (fixed, so lower it in this commit):")
+        for s in stale:
+            print("  %-40s %d, baseline %d" % (s, counts.get(s, 0), A11Y_BASELINE[s]))
+        return 1
+
+    print("a11y: at the baseline (%d recorded across %d shapes)"
+          % (total, len(A11Y_BASELINE)))
+    return 0
 
 
 if __name__ == "__main__":
