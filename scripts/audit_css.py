@@ -322,7 +322,10 @@ PLUGIN_BASELINE = {
     "cosmetics": 5,
     "curation": 1,
     "donations": 16,
-    "forum": 164,
+    # 164 -> 143 when its 21 Bootstrap Icons classes went. The rest are the
+    # plugin's own design names, styled in no stylesheet in either repo and
+    # never in git history — the design was written and never implemented.
+    "forum": 143,
     "lists": 14,
     "logs": 3,
     "mediainfo": 1,
