@@ -2,7 +2,33 @@
      parses every plugin dir into ONE flat namespace. */}}
 
 {{/* Flash message. Dot is the flash string; renders nothing when empty. */}}
-{{define "c-flash"}}{{if .}}<div class="notice notice--warning">{{.}}</div>{{end}}{{end}}
+{{/* The flash sentences, in ONE place (CHECKLIST §10).
+
+     A handler redirects with a CODE and the values its sentence quotes —
+     never a sentence assembled in Go, because word order differs by language
+     and `fmt.Sprintf("You need %d points to join", cost)` has to be rewritten
+     rather than translated.
+
+     Dot is a communities.Flash: .Code and .Arg 0 / .Arg 1.
+
+     The invite message takes the invite CODE and builds its own link. It used
+     to carry a fully built URL from Go, which is a URL somebody eventually
+     breaks by translating it. */}}
+{{define "c-flash"}}{{if .Code}}<div class="notice notice--warning"><span>
+    {{if eq .Code "saved"}}Settings saved.
+    {{else if eq .Code "requested"}}Request submitted &mdash; a moderator will review it.
+    {{else if eq .Code "invited"}}Invite created: <code>/c/join/{{.Arg 0}}</code>
+    {{else if eq .Code "inviteonly"}}This community is invite-only. You need an invite link to join.
+    {{else if eq .Code "alreadypending"}}You already have a pending request for this community.
+    {{else if eq .Code "applycost"}}You need {{.Arg 0}} points to apply to this community.
+    {{else if eq .Code "joincost"}}You need {{.Arg 0}} points to join this community.
+    {{else if eq .Code "tooyoung"}}Your account must be at least {{.Arg 0}} days old to join &mdash; yours is {{.Arg 1}}.
+    {{else if eq .Code "lowrank"}}Your account rank does not meet this community's minimum to join.
+    {{else if eq .Code "toopoor"}}You need {{.Arg 0}} points to join this community &mdash; you have {{.Arg 1}}.
+    {{else if eq .Code "bannerfailed"}}That banner could not be uploaded. It has been logged.
+    {{else if eq .Code "iconfailed"}}That icon could not be uploaded. It has been logged.
+    {{else}}Something went wrong.{{end}}
+</span></div>{{end}}{{end}}
 
 {{/* The community identity header, shared by the view / thread / settings
      pages. Dot is a *Community. accent_color is admin-supplied and lands in a

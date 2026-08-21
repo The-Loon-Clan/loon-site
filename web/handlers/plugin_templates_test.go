@@ -144,7 +144,11 @@ func pluginFixtures() []pluginFixture {
 				"SidebarHTML":     template.HTML("<p>side</p>"),
 				"DescriptionHTML": template.HTML("<p>desc</p>"),
 				"PendingCount":    2,
-				"Flash":           "saved",
+				// A communities.Flash, not a string: the flash carries a CODE
+				// and the values its sentence quotes, so the template can hold
+				// the words. A string here renders nothing and the fixture
+				// would prove the page executes while the message is gone.
+				"Flash":           communities.Flash{Code: "toopoor", Args: []string{"100", "42"}},
 			}},
 		{"community_new_thread_c.html",
 			map[string]any{"Community": comm}, nil},
@@ -295,6 +299,45 @@ func TestEveryPluginTemplateHasAFixture(t *testing.T) {
 		}
 		if !covered[n] {
 			t.Errorf("web/templates/plugin/%s has no fixture in pluginFixtures()", n)
+		}
+	}
+}
+
+// A flash that quotes numbers must RENDER them.
+//
+// The sentence lives in communities_shared.html now and the handler sends only
+// a code and its values, so an argument the template asks for and the sender
+// never supplied renders "You need points to join this community" — a
+// grammatical, wrong sentence that no Go test would see and no template error
+// would report. That is the specific failure this pins.
+func TestTheCommunityFlashRendersItsNumbers(t *testing.T) {
+	tmpl, err := pluginTemplates()
+	if err != nil {
+		t.Fatalf("parseTemplates: %v", err)
+	}
+	cases := []struct {
+		code string
+		args []string
+		want []string
+	}{
+		{"toopoor", []string{"100", "42"}, []string{"100", "42", "points to join"}},
+		{"tooyoung", []string{"7", "2"}, []string{"7", "2", "days old"}},
+		{"invited", []string{"abc123"}, []string{"/c/join/abc123"}},
+		{"saved", nil, []string{"Settings saved."}},
+		// A code nothing maps still says something: silence reads as success.
+		{"wat", nil, []string{"Something went wrong."}},
+	}
+	for _, tc := range cases {
+		var buf bytes.Buffer
+		f := communities.Flash{Code: tc.code, Args: tc.args}
+		if err := tmpl.ExecuteTemplate(&buf, "c-flash", f); err != nil {
+			t.Fatalf("%s: execute: %v", tc.code, err)
+		}
+		out := buf.String()
+		for _, want := range tc.want {
+			if !strings.Contains(out, want) {
+				t.Errorf("flash %q is missing %q:\n%s", tc.code, want, out)
+			}
 		}
 	}
 }
