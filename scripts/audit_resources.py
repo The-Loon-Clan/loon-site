@@ -184,9 +184,18 @@ SENTENCE_BASELINE = {
     # of the one available. Everything a MEMBER reads still belongs in a
     # template.
     "loon-demo-site": 34,
-    # 61 as of 20 Aug 2026, down from 111 — communities (20), medals (17),
-    # forum (7), wiki (6), news (3), tickets (3) and magic (3) moved into
-    # templates.
+    # 59 as of 20 Aug 2026, down from 111 — communities (20), medals (17),
+    # forum (7), wiki (6), news (3), tickets (3), magic (3) and seedlock (2)
+    # moved into templates.
+    #
+    # THE FLOOR IS NOT ZERO. Roughly six of what remains are not member-facing
+    # sentences at all and should stay in Go: "<plugin>: no page renderer
+    # wired" in seedlock, perks and hitrun, "tracker: no user on a gated
+    # route", "seedlock: template failed", and downloads' two, which answer a
+    # script a download client fetches rather than a person. They are counted
+    # anyway, on the same principle that kept /readyz's probe body in the host
+    # count with its reason written down: an exemption list is how a check
+    # quietly stops checking.
     #
     # What is left is concentrated and each piece has a reason: releasegroups
     # (18) is not wired on this host so a conversion cannot be verified here,
@@ -199,7 +208,7 @@ SENTENCE_BASELINE = {
     # nothing reported it, because this file only reads a plugin tree when one
     # is passed, and `make resources` is what passes it. Running the script
     # bare checks the host alone and says nothing about the other 876 files.
-    "loon-plugins": 61,
+    "loon-plugins": 59,
 }
 
 
