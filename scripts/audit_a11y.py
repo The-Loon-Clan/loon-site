@@ -335,7 +335,6 @@ A11Y_BASELINE = {
     "/p/achievements": 1,
     "/p/api-key": 1,
     "/p/guestbook": 1,
-    "/p/stats": 1,
     "/perks": 1,
 }
 
