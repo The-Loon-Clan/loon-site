@@ -65,6 +65,7 @@
 
         <div class="data-table-wrapper">
             <table class="data-table">
+            <caption class="visually-hidden">Forum categories</caption>
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -113,10 +114,10 @@
                             <span class="tag tag--cat" title="who passes each gate: the role or above, OR the rank tier or above">Access</span>
                             <span>see</span>
                             {{$sr := .SeeRole}}
-                            <select form="cat-{{.ID}}" name="see_role" class="form-select form-select-sm py-0" style="max-width:110px">
+                            <select aria-label="Who can see this forum: minimum role" form="cat-{{.ID}}" name="see_role" class="form-select form-select-sm py-0" style="max-width:110px">
                                 {{range $r := $.GateRoles}}<option value="{{$r}}" {{if eq $r $sr}}selected{{end}}>{{$r}}</option>{{end}}
                             </select>
-                            <select form="cat-{{.ID}}" name="see_tier" class="form-select form-select-sm py-0" style="max-width:100px">
+                            <select aria-label="Who can see this forum: minimum rank tier" form="cat-{{.ID}}" name="see_tier" class="form-select form-select-sm py-0" style="max-width:100px">
                                 {{$st := .SeeTier}}
                                 <option value="0" {{if eq $st 0}}selected{{end}}>any rank</option>
                                 <option value="1" {{if eq $st 1}}selected{{end}}>rank &ge;1</option>
@@ -125,10 +126,10 @@
                             </select>
                             <span>read</span>
                             {{$rr := .ReadRole}}
-                            <select form="cat-{{.ID}}" name="read_role" class="form-select form-select-sm py-0" style="max-width:110px">
+                            <select aria-label="Who can read it: minimum role" form="cat-{{.ID}}" name="read_role" class="form-select form-select-sm py-0" style="max-width:110px">
                                 {{range $r := $.GateRoles}}<option value="{{$r}}" {{if eq $r $rr}}selected{{end}}>{{$r}}</option>{{end}}
                             </select>
-                            <select form="cat-{{.ID}}" name="read_tier" class="form-select form-select-sm py-0" style="max-width:100px">
+                            <select aria-label="Who can read it: minimum rank tier" form="cat-{{.ID}}" name="read_tier" class="form-select form-select-sm py-0" style="max-width:100px">
                                 {{$rt := .ReadTier}}
                                 <option value="0" {{if eq $rt 0}}selected{{end}}>any rank</option>
                                 <option value="1" {{if eq $rt 1}}selected{{end}}>rank &ge;1</option>
@@ -137,10 +138,10 @@
                             </select>
                             <span>write</span>
                             {{$wr := .WriteRole}}
-                            <select form="cat-{{.ID}}" name="write_role" class="form-select form-select-sm py-0" style="max-width:110px">
+                            <select aria-label="Who can post in it: minimum role" form="cat-{{.ID}}" name="write_role" class="form-select form-select-sm py-0" style="max-width:110px">
                                 {{range $r := $.GateRoles}}<option value="{{$r}}" {{if eq $r $wr}}selected{{end}}>{{$r}}</option>{{end}}
                             </select>
-                            <select form="cat-{{.ID}}" name="write_tier" class="form-select form-select-sm py-0" style="max-width:100px">
+                            <select aria-label="Who can post in it: minimum rank tier" form="cat-{{.ID}}" name="write_tier" class="form-select form-select-sm py-0" style="max-width:100px">
                                 {{$wt := .WriteTier}}
                                 <option value="0" {{if eq $wt 0}}selected{{end}}>any rank</option>
                                 <option value="1" {{if eq $wt 1}}selected{{end}}>rank &ge;1</option>
@@ -170,13 +171,13 @@
              the row above edits them once the category exists. */}}
         <form method="post" action="/admin/forum-categories" class="d-flex gap-2 flex-wrap align-items-center">
             <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
-            <input name="name" class="form-control form-control-sm" placeholder="Name" style="max-width:180px" required>
-            <input name="description" class="form-control form-control-sm flex-grow-1" placeholder="Description">
+            <input aria-label="Name of the new forum" name="name" class="form-control form-control-sm" placeholder="Name" style="max-width:180px" required>
+            <input aria-label="Description of the new forum" name="description" class="form-control form-control-sm flex-grow-1" placeholder="Description">
             <input name="icon" class="form-control form-control-sm" placeholder="chat-square-text" title="Bootstrap Icons name" style="max-width:150px">
-            <select name="color" class="form-select form-select-sm" style="max-width:100px">
+            <select aria-label="Colour of the new forum" name="color" class="form-select form-select-sm" style="max-width:100px">
                 {{range $c := .Colors}}<option value="{{$c}}">{{$c}}</option>{{end}}
             </select>
-            <input name="ordinal" type="number" class="form-control form-control-sm" style="max-width:90px" placeholder="0">
+            <input aria-label="Sort order of the new forum" name="ordinal" type="number" class="form-control form-control-sm" style="max-width:90px" placeholder="0">
             <button class="btn btn-sm btn-primary">Create</button>
         </form>
     </div>
