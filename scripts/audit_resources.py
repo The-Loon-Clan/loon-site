@@ -184,14 +184,22 @@ SENTENCE_BASELINE = {
     # of the one available. Everything a MEMBER reads still belongs in a
     # template.
     "loon-demo-site": 34,
-    # 73 as of 20 Aug 2026, down from 111 — medals (14), communities (20),
-    # forum (7) and wiki (6) moved into templates.
+    # 61 as of 20 Aug 2026, down from 111 — communities (20), medals (17),
+    # forum (7), wiki (6), news (3), tickets (3) and magic (3) moved into
+    # templates.
+    #
+    # What is left is concentrated and each piece has a reason: releasegroups
+    # (18) is not wired on this host so a conversion cannot be verified here,
+    # requests (9) belongs to another workstream, and playlists (9) needs a
+    # decision first — its templates live in the host, so it needs either a
+    # host-side error page or the shared error seam three plugins already
+    # declare privately.
     #
     # It was found at 115, ABOVE the recorded baseline: four had crept past and
     # nothing reported it, because this file only reads a plugin tree when one
     # is passed, and `make resources` is what passes it. Running the script
     # bare checks the host alone and says nothing about the other 876 files.
-    "loon-plugins": 73,
+    "loon-plugins": 61,
 }
 
 
