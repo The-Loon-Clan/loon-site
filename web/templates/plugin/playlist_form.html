@@ -9,7 +9,14 @@
      alone, so an existing link keeps working. */}}
 {{template "fhead" .}}
 
-{{if .Error}}<div class="notice notice--danger">{{.Error}}</div>{{end}}
+{{/* A CODE, not a sentence (CHECKLIST §10) — the words are here. */}}
+{{if .Error}}<div class="notice notice--danger"><span>
+    {{if eq .Error "loadfailed"}}Playlists could not be loaded. It has been logged.
+    {{else if eq .Error "noname"}}A name is required.
+    {{else if eq .Error "nametaken"}}That name is already taken. Try another.
+    {{else if eq .Error "createfailed"}}That playlist could not be created. It has been logged.
+    {{else}}Something went wrong.{{end}}
+</span></div>{{end}}
 
 <section class="panelV2">
     <header class="panel__header">

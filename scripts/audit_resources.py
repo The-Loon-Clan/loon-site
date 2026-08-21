@@ -272,7 +272,7 @@ SENTENCE_BASELINE = {
     # nothing reported it, because this file only reads a plugin tree when one
     # is passed, and `make resources` is what passes it. Running the script
     # bare checks the host alone and says nothing about the other 876 files.
-    "loon-plugins": 40,
+    "loon-plugins": 26,
 
     # 4 as of 21 Aug 2026, measured the first time this tree was scanned at all.
     # It had never been passed to this script — the scope gap that hid eight

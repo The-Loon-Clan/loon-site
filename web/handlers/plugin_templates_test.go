@@ -117,6 +117,17 @@ func pluginFixtures() []pluginFixture {
 		// fallback -- which is the failure a bare {{if eq}} chain makes
 		// invisible, because a typo'd code renders the generic branch and
 		// looks fine.
+		// ── playlists
+		//
+		// The plugin has NO templates of its own — it renders through this set
+		// via Deps.BaseData — so its error page lives here rather than beside
+		// the handler that raises it. Two passes: an unknown code must still
+		// say something, and a known one must reach its own sentence, which a
+		// bare {{if eq}} chain hides when a code is misspelled.
+		{"playlist_error.html",
+			map[string]any{"Reason": "wat"},
+			map[string]any{"Reason": "notfound"}},
+
 		{"community_error.html",
 			map[string]any{"Reason": "wat"},
 			map[string]any{"Reason": "notmod"}},
