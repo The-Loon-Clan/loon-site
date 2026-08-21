@@ -168,6 +168,46 @@ def csrf_findings(files):
 GO_SENTENCE = re.compile(
     r'(?:QueryEscape|c\.String|gc\.String)\(\s*(?:http\.Status\w+,\s*)?"([^"]{12,})"')
 
+# THE SAME SINKS, REACHED THE LONG WAY. The pattern above only sees a literal
+# sitting inside the call, so for a long time these did not count:
+#
+#     msg := "Your achievements are shown."   // assigned, then passed
+#     return "That did not save."             // returned from a helper
+#     QueryEscape(fmt.Sprintf("%d points", n))  // built, not literal
+#
+# achievements read as ONE sentence and held three; games read as NONE and held
+# eleven, behind a named error type and a helper. Every one reached a member.
+#
+# The first two are found precisely, by anchoring to a WHOLE statement -- the
+# closing quote must end the line. Without that anchor the pattern spans two
+# different literals in `"?msg=" + url.QueryEscape(msg)` and reports URL
+# plumbing as prose, which is what the first attempt did.
+GO_SENTENCE_ASSIGNED = re.compile(
+    r'^[ \t]*([a-z][A-Za-z0-9_]*)[ \t]*:?=[ \t]*"([^"\\]{12,})"[ \t]*$', re.M)
+GO_SENTENCE_RETURNED = re.compile(
+    r'^[ \t]*return[ \t]+"([^"\\]{12,})"[ \t]*$', re.M)
+
+# Which of those flow to a person: a variable that reaches a sink in the same
+# file, or a return in a file that has a sink or a redirect at all.
+GO_SENTENCE_SINK_VAR = re.compile(
+    r'(?:QueryEscape|c\.String|gc\.String)\([ \t]*(?:http\.Status\w+,[ \t]*)?'
+    r'([a-z][A-Za-z0-9_]*)[ \t]*\)')
+
+# A sentence has a space and no format verb. This skips SQL, slugs, registry
+# keys, content types and log formats, which is most of what a Go file holds.
+# fmt.Sprintf INTO a sink is a real fourth route and is deliberately NOT
+# counted: finding it needs dataflow, and a check that guesses is worse than
+# one whose blind spot is written down. It is written down here.
+GO_SENTENCE_SKIP = ("select ", "insert ", "update ", "delete ", "create ",
+                    "alter ", "http://", "https://", "application/", "text/")
+
+
+def _is_prose(lit):
+    if " " not in lit or "%" in lit or lit.upper() == lit:
+        return False
+    low = lit.lower()
+    return not any(low.startswith(b) or b in low[:20] for b in GO_SENTENCE_SKIP)
+
 # The count as it stands, per tree. Lower it in the same commit that converts
 # one; raising it needs a reason in the commit message, and there is not
 # currently a good one.
@@ -184,9 +224,25 @@ SENTENCE_BASELINE = {
     # of the one available. Everything a MEMBER reads still belongs in a
     # template.
     "loon-demo-site": 34,
-    # 59 as of 20 Aug 2026, down from 111 — communities (20), medals (17),
-    # forum (7), wiki (6), news (3), tickets (3), magic (3) and seedlock (2)
-    # moved into templates.
+    # 41 as of 21 Aug 2026, down from 111 — communities (20), medals (17),
+    # games (11), forum (7), wiki (6), uploads (6), news (3), tickets (3),
+    # magic (3), achievements (3), seedlock (2) and rewards (1) moved into
+    # templates.
+    #
+    # IT WENT 40 -> 41 WHEN THE CHECK GOT BETTER, NOT WHEN THE CODE GOT WORSE.
+    # For most of its life this counted only a literal sitting inside the sink
+    # call, so three other routes to the same sink were invisible:
+    #
+    #     msg := "Your achievements are shown."   assigned, then passed
+    #     return "That did not save."             returned from a helper
+    #     errBadInput("pick an amount")           carried by an error type
+    #
+    # achievements read as ONE sentence and held three. games read as NONE and
+    # held eleven, behind errBadInput and memberErr. uploads read as ONE and
+    # held six, behind its own p.redirect helper. Every one reached a member.
+    # The first two routes are now counted; the third cannot be, and neither
+    # can QueryEscape(fmt.Sprintf(...)), because finding those needs dataflow
+    # and a check that guesses is worse than one whose limits are written down.
     #
     # THE FLOOR IS NOT ZERO. Roughly six of what remains are not member-facing
     # sentences at all and should stay in Go: "<plugin>: no page renderer
@@ -204,20 +260,41 @@ SENTENCE_BASELINE = {
     # host-side error page or the shared error seam three plugins already
     # declare privately.
     #
+    # THE +1 IS communities/handlers.go's joinRequirementError, and it is
+    # deliberately left. It is one line of a coherent set: communities puts its
+    # messages in a SESSION FLASH rather than a query parameter — twelve
+    # redirectWithFlash calls, nine carrying sentences, plus this helper's
+    # three — and they have to move together. It is also the plugin whose
+    # templates this host resolves from its OWN set, so the mapping ships in
+    # two places; that is a pass of its own, not a straggler to sweep up.
+    #
     # It was found at 115, ABOVE the recorded baseline: four had crept past and
     # nothing reported it, because this file only reads a plugin tree when one
     # is passed, and `make resources` is what passes it. Running the script
     # bare checks the host alone and says nothing about the other 876 files.
-    "loon-plugins": 59,
+    "loon-plugins": 41,
 }
 
 
 def sentence_count(files):
+    """Sentences a member can read, by all three routes to a sink."""
     n = 0
     for path, rel, body in files:
         if rel.endswith("_test.go") or not rel.endswith(".go"):
             continue
         n += len(GO_SENTENCE.findall(body))
+        sunk = set(m.group(1) for m in GO_SENTENCE_SINK_VAR.finditer(body))
+        if sunk:
+            for m in GO_SENTENCE_ASSIGNED.finditer(body):
+                if m.group(1) in sunk and _is_prose(m.group(2)):
+                    n += 1
+        # A helper returning prose only counts where this file also puts words
+        # in front of somebody; elsewhere a returned string is a log line or an
+        # error for another handler to wrap.
+        if sunk or "Redirect(" in body:
+            for m in GO_SENTENCE_RETURNED.finditer(body):
+                if _is_prose(m.group(1)):
+                    n += 1
     return n
 
 
