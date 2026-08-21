@@ -264,14 +264,24 @@ def pages_to_check():
 # /admin/ routes had never been checked, so this is the first measurement
 # rather than a change.
 #
-# 503 of the 534 are ONE THING: an admin form label with no `for` and no
-# wrapping, sitting beside its input --
+# 534 of those were the first measurement. 152 template controls have since
+# been named from their own label's words (loon-plugins b502f0c, bcf7e9a),
+# taking it to 269.
 #
-#     <label class="form-label">Name *</label>
-#     <input type="text" name="name" ...>
+# WHAT IS LEFT IS A DIFFERENT PATTERN, and it needs a different fix. The
+# remainder are table-cell inputs with NO adjacent label at all --
 #
-# which looks like a label, is not one, and leaves a screen reader announcing
-# "edit text". Six admin pages carry almost all of it.
+#     <th>Host</th>
+#     ...
+#     <td><input type="text" name="host" value="news.example.com"></td>
+#
+# where the column header is the only thing naming the field. Nothing beside
+# the input can be read to name it; the fix has to map each cell to its <th>,
+# which is a per-template job rather than one regex. /admin/p/usenet (92),
+# /admin/p/groups (63) and /admin/forum-categories (38) are most of it.
+#
+# requests/ and ranks/ contribute some of this and belong to another
+# workstream.
 #
 # PER SHAPE, NOT A TOTAL. A single number lets a new page's findings hide
 # behind another page's fix. Keyed like this, a page that gets worse fails even
@@ -284,25 +294,25 @@ def pages_to_check():
 #
 # Measured 21 Aug 2026.
 A11Y_BASELINE = {
-    "/admin/store": 153,
-    "/admin/p/rewards": 118,
-    "/admin/p/usenet": 94,
+    "/admin/p/usenet": 92,
     "/admin/p/groups": 63,
     "/admin/forum-categories": 38,
+    "/admin/store": 21,
     "/admin/p/achievements": 13,
-    "/admin/p/events": 8,
     "/admin/invites": 7,
-    "/admin/news": 5,
     "/admin/p/users": 5,
-    "/admin/wiki": 5,
-    "/admin/messages": 4,
+    "/admin/news": 4,
     "/p/account": 4,
     "/admin/p/maintenance": 3,
     "/admin/p/services": 2,
+    "/admin/wiki": 2,
     "/store/history": 2,
     "/admin/donate": 1,
+    "/admin/messages": 1,
+    "/admin/p/events": 1,
     "/admin/p/login-log": 1,
     "/admin/p/medals": 1,
+    "/admin/p/rewards": 1,
     "/admin/tickets": 1,
     "/help/donate": 1,
     "/p/achievements": 1,
