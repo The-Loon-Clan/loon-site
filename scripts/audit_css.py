@@ -23,6 +23,12 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Directories no walk here should descend into. Named once, because the JS
+# check below reads the PLUGIN tree as well as this one and that tree brings
+# vendor/ and node_modules/ with it.
+SKIP_DIRS = {".git", "node_modules", "__pycache__", "vendor", "clonecheck",
+             "examples", "docs"}
 TEMPLATES = os.path.join(ROOT, "web", "templates")
 STYLES = os.path.join(ROOT, "web", "static", "css")
 
@@ -42,6 +48,12 @@ RUNTIME = {
     "pw-meter--strong",
     # Toggled by the dropdown and Bootstrap tab shims in site_chrome.html.
     "active", "show", "fade",
+    # ...and the two the same shim SELECTS on. site_chrome.html is the one
+    # script that drives markup it does not contain: the tab strip it operates
+    # is rendered by plugins, so the JS check cannot find .nav or .tab-pane in
+    # the host's own template directory and would report a dead selector on
+    # every run. They are the shim's contract with every plugin that uses tabs.
+    "nav", "tab-pane",
 
     # UNIT3D PARITY MARKERS, not styling hooks. UNIT3D renders each home-page
     # block as <section class="panelV2 blocks__<name>">, and these carry the
@@ -145,12 +157,142 @@ def defined():
     return out
 
 
+
+# ── classes JavaScript reaches for ──────────────────────────────────────────
+#
+# A CLASS RENAME HAS TWO HALVES. Converting .card-header to .panel__header in
+# the markup leaves every selector pointing at the old name; the handler finds
+# nothing, and the page still LOOKS converted. Nothing else in the stack
+# notices — not the template parser, not a test that renders the page, not a
+# screenshot.
+#
+# The test is deliberately narrow. Two wider ones were tried and rejected:
+#
+#   "a JS class with no CSS rule" flags .js-group-toggle, .btn-vote,
+#   .dismiss-btn — handles that are never meant to be styled. 38 findings, all
+#   noise, which is how a check gets switched off rather than obeyed.
+#
+#   "a JS class absent from the markup" flags .open, .expanded, .selected,
+#   .voted — state classes the script ADDS at runtime, which correctly appear
+#   in no template.
+#
+# What is left: a class the script SEARCHES for, that no markup carries and no
+# script adds. That is a selector addressing nothing.
+
+# Reads: querySelector('.a .b'), closest('.a'), classList.contains('a')
+JS_SEARCH = [
+    (re.compile(r"""(?:querySelector(?:All)?|closest|matches)\(\s*['"]([^'"]+)['"]"""), True),
+    (re.compile(r"""classList\.(?:contains|remove)\(\s*['"]([^'"]+)['"]"""), False),
+    (re.compile(r"""getElementsByClassName\(\s*['"]([^'"]+)['"]"""), False),
+]
+# Writes: anything that can PUT the class on an element.
+JS_ADD = [
+    re.compile(r"""classList\.(?:add|toggle|replace)\(\s*['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?"""),
+    re.compile(r"""className\s*=\s*['"]([^'"]*)['"]"""),
+    re.compile(r"""className\s*=\s*['"]([^'"]*)['"]\s*\+"""),
+    re.compile(r"""['"]([\w-]+)['"]\s*:\s*['"]?"""),
+]
+SCRIPT_BLOCK = re.compile(r"<script\b[^>]*>(.*?)</script>", re.S | re.I)
+SEL_CLASS = re.compile(r"\.([a-zA-Z_][\w-]*)")
+BARE_CLASS = re.compile(r"^[a-zA-Z_][\w-]*$")
+
+
+def _js_names(text, pats, selector_syntax=None):
+    out = set()
+    for entry in pats:
+        pat, is_sel = entry if isinstance(entry, tuple) else (entry, False)
+        for m in pat.finditer(text):
+            for g in m.groups():
+                if not g:
+                    continue
+                if is_sel:
+                    out.update(SEL_CLASS.findall(g))
+                else:
+                    for tok in g.split():
+                        if BARE_CLASS.match(tok):
+                            out.add(tok)
+    return out
+
+
+def js_selectors(trees):
+    """Classes a script looks for that its own templates never provide.
+
+    Returns [(tree_label, relative_path, class_name)].
+
+    SCOPED BY DIRECTORY, and that is the whole accuracy of it. A tree-wide
+    "does any markup carry this" missed the bug this exists for: usenet asked
+    for .badge after its own markup moved to .tag, and other plugins still
+    write class="badge", so the tree-wide set still contained it. A script in
+    usenet/templates addresses usenet's markup — tight enough to notice a class
+    that left THIS plugin, loose enough for one template's script to drive a
+    sibling fragment, which is how usenet's tabs work.
+    """
+    per_dir_markup, per_dir_added, scripts = {}, {}, []
+    for label, root in trees:
+        for dirpath, dirs, files in os.walk(root):
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+            for fn in files:
+                if not fn.endswith(".html"):
+                    continue
+                path = os.path.join(dirpath, fn)
+                with open(path, encoding="utf-8", errors="replace") as fh:
+                    text = fh.read()
+                mk = per_dir_markup.setdefault(dirpath, set())
+                for attr in re.findall(r"""class\s*=\s*["']([^"']*)["']""", text):
+                    # A template action inside the attribute is blanked: half of
+                    # `{{if .X}}a{{else}}b` is not a class name.
+                    for tok in re.sub(r"\{\{.*?\}\}", " ", attr, flags=re.S).split():
+                        mk.add(tok)
+                ad = per_dir_added.setdefault(dirpath, set())
+                for block in SCRIPT_BLOCK.findall(text):
+                    ad.update(_js_names(block, JS_ADD))
+                    scripts.append((label, dirpath,
+                                    os.path.relpath(path, root).replace(os.sep, "/"),
+                                    _js_names(block, JS_SEARCH)))
+    out = []
+    for label, dirpath, rel, names in scripts:
+        mk = per_dir_markup.get(dirpath, set())
+        ad = per_dir_added.get(dirpath, set())
+        for cls in sorted(names):
+            if cls in mk or cls in ad or cls in RUNTIME:
+                continue
+            out.append((label, rel, cls))
+    return out
+
+# The trees whose scripts are checked. The PLUGIN tree is here and not in the
+# class check above, deliberately: pointing `used()` at it surfaces 310
+# undefined names in one go, most of them Bootstrap utilities the host has
+# never shimmed, and that is a body of work rather than a check. The JS check
+# has no such backlog — it reported zero on the day it was written — so it can
+# be wired straight in and stay green.
+JS_TREES = [
+    ("host", os.path.join(ROOT, "web")),
+    ("plugins", os.path.join(os.path.dirname(ROOT), "loon-plugins")),
+]
+
+
 def main():
     use, have = used(), defined()
     missing = sorted(c for c in use if c not in have and c not in RUNTIME)
 
+    dead = js_selectors([(l, p) for l, p in JS_TREES if os.path.isdir(p)])
+    if dead:
+        print("css: %d JavaScript selector(s) addressing a class no markup carries\n"
+              % len(dead))
+        for label, rel, cls in dead:
+            print("   %-9s %-48s .%s" % (label, rel, cls))
+        print("")
+        print("A class rename has two halves. Converting .badge to .tag in the markup")
+        print("leaves querySelector('td .badge') behind, the handler finds nothing, and")
+        print("the page still LOOKS converted -- no template error, no failing test, no")
+        print("difference in a screenshot of the loaded page.")
+        print("")
+        print("css: %d dead JavaScript selector(s)" % len(dead))
+        return 1
+
     if not missing:
-        print("css: 0 undefined classes (%d used, all defined)" % len(use))
+        print("css: 0 undefined classes (%d used, all defined), 0 dead JS selectors"
+              % len(use))
         return 0
 
     print("css: %d class(es) used in templates and defined in no stylesheet" % len(missing))
