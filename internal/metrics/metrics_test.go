@@ -57,13 +57,13 @@ func TestLabelValuesAreEscaped(t *testing.T) {
 
 func TestValuesRenderWithoutNoise(t *testing.T) {
 	cases := map[float64]string{
-		42:                  "42",
-		0:                   "0",
-		0.5:                 "0.5",
-		1755000000:          "1.755e+09",
-		math.NaN():          "NaN",
-		math.Inf(1):         "+Inf",
-		math.Inf(-1):        "-Inf",
+		42:           "42",
+		0:            "0",
+		0.5:          "0.5",
+		1755000000:   "1.755e+09",
+		math.NaN():   "NaN",
+		math.Inf(1):  "+Inf",
+		math.Inf(-1): "-Inf",
 	}
 	for v, want := range cases {
 		if got := formatValue(v); got != want {

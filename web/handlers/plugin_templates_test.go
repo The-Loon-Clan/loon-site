@@ -148,7 +148,7 @@ func pluginFixtures() []pluginFixture {
 				// and the values its sentence quotes, so the template can hold
 				// the words. A string here renders nothing and the fixture
 				// would prove the page executes while the message is gone.
-				"Flash":           communities.Flash{Code: "toopoor", Args: []string{"100", "42"}},
+				"Flash": communities.Flash{Code: "toopoor", Args: []string{"100", "42"}},
 			}},
 		{"community_new_thread_c.html",
 			map[string]any{"Community": comm}, nil},
