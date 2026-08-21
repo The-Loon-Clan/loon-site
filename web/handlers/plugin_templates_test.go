@@ -111,6 +111,15 @@ func pluginFixtures() []pluginFixture {
 				}},
 				"Total": 1,
 			}},
+		// The refusal page. Two passes cover both halves of the mapping: an
+		// unknown code must still say something (silence reads as success),
+		// and a known one must reach its own sentence rather than the
+		// fallback -- which is the failure a bare {{if eq}} chain makes
+		// invisible, because a typo'd code renders the generic branch and
+		// looks fine.
+		{"community_error.html",
+			map[string]any{"Reason": "wat"},
+			map[string]any{"Reason": "notmod"}},
 		{"community_new.html",
 			map[string]any{},
 			map[string]any{"Error": "bad slug", "Slug": "x", "Name": "n", "Description": "d"}},
