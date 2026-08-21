@@ -87,7 +87,7 @@ RUNTIME = {
 }
 
 
-def used():
+def used(root=None, rel_to=None):
     """Every literal class name written in a template.
 
     Template actions are blanked to MARK BEFORE class attributes are matched,
@@ -101,12 +101,13 @@ def used():
          token, not a class called poster--h.
     """
     out = {}
-    for dirpath, _dirs, files in os.walk(TEMPLATES):
+    for dirpath, dirs, files in os.walk(root or TEMPLATES):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         for fn in files:
             if not fn.endswith(".html"):
                 continue
             full = os.path.join(dirpath, fn)
-            rel = os.path.relpath(full, ROOT).replace(os.sep, "/")
+            rel = os.path.relpath(full, rel_to or ROOT).replace(os.sep, "/")
             with open(full, encoding="utf-8") as fh:
                 text = fh.read()
             text = re.sub(r"\{\{.*?\}\}", MARK, text, flags=re.S)
@@ -132,7 +133,16 @@ def defined():
     is how a check stops being run.
     """
     out = set()
-    for dirpath, _dirs, files in os.walk(TEMPLATES):
+    # BOTH TREES. A plugin that ships its own rules in a <style> block has
+    # defined those classes as surely as a .css file does, and reading only the
+    # host's templates reported 134 of donations' own names as undefined while
+    # the plugin styles every one of them itself.
+    roots = [TEMPLATES]
+    _plugins = os.path.join(os.path.dirname(ROOT), "loon-plugins")
+    if os.path.isdir(_plugins):
+        roots.append(_plugins)
+    for _root in roots:
+      for dirpath, _dirs, files in os.walk(_root):
         for fn in files:
             if not fn.endswith(".html"):
                 continue
@@ -271,6 +281,64 @@ JS_TREES = [
 ]
 
 
+
+# ── the plugin tree ─────────────────────────────────────────────────────────
+#
+# audit_css read only the host's templates for its whole life, so 108 plugin
+# template files were never checked. That is how .btn-group, .btn-group-sm and
+# .form-control-color sat in the ticket filters and the wiki colour input doing
+# NOTHING -- each rendering as though the class were absent, which is
+# indistinguishable from being styled to look plain. All three were found by
+# accident while converting something else.
+#
+# CHECKLIST section 8 already required this: "templates speak the HOST's design
+# vocabulary, or the host overrides them... If the plugin renders its own
+# fragments, the README says which component names it assumes." The rule
+# existed; nothing enforced it.
+#
+# A BASELINE, because 307 is not a list of typos. It is four things:
+#
+#   ~217  the plugin's own names, styled nowhere    (forum has 164 of them)
+#    ~84  Bootstrap utilities the host never shimmed
+#    ~22  Bootstrap Icons, and no font is shipped   (forum, all of them)
+#     ~8  JS hooks, which are legitimate and belong in RUNTIME as they surface
+#
+# THE HOST SHIMS A SUBSET OF BOOTSTRAP, which is the thing to know before
+# reading the utility findings: mb-3, d-flex, gap-2 and align-items-center are
+# defined; mb-5, pt-3, ps-3, px-3, rounded, text-break and col-4 are not. A
+# conversion that "keeps the utilities because the host defines them" is right
+# about some of them and wrong about the rest, and this is what tells them
+# apart.
+#
+# PER PLUGIN, NOT A TOTAL. A total lets a new plugin's findings hide behind
+# another's cleanup. Keyed like this, a plugin with no entry fails on its FIRST
+# undefined class, which is what stops the next one shipping like the forum's.
+#
+# Lower an entry in the same commit that fixes one. Measured 21 Aug 2026.
+PLUGIN_BASELINE = {
+    "achievements": 4,
+    "applications": 5,
+    "communities": 7,
+    "cosmetics": 5,
+    "curation": 1,
+    "donations": 16,
+    "forum": 164,
+    "lists": 14,
+    "logs": 3,
+    "mediainfo": 1,
+    "messages": 3,
+    "news": 1,
+    "offers": 7,
+    "perks": 1,
+    "releasegroups": 20,
+    "requests": 22,
+    "rewards": 4,
+    "roadmap": 21,
+    "store": 2,
+    "uploads": 1,
+    "usenet": 5,
+}
+
 def main():
     use, have = used(), defined()
     missing = sorted(c for c in use if c not in have and c not in RUNTIME)
@@ -290,9 +358,40 @@ def main():
         print("css: %d dead JavaScript selector(s)" % len(dead))
         return 1
 
+    plugin_root = os.path.join(os.path.dirname(ROOT), "loon-plugins")
+    over, stale, ptotal = [], [], 0
+    if os.path.isdir(plugin_root):
+        pused = used(plugin_root, plugin_root)
+        pmissing = {c: v for c, v in pused.items()
+                    if c not in have and c not in RUNTIME}
+        per = {}
+        for cls, where in pmissing.items():
+            per.setdefault(sorted(where)[0].split("/")[0], []).append(cls)
+        ptotal = len(pmissing)
+        for plugin, names in sorted(per.items()):
+            allowed = PLUGIN_BASELINE.get(plugin, 0)
+            if len(names) > allowed:
+                over.append((plugin, len(names), allowed, sorted(names)[:6]))
+        for plugin, allowed in sorted(PLUGIN_BASELINE.items()):
+            if len(per.get(plugin, [])) < allowed:
+                stale.append((plugin, len(per.get(plugin, [])), allowed))
+
+    if over:
+        print("css: %d plugin(s) using more undefined classes than recorded\n" % len(over))
+        for plugin, n, was, sample in over:
+            print("   %-16s %d, baseline %d   %s" % (plugin, n, was, ", ".join("." + c for c in sample)))
+        print("")
+        print("css: %d plugin(s) over the baseline" % len(over))
+        return 1
+    if stale:
+        print("css: baseline stale (fixed, so lower it in this commit)\n")
+        for plugin, n, was in stale:
+            print("   %-16s %d, baseline %d" % (plugin, n, was))
+        return 1
+
     if not missing:
-        print("css: 0 undefined classes (%d used, all defined), 0 dead JS selectors"
-              % len(use))
+        print("css: 0 undefined in the host (%d used), %d in plugins at the baseline, "
+              "0 dead JS selectors" % (len(use), ptotal))
         return 0
 
     print("css: %d class(es) used in templates and defined in no stylesheet" % len(missing))
