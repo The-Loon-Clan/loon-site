@@ -296,7 +296,8 @@ JS_TREES = [
 # fragments, the README says which component names it assumes." The rule
 # existed; nothing enforced it.
 #
-# A BASELINE, because 307 is not a list of typos. It is four things:
+# A BASELINE, because 286 distinct names (373 counting each plugin that
+# uses one) is not a list of typos. It is four things:
 #
 #   ~217  the plugin's own names, styled nowhere    (forum has 164 of them)
 #    ~84  Bootstrap utilities the host never shimmed
@@ -322,24 +323,27 @@ PLUGIN_BASELINE = {
     "cosmetics": 5,
     "curation": 1,
     "donations": 16,
-    # 164 -> 143 when its 21 Bootstrap Icons classes went. The rest are the
-    # plugin's own design names, styled in no stylesheet in either repo and
-    # never in git history — the design was written and never implemented.
-    "forum": 143,
-    "lists": 14,
-    "logs": 3,
-    "mediainfo": 1,
+    "forum": 144,
+    "lists": 18,
+    "logs": 4,
+    "magic": 1,
+    "mediainfo": 2,
     "messages": 3,
-    "news": 1,
-    "offers": 7,
+    "news": 2,
+    "offers": 10,
     "perks": 1,
-    "releasegroups": 20,
-    "requests": 22,
-    "rewards": 4,
-    "roadmap": 21,
-    "store": 2,
-    "uploads": 1,
-    "usenet": 5,
+    "polls": 2,
+    "releasegroups": 29,
+    "reports": 1,
+    "requests": 44,
+    "rewards": 5,
+    "roadmap": 45,
+    "store": 6,
+    "tickets": 3,
+    "tracker": 1,
+    "uploads": 3,
+    "usenet": 6,
+    "wiki": 5,
 }
 
 def main():
@@ -367,9 +371,16 @@ def main():
         pused = used(plugin_root, plugin_root)
         pmissing = {c: v for c, v in pused.items()
                     if c not in have and c not in RUNTIME}
+        # EVERY plugin that uses the class, not the first one alphabetically.
+        # Attributing a shared name to one owner makes the baseline move when an
+        # UNRELATED plugin is cleaned: converting messages took .btn-danger's
+        # first user away and the count silently reappeared under uploads. A
+        # baseline that shifts when somebody else tidies is not a baseline.
         per = {}
         for cls, where in pmissing.items():
-            per.setdefault(sorted(where)[0].split("/")[0], []).append(cls)
+            for w in where:
+                per.setdefault(w.split("/")[0], set()).add(cls)
+        per = {k: sorted(v) for k, v in per.items()}
         ptotal = len(pmissing)
         for plugin, names in sorted(per.items()):
             allowed = PLUGIN_BASELINE.get(plugin, 0)
