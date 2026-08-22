@@ -339,6 +339,60 @@ details.job-group[open] > summary::before { transform: rotate(90deg); }
    .card.mb-0 and friends are same-specificity collisions, so the utility
    only wins by being declared after the component it modifies. */
 
+/* ── breadcrumb, input-group, form-range ─────────────────────────────────────
+   Three Bootstrap components plugin markup writes and this file lacked. Each
+   failed visibly rather than subtly: .breadcrumb is an <ol>, so with no rule
+   it renders as a numbered list — "1. Support  2. Ticket #4" — which is what
+   tickets and requests have been showing. */
+
+.breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: .85rem;
+    color: var(--muted);
+}
+.breadcrumb-item { display: inline-flex; align-items: center; gap: .35rem; }
+.breadcrumb-item + .breadcrumb-item::before {
+    content: "/";
+    color: var(--muted-2);
+}
+.breadcrumb-item a { color: var(--link-fg); text-decoration: none; }
+.breadcrumb-item a:hover { text-decoration: underline; }
+.breadcrumb-item.active { color: var(--text); }
+
+/* An affix and its field read as ONE control, so the join is square and the
+   border between them is not doubled. */
+.input-group { display: flex; align-items: stretch; width: 100%; }
+.input-group > * { border-radius: 0; }
+.input-group > :first-child { border-start-start-radius: var(--input-border-radius, var(--radius-sm)); border-end-start-radius: var(--input-border-radius, var(--radius-sm)); }
+.input-group > :last-child { border-start-end-radius: var(--input-border-radius, var(--radius-sm)); border-end-end-radius: var(--input-border-radius, var(--radius-sm)); }
+.input-group > :not(:first-child) { margin-left: -1px; }
+.input-group > .form__input, .input-group > input, .input-group > select { flex: 1 1 auto; min-width: 0; }
+.input-group-text {
+    display: flex;
+    align-items: center;
+    padding: .35rem .6rem;
+    border: 1px solid var(--input-border);
+    background: var(--surface-2);
+    color: var(--muted);
+    white-space: nowrap;
+}
+.input-group-sm > * { font-size: .85rem; padding-block: .2rem; }
+
+/* accent-color themes the native slider without rebuilding it — a
+   reimplemented range input loses keyboard and touch behaviour browsers
+   already get right. */
+.form-range {
+    width: 100%;
+    accent-color: var(--primary);
+    background: transparent;
+}
+
 /* Spacing, the COMPLETE scale.
 
    This block used to say "kept to the exact set the templates use — grep
