@@ -7,6 +7,7 @@ is broken is a tool nobody runs.
 import http.cookiejar
 import os
 import re
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -209,6 +210,23 @@ def unmangle(arg):
     if m:
         return "/%s/%s" % (m.group(1).lower(), m.group(2).replace("\\", "/"))
     return arg
+
+
+def say(line):
+    """print, surviving a console that cannot encode the finding.
+
+    A checker that crashes on its own worst finding is worse than no
+    checker. mobile.py hit this after 167 pages: Chrome's DOM dump came
+    back with a replacement character in it and cp1252 refused to print it,
+    so a run that had found everything ended in a traceback instead of a
+    verdict.
+
+    audit_branding carries its own copy on purpose -- it is a static audit
+    with no site dependency, and importing this module to borrow four lines
+    would give it one.
+    """
+    enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+    sys.stdout.write(line.encode(enc, "replace").decode(enc, "replace") + chr(10))
 
 
 def require_site():

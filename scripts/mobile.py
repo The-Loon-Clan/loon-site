@@ -102,8 +102,70 @@ def fetch(path):
     return body, status
 
 
+BASELINE = {
+    # 12 pages as of 22 Aug 2026, and they arrived all at once when the page
+    # list below stopped being the sitemap alone. They are TWO causes, not
+    # twelve problems, and both already have a remedy this file knows about:
+    #
+    #   a bare <table> outside a scrolling wrapper -- SCROLLERS lists
+    #   .table-responsive and .data-table-wrapper, and overflow inside
+    #   either is ignored on purpose. These tables are in neither.
+    #
+    #   nav tabs with no .nav-tabsV2--scroll, which is the class that makes
+    #   a tab strip scroll instead of pushing the page sideways.
+    #
+    # Recorded rather than fixed in the same change that found them: the
+    # check being widened and the pages being fixed are two different
+    # arguments, and mixing them means neither can be reverted alone.
+    "/admin/donate", "/admin/donate/costs", "/admin/donate/log",
+    "/admin/donate/points", "/admin/forum-categories",
+    "/admin/news", "/admin/p/usenet", "/admin/store", "/admin/tickets",
+    "/admin/widgets",
+    # The only one that is not an operator page. Community pages are not in
+    # the sitemap by nature, so no mobile run had ever loaded one.
+    "/c/usenet",
+}
+
+
+def _crawled():
+    """One page per shape the link crawler reached."""
+    try:
+        import audit_links
+        seen = {}
+        for p in audit_links.discover():
+            k = re.sub(r'/\d+', '/:id', p)
+            k = re.sub(r'/[0-9a-f]{16,}', '/:hash', k)
+            seen.setdefault(k, p)
+        return sorted(seen.values())
+    except Exception as exc:  # noqa: BLE001 - degrade to the sitemap
+        print("  ! crawl unavailable (%s); checking the sitemap only" % exc)
+        return []
+
+
+def _admin_routes():
+    """The admin pages, which the sitemap will never list."""
+    try:
+        import audit_adminnav
+        return sorted(r for r in audit_adminnav.served_routes()
+                      if ':' not in r and not r.endswith('.json'))
+    except Exception as exc:  # noqa: BLE001 - degrade to the sitemap
+        print("  ! admin routes unavailable (%s); checking the sitemap only" % exc)
+        return []
+
+
 def discover():
-    """The site's own list of its pages."""
+    """Every page the site has, not every page the sitemap names.
+
+    The sitemap lists public CONTENT. It does not list the admin area, and
+    it does not list a community -- so 76 pages had never been loaded at
+    phone width, and 12 of them did not fit. One, /c/usenet, is a page
+    members visit.
+
+    Same two sources audit_a11y already combines, for the same reason it
+    combines them: a route added tomorrow is checked tomorrow. Additive, so
+    a crawl or a rotated boot log degrades to the sitemap rather than
+    emptying the list.
+    """
     html, _ = fetch("/sitemap")
     paths = []
     for href in re.findall(r'class="sitemap-list__link" href="([^"]+)"', html):
@@ -114,6 +176,10 @@ def discover():
             paths.append(href)
     # A release and a thread, because a detail page is a different layout from
     # any index and neither is in the sitemap by nature.
+    # The crawler's shapes and the admin route table, both additive.
+    for extra in (_crawled(), _admin_routes()):
+        paths.extend(extra)
+
     for pat, page in ((r'href="(/release/\d+)"', "/browse"),
                       (r'href="(/community/forums/thread/\d+)"', "/community/forums")):
         try:
@@ -170,7 +236,15 @@ window.addEventListener('load', function () {
 """
 
 
-def run(paths):
+# Chrome renders every page as an IFRAME in one harness document, and a
+# harness with 184 of them dies without producing output -- the failure is
+# an IndexError deep in subprocess, not a message, which is why the page
+# list could not simply be widened. Batched, the same run is 13 harnesses
+# that each behave like the 36-page one this was written against.
+BATCH = 15
+
+
+def _measure(paths):
     tmp = tempfile.mkdtemp(prefix="mobilecheck-")
     saved = []
     for p in paths:
@@ -181,6 +255,12 @@ def run(paths):
             continue
         if status != 200:
             print("  ! %-38s HTTP %s" % (p, status))
+            continue
+        # Not every crawled path is a PAGE. /tracker/download/<hash> answers
+        # with a .torrent, and measuring a file for layout produces a finding
+        # nobody can act on. Checked by content rather than by a path list, so
+        # the next download route added does not have to be remembered.
+        if "<html" not in html[:2000].lower():
             continue
         # Assets have to resolve from a file:// page, so they become absolute.
         html = html.replace('href="/static', 'href="%s/static' % BASE)
@@ -196,7 +276,7 @@ def run(paths):
 
     if not saved:
         print("no pages fetched — is the site running at %s?" % BASE)
-        return 1
+        return None
 
     frames = "\n".join(
         '<iframe data-path="%s" src="%s" width="%d" height="%d"></iframe>'
@@ -217,16 +297,34 @@ def run(paths):
            "--allow-file-access-from-files", "--window-size=1200,900",
            "--virtual-time-budget=%d" % (4000 + 500 * len(saved)),
            "--dump-dom", "file:///" + win]
-    dom = subprocess.run(cmd, capture_output=True, text=True, timeout=600).stdout
+    # encoding= is not optional. text=True decodes with the CONSOLE codepage,
+    # which here is cp1252, and Chrome dumps the page DOM -- so one page
+    # containing a character cp1252 cannot represent killed the reader
+    # thread, left stdout empty, and surfaced as "IndexError: list index out
+    # of range" from inside subprocess. It reads as a Chrome crash and it is
+    # a mojibake bug. errors="replace" because a replacement character in a
+    # DOM dump costs nothing: the measurements are numbers.
+    dom = subprocess.run(cmd, capture_output=True, text=True, timeout=600,
+                         encoding="utf-8", errors="replace").stdout
     m = re.search(r'<pre id="RESULT">(.*?)</pre>', dom, re.S)
     if not m:
         print("the harness produced no result — Chrome may not have run.")
         print("CHROME=%s" % CHROME)
-        return 1
-    results = json.loads(m.group(1).replace("&quot;", '"').replace("&amp;", "&")
-                         .replace("&lt;", "<").replace("&gt;", ">"))
+        return None
+    return json.loads(m.group(1).replace("&quot;", '"').replace("&amp;", "&")
+                      .replace("&lt;", "<").replace("&gt;", ">"))
+
+
+def run(paths):
+    results = []
+    for i in range(0, len(paths), BATCH):
+        got = _measure(paths[i:i + BATCH])
+        if got is None:
+            return 1
+        results.extend(got)
 
     bad = 0
+    known, fixed = [], []
     print("%d pages at %dx%d" % (len(results), WIDTH, HEIGHT))
     # Said before the results, not after, because it changes what they MEAN.
     # Signed out this reaches 23 of 36 pages, and the 13 it cannot see are the
@@ -246,21 +344,51 @@ def run(paths):
         for o in r["over"][:4]:
             issues.append("%s sticks out %dpx" % (o["el"], o["px"]))
         if issues:
+            if r["path"] in BASELINE:
+                known.append(r["path"])
+                print("  ~    %-38s (at the baseline)" % r["path"])
+                continue
             bad += 1
-            print("  FAIL %s" % r["path"])
+            _site.say("  FAIL %s" % r["path"])
             for i in issues:
-                print("       %s" % i)
+                _site.say("       %s" % i)
         else:
+            if r["path"] in BASELINE:
+                fixed.append(r["path"])
             print("  ok   %s" % r["path"])
 
     print()
+    if known:
+        print("%d page(s) at the baseline — two causes, both named in BASELINE."
+              % len(known))
+    # An entry that is no longer CHECKED is the quieter half of the same
+    # problem: it reads as "known bad" forever while nothing looks at it. This
+    # is how /admin/metrics sat in the list -- a JSON endpoint measured as a
+    # page -- and it would have stayed there unnoticed.
+    checked = {r["path"] for r in results}
+    stale = sorted(p for p in BASELINE if p not in checked)
+    if stale and len(results) > len(BASELINE):
+        print()
+        print("  IN BASELINE but not checked at all — is it still a page?")
+        for p in stale:
+            print("    " + p)
+        return 1
+
+    # A page that starts fitting must LEAVE the baseline, or the list becomes a
+    # record of what used to be broken and stops being a ratchet.
+    if fixed:
+        print()
+        print("  FIXED, and still listed in BASELINE — remove them:")
+        for p in fixed:
+            print("    " + p)
+        return 1
     if bad:
         print("%d of %d pages have layout that does not fit a %dpx screen."
               % (bad, len(results), WIDTH))
         print("Overflow inside %s is ignored — those scroll on purpose."
               % ", ".join(SCROLLERS))
         return 1
-    print("every page fits a %dpx screen." % WIDTH)
+    print("every page fits a %dpx screen (%d at the baseline)." % (WIDTH, len(known)))
     return 0
 
 
