@@ -330,18 +330,18 @@ PLUGIN_BASELINE = {
     "mediainfo": 2,
     "messages": 3,
     "news": 2,
-    "offers": 9,
+    "offers": 8,
     "polls": 2,
-    "releasegroups": 24,
+    "releasegroups": 11,
     "requests": 44,
     "rewards": 5,
-    "roadmap": 39,
-    "store": 6,
+    "roadmap": 28,
+    "store": 5,
     "tickets": 3,
     "tracker": 1,
     "uploads": 1,
     "usenet": 6,
-    "wiki": 5,
+    "wiki": 4,
 }
 
 def main():

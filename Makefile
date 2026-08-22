@@ -62,7 +62,7 @@ help:
 	@echo "  The Go toolchain runs in Docker by default. Pass GO=go to use the host's."
 
 ## check: everything CI runs
-check: fmt build lint golint ctlchars sql css capabilities contrast resources test cover
+check: fmt build lint golint ctlchars sql css bootstrap capabilities contrast resources test cover
 
 ## build: compile every package
 build:
@@ -175,6 +175,16 @@ ctlchars:
 ## .css files and missed a page that carried its own <style> block.
 css:
 	@$(PYTHON) scripts/audit_css.py
+
+## bootstrap: data-bs-* attributes with no JavaScript to honour them
+##
+## bootstrap.min.css here is 790 bytes and says in its own first line that it is
+## not real Bootstrap, and the only Bootstrap object at runtime is the Tab shim
+## at the foot of site_chrome.html. Every other data-bs-* was decoration: twelve
+## buttons across five plugins that opened nothing, and two that threw on click
+## because `window.bootstrap` is truthy while `bootstrap.Modal` is not.
+bootstrap:
+	@$(PYTHON) scripts/audit_bootstrap.py
 
 ## capabilities: a wired plugin asking for something no wired plugin provides
 ##
