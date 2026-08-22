@@ -4,13 +4,11 @@ import (
 	site "github.com/the-loon-clan/loon-site"
 
 	"bytes"
-	"html/template"
 	"io/fs"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/the-loon-clan/loon-plugins/communities"
 	"github.com/the-loon-clan/loon-plugins/donations"
 	"github.com/the-loon-clan/loon-plugins/playlists"
 )
@@ -49,14 +47,13 @@ type pluginFixture struct {
 func pluginFixtures() []pluginFixture {
 	now := time.Now()
 	page := hostPagination(1, 25, 1, "/x")
-	comm := &communities.Community{
-		ID: 1, Slug: "usenet", Name: "Usenet", JoinType: "open",
-		SubscriberCount: 3, CreatedAt: now, UpdatedAt: now,
-	}
-
 	return []pluginFixture{
-		// ── news: NOT here. Fourth plugin to own its markup; the host sets
-		// RenderPage and its four copies are gone.
+		// ── news and communities: NOT here. Each owns its markup now; the
+		// host sets RenderPage and its copies of those templates are gone.
+		// communities/views_test.go executes every one of its nine pages over
+		// fuller data than these fixtures carried, and the flash test that
+		// pinned "You need 100 points" against "You need  points" moved there
+		// with the template rather than being dropped.
 
 		// ── wiki: NOT here. Third plugin to take ownership of its own markup
 		// (after store and tickets); the host now sets RenderPage and its
@@ -102,15 +99,6 @@ func pluginFixtures() []pluginFixture {
 		// mirrors its shape: the model plus the already-rendered body. That is
 		// deliberate — BodyHTML is what the template must render, and
 		// .Body is the untrusted source it must never touch.
-		{"communities_index.html",
-			map[string]any{"Communities": nil, "Total": 0, "Pagination": page},
-			map[string]any{
-				"Communities": []*communities.Community{{
-					ID: 1, Slug: "usenet", Name: "Usenet", Description: "d",
-					JoinType: "open", SubscriberCount: 3, ThreadCount: 2,
-				}},
-				"Total": 1,
-			}},
 		// The refusal page. Two passes cover both halves of the mapping: an
 		// unknown code must still say something (silence reads as success),
 		// and a known one must reach its own sentence rather than the
@@ -127,80 +115,6 @@ func pluginFixtures() []pluginFixture {
 		{"playlist_error.html",
 			map[string]any{"Reason": "wat"},
 			map[string]any{"Reason": "notfound"}},
-
-		{"community_error.html",
-			map[string]any{"Reason": "wat"},
-			map[string]any{"Reason": "notmod"}},
-		{"community_new.html",
-			map[string]any{},
-			map[string]any{"Error": "bad slug", "Slug": "x", "Name": "n", "Description": "d"}},
-		{"community_view.html",
-			map[string]any{
-				"Community":  comm,
-				"Threads":    nil,
-				"Total":      0,
-				"Pagination": page,
-				"Rules":      nil,
-				"Mods":       nil,
-				"Role":       &communities.CommunityViewerRole{},
-			},
-			map[string]any{
-				"Threads": []*communities.CommunityThread{{
-					ID: 1, CommunityID: 1, Title: "T", Username: "bob",
-					CommunitySlug: "usenet", ReplyCount: 2, LastPostAt: now, CreatedAt: now,
-				}},
-				"Rules":           []*communities.CommunityRule{{ID: 1, Title: "Be civil", Body: "b"}},
-				"Mods":            []*communities.CommunityMod{{UserID: 1, Username: "alice", Role: "admin"}},
-				"Role":            &communities.CommunityViewerRole{IsOwner: true, IsMod: true, IsSubscriber: true},
-				"SidebarHTML":     template.HTML("<p>side</p>"),
-				"DescriptionHTML": template.HTML("<p>desc</p>"),
-				"PendingCount":    2,
-				// A communities.Flash, not a string: the flash carries a CODE
-				// and the values its sentence quotes, so the template can hold
-				// the words. A string here renders nothing and the fixture
-				// would prove the page executes while the message is gone.
-				"Flash": communities.Flash{Code: "toopoor", Args: []string{"100", "42"}},
-			}},
-		{"community_new_thread_c.html",
-			map[string]any{"Community": comm}, nil},
-		{"community_thread_c.html",
-			map[string]any{
-				"Community": comm,
-				"Thread": &communities.CommunityThread{
-					ID: 1, CommunityID: 1, Title: "T", Username: "bob",
-					CommunitySlug: "usenet", CreatedAt: now, LastPostAt: now,
-				},
-				"BodyHTML":   template.HTML("<p>body</p>"),
-				"Posts":      nil,
-				"Total":      0,
-				"Pagination": page,
-				"Rules":      nil,
-				"Mods":       nil,
-				"Role":       &communities.CommunityViewerRole{},
-			},
-			map[string]any{
-				"Posts": []struct {
-					*communities.CommunityPost
-					BodyHTML template.HTML
-				}{{
-					CommunityPost: &communities.CommunityPost{ID: 1, ThreadID: 1, Username: "alice", CreatedAt: now},
-					BodyHTML:      template.HTML("<p>reply</p>"),
-				}},
-				"Role": &communities.CommunityViewerRole{IsMod: true, IsSubscriber: true},
-			}},
-		{"community_join_requests.html",
-			map[string]any{"Community": comm, "Requests": nil, "Invites": nil},
-			map[string]any{
-				"Requests": []*communities.CommunityJoinRequest{{
-					ID: 1, CommunityID: 1, Username: "bob", Message: "please",
-					PointsHeld: 5, CreatedAt: now,
-				}},
-				"Invites": []*communities.CommunityInvite{{
-					ID: 1, CommunityID: 1, Code: "abc", MaxUses: 1, CreatedAt: now,
-				}},
-			}},
-		{"community_settings.html",
-			map[string]any{"Community": comm}, nil},
 
 		// ── playlists
 		{"playlists_index.html",
@@ -293,7 +207,6 @@ func TestEveryPluginTemplateHasAFixture(t *testing.T) {
 	// are legitimately fixture-free.
 	partialsOnly := map[string]bool{
 		"wiki_shared.html": true, "tickets_shared.html": true,
-		"communities_shared.html": true,
 	}
 	covered := map[string]bool{}
 	for _, f := range pluginFixtures() {
@@ -310,45 +223,6 @@ func TestEveryPluginTemplateHasAFixture(t *testing.T) {
 		}
 		if !covered[n] {
 			t.Errorf("web/templates/plugin/%s has no fixture in pluginFixtures()", n)
-		}
-	}
-}
-
-// A flash that quotes numbers must RENDER them.
-//
-// The sentence lives in communities_shared.html now and the handler sends only
-// a code and its values, so an argument the template asks for and the sender
-// never supplied renders "You need points to join this community" — a
-// grammatical, wrong sentence that no Go test would see and no template error
-// would report. That is the specific failure this pins.
-func TestTheCommunityFlashRendersItsNumbers(t *testing.T) {
-	tmpl, err := pluginTemplates()
-	if err != nil {
-		t.Fatalf("parseTemplates: %v", err)
-	}
-	cases := []struct {
-		code string
-		args []string
-		want []string
-	}{
-		{"toopoor", []string{"100", "42"}, []string{"100", "42", "points to join"}},
-		{"tooyoung", []string{"7", "2"}, []string{"7", "2", "days old"}},
-		{"invited", []string{"abc123"}, []string{"/c/join/abc123"}},
-		{"saved", nil, []string{"Settings saved."}},
-		// A code nothing maps still says something: silence reads as success.
-		{"wat", nil, []string{"Something went wrong."}},
-	}
-	for _, tc := range cases {
-		var buf bytes.Buffer
-		f := communities.Flash{Code: tc.code, Args: tc.args}
-		if err := tmpl.ExecuteTemplate(&buf, "c-flash", f); err != nil {
-			t.Fatalf("%s: execute: %v", tc.code, err)
-		}
-		out := buf.String()
-		for _, want := range tc.want {
-			if !strings.Contains(out, want) {
-				t.Errorf("flash %q is missing %q:\n%s", tc.code, want, out)
-			}
 		}
 	}
 }

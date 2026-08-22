@@ -5,6 +5,7 @@ import (
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"fmt"
+	"html/template"
 
 	"github.com/gin-gonic/gin"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/the-loon-clan/loon/core"
 
 	"github.com/the-loon-clan/loon-plugins/communities"
+
+	"github.com/the-loon-clan/loon-site/internal/middleware"
 )
 
 // Communities (loon-plugins/communities) host wiring — user-owned sub-forums at
@@ -35,7 +38,21 @@ func wireCommunitiesPlugin(c *core.Core, w *web) error {
 		}
 	}
 	communities.SetDeps(communities.Deps{
-		BaseData: func(gc *gin.Context, extra gin.H) gin.H { return w.chromeData(gc, extra) },
+		// RenderPage, not BaseData. The plugin owns these nine pages and kept
+		// BaseData alive only so this repo would keep building mid-migration.
+		// site_fragment.html rather than site_page.html: each page opens with
+		// its own banner hero, and site_page.html's panel would print the
+		// community's name again above it — see site_fragment.html.
+		RenderPage: func(gc *gin.Context, status int, title string, body template.HTML) {
+			w.renderStatus(gc, status, "site_fragment.html",
+				map[string]any{"Title": title, "Fragment": body})
+		},
+		CSRFToken:    middleware.Token,
+		RelativeTime: relativeTime,
+		RenderEditor: w.renderEditor,
+		RenderPagination: func(page, pageSize, totalItems int, baseURL string) template.HTML {
+			return w.renderPagination(hostPagination(page, pageSize, totalItems, baseURL))
+		},
 		// The SAME renderer the wiki uses: goldmark with raw HTML disabled,
 		// then the host's allowlist sanitizer. Community bodies are written by
 		// ANY member, not a mod, so the second pass matters more here than it
@@ -46,9 +63,6 @@ func wireCommunitiesPlugin(c *core.Core, w *web) error {
 				page = 1
 			}
 			return (page - 1) * pageSize
-		},
-		Pagination: func(page, pageSize, totalItems int, baseURL string) any {
-			return hostPagination(page, pageSize, totalItems, baseURL)
 		},
 		// Same upload root and served path as the wiki: each plugin saves into
 		// its own namespace beneath it, so one static route serves both.
