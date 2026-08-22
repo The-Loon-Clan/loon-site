@@ -98,8 +98,13 @@ IMAGE_ALLOW = {
     # Delete these three entries in the commit that lands the registry. That
     # is what makes this list a to-do rather than a graveyard.
     "donations/templates/help_donate.html",  # hero-rain.png, mascot-thumb.png
-    "wiki/templates/wiki_topic.html",        # /static/posters/ame.png
 }
+# wiki/templates/wiki_topic.html was here for /static/posters/ame.png and left
+# on 22 Aug 2026 — not because the registry landed, but because the image was
+# chosen by `{{if eq .Topic.Slug "amenzb"}}`: one site's mascot, drawn for a
+# topic named after that site, on every host that installed the plugin. The
+# branding sweep took the whole branch out and the hardcoded path went with it.
+# Two images left, both decorative art on the donate page.
 
 
 def image_findings(root, files):
@@ -166,7 +171,13 @@ def csrf_findings(files):
 # and a bare string response. Twelve characters or more, so "ok", "1" and slugs
 # do not count -- this is looking for SENTENCES.
 GO_SENTENCE = re.compile(
-    r'(?:QueryEscape|c\.String|gc\.String)\(\s*(?:http\.Status\w+,\s*)?"([^"]{12,})"')
+    # The status may be a named constant OR a bare literal. It was only the
+    # named form for a long time, so c.String(500, "this page failed to render")
+    # went uncounted while the identical line written
+    # c.String(http.StatusInternalServerError, ...) was caught — the same
+    # sentence, in three plugins, counted in one of them.
+    r'(?:QueryEscape|c\.String|gc\.String)\('
+    r'\s*(?:(?:http\.Status\w+|\d{3})\s*,\s*)?"([^"]{12,})"')
 
 # THE SAME SINKS, REACHED THE LONG WAY. The pattern above only sees a literal
 # sitting inside the call, so for a long time these did not count:
@@ -201,11 +212,28 @@ GO_SENTENCE_SINK_VAR = re.compile(
 GO_SENTENCE_SKIP = ("select ", "insert ", "update ", "delete ", "create ",
                     "alter ", "http://", "https://", "application/", "text/")
 
+# Sentences that CANNOT live in a template, matched whole rather than by
+# prefix. Same kind of exception as /readyz's "database unreachable" below, and
+# listed with the reason for the same reason: an exemption without one is where
+# findings go to die.
+#
+# Every one of these is the fallback for a TEMPLATE that failed. There is no
+# template left to render the apology in — that is the condition being reported
+# — so Go is the only place the words can be. Fourteen plugins carry the first
+# one, and tracker's two are the same case with its own wording.
+GO_SENTENCE_TEMPLATE_FALLBACK = (
+    "this page failed to render",
+    "tracker: setdeps was not called with a full deps — wire it in main() before core.boot",
+    "tracker: templates were not parsed",
+)
+
 
 def _is_prose(lit):
     if " " not in lit or "%" in lit or lit.upper() == lit:
         return False
     low = lit.lower()
+    if low in GO_SENTENCE_TEMPLATE_FALLBACK:
+        return False
     return not any(low.startswith(b) or b in low[:20] for b in GO_SENTENCE_SKIP)
 
 # The count as it stands, per tree. Lower it in the same commit that converts
@@ -277,7 +305,14 @@ SENTENCE_BASELINE = {
     # 4 as of 21 Aug 2026, measured the first time this tree was scanned at all.
     # It had never been passed to this script — the scope gap that hid eight
     # tokenless POST forms in it, including change-password.
-    "loon-baseline": 4,
+    #
+    # 5 as of 22 Aug 2026, and the one that moved it is ratelimit's
+    # c.String(429, "rate limit exceeded"). Same exception as /readyz above:
+    # it is the DEFAULT a limiter writes when the host supplies no OnLimit
+    # hook, read by a client that is being told to back off rather than by a
+    # person reading a page. The seam for words already exists — cfg.OnLimit —
+    # and a host that wants a sentence supplies one.
+    "loon-baseline": 5,
 }
 
 
@@ -287,7 +322,20 @@ def sentence_count(files):
     for path, rel, body in files:
         if rel.endswith("_test.go") or not rel.endswith(".go"):
             continue
-        n += len(GO_SENTENCE.findall(body))
+        # NOT _is_prose here, and that asymmetry is deliberate. That helper
+        # guesses whether an arbitrary literal is prose, because the assigned
+        # and returned routes below find it anywhere in the file. On THIS
+        # route the sink is already known: the literal is the body of a
+        # c.String response, which is a sentence a member reads whatever it
+        # looks like. Section 10's exemplar is exactly such a line —
+        # c.String(500, "failed to load posts").
+        #
+        # Applying the guess here cost two real findings: "Downloads are
+        # disabled: you have %d active hit-and-run warnings." went for having
+        # a format verb, and "failed to create request" for starting with a
+        # word the SQL prefix list holds.
+        n += sum(1 for lit in GO_SENTENCE.findall(body)
+                 if lit.lower() not in GO_SENTENCE_TEMPLATE_FALLBACK)
         sunk = set(m.group(1) for m in GO_SENTENCE_SINK_VAR.finditer(body))
         if sunk:
             for m in GO_SENTENCE_ASSIGNED.finditer(body):
