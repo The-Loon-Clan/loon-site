@@ -62,7 +62,7 @@ help:
 	@echo "  The Go toolchain runs in Docker by default. Pass GO=go to use the host's."
 
 ## check: everything CI runs
-check: fmt build lint golint ctlchars sql css bootstrap capabilities contrast resources test cover
+check: fmt build lint golint ctlchars sql css bootstrap branding capabilities contrast resources test cover
 
 ## build: compile every package
 build:
@@ -185,6 +185,17 @@ css:
 ## because `window.bootstrap` is truthy while `bootstrap.Modal` is not.
 bootstrap:
 	@$(PYTHON) scripts/audit_bootstrap.py
+
+## branding: one site's name hardcoded into a shared plugin
+##
+## A plugin in loon-plugins is installed by whoever wants it, and a sentence in
+## one that names a particular site renders that name on every host that
+## installs it. Found by hand three times in one day before this existed: five
+## sentences on the donate page, a feature-request header, a claim snippet a
+## group owner pastes into their own bio, a scraper User-Agent, and two bots
+## announcing it in other people's channels. Comments are exempt.
+branding:
+	@$(PYTHON) scripts/audit_branding.py
 
 ## capabilities: a wired plugin asking for something no wired plugin provides
 ##
