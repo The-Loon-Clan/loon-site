@@ -550,6 +550,17 @@ main > article {
    SiteNav dropdowns, and an overflow-x scroller clips their absolutely
    positioned menus — a second nav line on a phone is the cheaper trade.
    Use .nav-tabsV2--scroll for a nav that is links only. */
+/* The modifier the comment above has been recommending since it was written,
+   and which no rule defined until 22 Aug 2026 -- mobile.py listed it among the
+   deliberate scrollers, so a strip carrying it would have been forgiven an
+   overflow it was not actually given the means to avoid. .nav.tabs, the
+   Bootstrap-shaped strip plugins write, already scrolls this way. */
+.nav-tabsV2--scroll {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+}
+
 .nav-tabsV2 {
     all: unset;
     display: flex;

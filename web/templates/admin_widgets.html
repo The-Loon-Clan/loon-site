@@ -96,6 +96,7 @@
 {{define "placed-widgets"}}
     <div class="panel__body" id="placed-widgets">
         {{if .Placed}}
+        <div class="data-table-wrapper">
         <table class="data-table">
             <caption class="visually-hidden">Widgets placed in this region</caption>
             <thead><tr><th>Widget</th><th>Status</th><th>Setting</th><th class="data-table__shrink">Order</th><th class="data-table__shrink">Actions</th></tr></thead>
@@ -172,6 +173,7 @@
                 {{end}}
             </tbody>
         </table>
+        </div>
         {{else}}
         <p class="text-muted">Nothing here yet. Add one below.</p>
         {{end}}

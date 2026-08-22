@@ -71,7 +71,12 @@ CHROME = _site.CHROME
 # Containers whose children are MEANT to run past the edge. Named explicitly:
 # the alternative is ignoring any element inside anything scrollable, which
 # would also ignore the results table, which is the bug this was written for.
+# .nav.tabs is theme.css's Bootstrap-shaped tab strip and has carried
+# overflow-x: auto from the start. It was missing from this list, so five
+# pages were reported for a tab row that scrolls exactly as intended --
+# findings against a component doing its job.
 SCROLLERS = [".carousel", ".stat-strip", ".data-table-wrapper", ".nav-tabsV2--scroll",
+             ".nav.tabs",
              # The Bootstrap-shaped equivalent of .data-table-wrapper, which the
              # tracker plugin's templates use. Added only after checking that
              # this site actually implements it — theme.css:113 sets
@@ -103,27 +108,18 @@ def fetch(path):
 
 
 BASELINE = {
-    # 12 pages as of 22 Aug 2026, and they arrived all at once when the page
-    # list below stopped being the sitemap alone. They are TWO causes, not
-    # twelve problems, and both already have a remedy this file knows about:
+    # Empty, and it got there the same day it was written. The eleven it
+    # held were two causes -- a table in neither scrolling wrapper, and a
+    # nowrap toolbar held right by ms-auto -- plus five that were never
+    # broken at all: .nav.tabs has carried overflow-x: auto from the
+    # start and was simply missing from SCROLLERS, so the check was
+    # reporting a component for doing its job.
     #
-    #   a bare <table> outside a scrolling wrapper -- SCROLLERS lists
-    #   .table-responsive and .data-table-wrapper, and overflow inside
-    #   either is ignored on purpose. These tables are in neither.
-    #
-    #   nav tabs with no .nav-tabsV2--scroll, which is the class that makes
-    #   a tab strip scroll instead of pushing the page sideways.
-    #
-    # Recorded rather than fixed in the same change that found them: the
-    # check being widened and the pages being fixed are two different
-    # arguments, and mixing them means neither can be reverted alone.
-    "/admin/donate", "/admin/donate/costs", "/admin/donate/log",
-    "/admin/donate/points", "/admin/forum-categories",
-    "/admin/news", "/admin/p/usenet", "/admin/store", "/admin/tickets",
-    "/admin/widgets",
-    # The only one that is not an operator page. Community pages are not in
-    # the sitemap by nature, so no mobile run had ever loaded one.
-    "/c/usenet",
+    # Kept rather than deleted because the ratchet needs somewhere to put
+    # the next one, and because both guards below are load-bearing: a
+    # page that starts fitting must LEAVE, and an entry nothing checks
+    # any more must be noticed. Both were probed, and the first of them
+    # is what emptied this list.
 }
 
 
