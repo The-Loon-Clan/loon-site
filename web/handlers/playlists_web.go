@@ -1,7 +1,12 @@
 package handlers
 
 import (
+	"fmt"
+	"html/template"
+	"strings"
+
 	"context"
+	"github.com/the-loon-clan/loon-site/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 
@@ -20,17 +25,48 @@ import (
 // no DDL in this file.
 
 // wirePlaylistsPlugin installs the SetDeps seams.
-func wirePlaylistsPlugin(w *web) {
+// The LAST plugin off Deps.BaseData. Every legacy render branch in forum,
+// communities, donations and playlists is now dead code from this host's point
+// of view.
+func wirePlaylistsPlugin(w *web) error {
+	// Parsed once and closed over. pluginTemplates() re-reads the embedded FS
+	// on every call, and a playlist index lists twenty usernames.
+	chrome, err := pluginTemplates()
+	if err != nil {
+		return fmt.Errorf("playlists: parse chrome for user-tag: %w", err)
+	}
+
 	playlists.SetDeps(playlists.Deps{
-		BaseData: func(gc *gin.Context, extra gin.H) gin.H { return w.chromeData(gc, extra) },
+		// RenderPage, not BaseData. site_fragment.html rather than
+		// site_page.html: these pages carry their own panel header, and the
+		// wrapper would print the title again above it.
+		RenderPage: func(gc *gin.Context, status int, title string, body template.HTML) {
+			w.renderStatus(gc, status, "site_fragment.html",
+				map[string]any{"Title": title, "Fragment": body})
+		},
+		CSRFToken:    middleware.Token,
+		RelativeTime: relativeTime,
+		RenderPagination: func(page, pageSize, totalItems int, baseURL string) template.HTML {
+			return w.renderPagination(hostPagination(page, pageSize, totalItems, baseURL))
+		},
+		// The site's username chip. The plugin's markup used to invoke this
+		// partial directly, which worked only because pluginTemplates() parses
+		// site_chrome.html and every plugin template into ONE namespace. It is
+		// the host's to render, and this is the seam that says so.
+		RenderUserTag: func(name string) template.HTML {
+			var sb strings.Builder
+			if err := chrome.ExecuteTemplate(&sb, "user-tag", map[string]any{"Name": name}); err != nil {
+				// A chip that fails to render must not take the page with it;
+				// the plugin falls back to a plain profile link on empty.
+				return ""
+			}
+			return template.HTML(sb.String())
+		},
 		PageOffset: func(page, pageSize int) int {
 			if page < 1 {
 				page = 1
 			}
 			return (page - 1) * pageSize
-		},
-		Pagination: func(page, pageSize, totalItems int, baseURL string) any {
-			return hostPagination(page, pageSize, totalItems, baseURL)
 		},
 		// Resolve release ids through the usenet capability. Ids that no longer
 		// exist are simply ABSENT from the map — retention removes releases, and
@@ -67,4 +103,5 @@ func wirePlaylistsPlugin(w *web) {
 			return u.ToCore().Username, true
 		},
 	})
+	return nil
 }

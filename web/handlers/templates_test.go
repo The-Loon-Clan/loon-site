@@ -219,15 +219,17 @@ func TestPluginChromeTemplatesParse(t *testing.T) {
 	// has to degrade rather than error. This is the path that broke before:
 	// {{len}} over an absent key aborts the render mid-document.
 	//
-	// The five forum pages used to be this list, then admin_donate.html was.
-	// Each moved to its plugin in turn, and each plugin's own views_test.go
-	// executes its pages over fuller data than these fixtures carried. This is
-	// the same guard over whatever still comes through gin's set — playlists,
-	// which ships no templates of its own and so cannot leave the legacy
-	// contract without them being written first.
-	for _, page := range []string{"playlists_index.html"} {
+	// This list has been, in turn, the five forum pages, admin_donate.html and
+	// playlists_index.html — each leaving as its plugin took over rendering.
+	// error.html is what is left: the site-wide plugin error surface, which
+	// stays host-owned by design (donations reaches it through
+	// Deps.RenderError) and is the last thing rendered by NAME through gin's
+	// set. Every plugin's own views_test.go executes its pages over fuller
+	// data than these fixtures ever carried.
+	for _, page := range []string{"error.html"} {
 		data := chromeKeys()
 		data["Path"] = "/playlists"
+		data["Code"], data["Title"], data["Message"] = 502, "Upstream refused", "Try again shortly."
 		var buf bytes.Buffer
 		if err := tmpl.ExecuteTemplate(&buf, page, data); err != nil {
 			t.Errorf("%s: execute with an empty install: %v", page, err)

@@ -7,9 +7,6 @@ import (
 	"io/fs"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/the-loon-clan/loon-plugins/playlists"
 )
 
 // Every template under web/templates/plugin/ is rendered by a PLUGIN through
@@ -44,16 +41,13 @@ type pluginFixture struct {
 }
 
 func pluginFixtures() []pluginFixture {
-	now := time.Now()
-	page := hostPagination(1, 25, 1, "/x")
 	return []pluginFixture{
-		// ── news, communities and donations: NOT here. Each owns its markup
-		// now; the
-		// host sets RenderPage and its copies of those templates are gone.
-		// communities/views_test.go executes every one of its nine pages over
-		// fuller data than these fixtures carried, and the flash test that
-		// pinned "You need 100 points" against "You need  points" moved there
-		// with the template rather than being dropped.
+		// error.html is the ONLY plugin template this host still owns. news,
+		// communities, donations and playlists each render their own markup
+		// now, and each plugin's views_test.go executes its pages over fuller
+		// data than these fixtures ever carried — including the flash test
+		// that pinned "You need 100 points" against "You need  points", which
+		// moved to communities with the template rather than being dropped.
 
 		// ── wiki: NOT here. Third plugin to take ownership of its own markup
 		// (after store and tickets); the host now sets RenderPage and its
@@ -94,42 +88,8 @@ func pluginFixtures() []pluginFixture {
 		// the handler that raises it. Two passes: an unknown code must still
 		// say something, and a known one must reach its own sentence, which a
 		// bare {{if eq}} chain hides when a code is misspelled.
-		{"playlist_error.html",
-			map[string]any{"Reason": "wat"},
-			map[string]any{"Reason": "notfound"}},
 
 		// ── playlists
-		{"playlists_index.html",
-			map[string]any{"Playlists": nil, "Total": 0, "Pagination": page},
-			map[string]any{
-				"Playlists": []*playlists.Playlist{{
-					ID: 1, Slug: "best", Name: "Best of", Description: "d",
-					Public: true, Username: "alice", ItemCount: 2, UpdatedAt: now,
-				}},
-				"Total": 1,
-			}},
-		{"playlist_view.html",
-			map[string]any{
-				"Playlist": &playlists.Playlist{ID: 1, Slug: "best", Name: "Best of", Public: true, UpdatedAt: now},
-				"Items":    nil, "IsOwner": false,
-			},
-			map[string]any{
-				// Two items on purpose: one resolved and one whose Release is
-				// nil, which is the aged-out case the template must still draw.
-				"Items": []*playlists.Item{
-					{ID: 1, PlaylistID: 1, ReleaseID: 10, AddedAt: now,
-						Release: &playlists.Release{ID: 10, Title: "T", Size: "1 GB", Category: "TV"}},
-					{ID: 2, PlaylistID: 1, ReleaseID: 11, AddedAt: now, Release: nil},
-				},
-				"IsOwner": true,
-			}},
-		{"playlist_form.html",
-			map[string]any{"Action": "Create"},
-			map[string]any{
-				"Action":   "Save",
-				"Playlist": &playlists.Playlist{ID: 1, Slug: "best", Name: "Best of"},
-				"Name":     "Best of", "Description": "d", "CoverURL": "", "Public": true,
-			}},
 
 		// ── shared error page
 		{"error.html",

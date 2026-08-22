@@ -94,7 +94,10 @@ func wirePluginSeams(c *core.Core, wsrv *web, engine *gin.Engine, logger *slog.L
 	// Playlists plugin seams (playlists_web.go). Self-migrating, so no DDL
 	// here; its two lookup seams resolve release and user ids the plugin
 	// deliberately does not join to itself.
-	wirePlaylistsPlugin(wsrv)
+	if err := wirePlaylistsPlugin(wsrv); err != nil {
+		logger.Error("playlists wiring", "err", err)
+		os.Exit(1)
+	}
 
 	// Tickets plugin seams (tickets_web.go) — the helpdesk at /support.
 	if err := wireTicketsPlugin(c, wsrv); err != nil {
