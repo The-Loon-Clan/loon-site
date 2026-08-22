@@ -81,8 +81,12 @@
                              The name rides on the title either way, since these
                              are the only thing in the row and a member hovering
                              a badge is asking what it is. */}}
-                        {{range .}}{{if .Sprite}}<svg class="icon" role="img" aria-label="{{.Name}} medal" title="{{.Name}}"
-                             style="width:28px;height:28px;color:var(--primary-tint)"><use href="#{{.Sprite}}"></use></svg>{{else}}<img
+                        {{/* <title> as a CHILD, not title= as an attribute. title is a global
+                             attribute in HTML and NOT one in SVG, which is a foreign
+                             element: the W3C validator rejects it, and the tooltip the
+                             comment above asks for is what <title> gives. */}}
+                        {{range .}}{{if .Sprite}}<svg class="icon" role="img" aria-label="{{.Name}} medal"
+                             style="width:28px;height:28px;color:var(--primary-tint)"><title>{{.Name}}</title><use href="#{{.Sprite}}"></use></svg>{{else}}<img
                              src="{{.Icon}}" alt="{{.Name}} medal" title="{{.Name}}"
                              style="width:28px;height:28px;object-fit:cover;border-radius:6px">{{end}}{{end}}
                     </div>
@@ -259,10 +263,22 @@
         </section>
         {{end}}
 
-        {{if .IsSelf}}
+        {{/* The BOX is conditional, not just the first link in it. This used
+             to open with {{if .IsSelf}} and close that if straight after the
+             Edit account link, leaving </div></div></section> outside the
+             condition — so every profile viewed by anybody else emitted three
+             stray end tags. The W3C validator reported it as "Unclosed element
+             aside" with four cascading errors after it, and it had been that
+             way on every public profile view.
+
+             `or` rather than .IsSelf, because previewing deliberately turns
+             IsSelf off and .CanPreview is what survives it — see the note on
+             the second link. */}}
+        {{if or .IsSelf .CanPreview}}
         <section class="panelV2">
             <div class="panel__body">
                 <div class="user-stat-card">
+                    {{if .IsSelf}}
                     <a class="button button--outlined button--block" href="/p/account">
                         <svg class="icon" aria-hidden="true"><use href="#settings"></use></svg>Edit account
                     </a>
@@ -280,6 +296,7 @@
                 </div>
             </div>
         </section>
+        {{end}}
     </aside>
 
     <div>

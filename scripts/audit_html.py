@@ -183,7 +183,13 @@ def main():
 
     # A page that stops erroring must LEAVE the baseline, or the list becomes a
     # record of what used to be broken.
-    fixed = sorted(p for p in BASELINE if p not in by_page)
+    #
+    # Only among the shapes THIS RUN looked at. Passing a page on the command
+    # line made every other baselined page look fixed, which is a false alarm
+    # that teaches whoever runs it to skim the output -- the exact failure the
+    # baseline exists to prevent.
+    looked_at = {shape(p) for p in pages}
+    fixed = sorted(p for p in BASELINE if p in looked_at and p not in by_page)
     if fixed:
         failed = True
         print()
