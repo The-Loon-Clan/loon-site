@@ -3341,17 +3341,30 @@ a.cal-ev:hover { background: var(--surface-3); }
 .quick-info {
     position: absolute;
     z-index: var(--z-overlay);
-    /* Anchored to the ROW it describes, not dropped under it.
+    /* Anchored to the ROW it describes, and pushed off the TITLES.
     
-       top:100% put the card below the name cell, where it landed squarely on
-       the next row's poster and the start of its title — the two things a
-       reader uses to tell rows apart. Centred on the row instead, it reads as
-       belonging to the row under the cursor, and what it does cover is the
-       MIDDLE of the neighbours' titles rather than their identifying edge.
+       Three placements, each fixing the last one's cost:
 
-       left clears the thumbnail column for the same reason: a covered poster
-       is a row you cannot recognise. */
-    left: 88px;
+       top:100% put the card below the name cell, squarely on the next row's
+       poster and the start of its title — the two things a reader uses to tell
+       rows apart.
+
+       left:88px, centred, moved it off the posters and onto the middle of the
+       neighbours' titles instead. Better, and still covering the one thing in
+       a row people actually read. Reported on 22 Aug 2026 as "can't hover over
+       details, the popup blocks it".
+
+       Now it sits to the RIGHT of the name cell, over the size, grabs and
+       posted columns — short values a reader scans rather than reads, and the
+       card repeats two of the three itself. Nothing is covered that identifies
+       a row.
+
+       The containing block is the ROW, not the name cell, so `right` means the
+       row's right edge and the card cannot overhang the table however the name
+       column is sized. That is why .data-table tr is position:relative below —
+       nothing else in a row is absolutely positioned against it
+       (.poster__frame and .list-row__thumb are both their own). */
+    right: 8px;
     top: 50%;
     transform: translateY(-50%);
     width: min(420px, calc(100vw - 32px));
@@ -3377,7 +3390,16 @@ a.cal-ev:hover { background: var(--surface-3); }
        table that ends where its last row does. */
     display: none;
 }
-.data-table__name { position: relative; }
+/* The ROW is the card's containing block, so `right: 8px` means the row's
+   right edge and the card cannot overhang the table however the name column is
+   sized.
+   
+   .data-table__name was position:relative and is NOT any more. It was made
+   relative by the same commit that added this card (b0d7239) and for no other
+   reason — nothing else in that cell is absolutely positioned — and while it
+   stayed, it was the NEARER positioned ancestor and won: `right` resolved to
+   the name cell's right edge, which is still over the titles. */
+.data-table tr { position: relative; }
 /* DESCENDANT, not child. The card is rendered inside
    .data-table__name-body, so it is a grandchild of .data-table__name — the
    child combinator that was here never matched anything and the card was
