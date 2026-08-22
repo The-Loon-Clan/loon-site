@@ -32,9 +32,15 @@ type sitemapLink struct {
 //
 // Curated rather than reflected off gin's route table, which also holds POST
 // targets, :param routes, admin pages and API endpoints — a reader wants the
-// pages they can visit, not every path that answers. The test keeps it honest:
-// every href here must be a route the site serves, and every internal link the
-// chrome offers must appear here.
+// pages they can visit, not every path that answers.
+//
+// Two tests keep it honest, and for a long time only one of them existed. This
+// comment claimed both: TestChromeLinksAreServed checks every chrome link
+// against the routes the site serves, and TestChromeLinksAppearOnTheSitemap
+// now checks them against THIS list. Without the second, /cart, /credits and
+// /help/donate sat in the chrome and off this page — and mobile.py discovers
+// what it checks from here, so /help/donate's 105KB of layout had never been
+// looked at on a 390px screen.
 var sitemapGroups = []sitemapGroup{
 	{Title: "Releases", Links: []sitemapLink{
 		{Href: "/browse", Label: "Browse", Note: "Everything indexed, by category"},
@@ -49,6 +55,7 @@ var sitemapGroups = []sitemapGroup{
 		{Href: "/news", Label: "News"},
 		{Href: "/playlists", Label: "Playlists"},
 		{Href: "/store", Label: "Points store", Note: "Spend points on invites and ranks"},
+		{Href: "/cart", Label: "Cart", Note: "Releases held for a bulk grab"},
 	}},
 	{Title: "Support", Links: []sitemapLink{
 		{Href: "/rules", Label: "Rules"},
@@ -71,11 +78,13 @@ var sitemapGroups = []sitemapGroup{
 		{Href: "/settings/privacy", Label: "Privacy"},
 		{Href: "/settings/notifications", Label: "Alerts"},
 		{Href: "/p/api-key", Label: "API key"},
+		{Href: "/credits", Label: "Credits", Note: "What you have spent and earned"},
 	}},
 	{Title: "This site", Links: []sitemapLink{
 		{Href: "/", Label: "Home"},
 		{Href: "/stats", Label: "Stats"},
 		{Href: "/about", Label: "About"},
+		{Href: "/help/donate", Label: "Donate", Note: "What the site costs to run, and where the money goes"},
 		{Href: "/sitemap", Label: "Sitemap", Note: "This page"},
 	}},
 	{Title: "For machines", Links: []sitemapLink{

@@ -577,3 +577,42 @@ func TestNoTwoDestinationsShareALabel(t *testing.T) {
 		t.Errorf("only %d labels collected; the scan is probably not matching", len(dest))
 	}
 }
+
+// Every internal link the CHROME offers must also appear on the sitemap page.
+//
+// The other half of TestChromeLinksAreServed, and the half sitemappage_web.go's
+// comment claimed for years without it existing. A page can be served, linked
+// from the nav, and still be absent from the site's own list of its pages —
+// which is not only a reader's problem: mobile.py discovers what it checks from
+// that list, so a page missing there is a page nothing checks at 390px.
+// /cart, /credits and /help/donate were all in that state.
+//
+// Staff-only paths are excluded on the same grounds the sitemap excludes
+// /admin: a reader wants the pages they can visit.
+func TestChromeLinksAppearOnTheSitemap(t *testing.T) {
+	b, err := fs.ReadFile(site.FS, "web/templates/site_chrome.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed := map[string]bool{}
+	for _, g := range sitemapGroups {
+		for _, l := range g.Links {
+			listed[l.Href] = true
+		}
+	}
+	skip := regexp.MustCompile(`^/(static|api|rss|logout|login|register|forgot|verify|admin|moderation)\b`)
+	seen := map[string]bool{}
+	for _, m := range regexp.MustCompile(`href="(/[^"{}#?]*)"`).FindAllStringSubmatch(string(b), -1) {
+		href := strings.TrimRight(m[1], "/")
+		if href == "" {
+			href = "/"
+		}
+		if skip.MatchString(href) || seen[href] {
+			continue
+		}
+		seen[href] = true
+		if !listed[href] {
+			t.Errorf("the chrome links %s and the sitemap page does not list it", href)
+		}
+	}
+}
