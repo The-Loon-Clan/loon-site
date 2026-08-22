@@ -280,9 +280,18 @@ resources:
 html:
 	@$(PYTHON) scripts/audit_html.py
 
-## lh: Lighthouse accessibility/SEO/best-practices (needs `make run` first)
+## lh: Lighthouse over one page per section (needs `make run` first)
+##
+## Was one page, defaulting to /browse, which scores 100. Pointed at more
+## it found contrast failures on four pages and a real 2.5.8 tap-target
+## failure on a fifth. It also could not fail: the script counted failing
+## audits, printed them, and exited 0 regardless.
+##
+## ~30s a page, so a sample rather than all 111 — one page per top-level
+## section, derived from the same crawl audit_html uses, and it prints how
+## many it did NOT reach.
 lh:
-	@bash scripts/lighthouse.sh
+	@$(PYTHON) scripts/audit_lighthouse.py
 
 ## release: everything, in the order that fails fastest
 ##
