@@ -23,13 +23,21 @@ WHAT IS CHECKED
   C  Every registry key the code uses is NAMED somewhere in SEAMS.md -- the
      catalogue for a declared contract, or the deprecated block for a bare
      string. A seam nobody wrote down is one nobody can find.
+  D  Every TYPE the Contract column names exists in pluginapi. This was the
+     blind spot the first version wrote down, and it turned out to be worth
+     closing rather than documenting: `usenet.series` was catalogued against
+     `SeriesStore`, a type that has never existed in this codebase under that
+     name -- the interface is `SeriesIndex`. Two more cells named the
+     CONSTANT where the column means the TYPE.
 
-WHAT IS NOT CHECKED, AND WHY
-----------------------------
-Whether a catalogue ENTRY is accurate -- the contract type in the second
-column, the prose in the third. A key can be listed and described wrongly and
-this will pass. Checking that would mean type-checking Go from Python, and a
-check that guesses is worse than one whose blind spot is written down.
+WHAT IS STILL NOT CHECKED, AND WHY
+----------------------------------
+Whether the named type is the one actually REGISTERED under that key, and
+whether the third column's prose is true. D catches a name that resolves to
+nothing, which is the cheap half and the half that was wrong three times.
+Following the value through a Register call to its concrete type means
+type-checking Go from Python, and a check that guesses is worse than one whose
+blind spot is written down.
 """
 
 import io
@@ -57,47 +65,81 @@ IDENT = re.compile(r'\b(?:Register(?:Def)?|Lookup)\s*\(\s*(?:[A-Za-z_][A-Za-z0-9
 # The first cell ABBREVIATES: one full key, then bare suffixes sharing its
 # namespace. Reading only the first token reports seven usenet ports as
 # undocumented when the row documents all eight.
-ROW = re.compile(r"^\|([^|]*)\|")
+ROW = re.compile(r"^\|([^|]*)\|([^|]*)\|")
 TOKEN = re.compile(r"`([^`]+)`")
+# A Go type declaration in pluginapi, at top level or inside a type ( … ) block.
+GO_TYPE = re.compile(r"^\s*type\s+([A-Za-z0-9_]+)|^	([A-Z][A-Za-z0-9_]*)\s+(?:interface|func|struct)", re.M)
+# A bare Go identifier: `Catalog`, not `cache.PrefixDeleter` and not prose.
+BARE_IDENT = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 STATED = re.compile(r"There are \*\*(\d+)\*\* of them")
 
 SKIP_DIR = {".git", "vendor", "node_modules", "__pycache__", ".claude"}
 
 
 def catalogue(text):
-    """Every key the catalogue tables name, with suffix rows expanded."""
-    keys, ns = set(), None
-    for line in text.split("\n"):
+    """Every key the catalogue tables name, with suffix rows expanded.
+
+    Returns (keys, contracts) where contracts is [(key, type-name)] for
+    every bare identifier in the second column.
+    """
+    keys, contracts, ns = set(), [], None
+    for line in text.split(chr(10)):
         m = ROW.match(line)
         if not m:
             ns = None
             continue
         ns = None
+        row_keys = []
         for tok in TOKEN.findall(m.group(1)):
-            if tok.startswith("."):
+            if tok.startswith('.'):
                 if ns:
                     keys.add(ns + tok)
+                    row_keys.append(ns + tok)
             else:
                 keys.add(tok)
-                ns = tok.split(".", 1)[0]
-    return keys
+                row_keys.append(tok)
+                ns = tok.split('.', 1)[0]
+        if not row_keys:
+            continue
+        for tok in TOKEN.findall(m.group(2)):
+            tok = tok.strip().lstrip('*')
+            if BARE_IDENT.match(tok):
+                contracts.append((row_keys[0], tok))
+    return keys, contracts
 
 
-BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
-LINE_COMMENT = re.compile("//[^" + chr(92) + "n]*")
+def pluginapi_types(root):
+    """Every type name pluginapi declares."""
+    out = set()
+    d = os.path.join(root, 'pluginapi')
+    if not os.path.isdir(d):
+        return out
+    for n in sorted(os.listdir(d)):
+        if not n.endswith('.go') or n.endswith('_test.go'):
+            continue
+        try:
+            b = io.open(os.path.join(d, n), encoding='utf-8').read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        for x, y in GO_TYPE.findall(b):
+            out.add(x or y)
+    return out
+
+BLOCK_COMMENT = re.compile('/\*.*?\*/', re.S)
+LINE_COMMENT = re.compile('//[^' + chr(92) + 'n]*')
 
 
 def strip_comments(text):
     """Blank out comments, keeping length so nothing else shifts.
 
     loon/core/extensions.go documents the registry with an EXAMPLE --
-    `c.Register("wiki.render", renderer)` -- inside a doc comment. Scanning it
+    c.Register("wiki.render", renderer) -- inside a doc comment. Scanning it
     reported wiki.render as an undocumented seam, which is a check inventing
     work: there is no such seam, only a sentence explaining what one looks
     like. The same trick audit_branding uses, and for the same reason.
     """
-    text = BLOCK_COMMENT.sub(lambda m: " " * len(m.group(0)), text)
-    return LINE_COMMENT.sub(lambda m: " " * len(m.group(0)), text)
+    text = BLOCK_COMMENT.sub(lambda m: ' ' * len(m.group(0)), text)
+    return LINE_COMMENT.sub(lambda m: ' ' * len(m.group(0)), text)
 
 
 def go_files():
@@ -141,7 +183,7 @@ def main():
         print("seams: loon-plugins not beside this checkout; skipping")
         return 0
     text = io.open(SEAMS, encoding="utf-8").read()
-    listed = catalogue(text)
+    listed, contracts = catalogue(text)
 
     declared, anyconst, used = {}, {}, {}
     for path, body in go_files():
@@ -197,6 +239,20 @@ def main():
         failed = True
         print("  UNDOCUMENTED     %-30s %s" % (val, rel))
         print("                   a registry key SEAMS.md never mentions")
+
+    # D. a Contract column naming a type that does not exist
+    types = pluginapi_types(PLUGINS)
+    if not types:
+        print("  NO TYPES FOUND   pluginapi has no type declarations; check D "
+              "would pass by finding nothing to check.")
+        failed = True
+    else:
+        for key, t in contracts:
+            if t not in types:
+                failed = True
+                print("  NO SUCH TYPE     %-30s Contract column says %r" % (key, t))
+                print("                   pluginapi declares no such type -- the "
+                      "entry names something that does not exist")
 
     print()
     print("seams: %d catalogue keys, %d declared contracts, %d registry keys in code"
