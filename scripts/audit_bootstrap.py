@@ -2,7 +2,7 @@
 
 `data-bs-toggle` and friends are inert markup unless Bootstrap's JavaScript is
 on the page. It is not. web/static/css/bootstrap.min.css is 790 bytes and says
-so in its own first line -- "Not real Bootstrap: a tiny reset + base" -- and the
+so in its own first line -- "Not real Bootstrap - a tiny reset + base" -- and the
 only Bootstrap object that exists at runtime is the ~10-line window.bootstrap.Tab
 shim at the foot of site_chrome.html.
 
