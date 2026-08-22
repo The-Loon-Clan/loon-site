@@ -64,41 +64,25 @@ def shape(path):
 # path-keyed baseline wrong every second run and teach whoever runs it to
 # ignore the output.
 BASELINE = {
-    # 52 errors on 20 pages, recorded 22 Aug 2026 the day this check
-    # started looking past five pages. Six causes, not fifty-two:
+    # Empty. It held 52 errors on 20 pages for one afternoon — the day this
+    # check stopped looking at five pages — and they were six causes:
     #
-    #   19  <style> inside a div or article -- plugin fragments carry their
-    #       own stylesheet, and a fragment is inserted into the body
-    #    9  a second or nested <main>, same cause: a fragment that brings
-    #       its own <main> into the host's
-    #   10  stray end tags and an unclosed <aside> on the profile pages --
-    #       genuinely malformed markup, the worst of the six
-    #    7  aria-label on a span or div with no role to carry it
-    #    3  title= on <svg>
-    #    2  an <a> and a <div> as a direct child of <ul>
+    #   19  <style> inside a div or article. A plugin fragment ships its CSS
+    #       in a <style> block because it has no other way to, and the host
+    #       inserted it into the body. Hoisted into the head at the one seam
+    #       where a fragment becomes a page — handlers/fragmentstyles.go.
+    #   10  stray end tags on the profile pages: the self-controls box opened
+    #       inside {{if .IsSelf}} and closed outside it, so every profile
+    #       viewed by anybody else emitted three closes for nothing.
+    #    9  a main element inside a main inside an article: four forum
+    #       fragments still carried the landmark the host supplies.
+    #    7  aria-label on a bare div or span, which cannot carry a name.
+    #    3  title= on <svg>, which is an SVG title CHILD, not an attribute.
+    #    2  an <a> and a <div> as a direct child of <ul>.
     #
-    # Recorded rather than fixed in the change that found them: widening
-    # the check and fixing the pages are two arguments.
-    "/c": 1,
-    "/c/usenet": 2,
-    "/c/usenet/thread/:id": 1,
-    "/community/forums": 10,
-    "/community/forums/category/:id": 5,
-    "/community/forums/new": 2,
-    "/community/forums/thread/:id": 4,
-    "/help/donate": 1,
-    "/news": 1,
-    "/news/anime-season-episode": 1,
-    "/news/indexer-now-crawls-faster": 1,
-    "/news/newznab-caps-tree": 1,
-    "/news/retention-5400-days": 1,
-    "/u/alice": 7,
-    "/u/bob": 8,
-    "/wiki": 2,
-    "/wiki/getting-started": 1,
-    "/wiki/getting-started/pointing-the-crawler-at-a-provider": 1,
-    "/wiki/random": 1,
-    "/wiki/recent": 1,
+    # Kept empty rather than deleted: the ratchet needs somewhere to put the
+    # next one, and the guard below — a page that stops erroring must LEAVE
+    # this list — is what emptied it.
 }
 
 GNU = re.compile(r'^"?(?P<url>[^"]+)"?:(?P<line>\d+)\.(?P<col>[\d.-]+):\s*error:\s*(?P<msg>.*)$')

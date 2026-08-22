@@ -974,6 +974,16 @@ func (w *web) render(c *gin.Context, page string, data map[string]any) {
 // success. The status is written BEFORE the body, because once html/template
 // starts streaming the header is already gone.
 func (w *web) renderStatus(c *gin.Context, status int, page string, data map[string]any) {
+	// A plugin fragment ships its CSS in a <style> block because it has no
+	// other way to; inserted into the body that is invalid HTML. Hoisted
+	// here, at the one seam where a fragment becomes a page, rather than in
+	// twenty plugin templates that cannot reach the head. See
+	// fragmentstyles.go.
+	if frag, ok := data["Fragment"].(template.HTML); ok {
+		if body, styles := hoistFragmentStyles(frag); styles != "" {
+			data["Fragment"], data["FragmentStyles"] = body, styles
+		}
+	}
 	data = w.chromeData(c, data)
 	// The set for this request's language. chromeData resolved it already and
 	// cached it on the context, so this is a map lookup rather than a second

@@ -13,6 +13,11 @@
          title carries an em dash and must not be sniffed as anything else. */}}
     {{template "site-head" .}}
     <title>{{if .Title}}{{.Title}} — {{end}}loon indexer</title>
+    {{/* A plugin fragment's own CSS, lifted out of the body where it is
+         invalid and put where a stylesheet goes. LAST in the head, after
+         the site's stylesheets, so a fragment rule that overrode a site
+         rule still does. See handlers/fragmentstyles.go. */}}
+    {{with .FragmentStyles}}{{.}}{{end}}
 </head>
 <body>
 {{template "site-sprite" .}}
