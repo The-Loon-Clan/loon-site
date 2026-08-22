@@ -407,26 +407,36 @@ The render-time strip this entry suggested as a floor was not needed and would
 have been the wrong answer anyway, for the reason given: a stripped title still
 reads as mojibake to the member, just legally.
 
-## 10. loon-baseline does not trim passwords
+## 10. loon-baseline does not trim passwords — DONE
 
-loon-site now trims leading/trailing whitespace from every password it accepts
-— register, login, reset — so a stray space can never lock somebody out. See
-`web/handlers/inputs.go`.
+Closed 22 Aug 2026 in loon-baseline `13487b3`. Register, Authenticate and
+ChangePassword all normalise through `authflow.NormalisePassword`.
 
-`loon-baseline` does not. `authflow` trims the username (authflow.go:47, :76)
-and passes the password through untouched, and the `account` package's
-change-password form does the same.
+Fixed in ONE place rather than the two this entry suggested, because trimming
+only where the hash is STORED makes it worse: the verify would then compare a
+raw string against a trimmed hash, and lock out anybody who habitually types
+the padding.
 
-The gap that leaves: a member who changes their password through
-`/p/account` **with** leading or trailing whitespace stores it padded, and
-loon-site's login — which now trims — will never match it. That is a lockout
-this repository created and cannot close on its own.
+Two things this entry did not have:
 
-Unlikely (it needs somebody to deliberately pad a password on one specific
-form) and worth closing anyway, because the fix is the same one line in
-`authflow.ChangePassword` and in `account`'s handler, and because "trimmed
-here, raw there" is exactly the inconsistency that made the original bug
-invisible.
+- **A legacy padded account** would have been locked out by the fix meant to
+  prevent lockouts — its hash was made from the padded string. Authenticate
+  tries the normalised form, then the raw one if they differ, and rehashes
+  from the normalised form on success: the account opens, migrates on first
+  login, and the fallback is needed once.
+- **The length check counted the padding.** `len()` on the raw string meant an
+  eight-character policy accepted `"  abcd  "` — four real characters, and a
+  password weaker than the rule it passed.
+
+`NormalisePassword` is exported because a host has to ask the same question:
+`account`'s form compared a new password against its confirmation RAW, so
+`"abc"` and `"abc "` were reported as not matching when they are about to be
+the same password. loon-site can drop its own trim onto this rather than
+keeping a second answer.
+
+Four tests, run against the unfixed code first — all four fail there.
+
+---
 
 ## 11. Flair store takes USD/crypto (design done, implementation in loon-plugins)
 
