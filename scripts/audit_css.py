@@ -121,6 +121,34 @@ def used(root=None, rel_to=None):
     return out
 
 
+def inline_styles(root):
+    """Class names the <style> blocks under `root` write rules for.
+
+    SCOPED, and that is the whole point. These used to be pooled across both
+    trees, so a rule in the forum's stylesheet counted as defining that class
+    for lists and roadmap -- whose pages never load it. Writing one plugin's
+    stylesheet moved two other plugins' baselines without touching them.
+
+    A page gets the host's stylesheets plus the <style> blocks in its OWN
+    template set. Nothing else.
+    """
+    out = set()
+    if not os.path.isdir(root):
+        return out
+    for dirpath, dirs, files in os.walk(root):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        for fn in files:
+            if not fn.endswith(".html"):
+                continue
+            with open(os.path.join(dirpath, fn), encoding="utf-8") as fh:
+                text = fh.read()
+            for block in re.findall(r"<style[^>]*>(.*?)</style>", text, re.S | re.I):
+                block = re.sub(r"/\*.*?\*/", " ", block, flags=re.S)
+                for cls in re.findall(r"\.(-?[A-Za-z_][A-Za-z0-9_-]*)", block):
+                    out.add(cls)
+    return out
+
+
 def defined():
     """Every class name any stylesheet writes a rule for.
 
@@ -132,26 +160,7 @@ def defined():
     eleven findings is enough to make the whole list look untrustworthy, which
     is how a check stops being run.
     """
-    out = set()
-    # BOTH TREES. A plugin that ships its own rules in a <style> block has
-    # defined those classes as surely as a .css file does, and reading only the
-    # host's templates reported 134 of donations' own names as undefined while
-    # the plugin styles every one of them itself.
-    roots = [TEMPLATES]
-    _plugins = os.path.join(os.path.dirname(ROOT), "loon-plugins")
-    if os.path.isdir(_plugins):
-        roots.append(_plugins)
-    for _root in roots:
-      for dirpath, _dirs, files in os.walk(_root):
-        for fn in files:
-            if not fn.endswith(".html"):
-                continue
-            with open(os.path.join(dirpath, fn), encoding="utf-8") as fh:
-                text = fh.read()
-            for block in re.findall(r"<style[^>]*>(.*?)</style>", text, re.S | re.I):
-                block = re.sub(r"/\*.*?\*/", " ", block, flags=re.S)
-                for cls in re.findall(r"\.(-?[A-Za-z_][A-Za-z0-9_-]*)", block):
-                    out.add(cls)
+    out = inline_styles(TEMPLATES)
     for dirpath, _dirs, files in os.walk(STYLES):
         for fn in files:
             if not fn.endswith(".css"):
@@ -319,12 +328,12 @@ JS_TREES = [
 PLUGIN_BASELINE = {
     "achievements": 4,
     "applications": 5,
-    "communities": 7,
+    "communities": 8,
     "cosmetics": 5,
-    "curation": 1,
+    "curation": 2,
     "donations": 16,
-    "forum": 144,
-    "lists": 18,
+    "forum": 9,
+    "lists": 20,
     "logs": 2,
     "magic": 1,
     "mediainfo": 2,
@@ -332,10 +341,10 @@ PLUGIN_BASELINE = {
     "news": 2,
     "offers": 8,
     "polls": 2,
-    "releasegroups": 11,
-    "requests": 44,
+    "releasegroups": 12,
+    "requests": 45,
     "rewards": 5,
-    "roadmap": 28,
+    "roadmap": 31,
     "store": 5,
     "tickets": 3,
     "tracker": 1,
@@ -367,8 +376,21 @@ def main():
     over, stale, ptotal = [], [], 0
     if os.path.isdir(plugin_root):
         pused = used(plugin_root, plugin_root)
-        pmissing = {c: v for c, v in pused.items()
-                    if c not in have and c not in RUNTIME}
+        # A plugin's own <style> blocks, per plugin. Pooling them let one
+        # plugin's stylesheet mark another's classes defined.
+        own = {}
+        for plugin in sorted(os.listdir(plugin_root)):
+            d = os.path.join(plugin_root, plugin)
+            if os.path.isdir(d) and plugin not in SKIP_DIRS:
+                own[plugin] = inline_styles(d)
+        pmissing = {}
+        for c, where in pused.items():
+            if c in have or c in RUNTIME:
+                continue
+            # Keep only the plugins that use it AND do not define it themselves.
+            w = [x for x in where if c not in own.get(x.split("/")[0], ())]
+            if w:
+                pmissing[c] = w
         # EVERY plugin that uses the class, not the first one alphabetically.
         # Attributing a shared name to one owner makes the baseline move when an
         # UNRELATED plugin is cleaned: converting messages took .btn-danger's
