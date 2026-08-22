@@ -296,25 +296,36 @@ the site of an incident.
 
 ---
 
-## 7. Dependency PRs waiting on a decision
+## 7. Dependency PRs — the module bump is IN, five action bumps remain
 
-**Six Dependabot PRs are open** and have been since automation was switched on
-(Aug 2026). All six are green on `ci` and `codeql`.
+**The Go module bump landed on 22 Aug 2026** in `3030ef5`, not by merging PR
+#2 but by applying its bumps to the current tree — its own CI had run against a
+base 74 commits old, and a green workflow on a stale base is not the same
+question as "does this work here". Dependabot closes the PR as superseded.
 
-| PR | bump |
+| bump | |
 | --- | --- |
-| #2 | Go modules, grouped: sqlx 1.3.5→1.4.0, go-redis 9.21→9.22, x/crypto 0.51→0.54, x/net 0.55→0.56 |
-| #1, #3, #4, #5, #6 | actions: checkout 4→7, upload-artifact 4→7, setup-buildx 3→4, setup-qemu 3→4, build-push 6→7 |
+| sqlx 1.3.5 → 1.4.0 | the storage layer is built on it |
+| go-redis 9.21 → 9.22 | |
+| x/crypto 0.51 → 0.55 | |
+| x/net 0.55 → **0.57** | this entry said 0.56; dependabot updated the PR since |
 
-**#2 was verified beyond its CI run**, because sqlx is what the whole storage
-layer is built on and a green workflow is not the same as a working site: the
-branch was checked out, run against a real Postgres and Redis (263 tests pass),
-and booted — `/`, `/browse`, `/login` and `/api?t=caps` all answer, no errors.
+Verified beyond the build: full suite passes, the site boots, `/`, `/browse`,
+`/login` and `/api?t=caps` answer 200 with a clean log, and links, contracts,
+adminnav and access all pass against it. `go.sum` lost 162 lines — sqlx 1.4.0
+drops transitive drivers this site never used.
 
-**Why it is here rather than done:** merging is the maintainer's call. The cost
-of leaving them is that they rot — five action bumps and a grouped module bump
-will start conflicting with each other and with the next week's PRs, and a
-stale dependency PR gets closed rather than reviewed.
+**Five action bumps are still open** (#1, #3, #4, #5, #6): checkout 4→7,
+upload-artifact 4→7, setup-buildx 3→4, setup-qemu 3→4, build-push 6→7. All five
+are pure `uses:` version changes in workflow YAML — the diffs contain nothing
+else — and all five still merge cleanly despite being 238 commits behind.
+
+They are left open deliberately rather than for want of attention: a MAJOR
+action bump only proves out when the workflow runs, and nothing local can
+exercise a GitHub Action. Merging them is a decision to find out on the next
+push, which is the maintainer's to make. The cost of leaving them is the one
+this entry always recorded — they rot, and a stale dependency PR gets closed
+rather than reviewed.
 
 ---
 
