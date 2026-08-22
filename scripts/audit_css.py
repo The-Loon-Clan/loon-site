@@ -397,21 +397,45 @@ JS_TREES = [
 # undefined class, which is what stops the next one shipping like the forum's.
 #
 # Lower an entry in the same commit that fixes one. Measured 21 Aug 2026.
+# WHAT IS LEFT, and why each entry is a number rather than a fix. Measured
+# 22 Aug 2026, after three shim completions took this from 145 to 58.
+#
+#   requests 31   another workstream's plugin — see loon-plugins/HANDOVER.md,
+#                 which names the command that reports each item.
+#   forum 9       modifier hooks beside a base class that carries the styling
+#                 (.forum-panel .forum-categories-panel). Kept so a host or a
+#                 later variant can target one panel without a tag selector.
+#                 Padding them with empty rules would buy the number and say
+#                 nothing.
+#   lists 5       host CONTRACT, not the plugin's to define: cover-card,
+#                 cover-wrap, cover-img, cover-img-placeholder arrive with
+#                 Deps.NzbCardCSS as a Go value at render time, so a static
+#                 check cannot see them. lists/README.md now lists them, which
+#                 is what CHECKLIST section 8 asks for. report-content is the
+#                 trigger Deps.ReportModal's own script binds to.
+#   the other 13  BEM names written in anticipation of a stylesheet nobody
+#                 wrote — app-queue__item, fx-card__body, shots__item,
+#                 inbox-shell and the rest. VERIFIED inert: no rule mentions
+#                 them and no script selects them, so each element renders the
+#                 same with the class as without.
+#
+# Those 13 were NOT deleted, and the reason is worth writing down. Removing
+# them would take this number to near zero and change nothing a reader sees —
+# optimising the measurement rather than the thing measured, which is the
+# mistake this file exists to catch elsewhere. They are somebody's intended
+# structure; whoever styles it adds the rule, and the entry goes down then.
 PLUGIN_BASELINE = {
-    "achievements": 2,
+    "achievements": 1,
     "applications": 5,
-    "communities": 4,
     "cosmetics": 3,
-    "donations": 2,
+    "donations": 1,
     "forum": 9,
     "lists": 5,
-    "logs": 1,
     "mediainfo": 1,
     "messages": 1,
-    "offers": 5,
+    "offers": 1,
     "releasegroups": 1,
     "requests": 31,
-    "rewards": 2,
     "uploads": 1,
 }
 

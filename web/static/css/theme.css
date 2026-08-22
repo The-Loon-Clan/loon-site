@@ -426,6 +426,7 @@ details.job-group[open] > summary::before { transform: rotate(90deg); }
 .d-flex { display: flex; }
 .d-block { display: block; }
 .d-inline { display: inline; }
+.d-inline-block { display: inline-block; }
 .d-none { display: none; }
 .flex-column { flex-direction: column; }
 .flex-wrap { flex-wrap: wrap; }
@@ -610,6 +611,50 @@ dd { margin-inline-start: 0; }
 .small { font-size: .85em; }
 .h3 { font-size: 1.5rem; } .h4 { font-size: 1.3rem; } .h5 { font-size: 1.15rem; } .h6 { font-size: 1rem; }
 .list-unstyled { list-style: none; padding-left: 0; margin: 0; }
+
+/* An EYEBROW: the small uppercase label above a heading. Shared vocabulary
+   rather than a plugin's own — forum and lists each grew a private copy
+   (forum-hero-eyebrow, wl-eyebrow) and communities wrote the bare name and got
+   nothing, which is three answers to one question. */
+.eyebrow {
+    font-size: var(--fs-2xs, .68rem);
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+/* Makes a link cover its nearest positioned ancestor, so a whole card is
+   clickable without nesting the card inside the <a>. Undefined, the card had
+   one small clickable title and looked the same either way. */
+.stretched-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+}
+
+/* A button that reads as a link. Undefined, .btn's own padding and border made
+   it look like a secondary button, which says "this does something" rather
+   than "this is a link". */
+.btn-link {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--link-fg);
+    text-decoration: underline;
+    cursor: pointer;
+}
+.btn-link:hover { color: var(--link-hover-fg); }
+
+/* The pale outline variant, for a button on a coloured or image ground where
+   the normal outline would disappear. */
+.btn-outline-light {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, .35);
+    color: #fff;
+}
+.btn-outline-light:hover { background: rgba(255, 255, 255, .12); }
 .rounded { border-radius: var(--radius); }
 .rounded-0 { border-radius: 0; }
 .rounded-circle { border-radius: 50%; }
