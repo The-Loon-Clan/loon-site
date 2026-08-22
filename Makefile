@@ -44,7 +44,7 @@ COVER_MIN ?= 22.0
 # LOON_TEST_DSN present means the substantial half is running.
 COVER_MIN_SERVICES ?= 33.0
 
-.PHONY: help check build test itest cover lint golint fmt sql ctlchars css capabilities contrast resources seams vuln grade html lh run clean
+.PHONY: help check build test itest cover lint golint fmt sql ctlchars css capabilities contrast resources seams contracts vuln grade html lh run clean
 
 # `make` on its own explains itself, rather than silently building the first
 # target. Every target below already carried a `## name: description` line and
@@ -223,6 +223,17 @@ capabilities:
 seams:
 	@$(PYTHON) scripts/audit_seams.py
 
+## contracts: the /admin/contracts page, read by something other than a person
+##
+## The host already computed both halves of this and neither gated
+## anything. On 22 Aug 2026 the page had been reporting one unfilled
+## contract — every lootbox reward on the site, undeliverable — and the
+## finding itself turned out to be wrong, which is the second-worst state
+## for a report nobody reads. Needs the site, so it lives with the live
+## checks rather than in `check`.
+contracts:
+	@$(PYTHON) scripts/audit_contracts.py
+
 ## contrast: theme colour pairs against the WCAG AA minimum
 ##
 ## In `check` because it needs nothing — no Docker, no network, no running
@@ -276,15 +287,16 @@ lh:
 ## It STOPS at the first failure. A release check that prints twelve red
 ## sections is one nobody reads to the end.
 release:
-	@echo "== 1/7 check (no site needed)"      && $(MAKE) --no-print-directory check
-	@echo "== 2/7 bringing the stack up"       && docker compose up -d --build >/dev/null && 	  for i in $$(seq 1 60); do 	    [ "$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/healthz)" = "200" ] && break; 	    sleep 2; 	  done; 	  test "$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/healthz)" = "200" 	    || { echo "the site did not come up; nothing below this can be trusted"; exit 1; }
-	@echo "== 3/7 access (staff routes, destructive POSTs, table coverage)" && $(PYTHON) scripts/audit_access.py
-	@echo "== 4/7 links"                       && $(PYTHON) scripts/audit_links.py
-	@echo "== 5/7 admin nav (every admin page reachable)" && $(PYTHON) scripts/audit_adminnav.py
-	@echo "== 6/7 accessibility"               && $(PYTHON) scripts/audit_a11y.py
-	@echo "== 7/7 mobile (every page at 390px)" && $(PYTHON) scripts/mobile.py
+	@echo "== 1/8 check (no site needed)"      && $(MAKE) --no-print-directory check
+	@echo "== 2/8 bringing the stack up"       && docker compose up -d --build >/dev/null && 	  for i in $$(seq 1 60); do 	    [ "$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/healthz)" = "200" ] && break; 	    sleep 2; 	  done; 	  test "$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/healthz)" = "200" 	    || { echo "the site did not come up; nothing below this can be trusted"; exit 1; }
+	@echo "== 3/8 access (staff routes, destructive POSTs, table coverage)" && $(PYTHON) scripts/audit_access.py
+	@echo "== 4/8 links"                       && $(PYTHON) scripts/audit_links.py
+	@echo "== 5/8 admin nav (every admin page reachable)" && $(PYTHON) scripts/audit_adminnav.py
+	@echo "== 6/8 contracts (unfilled seams, orphan event listeners)" && $(PYTHON) scripts/audit_contracts.py
+	@echo "== 7/8 accessibility"               && $(PYTHON) scripts/audit_a11y.py
+	@echo "== 8/8 mobile (every page at 390px)" && $(PYTHON) scripts/mobile.py
 	@echo
-	@echo "all seven passed. html and lh are NOT in here — they need a browser"
+	@echo "all eight passed. html and lh are NOT in here — they need a browser"
 	@echo "container and a network pull, so run them by hand: make html, make lh"
 
 ## access: every route probed as anonymous, a member and an admin

@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 
 	"github.com/the-loon-clan/loon-plugins/achievements"
 	"github.com/the-loon-clan/loon-plugins/rewards"
@@ -87,18 +88,25 @@ func auditContracts(ctx context.Context, c *core.Core, db storage.Conn) []contra
 // auditRewardPayouts finds payout kinds a reward promises that nothing can
 // deliver.
 //
-// The rewards engine handles points itself and SKIPS any other kind with no
-// registered handler — deliberately, so a points-only host still works. The
+// The rewards engine handles some kinds ITSELF and SKIPS any other kind with
+// no registered handler — deliberately, so a points-only host still works. The
 // cost is that a reward promising a medal on a host with no medal handler is
 // indistinguishable from one that has not been claimed yet.
+//
+// The internally-handled set comes from rewards.InternalPayoutKinds() and is
+// NOT a list kept here. It was points alone, hardcoded, and lootbox arrived as
+// a second one — so every lootbox reward on this site was reported as a
+// feature that could not be delivered. A false finding on the page whose whole
+// value is that its findings are true, and the plugin is the only thing that
+// can answer which kinds it delivers.
 func auditRewardPayouts(ctx context.Context, db storage.Conn, registered map[string]bool) []contractFinding {
 	var kinds []string
 	if err := db.SelectContext(ctx, &kinds, `
 		SELECT DISTINCT p.kind
 		  FROM rewards.reward_payouts p
 		  JOIN rewards.rewards r ON r.id = p.reward_id
-		 WHERE r.enabled AND p.kind <> $1
-		 ORDER BY 1`, string(rewards.PayoutPoints)); err != nil {
+		 WHERE r.enabled AND p.kind <> ALL($1)
+		 ORDER BY 1`, pq.Array(rewards.InternalPayoutKinds())); err != nil {
 		return nil // schema absent: the plugin is not wired here.
 	}
 	var out []contractFinding
