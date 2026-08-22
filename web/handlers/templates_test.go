@@ -219,13 +219,15 @@ func TestPluginChromeTemplatesParse(t *testing.T) {
 	// has to degrade rather than error. This is the path that broke before:
 	// {{len}} over an absent key aborts the render mid-document.
 	//
-	// The five forum pages used to be this list. They render through the
-	// plugin now, and forum/views_test.go executes every one of them over
-	// realistic data; what is left here is the same guard over a page that
-	// still comes through gin's set.
-	for _, page := range []string{"admin_donate.html"} {
+	// The five forum pages used to be this list, then admin_donate.html was.
+	// Each moved to its plugin in turn, and each plugin's own views_test.go
+	// executes its pages over fuller data than these fixtures carried. This is
+	// the same guard over whatever still comes through gin's set — playlists,
+	// which ships no templates of its own and so cannot leave the legacy
+	// contract without them being written first.
+	for _, page := range []string{"playlists_index.html"} {
 		data := chromeKeys()
-		data["Path"] = "/admin/donate"
+		data["Path"] = "/playlists"
 		var buf bytes.Buffer
 		if err := tmpl.ExecuteTemplate(&buf, page, data); err != nil {
 			t.Errorf("%s: execute with an empty install: %v", page, err)

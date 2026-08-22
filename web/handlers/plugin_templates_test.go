@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/the-loon-clan/loon-plugins/donations"
 	"github.com/the-loon-clan/loon-plugins/playlists"
 )
 
@@ -48,7 +47,8 @@ func pluginFixtures() []pluginFixture {
 	now := time.Now()
 	page := hostPagination(1, 25, 1, "/x")
 	return []pluginFixture{
-		// ── news and communities: NOT here. Each owns its markup now; the
+		// ── news, communities and donations: NOT here. Each owns its markup
+		// now; the
 		// host sets RenderPage and its copies of those templates are gone.
 		// communities/views_test.go executes every one of its nine pages over
 		// fuller data than these fixtures carried, and the flash test that
@@ -74,24 +74,6 @@ func pluginFixtures() []pluginFixture {
 		// Markdown. The host's copies were dead markup and are gone.
 
 		// ── donations
-		{"help_donate.html",
-			map[string]any{"Groups": nil, "AddressesHidden": false, "TotalMonthlyUSD": 0.0},
-			map[string]any{
-				"Groups": []*donations.DonationGoalGroup{{
-					Name: "site", Locks: true, MonthlyGoalUSD: 100, MonthlyRaisedUSD: 25,
-					Items: []*donations.SiteCost{{ID: 1, Label: "Box", Category: "server", Period: "monthly", AmountUSD: 42, Active: true}},
-				}},
-				"TotalMonthlyUSD": 42.0,
-				"BTCAddress":      "bc1xyz",
-			}},
-		{"admin_donate.html",
-			map[string]any{"DonateEnabled": false, "Costs": nil, "Donations": nil, "Usernames": map[int]string{}},
-			map[string]any{
-				"DonateEnabled": true,
-				"Costs":         []*donations.SiteCost{{ID: 1, Label: "Box", Category: "server", GoalGroup: "site", Period: "monthly", AmountUSD: 42, Active: true}},
-				"Donations":     []*donations.Donation{{ID: 1, AmountUSD: 10, ReceivedAt: now}},
-				"Usernames":     map[int]string{1: "alice"},
-			}},
 
 		// ── communities
 		//

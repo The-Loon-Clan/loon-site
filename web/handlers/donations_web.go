@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"html/template"
+
 	"errors"
+	"github.com/the-loon-clan/loon-site/internal/middleware"
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"context"
@@ -126,7 +129,28 @@ func wireDonationsPlugin(c *core.Core, w *web) error {
 	}
 
 	donations.SetDeps(donations.Deps{
-		BaseData: func(gc *gin.Context, extra gin.H) gin.H { return w.chromeData(gc, extra) },
+		// RenderPage, not BaseData. The plugin owns both pages and kept
+		// BaseData alive only so this repo would keep building mid-migration.
+		// site_fragment.html rather than site_page.html: help_donate.html
+		// opens with its own hero and the panel wrapper would print the title
+		// again above it — see site_fragment.html.
+		RenderPage: func(gc *gin.Context, status int, title string, body template.HTML) {
+			w.renderStatus(gc, status, "site_fragment.html",
+				map[string]any{"Title": title, "Fragment": body})
+		},
+		// error.html stays host-owned — it is the site-wide error surface, and
+		// the plugin only needs to reach it. Rendered by name through gin's
+		// set, exactly as the plugin's legacy path did.
+		RenderError: func(gc *gin.Context, code int, title, msg string) {
+			gc.HTML(code, "error.html", w.chromeData(gc, gin.H{
+				"Code": code, "Title": title, "Message": msg,
+			}))
+		},
+		CSRFToken:    middleware.Token,
+		RelativeTime: relativeTime,
+		// What this deployment calls itself. Without it the page reads "this
+		// site" everywhere — true, but this host has a name.
+		SiteName: w.siteName,
 		Settings: siteSettings{db},
 		// The env flag is the OUTER gate. Even with donate_enabled persisted
 		// true, a deployment without the flag reports disabled — which is what
