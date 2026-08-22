@@ -180,6 +180,42 @@ def csrf_findings(files):
     return out
 
 
+# ── E. discarded template errors ────────────────────────────────────────────
+
+# `_ = tmpl.Execute(w, data)`.
+#
+# html/template aborts at the FIRST error and writes nothing further. When the
+# writer is a response whose status is already out, that is a page which stops
+# mid-document and still reads as 200 to everything upstream -- no error, no
+# 500, nothing in a log. This project has met it twice:
+#
+#   loon/schedule/admin.go hid a $-scoping bug for as long as the bug existed.
+#   The control form rendered, the CSRF token inside it did not, and the page
+#   simply ended. audit_links catches the truncation from OUTSIDE, on a live
+#   host, which is a slow way to learn about a template that cannot execute.
+#
+#   loon-baseline/maintenance returned a truncated 503 -- the one page every
+#   visitor is guaranteed to see, rendered while the site is already down.
+#
+# Writing to a BUFFER is the case worth keeping separate: nothing has reached
+# the client, so the handler still has a choice, and discarding the error
+# throws that choice away. Both spellings are flagged; the fix differs.
+GO_DISCARDED_EXECUTE = re.compile(
+    r"^\s*_\s*=\s*[\w.]*\.Execute(?:Template)?\s*\(", re.M)
+
+
+def execute_findings(files):
+    """Every template execution whose error is thrown away."""
+    out = []
+    for path, rel, body in files:
+        if not rel.endswith(".go") or rel.endswith("_test.go"):
+            continue
+        for m in GO_DISCARDED_EXECUTE.finditer(body):
+            out.append((rel, line_of(body, m.start()),
+                        body[m.start():m.end()].strip()))
+    return out
+
+
 # ── D. member-facing sentences built in Go ──────────────────────────────────
 
 # The sinks that put words in front of a person: a redirect carrying a message,
@@ -452,6 +488,7 @@ def main():
         images = image_findings(root, files)
         icons = icon_findings(symbols, files)
         tokenless = csrf_findings(files)
+        discarded = execute_findings(files)
         sentences = sentence_count(files)
         baseline = SENTENCE_BASELINE.get(name)
 
@@ -465,6 +502,12 @@ def main():
         for rel, line, action in tokenless:
             failed = True
             print("  NO CSRF TOKEN    %s:%d  posts to %s  (403s for every human)" % (rel, line, action))
+        for rel, line, call in discarded:
+            failed = True
+            print("  SILENT TEMPLATE  %s:%d  %s"
+                  % (rel, line, call))
+            print("                   a failure here truncates the page and still "
+                  "returns 200")
         if baseline is None:
             # A FAILURE, not a note. The baseline is keyed by the tree's
             # directory NAME, so a checkout named anything else silently turns
@@ -492,7 +535,8 @@ def main():
         return 1
     print()
     print("resources: no hardcoded images, every icon resolves, every POST form "
-          "carries a token, and no new member-facing text in Go.")
+          "carries a token, no template renders its errors away, and no new "
+          "member-facing text in Go.")
     return 0
 
 
