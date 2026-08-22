@@ -236,8 +236,14 @@ contrast:
 ## admin set-role and reset-password forms — carried no CSRF token and answered
 ## 403 to everyone who clicked them, invisibly, for as long as the host had
 ## CSRF middleware. A check's blind spot is wherever its argument list stops.
+## Four trees, not two. This passed only ../loon-plugins and
+## ../loon-baseline until 22 Aug 2026, so the HOST's own tree was checked
+## only when the script was run bare, and `loon` -- the framework every
+## host embeds -- was checked by nothing at all. Three CSRF findings and a
+## missing sentence baseline were sitting in it. ctlchars above already
+## passes all four; this now matches it.
 resources:
-	@$(PYTHON) scripts/audit_resources.py $(wildcard ../loon-plugins) $(wildcard ../loon-baseline)
+	@$(PYTHON) scripts/audit_resources.py . $(wildcard ../loon) $(wildcard ../loon-plugins) $(wildcard ../loon-baseline)
 
 ## html: W3C validation of the running site (needs `make run` first)
 html:

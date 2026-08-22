@@ -151,13 +151,28 @@ POST_FORM = re.compile(
     r'(?is)<form(?=[\s>])[^>]*method\s*=\s*["\']post["\'][^>]*>.*?</form>')
 
 
+# The field is USUALLY the literal _csrf, but a framework page that must work
+# under a host spelling it differently renders the NAME from its data too:
+# loon/schedule/config_admin.go emits name="{{.CSRFField}}" beside the value,
+# guarded by {{if .CSRFToken}}, and was reported as tokenless for it. Matching
+# only the literal made this audit wrong about the one page in the tree that
+# handles the general case, which is the worst place for it to be wrong.
+#
+# A template action counts as a field NAME only -- a hidden input must still
+# be there. What the action RENDERS to is not knowable from the source, and
+# saying so is better than a check that looks stronger than it is.
+CSRF_FIELD = re.compile(
+    'name\s*=\s*["\']'
+    '(?:_csrf|\{\{[^}]*\}\})'
+    '["\']')
+
 def csrf_findings(files):
     """Every POST form with no hidden _csrf input."""
     out = []
     for path, rel, body in files:
         for m in POST_FORM.finditer(body):
             form = m.group(0)
-            if 'name="_csrf"' in form or "name='_csrf'" in form:
+            if CSRF_FIELD.search(form):
                 continue
             action = re.search(r'action\s*=\s*"([^"]*)"', form)
             out.append((rel, line_of(body, m.start()),
@@ -252,6 +267,13 @@ SENTENCE_BASELINE = {
     # of the one available. Everything a MEMBER reads still belongs in a
     # template.
     "loon-demo-site": 34,
+
+    # 0, and it should stay 0. loon is the FRAMEWORK: it has no members,
+    # only hosts, so a sentence built in Go here is one every host that
+    # embeds it inherits and none of them can translate or reword. This
+    # entry existed nowhere until 22 Aug 2026, which meant the tree was
+    # not being checked at all -- see the Makefile note on `resources`.
+    "loon": 0,
     # 41 as of 21 Aug 2026, down from 111 — communities (20), medals (17),
     # games (11), forum (7), wiki (6), uploads (6), news (3), tickets (3),
     # magic (3), achievements (3), seedlock (2) and rewards (1) moved into
