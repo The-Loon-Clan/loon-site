@@ -590,6 +590,10 @@ dd { margin-inline-start: 0; }
 .text-end { text-align: right; }
 .text-nowrap { white-space: nowrap; }
 .text-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The other half of text-truncate: let a long unbroken token WRAP rather
+   than push the layout sideways. usenet writes it on subject lines and
+   message-ids, which are exactly the strings that have no spaces. */
+.text-break { overflow-wrap: anywhere; word-break: break-word; }
 .text-decoration-none { text-decoration: none; }
 .text-muted { color: var(--muted); }
 .text-danger { color: var(--danger); }
@@ -606,6 +610,10 @@ dd { margin-inline-start: 0; }
 .small { font-size: .85em; }
 .h3 { font-size: 1.5rem; } .h4 { font-size: 1.3rem; } .h5 { font-size: 1.15rem; } .h6 { font-size: 1rem; }
 .list-unstyled { list-style: none; padding-left: 0; margin: 0; }
+.rounded { border-radius: var(--radius); }
+.rounded-0 { border-radius: 0; }
+.rounded-circle { border-radius: 50%; }
+.rounded-pill { border-radius: var(--radius-pill, 999px); }
 
 /* --bs-* aliases. Plugin markup writes colours BOTH ways — `bg-danger` as a
    class and `var(--bs-danger)` as a value (tickets' support_ticket.html does

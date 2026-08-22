@@ -398,13 +398,13 @@ JS_TREES = [
 #
 # Lower an entry in the same commit that fixes one. Measured 21 Aug 2026.
 PLUGIN_BASELINE = {
-    "achievements": 3,
+    "achievements": 2,
     "applications": 5,
     "communities": 4,
     "cosmetics": 3,
     "donations": 2,
     "forum": 9,
-    "lists": 6,
+    "lists": 5,
     "logs": 1,
     "mediainfo": 1,
     "messages": 1,
@@ -412,9 +412,7 @@ PLUGIN_BASELINE = {
     "releasegroups": 1,
     "requests": 31,
     "rewards": 2,
-    "roadmap": 20,
     "uploads": 1,
-    "usenet": 4,
 }
 
 def main():
@@ -466,6 +464,16 @@ def main():
         pmissing = {}
         for c, where in pused.items():
             if c in have or c in RUNTIME:
+                continue
+            # A `js-` prefix DECLARES a behaviour hook: a class a script binds
+            # to, with no appearance of its own. Exempt by convention, because
+            # the convention is what makes the intent checkable — roadmap's
+            # js-show-requests and usenet's js-group-toggle are hooks and say
+            # so, while btn-delete and vote-count are ALSO bound by scripts and
+            # very much want rules. "A script searches for it" is not the test;
+            # a Delete button that looks like the safe button beside it is the
+            # bug this file was written for.
+            if c.startswith("js-"):
                 continue
             # Keep only the plugins that use it AND do not define it themselves.
             w = [x for x in where if c not in own.get(x.split("/")[0], ())]
