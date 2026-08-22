@@ -983,6 +983,11 @@ func (st *Store) MigrateWidgets() error {
 		// core.WidgetConfig. Empty means not configured, which a widget must
 		// treat as "render nothing".
 		`ALTER TABLE widget_placement ADD COLUMN IF NOT EXISTS config TEXT NOT NULL DEFAULT ''`,
+		// WHICH PAGES this placement appears on. Empty means every page,
+		// which is what every existing row means and what the region
+		// mechanism did before this column existed — so adding it changes
+		// no site's layout until somebody types a rule.
+		`ALTER TABLE widget_placement ADD COLUMN IF NOT EXISTS pages TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, q := range stmts {
 		if _, err := st.db.Exec(q); err != nil {

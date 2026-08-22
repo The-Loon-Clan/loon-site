@@ -136,8 +136,17 @@ func (w *web) renderPlaced(c *gin.Context, region string, placements []storage.W
 	}
 	viewer, _ := w.currentUser(c)
 	out := make([]renderedWidget, 0, len(placements))
+	path := "/"
+	if c.Request != nil && c.Request.URL != nil {
+		path = c.Request.URL.Path
+	}
 	for _, p := range placements {
 		if !p.Enabled {
+			continue
+		}
+		// Which PAGES this placement is for. Empty means all of them, so a
+		// placement written before the rule existed behaves as it always did.
+		if !pagesMatch(p.Pages, path) {
 			continue
 		}
 		widget, ok := w.rt.Core().WidgetBySlug(p.Slug)

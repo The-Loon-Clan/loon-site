@@ -18,13 +18,31 @@ type WidgetPlacement struct {
 	Position int    `db:"position"`
 	Enabled  bool   `db:"enabled"`
 	Config   string `db:"config"`
+	// Pages restricts this placement to some of the site. Empty is every
+	// page — the behaviour before the column existed, and what every row
+	// written before it still means. See handlers.pagesMatch for the rules.
+	Pages string `db:"pages"`
+}
+
+// SetWidgetPages restricts one placement to some of the site, or to all of
+// it when the rule is empty.
+//
+// Its own mutation rather than part of ConfigureWidget: config is the
+// WIDGET's opaque setting, which the host must not parse, and this is the
+// HOST's rule about where the widget goes. Overloading one column with both
+// would mean the host reading a string it has promised not to read.
+func (st *Store) SetWidgetPages(ctx context.Context, region, slug, pages string) error {
+	_, err := st.db.ExecContext(ctx,
+		`UPDATE widget_placement SET pages = $3 WHERE region = $1 AND slug = $2`,
+		region, slug, pages)
+	return err
 }
 
 // ReadPlacements returns a region's arrangement, in order.
 func (st *Store) ReadPlacements(ctx context.Context, region string) []WidgetPlacement {
 	var rows []WidgetPlacement
 	if err := st.db.SelectContext(ctx, &rows,
-		`SELECT region, slug, position, enabled, config FROM widget_placement
+		`SELECT region, slug, position, enabled, config, pages FROM widget_placement
 		  WHERE region = $1 ORDER BY position, slug`, region); err != nil {
 		return nil
 	}
@@ -41,7 +59,7 @@ func (st *Store) ReadPlacements(ctx context.Context, region string) []WidgetPlac
 func (st *Store) ReadAllPlacements(ctx context.Context) map[string][]WidgetPlacement {
 	var rows []WidgetPlacement
 	if err := st.db.SelectContext(ctx, &rows,
-		`SELECT region, slug, position, enabled, config FROM widget_placement
+		`SELECT region, slug, position, enabled, config, pages FROM widget_placement
 		  ORDER BY region, position, slug`); err != nil {
 		return nil
 	}

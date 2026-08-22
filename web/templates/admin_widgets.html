@@ -99,7 +99,12 @@
         <div class="data-table-wrapper">
         <table class="data-table">
             <caption class="visually-hidden">Widgets placed in this region</caption>
-            <thead><tr><th>Widget</th><th>Status</th><th>Setting</th><th class="data-table__shrink">Order</th><th class="data-table__shrink">Actions</th></tr></thead>
+            {{/* In the order the cells below are actually written. The header said
+                 Setting third and Order fourth while the row has Order third and
+                 Setting fourth, so every value in this table has been sitting
+                 under the wrong heading. Adding a column is what made it
+                 obvious — the new one landed under "Order". */}}
+            <thead><tr><th>Widget</th><th>Status</th><th class="data-table__shrink">Order</th><th>Setting</th><th>Pages</th><th class="data-table__shrink">Actions</th></tr></thead>
             <tbody>
                 {{range .Placed}}
                 <tr>
@@ -150,6 +155,30 @@
                             <button class="button button--outlined button--sm mt-2" type="submit">Save</button>
                         </form>
                         {{else}}<span class="text-muted">&mdash;</span>{{end}}
+                    </td>
+                    {{/* WHICH PAGES this placement appears on. A region is drawn
+                         by the chrome on every page that has one, so before this
+                         column a widget in the sidebar was on the whole site —
+                         the demo's poll sat beside every admin screen and every
+                         wiki page. Empty still means everywhere, so nothing
+                         moves until somebody types a rule. */}}
+                    <td>
+                        <form hx-post="/admin/widgets/apply" hx-target="#placed-widgets" hx-swap="outerHTML"
+                              hx-disabled-elt="find button" method="post" action="/admin/widgets/apply">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="region" value="{{$.Region}}">
+                            <input type="hidden" name="slug" value="{{.Slug}}">
+                            <input type="hidden" name="action" value="pages">
+                            <label class="form__label" for="pages-{{.Slug}}">Pages</label>
+                            <textarea class="form__input" id="pages-{{.Slug}}" name="pages" rows="3"
+                                      placeholder="every page">{{.Pages}}</textarea>
+                            <div class="text-muted small">
+                                One rule per line; empty is every page.
+                                <code>/</code> &middot; <code>/browse</code> &middot;
+                                <code>/community*</code> &middot; <code>!/admin*</code>
+                            </div>
+                            <button class="button button--outlined button--sm mt-2" type="submit">Save</button>
+                        </form>
                     </td>
                     <td class="data-table__nowrap">
                         <form hx-post="/admin/widgets/apply" hx-target="#placed-widgets" hx-swap="outerHTML"

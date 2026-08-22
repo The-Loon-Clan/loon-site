@@ -54,6 +54,9 @@ type placedVM struct {
 	ConfigLabel string // non-empty when this widget takes a setting
 	ConfigHint  string
 	Config      string // what the operator typed for THIS placement
+	// Pages restricts the placement to part of the site; empty is all of
+	// it. Unlike Config, this belongs to the HOST and every widget has it.
+	Pages string
 }
 
 // placedWidgets resolves a region's placements against the live registry so an
@@ -73,7 +76,7 @@ func (w *web) placedWidgets(ctx context.Context, region string) []placedVM {
 	var placed []placedVM
 	for _, p := range w.data.ReadPlacements(ctx, region) {
 		vm := placedVM{Slug: p.Slug, Position: p.Position, Enabled: p.Enabled,
-			Title: p.Slug, Missing: true, Config: p.Config}
+			Title: p.Slug, Missing: true, Config: p.Config, Pages: p.Pages}
 		if reg != nil {
 			if wd, ok := reg.WidgetBySlug(p.Slug); ok {
 				vm.Title, vm.Missing = wd.Title, false
@@ -136,6 +139,12 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 		// Whatever a widget does with it must be safe at RENDER; see the
 		// markdown widget, which runs the site's sanitising renderer.
 		err = w.data.ConfigureWidget(ctx, region, slug, in.Config)
+	case "pages":
+		// The host's rule about WHERE, kept apart from the widget's own
+		// setting above: config is opaque to the host by contract, and this is
+		// not. Stored as typed so the operator's comments and line breaks
+		// survive a round trip through the form.
+		err = w.data.SetWidgetPages(ctx, region, slug, in.Pages)
 	case "move":
 		if delta := in.Delta; delta != 0 {
 			err = w.moveWidget(c, region, slug, delta)

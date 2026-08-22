@@ -91,6 +91,10 @@ type widgetActionInput struct {
 	// which runs the site's sanitising renderer — so it is not trimmed or
 	// inspected here.
 	Config string `form:",raw"`
+	// Pages is the host's rule for which pages a placement appears on.
+	// Raw for the same reason Config is: it is a multi-line value an
+	// operator typed, and trimming it here would eat their line breaks.
+	Pages string `form:",raw"`
 	// Delta moves a widget up or down. Zero means "no move", which the handler
 	// treats as nothing to do.
 	Delta int
