@@ -23,7 +23,6 @@ import (
 
 	"github.com/the-loon-clan/loon/core"
 
-	"github.com/the-loon-clan/loon-plugins/forum"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 )
 
@@ -175,10 +174,17 @@ func TestEveryPageTemplateIsParsed(t *testing.T) {
 	}
 }
 
-// TestForumTemplatesParse mirrors wireForumPlugin: site_chrome.html first, then
-// the forum glob. It also asserts the forum pages can resolve the shared chrome
-// blocks — the whole reason site_chrome.html is named by both parse sites.
-func TestForumTemplatesParse(t *testing.T) {
+// TestPluginChromeTemplatesParse mirrors wireForumPlugin: site_chrome.html
+// first, then the globs. It asserts the legacy-contract plugin pages can
+// resolve the shared chrome blocks — the whole reason site_chrome.html is
+// named by both parse sites.
+//
+// It used to assert the five forum page templates too. Those moved to the
+// plugin, which renders them through Deps.RenderPage now; asserting this repo
+// can still look them up would assert the migration did not happen. The forum
+// glob stays because forum_chrome.html is still here, misleading name and all:
+// it defines fhead/ffoot for communities, donations and playlists.
+func TestPluginChromeTemplatesParse(t *testing.T) {
 	names, err := fs.Glob(site.FS, "web/templates/forum/*.html")
 	if err != nil {
 		t.Fatal(err)
@@ -193,10 +199,8 @@ func TestForumTemplatesParse(t *testing.T) {
 		t.Fatalf("pluginTemplates: %v", err)
 	}
 	for _, want := range []string{
-		"community_forums.html", "community_category.html", "community_thread.html",
-		"community_new_thread.html", "admin_forum_categories.html",
 		// From site_chrome.html — invoked by fhead/ffoot, so a missing one is
-		// an execute-time failure on every forum page.
+		// an execute-time failure on every page in this set.
 		"fhead", "ffoot", "fpagination",
 		"site-head", "site-sprite", "site-header", "site-footer", "site-scripts",
 	} {
@@ -206,36 +210,25 @@ func TestForumTemplatesParse(t *testing.T) {
 	}
 	assertInvocationsResolve(t, "forum set", tmpl)
 
-	// Execute each forum page with ONLY what forum.Deps.BaseData supplies —
-	// which, since the chrome-parity fix, is exactly chromeData's always-set
-	// keys (forum_web.go BaseData calls the host's chromeData, the same
-	// function render() calls, so this list IS the host page list). The
-	// forum's own keys (Categories, Threads, Posts, Pagination …) are all
-	// legitimately empty on a fresh board, and the per-viewer optional keys
-	// (Points/Unread/RoleLabel/MemberSince/EmailUnverified) are still absent
-	// for a logged-out viewer — the shared chrome has to degrade rather than
-	// error. This is the path that broke before: {{len}} over an absent key
-	// aborts the render mid-document.
-	for _, page := range []string{
-		"community_forums.html", "community_category.html", "community_thread.html",
-		"community_new_thread.html", "admin_forum_categories.html",
-	} {
+	// Execute a legacy-contract page with ONLY chromeData's always-set keys.
+	// Those hosts' BaseData closures call the host's chromeData, the same
+	// function render() calls, so this list IS the host page list. The
+	// plugin's own keys are legitimately empty on a fresh install, and the
+	// per-viewer optional keys (Points/Unread/RoleLabel/MemberSince/
+	// EmailUnverified) are absent for a logged-out viewer — the shared chrome
+	// has to degrade rather than error. This is the path that broke before:
+	// {{len}} over an absent key aborts the render mid-document.
+	//
+	// The five forum pages used to be this list. They render through the
+	// plugin now, and forum/views_test.go executes every one of them over
+	// realistic data; what is left here is the same guard over a page that
+	// still comes through gin's set.
+	for _, page := range []string{"admin_donate.html"} {
 		data := chromeKeys()
-		data["Path"] = "/community/forums"
-		// community_thread.html is only ever reached for a thread that exists,
-		// so .Thread is structural, not optional (same contract as
-		// profile.html's .Subject). Everything else on the page — Posts,
-		// Pagination, CurrentUserID — is legitimately absent on this path.
-		if page == "community_thread.html" {
-			data["Thread"] = forum.ForumThread{
-				ID: 1, CategoryID: 1, UserID: 2, Username: "bob", Title: "Welcome",
-				ThreadType: "discussion", CreatedAt: time.Now().Add(-24 * time.Hour),
-				LastPostAt: time.Now(),
-			}
-		}
+		data["Path"] = "/admin/donate"
 		var buf bytes.Buffer
 		if err := tmpl.ExecuteTemplate(&buf, page, data); err != nil {
-			t.Errorf("%s: execute with an empty board: %v", page, err)
+			t.Errorf("%s: execute with an empty install: %v", page, err)
 			continue
 		}
 		if !strings.Contains(buf.String(), "</html>") {

@@ -46,6 +46,10 @@ RUNTIME = {
     "pw-field", "pw-field__reveal", "pw-meter", "pw-meter__track", "pw-meter__text",
     "pw-meter--short", "pw-meter--weak", "pw-meter--fair", "pw-meter--good",
     "pw-meter--strong",
+    # ...and the PREFIX itself, which is what the concatenation site literally
+    # writes: classList.add('pw-meter--' + band). The state check reads the
+    # string in the source, not the value at runtime, so it sees the stem.
+    "pw-meter--",
     # Toggled by the dropdown and Bootstrap tab shims in site_chrome.html.
     "active", "show", "fade",
     # ...and the two the same shim SELECTS on. site_chrome.html is the one
@@ -211,6 +215,12 @@ JS_ADD = [
     re.compile(r"""className\s*=\s*['"]([^'"]*)['"]\s*\+"""),
     re.compile(r"""['"]([\w-]+)['"]\s*:\s*['"]?"""),
 ]
+# The writes that put a class on an element AS A CLASS. A subset of JS_ADD,
+# which also has to catch the loose shapes a class name can arrive in.
+JS_STATE = [
+    re.compile(r"""classList\.(?:add|toggle|replace)\(\s*['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?"""),
+    re.compile(r"""className\s*=\s*['"]([^'"]*)['"]"""),
+]
 SCRIPT_BLOCK = re.compile(r"<script\b[^>]*>(.*?)</script>", re.S | re.I)
 SEL_CLASS = re.compile(r"\.([a-zA-Z_][\w-]*)")
 BARE_CLASS = re.compile(r"^[a-zA-Z_][\w-]*$")
@@ -277,6 +287,68 @@ def js_selectors(trees):
                 continue
             out.append((label, rel, cls))
     return out
+
+def js_states(trees):
+    """Classes a script ADDS that no stylesheet defines.
+
+    Returns [(tree_label, relative_path, class_name)].
+
+    The mirror of js_selectors(). That one catches a class a script looks for
+    and the markup never carries; this catches a class a script puts ON an
+    element that no rule will ever match -- a state change with no visible
+    effect, which is indistinguishable from a state that is simply never
+    reached.
+
+    Scoped the same way defined() is: the host's stylesheets plus the <style>
+    blocks of the plugin the script lives in. A rule in another plugin cannot
+    style this one's markup.
+
+    EXCLUDED: a class that is also read back (classList.contains, querySelector
+    and friends). Those are JavaScript markers with no visual job, and flagging
+    them would bury the ones that mean something.
+    """
+    host_css = defined()
+    out = []
+    # Two classes in one file belonging to the other workstream. A baseline
+    # rather than a red build, and the entry IS the handover: the requests
+    # page toggles .bg-opacity-50 and .text-white, both Bootstrap names this
+    # site defines nowhere, so its selection highlight does not highlight.
+    allowed = {("requests/templates/community_requests.html", "bg-opacity-50"),
+               ("requests/templates/community_requests.html", "text-white")}
+    for label, root in trees:
+        for dirpath, dirs, files in os.walk(root):
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+            added, searched, files_with = {}, set(), {}
+            for fn in sorted(files):
+                if not fn.endswith(".html"):
+                    continue
+                path = os.path.join(dirpath, fn)
+                with open(path, encoding="utf-8", errors="replace") as fh:
+                    text = fh.read()
+                for block in SCRIPT_BLOCK.findall(text):
+                    rel = os.path.relpath(path, root).replace(os.sep, "/")
+                    # JS_STATE, not JS_ADD. JS_ADD's loosest pattern matches an
+                    # object-literal KEY -- {'Content-Type': ...}, {allowEval:
+                    # false} -- which is right for "could this put a class on an
+                    # element" and useless here: 60 of the first 78 findings
+                    # were request headers and htmx config.
+                    for cls in _js_names(block, JS_STATE):
+                        added.setdefault(cls, rel)
+                    searched.update(_js_names(block, JS_SEARCH))
+            if not added:
+                continue
+            # The plugin's own rules: this directory and its siblings under the
+            # same plugin, which is where a plugin keeps a shared style partial.
+            scope = os.path.dirname(dirpath) if os.path.basename(dirpath) == "templates" else dirpath
+            have = host_css | inline_styles(scope)
+            for cls, rel in sorted(added.items()):
+                if cls in have or cls in searched or cls in RUNTIME:
+                    continue
+                if (rel, cls) in allowed:
+                    continue
+                out.append((label, rel, cls))
+    return out
+
 
 # The trees whose scripts are checked. The PLUGIN tree is here and not in the
 # class check above, deliberately: pointing `used()` at it surfaces 310
@@ -357,7 +429,23 @@ def main():
     use, have = used(), defined()
     missing = sorted(c for c in use if c not in have and c not in RUNTIME)
 
-    dead = js_selectors([(l, p) for l, p in JS_TREES if os.path.isdir(p)])
+    trees = [(l, p) for l, p in JS_TREES if os.path.isdir(p)]
+    blind = js_states(trees)
+    if blind:
+        print("css: %d class(es) JavaScript applies that no stylesheet defines\n"
+              % len(blind))
+        for label, rel, cls in blind:
+            print("   %-9s %-48s .%s" % (label, rel, cls))
+        print("")
+        print("The element gets the class and no rule matches it, so the state change")
+        print("is invisible: a reaction you left looks like one you did not, a picker")
+        print("opens with display:none still winning. Nothing errors, and a screenshot")
+        print("of the page BEFORE the click looks correct.")
+        print("")
+        print("css: %d state class(es) nothing styles" % len(blind))
+        return 1
+
+    dead = js_selectors(trees)
     if dead:
         print("css: %d JavaScript selector(s) addressing a class no markup carries\n"
               % len(dead))
@@ -425,7 +513,7 @@ def main():
 
     if not missing:
         print("css: 0 undefined in the host (%d used), %d in plugins at the baseline, "
-              "0 dead JS selectors" % (len(use), ptotal))
+              "0 dead JS selectors, 0 unstyled JS states" % (len(use), ptotal))
         return 0
 
     print("css: %d class(es) used in templates and defined in no stylesheet" % len(missing))

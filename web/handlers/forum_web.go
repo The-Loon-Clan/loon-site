@@ -8,6 +8,7 @@ import (
 	site "github.com/the-loon-clan/loon-site"
 
 	"context"
+	"html/template"
 	"log/slog"
 	"net/url"
 	"strconv"
@@ -20,14 +21,20 @@ import (
 	"github.com/the-loon-clan/loon/core"
 
 	"github.com/the-loon-clan/loon-plugins/forum"
+
+	"github.com/the-loon-clan/loon-site/internal/middleware"
 )
 
 // Forum (loon-plugins/forum) host wiring. The plugin registers its own routes
 // (/community/forums/*, /admin/forum-categories/*) and renders the HOST's
 // templates by name; this file supplies everything the host owes it: the
-// tables, the five templates (web/templates/forum/, loaded into gin's HTML
-// set — nothing else in the demo uses c.HTML), and the SetDeps seams. Seed
-// data makes a fresh install show a living board instead of an empty shell.
+// tables and the SetDeps seams. Seed data makes a fresh install show a living
+// board instead of an empty shell.
+//
+// The five page templates that used to live in web/templates/forum/ are gone:
+// the plugin renders its own now (Deps.RenderPage). forum_chrome.html stays,
+// misleading name and all — it defines fhead/ffoot, which communities,
+// donations and playlists still use on the legacy contract.
 
 // forumSeed pre-populates a fresh board: three categories and a few starter
 // threads under the demo accounts, so the forum shows life on first boot.
@@ -266,10 +273,10 @@ func (devPluginRender) Instance(name string, data any) render.Render {
 	return render.HTML{Template: t, Name: name, Data: data}
 }
 
-// wireForumPlugin installs the SetDeps seams and loads the five forum
-// templates into gin's HTML set. Call after core.New and after newWeb (the
-// BaseData closure enriches through the host's chromeData) and before core.Boot
-// (SetDeps is checked at Provision).
+// wireForumPlugin installs the SetDeps seams and loads the gin HTML set the
+// remaining legacy-contract plugins render through. Call after core.New and
+// after newWeb (RenderPage goes through the host's renderStatus) and before
+// core.Boot (SetDeps is checked at Provision).
 func (w *web) wireForumPlugin(c *core.Core, engine *gin.Engine) error {
 	// The forum templates are a SEPARATE set: full documents rendered by name
 	// through gin's HTML set, not the demo's per-page map. They still need the
@@ -294,26 +301,41 @@ func (w *web) wireForumPlugin(c *core.Core, engine *gin.Engine) error {
 	}
 
 	forum.SetDeps(forum.Deps{
-		// The forum's pages render the SAME site_chrome.html the host pages do,
-		// so they need the same data. This used to hand-roll five keys against
-		// render()'s ten and the shared chrome silently degraded: on a forum
-		// page the same signed-in user lost the plugin site-nav, the admin
-		// subnav, the points/unread tiles and the bell badge. It now calls the
-		// host's own enrichment (views.go chromeData) — one function, two
-		// callers, no way to drift. Theme comes with it, which is what keeps a
-		// forum page from rendering unthemed.
-		BaseData: func(gc *gin.Context, extra gin.H) gin.H {
-			data := gin.H{}
-			for k, v := range extra {
-				data[k] = v
-			}
-			w.chromeData(gc, data)
-			return data
+		// RenderPage, not BaseData. The plugin owns its six pages and kept
+		// BaseData alive only so this repo would keep building mid-migration
+		// ("Remove both, and the branches in render()/paginate() that read
+		// them, once the demo has moved to RenderPage" — forum/plugin.go).
+		// Setting this is what lets that happen, and it is what finally puts
+		// the plugin's own markup in front of a person: on the legacy contract
+		// this host served its own copies, so the plugin's five templates
+		// executed nowhere and nothing reported what was wrong with them.
+		//
+		// status crosses because the new-thread page re-renders on a
+		// validation failure, and a seam fixed at 200 reports success while
+		// showing an error.
+		RenderPage: func(gc *gin.Context, status int, title string, body template.HTML) {
+			// site_fragment.html, not site_page.html: these five views are
+			// whole pages with their own hero, and the panel wrapper printed
+			// the same title again above it. See site_fragment.html.
+			w.renderStatus(gc, status, "site_fragment.html",
+				map[string]any{"Title": title, "Fragment": body})
 		},
-		Markdown: markdown.Render,
-		Paginate: func(page, totalPages int, baseURL string) any {
-			return forumPagination{Page: page, TotalPages: totalPages, BaseURL: baseURL}
+		Markdown:     markdown.Render,
+		CSRFToken:    middleware.Token,
+		RelativeTime: relativeTime,
+		RenderEditor: w.renderEditor,
+		RenderPagination: func(page, pageSize, totalItems int, baseURL string) template.HTML {
+			return w.renderPagination(hostPagination(page, pageSize, totalItems, baseURL))
 		},
+		// Required by the contract, and there is nothing to return: this site's
+		// reports table is NZB-scoped — a queue of broken RELEASES — and no
+		// forum report surface exists. The plugin hides its report buttons when
+		// this comes back empty, so the result is no button rather than one
+		// that opens nothing.
+		RenderReportModal: func(*gin.Context) template.HTML { return "" },
+		// RepBadge is left nil, which the contract allows. reputation_tier is
+		// a constant 0 in this host's user_display view, so a badge would say
+		// the same thing about every member.
 	})
 	return nil
 }

@@ -1,0 +1,20 @@
+{{define "content"}}
+{{/* Chrome for a plugin page that brings its own heading.
+
+     site_page.html wraps the fragment in a panelV2 and prints {{"{{.Title}}"}} as the
+     panel heading. That is right for a plugin whose fragment is page CONTENT —
+     a wiki article, a store listing, a site page from /admin/pages. It is wrong
+     for one whose fragment is a whole PAGE: the forum's five views each open
+     with their own hero carrying the same words, so through site_page.html the
+     forum index announced "FORUMS" in the panel header and "Forums" again two
+     lines below it, inside a panel inside a panel.
+
+     So this one adds nothing. The fragment is injected exactly as the view
+     returned it, with no wrapper element at all, and the plugin's own <main>
+     is the page. Title still reaches the <title> tag through chromeData, which
+     is where a host that is not repeating it wants it.
+
+     The widget rail is unaffected either way: base.html adds it from
+     WidgetRegions for whatever the operator configured on this path. */}}
+{{.Fragment}}
+{{end}}

@@ -156,6 +156,10 @@ var pageTemplates = []string{
 	"trending.html", "bookmarks.html", "cart.html", "follows.html", "calendar.html",
 	"achievements.html", "forum_activity.html", "rewards.html", "subscriptions.html",
 	"invites.html", "gifts.html", "wishlist.html",
+	// The bare fragment shell, for a plugin whose fragment is a whole PAGE
+	// rather than page content — see site_fragment.html on why the forum
+	// cannot use site_page.html.
+	"site_fragment.html",
 	"login.html", "register.html", "forgot.html", "reset.html", "profile.html",
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_features.html", "admin_dashboard.html",
