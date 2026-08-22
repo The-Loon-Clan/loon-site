@@ -29,6 +29,7 @@ from html.parser import HTMLParser
 
 sys.path.insert(0, __file__.rsplit("/", 1)[0].rsplit("\\", 1)[0])
 import _site  # noqa: E402
+import audit_adminnav  # noqa: E402
 import audit_links  # noqa: E402
 
 # SEEDS, not the list. These are checked always; everything the link crawler
@@ -251,6 +252,31 @@ def shape(path):
     return collapsed
 
 
+def admin_routes():
+    """Every admin GET route the container registered.
+
+    Discovery cannot supply these. audit_links.discover() crawls as a member,
+    so it reaches exactly zero /admin/* pages, and the seed list named ten of
+    the forty-eight. The other thirty-eight had never been checked -- both
+    tables on /admin/donate were uncaptioned in a page the ratchet could not
+    see, which is why the caption commit before this one changed no count.
+
+    Same source audit_adminnav already trusts: the boot log, not a hand list,
+    so a route added tomorrow is checked tomorrow. ADDITIVE to SEEDS -- if the
+    log has rotated away and this returns nothing, coverage falls back to the
+    seeds rather than silently emptying.
+
+    Routes with a :param need a value nothing here can invent, and .json
+    endpoints are not pages.
+    """
+    try:
+        found = audit_adminnav.served_routes()
+    except Exception as exc:  # noqa: BLE001 - never let this hide the seeds
+        print("a11y: admin routes unavailable (%s); checking the seeds only" % exc)
+        return []
+    return sorted(r for r in found if ":" not in r and not r.endswith(".json"))
+
+
 def pages_to_check():
     """The seeds, plus one page per shape the crawler reached.
 
@@ -258,7 +284,7 @@ def pages_to_check():
     depend on set iteration.
     """
     chosen = {}
-    for path in SEEDS:
+    for path in SEEDS + admin_routes():
         chosen.setdefault(shape(path), path)
     try:
         discovered = audit_links.discover()
@@ -310,10 +336,11 @@ def pages_to_check():
 # Lower an entry in the same commit that fixes one. Raising one needs a reason
 # in the commit message and there is not currently a good one.
 #
-# Measured 21 Aug 2026.
+# Measured 21 Aug 2026; re-measured 22 Aug 2026 over the full admin surface
+# (117 pages, up from 109) with no new findings beyond the two on
+# /admin/wiki/posts/new, now fixed.
 A11Y_BASELINE = {
     "/admin/p/groups": 63,
-    "/admin/p/usenet": 1,
 }
 
 def main():
@@ -369,8 +396,8 @@ def main():
             print("  %-40s %d, baseline %d" % (s, counts.get(s, 0), A11Y_BASELINE[s]))
         return 1
 
-    print("a11y: at the baseline (%d recorded across %d shapes)"
-          % (total, len(A11Y_BASELINE)))
+    print("a11y: at the baseline (%d recorded across %d shape%s)"
+          % (total, len(A11Y_BASELINE), "" if len(A11Y_BASELINE) == 1 else "s"))
     return 0
 
 
