@@ -355,28 +355,46 @@ than squeezed in.
   strips query strings and the real link carries `?name=`. Recorded so nobody
   chases it twice.
 
-## 9. Mojibake in release titles (2,008 rows)
+## 9. Mojibake in release titles (2,008 rows) — DONE
 
-Found by the first W3C validation run — see docs/QUALITY.md.
+Fixed 22 Aug 2026. Both halves, in the order this entry insisted on.
 
-2,008 rows in `usenet.nzbs` have titles containing C1 control characters
-(the U+0080..U+009F range), which are forbidden in HTML and meaningless as
-text. The cause is a double decode at ingest: UTF-8 bytes read as Latin-1 and
-re-encoded, so a single mathematical operator becomes a six-character run of
-accented Latin.
+**The decode**, in loon-plugins `c5c216a`. The cause was narrower than "a
+double decode at ingest": an encoded-word that LIED about its charset.
+`=?ISO-8859-1?Q?Espa=C3=B1ol?=` carries UTF-8 under a Latin-1 label, and
+`mime.WordDecoder` does what it was told — widens each byte to the code point
+of the same value. A right single quote, E2 80 99, becomes `â` + U+0080 +
+U+0099: the two C1 controls the W3C run found. `decodeSubject` now reverses
+that when, and only when, every rune fits in a byte, the narrowed bytes are
+valid UTF-8, and the result differs — which leaves an honest UTF-8 subject and
+an honest Latin-1 subject both untouched, verified by test rather than argued.
+Only what that path decoded: a raw subject is the poster's own bytes.
 
-Count them with a regex over that range against `usenet.nzbs.title`.
+**The stored rows**, in `scripts/repair_mojibake.sql`, run once. It was not one
+column. The entry said 2,008 titles, and that was true and not the same as
+finished:
 
-Two halves, owned by different repositories:
+| column | rows | |
+|---|---|---|
+| `usenet.nzbs.title` | 2,008 | |
+| `usenet.nzbs.filename` | 2,001 | taken from the title |
+| `usenet.nzbs.series_name` | 245 | **what /series GROUPS BY** — mojibake here splits one show into two |
+| `usenet.set_resolutions.base_subject` | 719 | diagnostic samples |
+| `usenet.subject_corpus.subject` | 138 | diagnostic samples |
 
-- **The decode**, in the usenet plugin's subject handling. That is where new
-  rows keep being written wrong, so nothing else matters until it is fixed.
-- **The stored rows**, which need a one-off repair once the decode is right.
-  Repairing first just re-breaks them on the next crawl.
+All five are 0 now, and the script is idempotent: re-running it reported
+`UPDATE 0` for the column already done.
 
-The host could also strip C1 controls at render, which fixes the invalid HTML
-without fixing the titles. Worth doing as a floor, not as the answer: a
-stripped title still reads as mojibake to the member, just legally.
+**What could not be fixed.** Ten titles had lost the LEAD byte of a two-byte
+sequence before they were stored — all ten Bleach episodes where `ō` is an `o`
+followed by an orphan U+008D. The character is gone and no reversal invents it
+back, so the orphan is stripped: `Tosen`, `Kyoraku`, `Zanpakuto`. Ordinary
+macron-less romanisation, and valid HTML. Recorded here rather than hidden by
+the count reaching zero.
+
+The render-time strip this entry suggested as a floor was not needed and would
+have been the wrong answer anyway, for the reason given: a stripped title still
+reads as mojibake to the member, just legally.
 
 ## 10. loon-baseline does not trim passwords
 
