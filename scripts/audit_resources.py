@@ -444,8 +444,15 @@ def main():
             failed = True
             print("  NO CSRF TOKEN    %s:%d  posts to %s  (403s for every human)" % (rel, line, action))
         if baseline is None:
-            print("  %d member-facing sentences built in Go (no baseline recorded "
-                  "for this tree — add one to SENTENCE_BASELINE)" % sentences)
+            # A FAILURE, not a note. The baseline is keyed by the tree's
+            # directory NAME, so a checkout named anything else silently turns
+            # the ratchet off — this printed "34 sentences (no baseline
+            # recorded)" and exited 0 when the repo was mounted at /src, which
+            # is a check that stops checking because somebody renamed a folder.
+            failed = True
+            print("  NO BASELINE      %d member-facing sentences and no entry for "
+                  "%r in SENTENCE_BASELINE. Add one, or the ratchet is off for "
+                  "this tree." % (sentences, name))
         elif sentences > baseline:
             failed = True
             print("  MORE TEXT IN GO  %d member-facing sentences, baseline %d. "
