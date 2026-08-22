@@ -340,7 +340,15 @@ def pages_to_check():
 # (117 pages, up from 109) with no new findings beyond the two on
 # /admin/wiki/posts/new, now fixed.
 A11Y_BASELINE = {
-    "/admin/p/groups": 63,
+    # Empty. The last entry was /admin/p/groups at 63 -- the whole of the
+    # site's remaining a11y debt, and one repeated shape rather than 63
+    # problems: nine controls per rank edit row, each labelled with the
+    # same word as the row above it. Cleared 22 Aug 2026.
+    #
+    # Kept rather than deleted, for the reason mobile.py's empty BASELINE
+    # gives: the ratchet needs somewhere to put the next one, and the two
+    # guards below it -- a page that starts passing must LEAVE, and this
+    # is stale if it does not -- are what emptied it.
 }
 
 def main():
