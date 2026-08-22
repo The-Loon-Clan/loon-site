@@ -53,8 +53,23 @@ def ratio(fg: str, bg: str) -> float:
 
 
 def tokens(path: Path) -> dict:
-    """Read --name: value pairs, resolving one level of var() indirection."""
-    raw = dict(re.findall(r"(--[a-z0-9-]+):\s*([^;]+);", path.read_text(encoding="utf-8")))
+    """Read --name: value pairs, resolving one level of var() indirection.
+
+    COMMENTS ARE STRIPPED FIRST, and that is not tidiness. The scan runs over
+    the whole file, dict() keeps the LAST match, and nord.css contains
+
+        --panel-head-bg: #2e3440;   /* = --bg: nord's header is the page showing through */
+
+    so `--bg:` inside that comment produced a second, later entry for --bg whose
+    value was prose. It failed the hex test, --bg vanished from the result, and
+    the two pairs that use it — body text on the page canvas, and secondary copy
+    on it — were skipped with "(token not resolvable to a hex value)" while the
+    summary still read "every checked pair clears 4.5:1".
+
+    A comment that MENTIONS a token silently switched that token off.
+    """
+    text = re.sub(r"/\*.*?\*/", " ", path.read_text(encoding="utf-8"), flags=re.S)
+    raw = dict(re.findall(r"(--[a-z0-9-]+):\s*([^;]+);", text))
     out = {}
     for k, v in raw.items():
         v = v.split("/*")[0].strip()

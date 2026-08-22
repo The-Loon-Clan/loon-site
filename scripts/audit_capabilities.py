@@ -47,6 +47,19 @@ CONST = re.compile(r'\b([A-Z][A-Za-z0-9_]*Name)\s*=\s*"([^"]+)"')
 # c.Register(pluginapi.XName, …) / RegisterDef(… pluginapi.XName …)
 PROVIDES = re.compile(r'Register(?:Def)?\s*\([^)]*?pluginapi\.([A-Za-z0-9_]*Name)')
 # c.Lookup(pluginapi.XName)
+#
+# BLIND SPOT, written down rather than guessed at. This sees a lookup only when
+# it names a pluginapi CONSTANT. A bare-string lookup — c.Lookup("achievements.
+# icons") — is invisible, and four of those exist: achievements.icons, .files,
+# .l10n.slugs and .l10n.resolve, all in one file and all listed as deprecated
+# bare-string conventions in loon-plugins/SEAMS.md.
+#
+# Probed 22 Aug 2026 by adding c.Lookup("probe.capability.nothing.provides") to
+# a wired plugin: this reported "0 unfilled", as designed. Widening the pattern
+# to any string would mean guessing which literals are registry keys, and the
+# rule this repo follows is that a check with a written-down blind spot beats
+# one that guesses. The four are the whole of it; converting them to constants
+# is what closes this, not a cleverer regex.
 CONSUMES = re.compile(r'Lookup\s*\(\s*pluginapi\.([A-Za-z0-9_]*Name)')
 # The host's plugin imports, blank or named.
 IMPORT = re.compile(r'"github\.com/the-loon-clan/loon-plugins/([a-z0-9_]+)"')

@@ -56,10 +56,20 @@ def listed_hrefs(html):
 
 
 def main():
+    # Fail on "could not check" rather than passing quietly. Probed 22 Aug 2026
+    # against three known-bad inputs: dropping /admin/access from the nav was
+    # caught, but an empty route list and a failed sign-in BOTH returned 0 --
+    # printing a note and reporting success. An audit that cannot see the site
+    # has not found nothing; it has found nothing OUT, and the difference is
+    # the whole value of running it in `make check`. Same defect and same fix
+    # as the missing SENTENCE_BASELINE in audit_resources.
+    _site.require_site()
+
     admin = _site.Session()
     if not admin.login(_site.USER, _site.PASS):
-        print("adminnav: could not sign in as admin; skipping")
-        return 0
+        print("adminnav: could not sign in as %s -- cannot read the admin nav,"
+              " so this proves nothing" % _site.USER)
+        return 1
 
     code, html = admin.get("/admin")
     if code != 200:
@@ -69,8 +79,10 @@ def main():
     listed = listed_hrefs(html)
     served = served_routes()
     if not served:
-        print("adminnav: no routes found in the container log; is the stack up?")
-        return 0
+        print("adminnav: no admin routes found in the container log. The stack"
+              " is answering, so this is the log source, not the site --"
+              " nothing was compared.")
+        return 1
 
     def covered(route):
         for l in listed:
