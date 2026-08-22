@@ -39,6 +39,7 @@ def served_routes():
     out = subprocess.run(
         ["docker", "compose", "logs", "app"],
         capture_output=True, text=True, timeout=120,
+        encoding="utf-8", errors="replace",
     ).stdout
     found = set()
     for m in re.finditer(r"GET\s+(/admin/[A-Za-z0-9:/_-]+)", out):

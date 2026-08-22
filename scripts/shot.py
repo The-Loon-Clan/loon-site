@@ -75,6 +75,7 @@ def shot(name, path, width=1400, height=1000):
          "--virtual-time-budget=3000", "--screenshot=" + winpath(png),
          "file:///" + winpath(os.path.abspath(page))],
         capture_output=True, text=True, timeout=120,
+        encoding="utf-8", errors="replace",
     )
     if not os.path.exists(png) or os.path.getsize(png) == 0:
         print("Chrome produced no image. CHROME=%s" % CHROME)

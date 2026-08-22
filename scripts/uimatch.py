@@ -80,7 +80,7 @@ def shoot(path, out_name, w=1400, h=1000):
         exe, "--headless=new", "--disable-gpu", "--hide-scrollbars",
         f"--window-size={w},{h}", "--virtual-time-budget=3000",
         f"--screenshot={out}", f"http://localhost:8090{path}",
-    ], capture_output=True, text=True)
+    ], capture_output=True, text=True, encoding="utf-8", errors="replace")
     return out if os.path.exists(out) else None
 
 

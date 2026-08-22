@@ -71,6 +71,7 @@ def routes():
         out = subprocess.run(
             ["docker", "compose", "logs", "app"],
             capture_output=True, text=True, timeout=120,
+            encoding="utf-8", errors="replace",
         ).stdout
     except Exception as e:
         print("could not read the app log (%s)" % e)
