@@ -44,7 +44,7 @@ COVER_MIN ?= 22.0
 # LOON_TEST_DSN present means the substantial half is running.
 COVER_MIN_SERVICES ?= 33.0
 
-.PHONY: help check build test itest cover lint golint fmt sql ctlchars css capabilities contrast resources vuln grade html lh run clean
+.PHONY: help check build test itest cover lint golint fmt sql ctlchars css capabilities contrast resources seams vuln grade html lh run clean
 
 # `make` on its own explains itself, rather than silently building the first
 # target. Every target below already carried a `## name: description` line and
@@ -62,7 +62,7 @@ help:
 	@echo "  The Go toolchain runs in Docker by default. Pass GO=go to use the host's."
 
 ## check: everything CI runs
-check: fmt build lint golint ctlchars sql css bootstrap branding capabilities contrast resources test cover
+check: fmt build lint golint ctlchars sql css bootstrap branding capabilities contrast resources seams test cover
 
 ## build: compile every package
 build:
@@ -209,6 +209,19 @@ branding:
 ## needs no running site.
 capabilities:
 	@$(PYTHON) scripts/audit_capabilities.py
+
+## seams: SEAMS.md against the registry keys the code actually has
+##
+## SEAMS.md is the only governing document whose subject is mechanically
+## checkable, and it already knew it drifted -- its own warning says the
+## count went from 41 to 52 with "eleven contracts arrived and none of them
+## reached the catalogue". It even shipped the grep that recounts. Nothing
+## ran it, so the number was restated three times in two weeks and the
+## command itself turned out to have four faults.
+##
+## Static, like capabilities above: it reads SEAMS.md and the Go source.
+seams:
+	@$(PYTHON) scripts/audit_seams.py
 
 ## contrast: theme colour pairs against the WCAG AA minimum
 ##
