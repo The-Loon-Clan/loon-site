@@ -269,9 +269,16 @@ contrast:
 resources:
 	@$(PYTHON) scripts/audit_resources.py . $(wildcard ../loon) $(wildcard ../loon-plugins) $(wildcard ../loon-baseline)
 
-## html: W3C validation of the running site (needs `make run` first)
+## html: W3C validation of every page a signed-out visitor can reach
+##
+## Was five pages — /, /browse, /search, /login, /register — which are
+## clean and have been for a while, so "make html: no errors" meant very
+## little. Pointed at the 111 pages a visitor actually reaches, the same
+## site had 52 errors on 20. The mojibake in docs/BACKLOG.md #9 was found
+## by a W3C run and lived on release pages, which were not among the five
+## either. Needs `make run` first.
 html:
-	@bash scripts/htmlvalidate.sh
+	@$(PYTHON) scripts/audit_html.py
 
 ## lh: Lighthouse accessibility/SEO/best-practices (needs `make run` first)
 lh:
