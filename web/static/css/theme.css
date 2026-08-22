@@ -47,11 +47,19 @@
 }
 .btn:hover { filter: brightness(1.15); text-decoration: none; }
 .btn-sm { padding: .2rem .5rem; font-size: .8rem; }
-.btn-primary { background: var(--primary); border-color: var(--primary-strong); color: var(--primary-fg); }
+/* --primary-STRONG as the fill, which is already this button's border colour.
+   --primary was 3.15:1 under white in cosmic-void and 4.35:1 in midnight —
+   both under AA for the 14px label on it, and both invisible to contrast.py
+   because no pair named the button. Lighthouse found the first one on
+   /community/forums; the second had simply never been measured. --primary-
+   strong clears AA in all three themes (4.62 / 5.37 / 4.76). */
+.btn-primary { background: var(--primary-strong); border-color: var(--primary-strong); color: var(--primary-fg); }
 .btn-secondary { background: var(--surface-3); border-color: var(--border-strong); color: var(--text); }
 .btn-success { background: var(--success); border-color: var(--success); color: var(--bg); }
 .btn-outline-primary { border-color: var(--primary); color: var(--primary-tint); background: transparent; }
-.btn-outline-primary:hover { background: var(--primary); color: var(--primary-fg); }
+/* The same ground on hover, for the same reason: this fills with the
+   primary and writes --primary-fg on it. */
+.btn-outline-primary:hover { background: var(--primary-strong); color: var(--primary-fg); }
 .btn-outline-secondary { border-color: var(--border-strong); color: var(--muted); background: transparent; }
 .btn-outline-secondary:hover { background: var(--surface-3); color: var(--text); }
 .btn-outline-info { border-color: var(--info); color: var(--info-tint); background: transparent; }

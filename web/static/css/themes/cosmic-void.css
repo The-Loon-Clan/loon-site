@@ -36,7 +36,12 @@
     --text: #dddddd;            /* UNIT3D's a{} and .text-bright */
     --text-strong: #ffffff;
     --muted: #aaaaaa;           /* --panel-action-fg / --alert-fg */
-    --muted-2: #888888;         /* --paginate-fg */
+    /* #888888 until 22 Aug 2026, which is 4.16:1 on --surface and 4.49:1
+       on --bg — both under the 4.5 AA minimum, and Lighthouse found it on
+       the rendered front page while contrast.py passed, because the pair
+       list did not include this tier. Still clearly dimmer than --muted
+       (#aaaaaa), so the three text tiers survive. */
+    --muted-2: #909090;         /* --paginate-fg */
 
     /* The one chromatic accent in an otherwise greyscale theme. */
     --primary: #2195f3;
@@ -270,10 +275,20 @@
     /* user-tag — role colours. cosmic-void is near-monochrome, so only the
        staff roles carry hue; a member is body text, not a coloured link. */
     --user-tag-member-fg: #dddddd;
-    --user-tag-admin-fg: #e0484f;        /* --danger */
+    /* Lightened 22 Aug 2026 to clear 4.5:1 on --surface. A username is
+       normal text and a panel is the lighter of the two grounds, so the
+       panel is the binding constraint. Hue is kept; saturation is what
+       gives way, because a role colour that cannot be read is not a
+       subtler role colour. Was #e0484f (3.66:1). */
+    --user-tag-admin-fg: #e5676c;        /* was --danger, lightened for AA */
     --user-tag-mod-fg: #2195f3;          /* the theme's one accent */
     --user-tag-contributor-fg: #3fb618;  /* --success */
-    --user-tag-banned-fg: #7a7a7a;
+    /* Lightened 22 Aug 2026 to clear 4.5:1 on --surface. A username is
+       normal text and a panel is the lighter of the two grounds, so the
+       panel is the binding constraint. Hue is kept; saturation is what
+       gives way, because a role colour that cannot be read is not a
+       subtler role colour. Was #7a7a7a (3.43:1). */
+    --user-tag-banned-fg: #909090;
 
     --avatar-fallback-bg: linear-gradient(150deg, hsl(var(--poster-hue) 14% 30%), hsl(calc(var(--poster-hue) + 30) 12% 19%));
 
@@ -312,7 +327,12 @@
     --paginate-bg-hover: #222222;
     --paginate-bg-current: #303030;
     --paginate-fg: #aaaaaa;
-    --paginate-fg-disabled: #555555;
+    /* #555555 until 22 Aug 2026: 2.35:1 on the pagination ground. WCAG
+       exempts INACTIVE controls, and a greyed arrow is inactive — but it
+       is a <span>, so nothing tells assistive tech that, and the exemption
+       does not apply to something only sighted users can tell is off.
+       Readable now, and still plainly dimmer than an active page number. */
+    --paginate-fg-disabled: #858585;
     --paginate-divider: #303030;
     --paginate-border-radius: 0;
 

@@ -241,7 +241,12 @@
     --user-tag-admin-fg: #f87171;
     --user-tag-mod-fg: #a78bfa;          /* the indigo accent */
     --user-tag-contributor-fg: #4ade80;
-    --user-tag-banned-fg: #6b7280;
+    /* Lightened 22 Aug 2026 to clear 4.5:1 on --surface. A username is
+       normal text and a panel is the lighter of the two grounds, so the
+       panel is the binding constraint. Hue is kept; saturation is what
+       gives way, because a role colour that cannot be read is not a
+       subtler role colour. Was #6b7280 (3.67:1). */
+    --user-tag-banned-fg: #7b8291;
 
     --avatar-fallback-bg: linear-gradient(150deg, hsl(var(--poster-hue) 50% 34%), hsl(calc(var(--poster-hue) + 30) 46% 20%));
 

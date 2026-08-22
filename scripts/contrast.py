@@ -28,6 +28,36 @@ PAIRS = [
     ("--muted", "--bg", "secondary copy on the page canvas"),
     ("--muted", "--surface", "secondary copy on a panel"),
     ("--text", "--bg", "body text"),
+    # Added 22 Aug 2026, after LIGHTHOUSE found two failures on the rendered
+    # front page that this file passed. It checked --muted and not --muted-2,
+    # so the tier of text actually used for timestamps and captions was never
+    # measured; and it checked no username colour at all, though a username is
+    # on nearly every row of the site.
+    #
+    # The lesson is the one this repo keeps relearning: a hand-written list
+    # finds what somebody thought to list. Lighthouse measures what the browser
+    # PAINTED, and is the check that can find a pair nobody wrote down — but it
+    # runs one page at a time and cannot cover a theme nobody is viewing, which
+    # is what this file is for. They answer different questions.
+    ("--muted-2", "--bg", "timestamps and captions on the page canvas"),
+    ("--muted-2", "--surface", "timestamps and captions on a panel"),
+    # Every ROLE colour, not just member. A username is on nearly every row of
+    # this site and the role decides its colour, so checking one of five was
+    # checking the one that happens to be plain text. Lighthouse found the
+    # admin red at 3.65:1 on a panel; the other three had never been measured.
+    #
+    # Against --surface only: a panel is the LIGHTER of the two grounds in
+    # every theme here, so it is the binding constraint, and a pair that clears
+    # it clears the canvas too.
+    ("--user-tag-member-fg", "--surface", "a member's name on a panel"),
+    ("--user-tag-admin-fg", "--surface", "an admin's name on a panel"),
+    ("--user-tag-mod-fg", "--surface", "a moderator's name on a panel"),
+    ("--user-tag-contributor-fg", "--surface", "a contributor's name on a panel"),
+    ("--user-tag-banned-fg", "--surface", "a banned member's name on a panel"),
+    # The primary button: a filled control with a 14px label, so AA applies
+    # at 4.5. No pair named it, which is how cosmic-void shipped 3.15:1 and
+    # midnight 4.35:1 — the second never measured by anything at all.
+    ("--primary-fg", "--primary-strong", "the label on a primary button"),
 ]
 
 AA_NORMAL = 4.5

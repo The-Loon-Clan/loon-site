@@ -39,7 +39,13 @@
     /* 4.83:1 on --surface. Was #9aa4b8 at 4.01 — a failure Lighthouse never
        reported, because it only ever loaded the default theme. */
     --muted: #aab4c8;
-    --muted-2: #7b869d;
+    /* #7b869d until 22 Aug 2026: 2.75:1 on --surface, which is not a near
+       miss. Nord's palette is the one that cannot really carry a THIRD
+       text tier — passing AA on #3b4252 puts this within a few percent of
+       --muted (#aab4c8), so the tiers now differ by size and weight more
+       than by colour. That is the honest trade: a timestamp is content, and
+       content that cannot be read is not a subtler tier. */
+    --muted-2: #a5b0c7;
 
     --primary: #88c0d0;         /* frost — UNIT3D's link + active-border colour */
     --primary-strong: #6fa8bd;
@@ -243,10 +249,20 @@
         linear-gradient(160deg, hsl(var(--poster-hue) 22% 32%) 0%, hsl(calc(var(--poster-hue) + 26) 20% 22%) 100%);
     /* user-tag — role colours, straight from the Nord aurora/frost ramps. */
     --user-tag-member-fg: #d8dee9;       /* snow storm 0 */
-    --user-tag-admin-fg: #bf616a;        /* aurora red */
+    /* Lightened 22 Aug 2026 to clear 4.5:1 on --surface. A username is
+       normal text and a panel is the lighter of the two grounds, so the
+       panel is the binding constraint. Hue is kept; saturation is what
+       gives way, because a role colour that cannot be read is not a
+       subtler role colour. Was #bf616a (2.46:1). */
+    --user-tag-admin-fg: #d9a1a6;        /* aurora red, lightened for AA */
     --user-tag-mod-fg: #88c0d0;          /* frost, matches --link-fg */
     --user-tag-contributor-fg: #a3be8c;  /* aurora green */
-    --user-tag-banned-fg: #6b7280;
+    /* Lightened 22 Aug 2026 to clear 4.5:1 on --surface. A username is
+       normal text and a panel is the lighter of the two grounds, so the
+       panel is the binding constraint. Hue is kept; saturation is what
+       gives way, because a role colour that cannot be read is not a
+       subtler role colour. Was #6b7280 (2.08:1). */
+    --user-tag-banned-fg: #aaafb8;
 
     --avatar-fallback-bg: linear-gradient(150deg, hsl(var(--poster-hue) 24% 40%), hsl(calc(var(--poster-hue) + 30) 22% 28%));
 

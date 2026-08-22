@@ -2078,6 +2078,25 @@ a.stat-tile:hover {
 .pagination__current,
 .pagination__ellipsis { width: 40px; min-width: 40px; }
 
+/* 48px on a TOUCH pointer. 40x38 is comfortable with a mouse and too small
+   with a finger — Lighthouse measured these at 40x38 and overlapping their
+   neighbour on /series, which is the one page with enough pages to paginate
+   deeply. pointer: coarse rather than a width breakpoint, because the question
+   is what is doing the pointing, not how wide the window is: a touch laptop
+   gets the bigger target and a narrow desktop window does not need it. */
+@media (pointer: coarse) {
+    .pagination__link,
+    .pagination__current,
+    .pagination__ellipsis,
+    .pagination__previous,
+    .pagination__next {
+        height: 48px;
+        line-height: 48px;
+        width: 48px;
+        min-width: 48px;
+    }
+}
+
 .pagination__link:hover,
 .pagination__previous:not(.pagination__previous--disabled):hover,
 .pagination__next:not(.pagination__next--disabled):hover {
