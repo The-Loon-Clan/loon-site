@@ -53,6 +53,7 @@
     {{if .Costs}}
     <div class="data-table-wrapper">
         <table class="data-table">
+          <caption class="visually-hidden">Site costs the donations go towards</caption>
             <thead>
                 <tr><th>Label</th><th>Group</th><th>Category</th><th>Period</th><th class="num">USD</th><th>Status</th><th></th></tr>
             </thead>
@@ -142,6 +143,7 @@
     <header class="panel__header"><h2 class="panel__heading">Donation log</h2></header>
     <div class="data-table-wrapper">
         <table class="data-table">
+          <caption class="visually-hidden">Donations received</caption>
             <thead><tr><th>When</th><th>Donor</th><th class="num">Amount</th></tr></thead>
             <tbody>
                 {{$names := .Usernames}}
