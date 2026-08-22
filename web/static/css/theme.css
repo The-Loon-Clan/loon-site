@@ -106,6 +106,16 @@
     font-size: .95rem;
 }
 .card-body { padding: 1rem 1.25rem; flex: 1 1 auto; }
+/* The footer the header already had a rule for. Three plugins write it
+   — curation, releasegroups, roadmap — and got an unpadded strip with no
+   rule above it. */
+.card-footer {
+    padding: .7rem 1.25rem;
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--radius) var(--radius);
+    background: var(--surface-2);
+    font-size: .9rem;
+}
 .card-title { font-size: 1rem; font-weight: 600; }
 
 /* -------------------------------------------------------------- tables ---- */
@@ -329,18 +339,34 @@ details.job-group[open] > summary::before { transform: rotate(90deg); }
    .card.mb-0 and friends are same-specificity collisions, so the utility
    only wins by being declared after the component it modifies. */
 
-/* Spacing. Kept to the exact set the templates use — grep before adding. */
-.m-0 { margin: 0; }
-.mt-1 { margin-top: .25rem; } .mt-2 { margin-top: .5rem; } .mt-3 { margin-top: 1rem; } .mt-4 { margin-top: 1.5rem; }
-.mb-0 { margin-bottom: 0; } .mb-1 { margin-bottom: .25rem; } .mb-2 { margin-bottom: .5rem; } .mb-3 { margin-bottom: 1rem; } .mb-4 { margin-bottom: 1.5rem; }
-.me-1 { margin-right: .25rem; } .me-2 { margin-right: .5rem; }
-.ms-1 { margin-left: .25rem; } .ms-2 { margin-left: .5rem; } .ms-3 { margin-left: 1rem; } .ms-auto { margin-left: auto; }
-.my-1 { margin-block: .25rem; } .my-2 { margin-block: .5rem; } .my-3 { margin-block: 1rem; }
-.p-2 { padding: .5rem; }
-.px-2 { padding-inline: .5rem; }
-.ps-2 { padding-left: .5rem; }
-.pt-0 { padding-top: 0; }
-.py-0 { padding-block: 0; } .py-1 { padding-block: .25rem; } .py-2 { padding-block: .5rem; } .py-4 { padding-block: 1.5rem; }
+/* Spacing, the COMPLETE scale.
+
+   This block used to say "kept to the exact set the templates use — grep
+   before adding", which is a sound policy applied to one tree: the grep only
+   ever covered web/templates, so fifteen classes used across SIXTEEN plugins
+   were never in "the set the templates use". p-3 on a card body is a card with
+   no padding, and nothing reports it.
+
+   Bootstrap's spacer steps are 0, .25, .5, 1, 1.5 and 3rem, and this file
+   already used exactly those — mt-4 and py-4 are both 1.5rem — so this fills
+   in a table rather than inventing one. audit_css is what keeps it honest now:
+   it reads the plugin tree, which the grep never did. */
+.m-0 { margin: 0; } .m-1 { margin: .25rem; } .m-2 { margin: .5rem; } .m-3 { margin: 1rem; } .m-4 { margin: 1.5rem; } .m-5 { margin: 3rem; }
+.mt-0 { margin-top: 0; } .mt-1 { margin-top: .25rem; } .mt-2 { margin-top: .5rem; } .mt-3 { margin-top: 1rem; } .mt-4 { margin-top: 1.5rem; } .mt-5 { margin-top: 3rem; }
+.mb-0 { margin-bottom: 0; } .mb-1 { margin-bottom: .25rem; } .mb-2 { margin-bottom: .5rem; } .mb-3 { margin-bottom: 1rem; } .mb-4 { margin-bottom: 1.5rem; } .mb-5 { margin-bottom: 3rem; }
+.ms-0 { margin-left: 0; } .ms-1 { margin-left: .25rem; } .ms-2 { margin-left: .5rem; } .ms-3 { margin-left: 1rem; } .ms-4 { margin-left: 1.5rem; } .ms-5 { margin-left: 3rem; }
+.me-0 { margin-right: 0; } .me-1 { margin-right: .25rem; } .me-2 { margin-right: .5rem; } .me-3 { margin-right: 1rem; } .me-4 { margin-right: 1.5rem; } .me-5 { margin-right: 3rem; }
+.mx-0 { margin-inline: 0; } .mx-1 { margin-inline: .25rem; } .mx-2 { margin-inline: .5rem; } .mx-3 { margin-inline: 1rem; } .mx-4 { margin-inline: 1.5rem; } .mx-5 { margin-inline: 3rem; }
+.my-0 { margin-block: 0; } .my-1 { margin-block: .25rem; } .my-2 { margin-block: .5rem; } .my-3 { margin-block: 1rem; } .my-4 { margin-block: 1.5rem; } .my-5 { margin-block: 3rem; }
+.p-0 { padding: 0; } .p-1 { padding: .25rem; } .p-2 { padding: .5rem; } .p-3 { padding: 1rem; } .p-4 { padding: 1.5rem; } .p-5 { padding: 3rem; }
+.pt-0 { padding-top: 0; } .pt-1 { padding-top: .25rem; } .pt-2 { padding-top: .5rem; } .pt-3 { padding-top: 1rem; } .pt-4 { padding-top: 1.5rem; } .pt-5 { padding-top: 3rem; }
+.pb-0 { padding-bottom: 0; } .pb-1 { padding-bottom: .25rem; } .pb-2 { padding-bottom: .5rem; } .pb-3 { padding-bottom: 1rem; } .pb-4 { padding-bottom: 1.5rem; } .pb-5 { padding-bottom: 3rem; }
+.ps-0 { padding-left: 0; } .ps-1 { padding-left: .25rem; } .ps-2 { padding-left: .5rem; } .ps-3 { padding-left: 1rem; } .ps-4 { padding-left: 1.5rem; } .ps-5 { padding-left: 3rem; }
+.pe-0 { padding-right: 0; } .pe-1 { padding-right: .25rem; } .pe-2 { padding-right: .5rem; } .pe-3 { padding-right: 1rem; } .pe-4 { padding-right: 1.5rem; } .pe-5 { padding-right: 3rem; }
+.px-0 { padding-inline: 0; } .px-1 { padding-inline: .25rem; } .px-2 { padding-inline: .5rem; } .px-3 { padding-inline: 1rem; } .px-4 { padding-inline: 1.5rem; } .px-5 { padding-inline: 3rem; }
+.py-0 { padding-block: 0; } .py-1 { padding-block: .25rem; } .py-2 { padding-block: .5rem; } .py-3 { padding-block: 1rem; } .py-4 { padding-block: 1.5rem; } .py-5 { padding-block: 3rem; }
+.ms-auto { margin-left: auto; } .me-auto { margin-right: auto; }
+.mx-auto { margin-inline: auto; } .m-auto { margin: auto; }
 
 /* Display + flexbox. */
 .d-flex { display: flex; }
@@ -520,6 +546,9 @@ dd { margin-inline-start: 0; }
 .text-light { color: var(--text); }
 .text-dark { color: var(--bg); }
 .fw-bold { font-weight: 700; }
+.fw-semibold { font-weight: 600; }
+.fw-normal { font-weight: 400; }
+.font-monospace { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); }
 .small { font-size: .85em; }
 .h3 { font-size: 1.5rem; } .h4 { font-size: 1.3rem; } .h5 { font-size: 1.15rem; } .h6 { font-size: 1rem; }
 .list-unstyled { list-style: none; padding-left: 0; margin: 0; }
