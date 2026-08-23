@@ -386,15 +386,24 @@ container class would close that, and is not done.
 `internal/middleware/csp.go`, applied to every response including `/static` and
 gin's own 404s.
 
-`script-src` carries `'unsafe-inline'`. That is a measured concession, not an
-oversight: there are 4 inline `<script>` blocks in host templates and **35 more
-across plugin templates**, and plugins are a published contract rendered into
-these pages by hosts this repo does not control. A nonce-based policy would
-silently blank every one of them.
+`script-src` carries a **per-request nonce** and no longer carries
+`'unsafe-inline'` (22 Aug 2026).
 
-So this policy does not stop XSS — the sanitizer and `html/template`'s
-contextual escaping do. What it stops is the class of attack that works with no
-script execution at all:
+This section used to say the opposite, and the reasoning was sound at the time:
+4 inline `<script>` blocks in host templates and 34 more across plugin
+templates, with plugins a published contract rendered by hosts this repo does
+not control — so a nonce policy would have blanked every plugin page.
+
+What changed is that the host REWRITES fragments now. It lifts their `<style>`
+into the head (`handlers/fragmentstyles.go`) and stamps the request nonce onto
+their inline `<script>` tags through the same seam. The plugin ships an ordinary
+inline script and never learns the nonce exists, which is exactly the property
+a published contract needs.
+
+The sanitizer is still the first line — CSP is the second, not a replacement.
+What is new is that an injected script now carries no nonce and does not run.
+The directives below stop the class of attack that works with no script
+execution at all:
 
 | directive | stops |
 | --- | --- |
@@ -408,10 +417,16 @@ script execution at all:
 legitimately embed a remote image and an image cannot execute. Every image the
 host itself renders is local — covers are proxied.
 
-**To remove `'unsafe-inline'`:** move the host's four blocks into files under
-`/static`, and give plugins a way to declare a nonce. Real work, not yet done.
+**What `'unsafe-inline'` still covers:** `style-src`, and only inline
+`style=""` ATTRIBUTES — 1,647 of them across this tree, 98% static. Inline
+`<style>` ELEMENTS are already forbidden by `style-src-elem 'self'`, which
+became possible once every plugin stylesheet moved to a URL (BACKLOG #13).
+Removing the last of it means turning those attributes into classes: large,
+mechanical, and every one needs looking at afterwards, because a cascade change
+is what a count will not catch.
 
-`TestUnsafeInlineIsConfinedToScriptAndStyle` exists because `'unsafe-inline'`
+`TestUnsafeInlineIsConfinedToStyleSrc` — now confined to `style-src`
+alone — exists because `'unsafe-inline'`
 reads like a general fix for a blocked resource, and the next person to hit a
 CSP error is one paste away from putting it in `default-src`, where it would
 silence the whole policy.

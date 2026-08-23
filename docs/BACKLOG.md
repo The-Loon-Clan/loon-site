@@ -517,10 +517,17 @@ top padding for a banner hero; the index does not) and `.wiki-empty--boxed`
 (the topic page draws its empty state in a dashed box; the index draws it
 plain).
 
-**What is still not done.** The CSP still carries `style-src 'unsafe-inline'`,
-and moving these sheets is necessary but not sufficient: inline `style="…"`
-ATTRIBUTES are everywhere in this tree and are covered by the same directive.
-Dropping it needs those too. See `docs/QUALITY.md`.
+**What this unlocked, same day.** `style-src-elem 'self'` — inline `<style>`
+ELEMENTS are forbidden outright now, which also makes the migration
+self-enforcing: a plugin that ships CSS in a fragment again gets it hoisted to
+the head and then blocked, so the page is visibly unstyled rather than quietly
+back on inline styling. The seam that made it possible (the host rewriting
+fragments) is also what let `script-src` drop `'unsafe-inline'` for a
+per-request nonce.
+
+**What is still not done.** `style-src 'unsafe-inline'` remains, covering
+inline `style="…"` ATTRIBUTES alone — 1,647 of them, 98% static. Dropping it
+means turning those into classes.
 
 ## 14. Spotnet import (spike done, design in SPOTNET.md)
 

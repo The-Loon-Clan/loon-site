@@ -74,7 +74,7 @@ func TestTheDirectivesThatWorkWithoutBlockingScripts(t *testing.T) {
 // and plugins). Its danger is that it reads as a general-purpose fix for a
 // blocked resource, so the next person to hit a CSP error is one paste away
 // from putting it in default-src, where it would silence the whole policy.
-func TestUnsafeInlineIsConfinedToScriptAndStyle(t *testing.T) {
+func TestUnsafeInlineIsConfinedToStyleSrc(t *testing.T) {
 	policy := serveWithHeaders(t).Header().Get("Content-Security-Policy")
 	for _, directive := range strings.Split(policy, ";") {
 		directive = strings.TrimSpace(directive)

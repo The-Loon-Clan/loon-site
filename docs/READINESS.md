@@ -21,7 +21,7 @@ Numbers are measured, not estimated — every one has a command behind it in
 | HTML validity | W3C validator wired; only known failure is a data bug (below) |
 | Accessibility | Lighthouse **100**, contrast checked at the token level across all themes |
 | SEO | Lighthouse **100** |
-| CSP + security headers | shipped, with `unsafe-inline` documented rather than hidden |
+| CSP + security headers | shipped; `script-src` on a per-request nonce, inline `<style>` elements forbidden, `unsafe-inline` down to style ATTRIBUTES |
 | CSRF | double-submit, header or field, tested including cross-session |
 | Request validation | 26 input structs, rules in one place, compile-enforced by `Validate[T Input]` |
 | Async layer | 12 controls, 3 documented swap shapes, request-level tests |
@@ -32,7 +32,7 @@ Numbers are measured, not estimated — every one has a command behind it in
 | | why it matters | size |
 | --- | --- | --- |
 | **Mojibake in 2,008 release titles** | titles shown wrong to every visitor; the decode is in the usenet plugin | medium — needs the plugin fixed first, then a repair pass |
-| **`unsafe-inline` in the CSP** | the policy cannot stop XSS while it stands | large — 4 host inline scripts plus a nonce mechanism for 35 in plugins |
+| `style-src 'unsafe-inline'` | 1,647 inline `style=` attributes, 98% static; a style cannot execute, so this is the smaller half | large but mechanical — turn them into classes |
 | Coverage 23.8% / ~35% with services | large untested surface, especially plugin-backed pages | ongoing |
 | `html` / `lh` not in CI | both need a running site; they are targets, not gates | small-medium |
 | OpenSSF Scorecard never run | the single best signal for open-source release readiness | small (a workflow + token) |
@@ -41,9 +41,13 @@ Numbers are measured, not estimated — every one has a command behind it in
 
 **Verdict.** The foundations are in good shape and, more importantly, they are
 *measured* — the difference between this list and the one that could have been
-written a week ago is that every "done" row has a command behind it. The two
-substantial gaps are the mojibake (a data bug with a known cause) and
-`unsafe-inline` (a design job touching the plugin contract).
+written a week ago is that every "done" row has a command behind it. Both of
+the substantial gaps it named are closed: the mojibake was repaired in every
+column that carried it (BACKLOG #9), and `script-src 'unsafe-inline'` is gone —
+the plugin-contract decision it needed turned out to be the host stamping a
+nonce onto fragments it already rewrites, so no plugin had to learn anything.
+What is left of `unsafe-inline` is style ATTRIBUTES, which is mechanical rather
+than a design job.
 
 ---
 
@@ -204,7 +208,7 @@ they cannot sign in, rather than reporting a clean run of a third of the site.
 2. **The JSON arm** on the handlers that already negotiate. This is the step
    that unlocks everything in part 3, and it is mostly mechanical.
 3. **The mojibake fix**, which needs the plugin repo.
-4. **`unsafe-inline`**, which needs a plugin-contract decision.
+4. **The last `unsafe-inline`** — style attributes only now; `script-src` and inline `<style>` elements are both closed.
 5. **Usability**, once there is a how-to layer to hang it on.
 
 MCP comes after 2, and by then it is a small job rather than the large one it
