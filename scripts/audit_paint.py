@@ -122,6 +122,35 @@ window.addEventListener('load', function () {
       return ('0' + Math.round(v).toString(16)).slice(-2);
     }).join('');
   }
+  /* A gradient's colour stops are in the computed style, so a gradient ground
+     CAN be judged: text may sit over any part of it, so the worst stop is the
+     binding one. Returns null when the ground is a real image, or when any
+     stop is see-through -- then what shows is whatever is underneath, and this
+     does not know what that is. */
+  function stops(v) {
+    if (!v || v === 'none') return null;
+    if (/url\(/i.test(v)) return null;              /* a picture, not a ramp */
+    if (!/gradient\(/i.test(v)) return null;
+    var found = v.match(/rgba?\([^)]*\)/g) || [];
+    if (!found.length) return null;
+    var out = [];
+    for (var i = 0; i < found.length; i++) {
+      var c = rgb(found[i]);
+      if (!c) return null;                          /* a transparent stop */
+      out.push(c);
+    }
+    return out;
+  }
+  /* ...but only when the ramp actually covers the box. A gradient given a
+     background-size or offset paints part of the element, and the text may sit
+     nowhere near it -- judging that would invent failures, which is the thing
+     this audit exists not to do. */
+  function covers(ps) {
+    var size = (ps.backgroundSize || 'auto').trim();
+    var pos = (ps.backgroundPosition || '0% 0%').trim();
+    if (size !== 'auto' && size !== 'cover' && size !== '100% 100%') return false;
+    return /^(0%\s+0%|0px\s+0px|left\s+top)$/.test(pos);
+  }
   function sel(el) {
     var s = el.tagName.toLowerCase();
     var c = (el.className || '').toString().trim().split(/\s+/)[0];
@@ -130,7 +159,7 @@ window.addEventListener('load', function () {
   var out = [];
   Array.prototype.slice.call(document.querySelectorAll('iframe')).forEach(function (f) {
     var res = {path: f.dataset.path, theme: f.dataset.theme, error: null,
-               bad: [], judged: 0, art: 0};
+               bad: [], judged: 0, art: 0, ramped: 0};
     try {
       var d = f.contentDocument;
       if (!d || !d.body) { res.error = 'no document'; out.push(res); return; }
@@ -152,31 +181,50 @@ window.addEventListener('load', function () {
         if (cs.visibility === 'hidden' || cs.opacity === '0') continue;
         var fg = rgb(cs.color);
         if (!fg) continue;
-        var p = el, bg = null, art = false;
+        var p = el, bg = null, ramp = null, art = false;
         while (p) {
           var ps = getComputedStyle(p);
-          /* A gradient or image ground cannot be read: backgroundColor calls a
-             linear-gradient transparent. Without this the walk sails past a
-             gold medal badge and measures its dark ink against the page. */
-          if (ps.backgroundImage && ps.backgroundImage !== 'none') { art = true; break; }
+          /* backgroundColor reports a gradient as transparent, so an image
+             layer has to be looked at directly -- without this the walk sails
+             past a gold medal badge and measures its dark ink against the
+             page canvas. A ramp that covers the box is judgeable; a picture
+             is not. */
+          if (ps.backgroundImage && ps.backgroundImage !== 'none') {
+            var st = stops(ps.backgroundImage);
+            if (st && covers(ps)) { ramp = st; break; }
+            art = true;
+            break;
+          }
           var c = rgb(ps.backgroundColor);
           if (c) { bg = c; break; }
           p = p.parentElement;
         }
         if (art) { res.art++; continue; }
-        if (!bg) continue;
+        if (!bg && !ramp) continue;
         res.judged++;
         var size = parseFloat(cs.fontSize) || 16;
         var wt = parseInt(cs.fontWeight, 10) || 400;
         var need = (size >= 24 || (size >= 18.66 && wt >= 700)) ? LARGE : NORMAL;
-        var got = ratio(fg, bg);
+        var got, ground;
+        if (ramp) {
+          /* The worst stop: the text sits somewhere on the ramp and this does
+             not know where, so the darkest place it could be is the answer. */
+          got = ratio(fg, ramp[0]); ground = ramp[0];
+          for (var k = 1; k < ramp.length; k++) {
+            var rr = ratio(fg, ramp[k]);
+            if (rr < got) { got = rr; ground = ramp[k]; }
+          }
+          res.ramped++;
+        } else {
+          got = ratio(fg, bg); ground = bg;
+        }
         if (got >= need) continue;
-        var key = sel(el) + hex(fg) + hex(bg);
+        var key = sel(el) + hex(fg) + hex(ground);
         if (seen[key]) continue;
         seen[key] = 1;
-        res.bad.push({el: sel(el), fg: hex(fg), bg: hex(bg),
+        res.bad.push({el: sel(el), fg: hex(fg), bg: hex(ground),
                       ratio: Math.round(got * 100) / 100, need: need,
-                      text: own.trim().slice(0, 40)});
+                      ramp: !!ramp, text: own.trim().slice(0, 40)});
       }
     } catch (e) { res.error = String(e); }
     out.push(res);
@@ -237,7 +285,7 @@ def main():
         print("CHROME=%s" % _site.CHROME)
         return 1
 
-    failed, renders, judged_total, art_total = False, 0, 0, 0
+    failed, renders, judged_total, art_total, ramp_total = False, 0, 0, 0, 0
     worst = {}
     for r in results:
         if r.get("error"):
@@ -247,6 +295,7 @@ def main():
         renders += 1
         judged_total += r.get("judged", 0)
         art_total += r.get("art", 0)
+        ramp_total += r.get("ramped", 0)
         for b in r["bad"]:
             key = (b["el"], b["fg"], b["bg"])
             if key not in worst or b["ratio"] < worst[key][0]["ratio"]:
@@ -269,12 +318,18 @@ def main():
         if b["ratio"] < IMPOSSIBLE:
             note = "  <- below %.1f:1; suspect the GROUND was misread, not the design" % IMPOSSIBLE
         _site.say("  %5.2f (needs %.1f)  %-26s %s on %s  %-12s %-20s %s%s"
-                  % (b["ratio"], b["need"], b["el"], b["fg"], b["bg"],
+                  % (b["ratio"], b["need"], b["el"], b["fg"],
+                     b["bg"] + (" (worst stop)" if b.get("ramp") else ""),
                      theme, path, b["text"], note))
 
     print()
-    print("paint: %d element(s) judged across %d render(s); %d not judged "
-          "(gradient or image ground)" % (judged_total, renders, art_total))
+    print("paint: %d element(s) judged across %d render(s); %d of those sat on a"
+          " gradient and were measured against its worst stop."
+          % (judged_total, renders, ramp_total))
+    if art_total:
+        print("paint: %d not judged -- an image ground, or a ramp that does not"
+              " cover the box, so where the text sits on it is unknown."
+              % art_total)
     if failed:
         print("paint: %d painted string(s) below WCAG AA.\n"
               "Each one is a pair contrast.py does not know about -- add it there\n"
