@@ -316,6 +316,18 @@ lh:
 ##
 ## It STOPS at the first failure. A release check that prints twelve red
 ## sections is one nobody reads to the end.
+##
+## WHERE IT CAN RUN. On a machine with make AND docker on the same PATH.
+## That is CI and a Linux checkout; it is not this Windows box, where make
+## exists only inside the golang image and that image has no docker socket
+## — step 2 shells out to `docker compose up`, and `golint` runs
+## golangci-lint in a container of its own. Both fail with "docker: command
+## not found" rather than with anything about the site.
+##
+## Run by hand there, in this order: golangci.sh from the host shell, the
+## rest of `check` in the golang image, then steps 3-9 from the host. All
+## nine were run that way on 22 Aug 2026 and passed; ctlchars caught a
+## literal backspace in audit_seams.py on the way through (bc21d70).
 release:
 	@echo "== 1/9 check (no site needed)"      && $(MAKE) --no-print-directory check
 	@echo "== 2/9 bringing the stack up"       && docker compose up -d --build >/dev/null && 	  for i in $$(seq 1 60); do 	    [ "$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/healthz)" = "200" ] && break; 	    sleep 2; 	  done; 	  test "$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/healthz)" = "200" 	    || { echo "the site did not come up; nothing below this can be trusted"; exit 1; }
