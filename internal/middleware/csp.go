@@ -59,9 +59,27 @@ var contentSecurityPolicy = strings.Join([]string{
 	// See the file comment: 'unsafe-inline' is required by 39 inline blocks
 	// across the host and the plugin ecosystem.
 	"script-src 'self' 'unsafe-inline'",
-	// Same concession, and a smaller one: 21 style="" attributes in the host's
-	// templates alone, and inline style cannot reach the network or execute.
+	// The FALLBACK, and it is now doing one job only: covering inline style=""
+	// ATTRIBUTES, of which this tree has 1,647 and 98% are static. Removing
+	// those is a large sweep for another day; an inline style cannot reach the
+	// network or execute, which is why it was the smaller concession all along.
 	"style-src 'self' 'unsafe-inline'",
+	// ELEMENTS are locked down, and this is the half that just became
+	// possible. Every plugin stylesheet moved out of its fragment and is served
+	// from /pluginstyle/<name>.css (BACKLOG #13), and the last runtime
+	// document.write('<style>…') went with it, so nothing on this site creates
+	// a style element any more.
+	//
+	// CSP3 lets the two be split: style-src-elem governs <style> and
+	// <link rel=stylesheet>, while attributes keep falling back to style-src
+	// above. So this closes the door the migration emptied WITHOUT waiting on
+	// the 1,647 attributes.
+	//
+	// It also makes the migration self-enforcing. A plugin that ships CSS in a
+	// fragment again gets it hoisted to the head by fragmentstyles.go and then
+	// BLOCKED here — an unstyled page, which somebody notices, rather than a
+	// silent return to inline styling.
+	"style-src-elem 'self'",
 	"img-src 'self' data: https:",
 	"font-src 'self' data:",
 	// XHR/fetch/htmx targets. Same-origin, matching htmx's own
