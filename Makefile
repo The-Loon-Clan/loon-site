@@ -134,6 +134,11 @@ test:
 ##     exits with the result.
 ##   - it ran `-run "Scans|Ownership|Recovery"`, a hardcoded subset, so an
 ##     integration test added later would never run and nobody would be told.
+##   - and then it kept a hardcoded PACKAGE list, which is the same defect one
+##     level up. The rate limiter's Redis tests landed in internal/middleware
+##     on 23 Aug 2026 and would never have run here -- the "added later" case
+##     the line above describes, arriving four days after it was written. It is
+##     ./... now; a package with no integration test costs a second to skip.
 itest:
 	@docker rm -fv loon-itestdb loon-itestredis >/dev/null 2>&1 || true
 	@docker run -d --name loon-itestdb -e POSTGRES_USER=demo -e POSTGRES_PASSWORD=demo -e POSTGRES_DB=loon_test -p 5599:5432 postgres:16-alpine >/dev/null
@@ -142,7 +147,7 @@ itest:
 	@set +e; \
 	 LOON_TEST_DSN="postgres://demo:demo@localhost:5599/loon_test?sslmode=disable" \
 	 REDIS_TEST_ADDR="localhost:6398" \
-	 $(GO) test -count=1 ./internal/storage/ ./web/handlers/ -v; \
+	 $(GO) test -count=1 ./... -v; \
 	 status=$$?; \
 	 docker rm -fv loon-itestdb loon-itestredis >/dev/null 2>&1; \
 	 exit $$status

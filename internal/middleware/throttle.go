@@ -83,15 +83,38 @@ type bucket struct {
 	last   time.Time
 }
 
+// store is where a bucket's state lives. Two implementations: in this process
+// (memStore, below) and in Redis (throttle_redis.go).
+//
+// An interface rather than a flag, because the two differ in more than where
+// the number is kept -- the Redis one has a failure mode and a fallback, and
+// folding that into an if-statement inside allow() would put a network call's
+// error handling in the middle of an arithmetic function.
+type store interface {
+	take(key string, l Limit) (allowed bool, retry time.Duration)
+	give(key string, l Limit)
+}
+
 // Throttle is a limiter for one tier. Separate instances rather than one map
 // with a tier in the key, so the auth tier's table cannot be filled up by
 // browsing traffic.
 type Throttle struct {
 	limit Limit
-	now   func() time.Time // injectable so the tests do not sleep
+	store store
+	mem   *memStore // the local table: the store itself, or the Redis fallback
 
-	mu      sync.Mutex
-	buckets map[string]*bucket
+	// Skip decides, BEFORE a token is spent, that this request is not this
+	// tier's business at all. Different from Exempt, which is about who is
+	// asking; this is about what they asked for.
+	//
+	// It exists because the browse tier covered /login. Browse heavily enough
+	// to empty the bucket -- a shared office address, a VPN exit, a crawler --
+	// and the login PAGE is refused too, so the one action that would identify
+	// you and lift the limit is the one action you cannot take. A member
+	// behind a busy NAT would see a site that had locked them out with no way
+	// back in. The auth tier governs those routes and governs them harder;
+	// they should not also be charged for reading.
+	Skip func(*gin.Context) bool
 
 	// Exempt is consulted ONLY when the bucket is empty, which is the whole
 	// design: answering "is this staff?" costs a session read and a store
@@ -105,6 +128,53 @@ type Throttle struct {
 	// operator running audits against their own site is the friendliest there
 	// is. nil means nobody is exempt.
 	Exempt func(*gin.Context) bool
+}
+
+// NewThrottle builds a limiter whose buckets live in THIS process.
+//
+// Correct for one instance and wrong for several: two replicas each keep their
+// own table, so the effective limit is the tier multiplied by the number of
+// replicas. NewRedisThrottle is the shared version.
+func NewThrottle(l Limit) *Throttle {
+	m := newMemStore()
+	return &Throttle{limit: l, store: m, mem: m}
+}
+
+// allow spends a token for key, and reports how long until one is free when
+// there is none.
+func (t *Throttle) allow(key string) (bool, time.Duration) {
+	if t.limit.Burst <= 0 || t.limit.Every <= 0 {
+		return true, 0 // an unconfigured tier lets everything through
+	}
+	return t.store.take(key, t.limit)
+}
+
+// Refund returns one token to this caller's bucket.
+//
+// THE AUTH TIER IS A BRUTE-FORCE BUDGET, and a brute-force budget should be
+// spent by FAILURES. Charging a correct password the same as a wrong one means
+// eight successful logins in a row lock the ninth out -- which is not an attack
+// pattern, it is a shared address, an operator's tooling, or a household. It
+// broke the site's own audit scripts within an hour of the limiter landing:
+// each signs in once, so running the suite twice exhausted the tier and the
+// next script reported "could not sign in".
+//
+// So the middleware still spends on every attempt -- it has to, it runs before
+// anyone knows the outcome -- and the handler hands the token back when the
+// password was right. Anything that fails keeps the charge.
+func (t *Throttle) Refund(c *gin.Context) {
+	if t == nil || t.limit.Burst <= 0 || t.limit.Every <= 0 {
+		return
+	}
+	t.store.give(throttleKey(c), t.limit)
+}
+
+// memStore keeps buckets in a map in this process.
+type memStore struct {
+	now func() time.Time // injectable so the tests do not sleep
+
+	mu      sync.Mutex
+	buckets map[string]*bucket
 
 	// max bounds the table. An attacker rotating source addresses would
 	// otherwise turn a rate limiter into a memory exhaustion primitive, which
@@ -114,64 +184,74 @@ type Throttle struct {
 	max int
 }
 
-// NewThrottle builds a limiter for one tier.
-func NewThrottle(l Limit) *Throttle {
-	return &Throttle{limit: l, now: time.Now, buckets: map[string]*bucket{}, max: 50000}
+func newMemStore() *memStore {
+	return &memStore{now: time.Now, buckets: map[string]*bucket{}, max: 50000}
 }
 
-// allow spends a token for key, and reports how long until one is free when
-// there is none.
-func (t *Throttle) allow(key string) (bool, time.Duration) {
-	if t.limit.Burst <= 0 || t.limit.Every <= 0 {
-		return true, 0 // an unconfigured tier lets everything through
-	}
-	now := t.now()
+func (m *memStore) take(key string, l Limit) (bool, time.Duration) {
+	now := m.now()
 
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	if len(t.buckets) >= t.max {
-		t.buckets = map[string]*bucket{}
+	if len(m.buckets) >= m.max {
+		m.buckets = map[string]*bucket{}
 	}
-	b, ok := t.buckets[key]
+	b, ok := m.buckets[key]
 	if !ok {
-		b = &bucket{tokens: float64(t.limit.Burst), last: now}
-		t.buckets[key] = b
+		b = &bucket{tokens: float64(l.Burst), last: now}
+		m.buckets[key] = b
 	}
 	// Refill for the time since the last look, capped at full.
 	if d := now.Sub(b.last); d > 0 {
-		b.tokens += d.Seconds() / t.limit.Every.Seconds()
-		if b.tokens > float64(t.limit.Burst) {
-			b.tokens = float64(t.limit.Burst)
+		b.tokens += d.Seconds() / l.Every.Seconds()
+		if b.tokens > float64(l.Burst) {
+			b.tokens = float64(l.Burst)
 		}
 		b.last = now
 	}
 	if b.tokens < 1 {
 		// Time until the bucket holds one whole token.
 		need := 1 - b.tokens
-		return false, time.Duration(need * float64(t.limit.Every))
+		return false, time.Duration(need * float64(l.Every))
 	}
 	b.tokens--
 	return true, 0
 }
 
+func (m *memStore) give(key string, l Limit) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	b, ok := m.buckets[key]
+	if !ok {
+		return // nothing spent here; nothing to give back
+	}
+	if b.tokens += 1; b.tokens > float64(l.Burst) {
+		b.tokens = float64(l.Burst)
+	}
+}
+
 // sweep drops buckets that have been full and untouched, so an address seen
 // once does not occupy memory forever. Full means the holder has spent
 // nothing recently, so forgetting them changes no decision.
-func (t *Throttle) sweep() {
-	now := t.now()
-	idle := time.Duration(t.limit.Burst) * t.limit.Every * 2
+func (m *memStore) sweep(l Limit) {
+	now := m.now()
+	idle := time.Duration(l.Burst) * l.Every * 2
 	if idle < time.Minute {
 		idle = time.Minute
 	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	for k, b := range t.buckets {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for k, b := range m.buckets {
 		if now.Sub(b.last) > idle {
-			delete(t.buckets, k)
+			delete(m.buckets, k)
 		}
 	}
 }
+
+// sweep is on Throttle too, because the local table needs sweeping whether it
+// is the store or only the fallback.
+func (t *Throttle) sweep() { t.mem.sweep(t.limit) }
 
 // Sweeper runs sweep on a ticker until ctx-less stop is called. Returned as a
 // stop func rather than taking a context, because the caller here is main()
@@ -232,6 +312,10 @@ func throttleKey(c *gin.Context) string {
 // refused, and the ones that do not were never going to be stopped politely.
 func (t *Throttle) Guard() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if t.Skip != nil && t.Skip(c) {
+			c.Next()
+			return
+		}
 		ok, retry := t.allow(throttleKey(c))
 		if !ok && t.Exempt != nil && t.Exempt(c) {
 			ok = true

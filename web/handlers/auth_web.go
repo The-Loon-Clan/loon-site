@@ -70,6 +70,14 @@ func (w *web) loginPost(c *gin.Context) {
 		w.render(c, "login.html", map[string]any{"Title": "Log in", "Error": "Invalid username or password."})
 		return
 	}
+	// The password was right, so hand the rate-limit token back: the auth tier
+	// is a brute-force budget and a correct password is not an attempt at brute
+	// force. Charging successes too means eight logins in a row lock out the
+	// ninth, which is a shared address or an operator's tooling, not an attack.
+	// Deliberately here rather than after the second factor -- see the audit
+	// note below for why "the password is known" is the fact that matters.
+	w.tAuth.Refund(c)
+
 	// SECOND FACTOR, between a correct password and a session. Deliberately
 	// after the login-attempt audit above: an attempt that got the password
 	// right is worth recording as a success whether or not the second step

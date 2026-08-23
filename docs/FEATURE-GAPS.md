@@ -105,9 +105,28 @@ measurement rather than reasoning:
     printed both numbers for exactly this reason and still did not act on
     them; it now fails below half the offered pages.
 
-Not done: nothing here is shared between instances. A second replica has its
-own buckets, so the effective limit doubles. Redis is already a core seam
-(`core.Redis`) and that is where a multi-instance version would live.
+**Shared through Redis, 23 Aug 2026.** Buckets live in Redis when `REDIS_ADDR`
+is set, so every replica spends one allowance; a host without Redis gets the
+in-process limiter unchanged. A Lua script keeps read-refill-spend atomic, and
+the script reads Redis's OWN clock rather than the caller's — an instance whose
+clock ran fast would otherwise compute a huge refill and hand out a full bucket
+on every request, disabling the limit for whichever backend was skewed while
+looking like it worked. A Redis outage falls back to the local table and says
+so once, rather than failing open (which would remove the login limit exactly
+when the site is unwell) or closed (which would take the site down harder than
+any attack this guards).
+
+Two more defects the Redis work surfaced, both real and neither about Redis:
+
+  - the auth tier charged SUCCESSFUL logins. A brute-force budget should be
+    spent by failures; charging successes means eight logins in a row lock out
+    the ninth, which is a shared address or an operator's tooling, not an
+    attack. The handler refunds the token when the password was right.
+  - the browse tier covered `/login`. Browse heavily enough to empty the
+    bucket and the login PAGE was refused too — so the one action that would
+    identify you and lift the limit was the one action you could not take.
+    Verified: with 131 of 400 browse requests refused, 15 of 15 `GET /login`
+    still answer.
 
 ## Send to SABnzbd / NZBGet — S
 

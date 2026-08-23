@@ -5,6 +5,8 @@ import (
 
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
+	goredis "github.com/redis/go-redis/v9"
+
 	"github.com/the-loon-clan/loon-site/internal/middleware"
 
 	site "github.com/the-loon-clan/loon-site"
@@ -145,6 +147,12 @@ type web struct {
 	userWidgets    []core.View          // cards on the /u/<name> profile page (user.* slot)
 	jobsWidgets    map[string]core.View // job-group name -> override widget
 	siteNavEntries []siteNavEntry       // site pages, pre-sorted for the nav (built once at boot)
+
+	// redis is the shared-cache client when REDIS_ADDR is set, nil otherwise.
+	// Held only for the rate limiter, which is the one thing here that has to
+	// agree across replicas; everything else that wants Redis goes through
+	// Core.Redis after Boot.
+	redis *goredis.Client
 
 	// Rate limiting, one instance per tier (internal/middleware/throttle.go).
 	// Held here rather than built at the route so a tier is ONE table: a
@@ -380,6 +388,46 @@ func limited(t *middleware.Throttle, h gin.HandlerFunc) gin.HandlersChain {
 	return gin.HandlersChain{t.Guard(), h}
 }
 
+// authPaths are the routes that let somebody in, or back in. Prefixes rather
+// than exact matches so /login/2fa and /verify/resend are covered with their
+// parents; each has an auth-tier guard of its own on the POST.
+var authPaths = []string{"/login", "/register", "/forgot", "/reset", "/verify", "/logout"}
+
+func onAuthPath(c *gin.Context) bool {
+	p := c.Request.URL.Path
+	for _, a := range authPaths {
+		if p == a || strings.HasPrefix(p, a+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// throttleTier builds one tier, shared through Redis if the host has one, and
+// reports a Redis outage exactly once in each direction.
+//
+// The log line matters more than it looks: with Redis down the limiter still
+// works, per replica, so nothing visibly breaks and the effective limit
+// silently multiplies. That is the state an operator needs told about, and it
+// is the state nobody would otherwise notice.
+func (w *web) throttleTier(l middleware.Limit, name string) *middleware.Throttle {
+	var client goredis.UniversalClient
+	if w.redis != nil {
+		client = w.redis
+	}
+	t := middleware.NewRedisThrottle(l, client, name)
+	t.SetOnState(func(up bool, err error) {
+		if up {
+			w.log.Info("rate limit: buckets shared through Redis again", "tier", name)
+			return
+		}
+		w.log.Error("rate limit: Redis unavailable, falling back to per-instance "+
+			"buckets — the effective limit is now multiplied by the number of "+
+			"running replicas", "tier", name, "err", err)
+	})
+	return t
+}
+
 // throttleExempt reports whether this viewer is staff, and is called only on a
 // request the limiter is about to refuse.
 func (w *web) throttleExempt(c *gin.Context) bool {
@@ -406,9 +454,15 @@ func (w *web) viewer(c *gin.Context) (*core.User, bool) {
 
 func (w *web) mount(e *gin.Engine) {
 	w.engine = e
-	w.tBrowse = middleware.NewThrottle(middleware.LimitBrowse)
-	w.tWork = middleware.NewThrottle(middleware.LimitWork)
-	w.tAuth = middleware.NewThrottle(middleware.LimitAuth)
+	// Shared through Redis when there is one. A limiter whose buckets live in
+	// one process is right for one process and quietly wrong for two: each
+	// replica keeps its own table, so the tier an operator configured is
+	// multiplied by however many backends are running. NewRedisThrottle with a
+	// nil client returns the in-process limiter, so a single-instance host
+	// needs to know none of this.
+	w.tBrowse = w.throttleTier(middleware.LimitBrowse, "browse")
+	w.tWork = w.throttleTier(middleware.LimitWork, "work")
+	w.tAuth = w.throttleTier(middleware.LimitAuth, "auth")
 	// Idle buckets are forgotten every minute; see Throttle.sweep for why a
 	// full bucket is safe to drop. No stop func is kept: these live as long as
 	// the process, and a limiter that stopped sweeping would only leak.
@@ -416,6 +470,11 @@ func (w *web) mount(e *gin.Engine) {
 	// writing ones. An operator crawling their own site with the audit scripts
 	// is the case this exists for; the auth tier stays universal because
 	// nobody is staff yet at the moment they are trying to log in.
+	// The way IN is never charged to the reading tier. See Throttle.Skip: an
+	// empty browse bucket must not refuse the login page, or heavy browsing
+	// from a shared address locks a member out of the one action that would
+	// lift the limit. These paths have their own, tighter tier.
+	w.tBrowse.Skip = onAuthPath
 	w.tBrowse.Exempt = w.throttleExempt
 	w.tWork.Exempt = w.throttleExempt
 	w.tBrowse.Sweeper(time.Minute)

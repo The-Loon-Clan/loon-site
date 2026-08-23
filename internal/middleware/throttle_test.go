@@ -21,7 +21,7 @@ func (c *clock) add(d time.Duration) { c.t = c.t.Add(d) }
 func testThrottle(l Limit) (*Throttle, *clock) {
 	c := &clock{t: time.Unix(1700000000, 0)}
 	t := NewThrottle(l)
-	t.now = c.now
+	t.mem.now = c.now
 	return t, c
 }
 
@@ -131,15 +131,15 @@ func TestZeroLimitAllowsEverything(t *testing.T) {
 // thing it was defending.
 func TestBucketTableIsBounded(t *testing.T) {
 	th, _ := testThrottle(Limit{Burst: 1, Every: time.Minute})
-	th.max = 100
+	th.mem.max = 100
 	for i := 0; i < 1000; i++ {
 		th.allow("ip:" + strconv.Itoa(i))
 	}
-	th.mu.Lock()
-	n := len(th.buckets)
-	th.mu.Unlock()
-	if n > th.max {
-		t.Fatalf("%d buckets held with a cap of %d", n, th.max)
+	th.mem.mu.Lock()
+	n := len(th.mem.buckets)
+	th.mem.mu.Unlock()
+	if n > th.mem.max {
+		t.Fatalf("%d buckets held with a cap of %d", n, th.mem.max)
 	}
 }
 
@@ -152,15 +152,76 @@ func TestSweepForgetsIdleBuckets(t *testing.T) {
 	clk.add(time.Hour)
 	th.allow("fresh")
 	th.sweep()
-	th.mu.Lock()
-	_, staleKept := th.buckets["stale"]
-	_, freshKept := th.buckets["fresh"]
-	th.mu.Unlock()
+	th.mem.mu.Lock()
+	_, staleKept := th.mem.buckets["stale"]
+	_, freshKept := th.mem.buckets["fresh"]
+	th.mem.mu.Unlock()
 	if staleKept {
 		t.Error("an hour-idle bucket survived the sweep")
 	}
 	if !freshKept {
 		t.Error("the sweep dropped a bucket that was just used")
+	}
+}
+
+// A refund puts the token back, so a budget meant for FAILURES is not spent by
+// successes. Without this, eight correct logins in a row lock out the ninth --
+// which broke the site's own audit scripts within an hour of the tier landing.
+func TestRefundReturnsATokenAndDoesNotExceedTheBurst(t *testing.T) {
+	th, _ := testThrottle(Limit{Burst: 2, Every: time.Hour})
+	th.allow("k")
+	th.allow("k")
+	if ok, _ := th.allow("k"); ok {
+		t.Fatal("a third request passed a bucket of 2")
+	}
+	th.store.give("k", th.limit)
+	if ok, _ := th.allow("k"); !ok {
+		t.Fatal("a refunded token was not spendable")
+	}
+	// Refunding more than was spent must not mint an allowance.
+	for i := 0; i < 20; i++ {
+		th.store.give("k", th.limit)
+	}
+	n := 0
+	for i := 0; i < 20; i++ {
+		if ok, _ := th.allow("k"); ok {
+			n++
+		}
+	}
+	if n > th.limit.Burst {
+		t.Fatalf("twenty refunds produced %d tokens against a burst of %d",
+			n, th.limit.Burst)
+	}
+}
+
+// An exhausted bucket must not refuse the way IN. Without this, browsing
+// heavily from a shared address locks a member out of the login page -- the
+// one action that would identify them and lift the limit.
+func TestSkippedPathsAreNotChargedToTheTier(t *testing.T) {
+	th, _ := testThrottle(Limit{Burst: 1, Every: time.Hour})
+	th.Skip = func(c *gin.Context) bool { return c.Request.URL.Path == "/login" }
+	guard := th.Guard()
+
+	call := func(path string) int {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, path, nil)
+		guard(c)
+		return w.Code
+	}
+	if code := call("/browse"); code == http.StatusTooManyRequests {
+		t.Fatal("the first browse was throttled")
+	}
+	if code := call("/browse"); code != http.StatusTooManyRequests {
+		t.Fatalf("second browse answered %d, want 429 — the bucket should be empty", code)
+	}
+	// ...and with the bucket empty, the way in still answers.
+	for i := 0; i < 20; i++ {
+		if code := call("/login"); code == http.StatusTooManyRequests {
+			t.Fatalf("the login page was refused on attempt %d with an empty "+
+				"browse bucket; a member on a shared address would be locked "+
+				"out of the only page that could lift the limit", i+1)
+		}
 	}
 }
 

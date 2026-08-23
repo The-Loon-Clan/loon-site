@@ -247,6 +247,11 @@ func Main() {
 	// default (Redis stays nil); set REDIS_ADDR to enable both at once.
 	backend, redisClient := chooseCache(os.Getenv("REDIS_ADDR"), logger)
 	wsrv.cache = backend
+	// The rate limiter shares its buckets through the SAME Redis, and gets it
+	// here rather than off Core because mount() runs long before core.Boot.
+	// nil is the ordinary case for a single-instance host and gives the
+	// in-process limiter; see NewRedisThrottle.
+	wsrv.redis = redisClient
 
 	// Reset/verify flow. The demo "mailer" just logs the message (link included)
 	// so you can follow it in the logs; a real host sends via SMTP.

@@ -64,6 +64,7 @@ var logKeys = map[string]string{
 	"body":           "an email body, in the demo mailer that logs instead of sending",
 	"anchor":         "a fragment target",
 	"kind":           "a variant of the thing being logged",
+	"tier":           "which rate-limit tier an entry is about: browse, work or auth",
 	"mode":           "which of several modes a subsystem is in",
 	"flavour":        "the site flavour: indexer, torrent or both",
 	"feature":        "a core.Feature key an operator switched, e.g. comments.thanks",
