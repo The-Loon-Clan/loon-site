@@ -1,9 +1,9 @@
 package middleware
 
 import (
-	"regexp"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 

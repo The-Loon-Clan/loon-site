@@ -67,8 +67,8 @@ type web struct {
 	flow      authflow.Flow  // register / authenticate / change-password
 	resetFlow authtoken.Flow // password reset + email verification (token flows)
 	auth      webauth.Auth
-	loginLog  loginlog.Store     // login-attempt audit (recorded here, viewed via its views)
-	captcha   *captcha.Verifier  // Turnstile hook (disabled when no keys configured)
+	loginLog  loginlog.Store    // login-attempt audit (recorded here, viewed via its views)
+	captcha   *captcha.Verifier // Turnstile hook (disabled when no keys configured)
 	// pluginCSS holds the stylesheets plugins hand over at Provision, and
 	// serves them from a URL so they are cached instead of re-sent inside
 	// every fragment. See pluginstyles_web.go.
