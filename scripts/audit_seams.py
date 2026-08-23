@@ -68,7 +68,7 @@ IDENT = re.compile(r'\b(?:Register(?:Def)?|Lookup)\s*\(\s*(?:[A-Za-z_][A-Za-z0-9
 ROW = re.compile(r"^\|([^|]*)\|([^|]*)\|")
 TOKEN = re.compile(r"`([^`]+)`")
 # A Go type declaration in pluginapi, at top level or inside a type ( … ) block.
-GO_TYPE = re.compile(r"^\s*type\s+([A-Za-z0-9_]+)|^	([A-Z][A-Za-z0-9_]*)\s+(?:interface|func|struct)", re.M)
+GO_TYPE = re.compile(r"^\s*type\s+([A-Za-z0-9_]+)|^	([A-Z][A-Za-z0-9_]*)\s+(?:interface|func|struct)\b", re.M)
 # A bare Go identifier: `Catalog`, not `cache.PrefixDeleter` and not prose.
 BARE_IDENT = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 STATED = re.compile(r"There are \*\*(\d+)\*\* of them")
