@@ -63,6 +63,7 @@ func (s stubInbox) List(context.Context, int64, int) ([]notify.Item, error) {
 }
 func (s stubInbox) UnreadCount(context.Context, int64) (int, error) { return s.unread, s.err }
 func (s stubInbox) MarkAllRead(context.Context, int64) error        { return nil }
+func (s stubInbox) DeleteAll(context.Context, int64) error          { return nil }
 
 // chrome renders the shell data for one viewer.
 //

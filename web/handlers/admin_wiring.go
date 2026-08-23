@@ -15,6 +15,7 @@ package handlers
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	goredis "github.com/redis/go-redis/v9"
@@ -295,7 +296,11 @@ func wireAdminAndViews(
 		}
 	}
 	// Notification inbox page (/p/inbox). The navbar bell reads UnreadCount.
-	if nviews, err := notify.InboxViews(inbox, wsrv.currentUser); err != nil {
+	// WithRelativeTime hands it the SAME formatter every other page here uses,
+	// rather than letting the baseline grow a second one that drifts. It was
+	// printing "2026-08-11 01:02" beside pages saying "3 days ago".
+	if nviews, err := notify.InboxViews(inbox, wsrv.currentUser,
+		notify.WithRelativeTime(func(t time.Time) string { return relativeTime(t) })); err != nil {
 		logger.Error("notify.InboxViews", "err", err)
 	} else {
 		for _, v := range nviews {
