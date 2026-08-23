@@ -116,6 +116,31 @@
     --text-muted: var(--muted);
     --text-subtle: var(--muted-2);
 
+    /* Names PLUGIN CSS uses that nothing defined, aliased on 23 Aug 2026.
+       Every one of these was written as `var(--name)` with NO fallback, so the
+       browser was dropping the declaration whole and the element inherited
+       instead -- 220 declarations across ten plugin stylesheets and 133 more
+       in inline style attributes. It degraded gracefully, which is exactly why
+       it survived: a colour that inherits usually looks close enough to right.
+       --text-primary alone accounted for 88 of them.
+       Aliased rather than renamed at the call sites, for the same reason
+       --text-muted above is an alias: a plugin is installed by whoever wants
+       it, and the host owes it a stable vocabulary. */
+    --text-primary: var(--text);
+    --text-secondary: var(--muted);
+    --bg-surface: var(--surface);
+    --bg-base: var(--bg);
+    /* --primary-TINT, not --primary. --primary is a fill: it is the colour a
+       button is painted, with --primary-fg chosen as ink to sit on top of it.
+       Aliasing --blue to it put an accent FILL colour into text, and the
+       painted-contrast audit caught four wiki links at 4.09:1 the moment the
+       alias made them render. --primary-tint is the accent meant to BE text,
+       and contrast.py checks it against the lightest raised ground. */
+    --blue: var(--primary-tint);
+    --green: var(--success);
+    --red: var(--danger);
+    --warn: var(--warning);
+
     --accent: var(--primary);
     --accent-strong: var(--primary-strong);
     --accent-fg: var(--primary-fg);

@@ -108,8 +108,28 @@ fuzz:
 	@$(GO) test ./internal/markdown/ -run FuzzRender -fuzz FuzzRender -fuzztime $(FUZZTIME)
 	@$(GO) test ./internal/markdown/ -run FuzzEllipsis -fuzz FuzzEllipsis -fuzztime $(FUZZTIME)
 
+## styles: dead tokens, and the inline attributes blocking the CSP
+##
+## Two things nothing else can see. audit_css reads CLASSES and cannot see a
+## style attribute; contrast reads TOKENS and cannot see a literal; audit_paint
+## measures what was PAINTED and cannot see a declaration the browser threw
+## away. Both of these live in the hole between them.
+##
+## A dead `var(--name)` with no fallback is dropped whole and the element
+## inherits -- 352 of them on 23 Aug 2026, of which --text-primary alone was 88,
+## meaning the main text colour of ten plugins did nothing at all. Aliasing the
+## eight commonest gave 199 declarations their intended value and made eighteen
+## strings fail WCAG AA the same minute, which is what the fix costs.
+##
+## The inline count is what keeps 'unsafe-inline' in style-src, and there is no
+## nonce for a style ATTRIBUTE the way there is for a <style> element. It is a
+## number that has to reach zero, so it is a ratchet rather than a rule: 1,715
+## is a body of work and a check that fails on all of it gets deleted.
+styles:
+	@$(PYTHON) scripts/audit_styles.py
+
 ## check: everything CI runs
-check: fmt build lint golint ctlchars sql css bootstrap branding capabilities contrast resources seams test cover
+check: fmt build lint golint ctlchars sql css styles bootstrap branding capabilities contrast resources seams test cover
 
 ## build: compile every package
 build:
