@@ -1206,8 +1206,13 @@ a.stat-tile:hover {
    whatever the pointer happens to be over. */
 .pill--active,
 .pill--active:hover {
-    background: var(--primary);
-    border-color: var(--primary);
+    /* --primary-STRONG, not --primary. --primary-fg is the ink chosen for a
+       filled primary control, and the pair that checks it names
+       --primary-strong -- which is what every other filled control uses. This
+       one sat on the lighter --primary, so white-on-blue read 3.15:1 in
+       cosmic-void and 4.35:1 in midnight, and no pair described it. */
+    background: var(--primary-strong);
+    border-color: var(--primary-strong);
     color: var(--primary-fg);
 }
 

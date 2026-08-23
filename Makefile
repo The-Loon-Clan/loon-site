@@ -237,6 +237,18 @@ seams:
 depth:
 	@$(PYTHON) scripts/audit_depth.py
 
+## paint: contrast of the text the browser actually DREW, in every theme
+##
+## contrast.py checks token PAIRS and says in its own docstring that it knows
+## only the pairs somebody listed. It had never listed --surface-3 -- the token
+## calls itself "pressed", and a dozen components rest on it -- so nord's
+## message previews sat at 3.54:1 and nothing had ever measured them. This
+## renders the pages instead and reads what was painted, so nothing can be left
+## off a list. It DISCOVERS pairs; contrast.py is where they go to be checked
+## in every theme afterwards. Needs the site, so it lives with the live checks.
+paint:
+	@$(PYTHON) scripts/audit_paint.py
+
 ## contracts: the /admin/contracts page, read by something other than a person
 ##
 ## The host already computed both halves of this and neither gated

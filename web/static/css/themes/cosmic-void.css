@@ -65,7 +65,7 @@
     /* The one chromatic accent in an otherwise greyscale theme. */
     --primary: #2195f3;
     --primary-strong: #1877cc;
-    --primary-fg: #ffffff;
+    --primary-fg: var(--text-strong);
     --primary-tint: #6cbcf7;
     --primary-soft: rgba(33, 149, 243, 0.14);
     --primary-soft-strong: rgba(33, 149, 243, 0.28);
@@ -125,8 +125,8 @@
     --accent-2-tint: var(--info-tint);
 
     /* UNIT3D: a{color:#ddd}. Links are body-coloured; only hover lifts them. */
-    --link-fg: #dddddd;
-    --link-hover-fg: #ffffff;
+    --link-fg: var(--text);
+    --link-hover-fg: var(--text-strong);
 
     --scrollbar-thumb: #3a3a3a;
     --scrollbar-track: transparent;
@@ -144,7 +144,7 @@
        SURFACE instead of in a bar, so a panel reads as a panel and its header
        reads as part of it. midnight and nord already work this way — this was
        the only theme where panel and page were the same colour. */
-    --panel-bg: #282828;
+    --panel-bg: var(--surface);
     --panel-fg: var(--text);
     --panel-border: 3px solid rgba(14, 21, 34, 0.25);
     --panel-border-color: rgba(14, 21, 34, 0.25);
@@ -156,9 +156,9 @@
        on the panel — two surfaces where there is one thing. A rule under it
        does the separating instead, which is what midnight already does. */
     --panel-head-bg: transparent;
-    --panel-head-fg: #ffffff;
+    --panel-head-fg: var(--text-strong);
     --panel-head-border: 1px solid var(--border);  /* the head is transparent now, so the rule separates it */
-    --panel-action-fg: #aaaaaa;
+    --panel-action-fg: var(--muted);
     /* 4.86:1 on --panel-bg. Was #888888 at 4.16, under the 4.5 WCAG AA
        minimum for normal text — see scripts/contrast.py. */
     --panel-group-fg: #949494;
@@ -186,14 +186,14 @@
     --data-table-cell-font-size: var(--fs-md);
     --data-table-border-radius: 0;
     --data-table-th-bg: #19191b;
-    --data-table-th-fg: #aaaaaa;
+    --data-table-th-fg: var(--muted);
     --data-table-thead-border: none;
     --data-table-tr-border: 1px solid #404040;
     /* UNIT3D paints both stripes #222 — i.e. the panel colour. Transparent
        gets the same result without pinning the rows to one background. */
     --data-table-tr-odd-bg: transparent;
     --data-table-tr-even-bg: transparent;
-    --data-table-tr-hover-bg: #282828;
+    --data-table-tr-hover-bg: var(--surface);
     --data-table-tfoot-border: 2px solid var(--border-strong);
 
     /* ---- top nav ------------------------------------------------------ */
@@ -219,29 +219,29 @@
     --top-nav-icon-bar-icon-bg: #2a2a2c;
     --top-nav-icon-bar-icon-fg: #bbbbbb;
     --top-nav-icon-bar-icon-hover-bg: #424242;
-    --top-nav-icon-bar-icon-hover-fg: #ffffff;
+    --top-nav-icon-bar-icon-hover-fg: var(--text-strong);
     --top-nav-icon-bar-icon-border-radius: 50%;
     --top-nav-badge-bg: var(--danger);
-    --top-nav-badge-fg: #ffffff;
+    --top-nav-badge-fg: var(--text-strong);
 
     /* ---- quick search ------------------------------------------------- */
     --quick-search-bg: #2c2c2e;
-    --quick-search-fg: #dddddd;
+    --quick-search-fg: var(--text);
     --quick-search-placeholder-fg: #777777;
     --quick-search-border: 1px solid transparent;
     --quick-search-border-radius: var(--radius-pill);
     --quick-search-box-shadow: 0 4px 6px rgba(32, 33, 36, 0.28);
     --quick-search-hotkey-bg: #3a3a3c;
-    --quick-search-hotkey-fg: #aaaaaa;
+    --quick-search-hotkey-fg: var(--muted);
 
     /* ---- secondary nav (the main icon+label row) ---------------------- */
     --secondary-nav-bg: #292929;
     --secondary-nav-box-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.2);
-    --secondary-nav-tab-fg: #aaaaaa;
+    --secondary-nav-tab-fg: var(--muted);
     --secondary-nav-tab-bg: transparent;
-    --secondary-nav-tab-hover-fg: #dddddd;
+    --secondary-nav-tab-hover-fg: var(--text);
     --secondary-nav-tab-hover-bg: transparent;
-    --secondary-nav-tab-active-fg: #ffffff;
+    --secondary-nav-tab-active-fg: var(--text-strong);
     --secondary-nav-tab-active-underline: #777777; /* UNIT3D: underline #777 2px */
     --secondary-nav-tab-padding: var(--space-5) var(--space-6);
     --secondary-nav-tab-menu-bg: #2a2a2c;
@@ -253,19 +253,19 @@
     --stat-strip-bg: #19191b;
     --stat-strip-border: 1px solid #303030;
     --stat-strip-label-fg: #888888;
-    --stat-strip-value-fg: #dddddd;
-    --stat-strip-icon-fg: #aaaaaa;
+    --stat-strip-value-fg: var(--text);
+    --stat-strip-icon-fg: var(--muted);
 
     /* ---- buttons ------------------------------------------------------
        UNIT3D's buttons are pills in every dark theme, filled with plain #444
        rather than the accent. */
     --button-filled-bg: #444444;
-    --button-filled-fg: #dddddd;
+    --button-filled-fg: var(--text);
     --button-filled-border: none;
     --button-outlined-bg: transparent;
     --button-outlined-fg: var(--text);
     --button-outlined-border: 1px solid #555555;
-    --button-text-fg: #aaaaaa;
+    --button-text-fg: var(--muted);
     --button-border-radius: var(--radius-pill);
 
     /* ---- forms -------------------------------------------------------- */
@@ -278,7 +278,7 @@
     --input-border-hover: 1px solid #999999;
     --input-border-active: 1px solid #2195f3;
     --input-border-radius: var(--radius-sm);
-    --label-fg: #aaaaaa;
+    --label-fg: var(--muted);
 
     /* ---- posters / chips ------------------------------------------ */
 
@@ -293,41 +293,44 @@
         linear-gradient(160deg, hsl(var(--poster-hue) 12% 22%) 0%, hsl(calc(var(--poster-hue) + 26) 10% 12%) 100%);
     /* user-tag — role colours. cosmic-void is near-monochrome, so only the
        staff roles carry hue; a member is body text, not a coloured link. */
-    --user-tag-member-fg: #dddddd;
+    --user-tag-member-fg: var(--text);
     /* Lightened 22 Aug 2026 to clear 4.5:1 on --surface. A username is
        normal text and a panel is the lighter of the two grounds, so the
        panel is the binding constraint. Hue is kept; saturation is what
        gives way, because a role colour that cannot be read is not a
        subtler role colour. Was #e0484f (3.66:1). */
-    --user-tag-admin-fg: #e5676c;        /* was --danger, lightened for AA */
-    --user-tag-mod-fg: #2195f3;          /* the theme's one accent */
+    --user-tag-admin-fg: #ee7075;        /* was --danger, lightened for AA */
+    --user-tag-mod-fg: #289cfa;          /* the theme's one accent */
     --user-tag-contributor-fg: #3fb618;  /* --success */
     /* Lightened 22 Aug 2026 to clear 4.5:1 on --surface. A username is
        normal text and a panel is the lighter of the two grounds, so the
        panel is the binding constraint. Hue is kept; saturation is what
        gives way, because a role colour that cannot be read is not a
        subtler role colour. Was #7a7a7a (3.43:1). */
-    --user-tag-banned-fg: #909090;
+    --user-tag-banned-fg: #979797;
 
     --avatar-fallback-bg: linear-gradient(150deg, hsl(var(--poster-hue) 14% 30%), hsl(calc(var(--poster-hue) + 30) 12% 19%));
 
     --chip-bg: #19191b;
-    --chip-fg: #aaaaaa;
+    --chip-fg: var(--muted);
     --chip-border: 1px solid #404040;
 
     --pill-bg: #2c2c2e;
-    --pill-fg: #dddddd;
+    --pill-fg: var(--text);
     --pill-border: 1px solid #404040;
-    --pill-hover-bg: #303030;
+    --pill-hover-bg: var(--surface-3);
 
-    --rank-chip-bg: #303030;
-    --rank-chip-fg: #aaaaaa;
+    --rank-chip-bg: var(--surface-3);
+    --rank-chip-fg: var(--muted);
     --rank-1-bg: rgba(255, 184, 0, 0.16);
     --rank-1-fg: #ffb800;
     --rank-2-bg: rgba(204, 204, 204, 0.14);
     --rank-2-fg: #cccccc;
     --rank-3-bg: rgba(196, 122, 74, 0.16);
-    --rank-3-fg: #c47a4a;
+    /* Lifted from #c47a4a on 22 Aug 2026: 3.92:1 on --surface-3. See nord.css
+       -- the same chip failed there, and neither had ever been measured because
+       no contrast pair named a rank colour. */
+    --rank-3-fg: #d08656;
 
     /* ---- list rows ---------------------------------------------------- */
     --list-row-padding: var(--space-4) var(--space-6);
@@ -338,14 +341,17 @@
     --key-value-border-radius: 0;
     --key-value-odd-bg: transparent;
     --key-value-even-bg: rgba(255, 255, 255, 0.02);
-    --meta-chip-name-fg: #888888;
-    --meta-chip-value-fg: #dddddd;
+    /* var(--muted-2), as the other two themes already had it. The literal
+       #888888 was 3.94:1 on --surface-2 -- the label half of every meta chip
+       on a release page. */
+    --meta-chip-name-fg: var(--muted-2);
+    --meta-chip-value-fg: var(--text);
 
     /* ---- pagination --------------------------------------------------- */
     --paginate-bg: #19191b;
-    --paginate-bg-hover: #222222;
-    --paginate-bg-current: #303030;
-    --paginate-fg: #aaaaaa;
+    --paginate-bg-hover: var(--bg);
+    --paginate-bg-current: var(--surface-3);
+    --paginate-fg: var(--muted);
     /* #555555 until 22 Aug 2026: 2.35:1 on the pagination ground. WCAG
        exempts INACTIVE controls, and a greyed arrow is inactive — but it
        is a <span>, so nothing tells assistive tech that, and the exemption
@@ -356,23 +362,23 @@
     --paginate-border-radius: 0;
 
     /* ---- torrent-card --------------------------------------------- */
-    --torrent-card-bg: #222222;
+    --torrent-card-bg: var(--bg);
     --torrent-card-border: 3px solid rgba(14, 21, 34, 0.25);
     --torrent-card-fg: var(--text);
     --torrent-card-head-bg: #19191b;
-    --torrent-card-head-fg: #ffffff;
+    --torrent-card-head-fg: var(--text-strong);
 
     /* ---- footer ------------------------------------------------------- */
     --footer-bg: #19191b;
-    --footer-fg: #aaaaaa;
+    --footer-fg: var(--muted);
     --footer-heading-fg: #888888;
-    --footer-link-fg: #aaaaaa;
-    --footer-link-hover-fg: #ffffff;
+    --footer-link-fg: var(--muted);
+    --footer-link-hover-fg: var(--text-strong);
     --footer-hr-fg: #303030;
     --footer-social-bg: #2a2a2c;
-    --footer-social-fg: #aaaaaa;
+    --footer-social-fg: var(--muted);
     --footer-social-hover-bg: #444444;
-    --footer-social-hover-fg: #ffffff;
+    --footer-social-hover-fg: var(--text-strong);
 
     /* ---- Bootstrap-compat aliases ------------------------------------- */
     --bs-secondary-color: var(--muted);

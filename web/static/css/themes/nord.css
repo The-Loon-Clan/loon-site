@@ -25,9 +25,28 @@
     /* ---- raw palette ------------------------------------------------- */
     --bg: #2e3440;              /* polar night 0 */
     --bg-sunken: #232833;       /* UNIT3D --footer-bg */
-    --surface: #3b4252;         /* polar night 1 — panel body */
-    --surface-2: #434c5e;       /* polar night 2 — thead, chips, hover */
-    --surface-3: #4c566a;       /* polar night 3 — pressed */
+    /* Darkened off Nord's own polar night on 22 Aug 2026, and it is worth
+       saying why a palette this deliberate was left.
+
+       Nord's polar night rises to #4c566a, and --muted (#aab4c8) reads 3.54:1
+       on it -- a failure, on a ground a dozen components rest on: .tag--cat,
+       .prose th, the inbox rows, news and messages. The token below used to
+       say "pressed", which is why nobody thought of it as a text ground and
+       why no contrast pair ever named it.
+
+       Two ways out, and only one survives arithmetic. Lifting the FOREGROUNDS
+       until they clear #4c566a puts --muted, --muted-2, --success and
+       --primary-tint all within 1.21 of --text -- four token names for one
+       brightness, and Nord's aurora green turned pale. Darkening the GROUNDS
+       costs the polar night values and keeps every text colour Nord is
+       recognised by, with the elevation steps still visibly apart. So the
+       grounds moved.
+
+       --bg stays on #2e3440. The scale below is compressed but ordered, and
+       every pair clears with headroom: --muted reads 5.30 / 4.91 / 4.55. */
+    --surface: #363c4a;         /* was polar night 1 (#3b4252) — panel body */
+    --surface-2: #3a4150;       /* was polar night 2 (#434c5e) — thead, chips, hover */
+    --surface-3: #3d4658;       /* was polar night 3 (#4c566a) — raised rows, th */
     --bg-elevated: var(--surface-2);
 
     --border: #4c566a;
@@ -111,13 +130,13 @@
     --accent-2-tint: var(--info-tint);
 
     --link-fg: #88c0d0;         /* UNIT3D: a{color:#88c0d0} */
-    --link-hover-fg: #eceff4;   /* UNIT3D: a:hover{color:#eceff4} */
+    --link-hover-fg: var(--text-strong);   /* UNIT3D: a:hover{color:#eceff4} */
 
     --scrollbar-thumb: #4c566a;
     --scrollbar-track: transparent;
 
     /* ---- panelV2 ------------------------------------------------------ */
-    --panel-bg: #3b4252;
+    --panel-bg: var(--surface);
     --panel-fg: var(--text);
     --panel-border: none;
     --panel-border-color: transparent;
@@ -125,10 +144,10 @@
     --panel-head-border-radius: 0;
     --panel-body-border-radius: 0;
     --panel-box-shadow: none;
-    --panel-head-bg: #2e3440;   /* = --bg: nord's header is the page showing through */
-    --panel-head-fg: #eceff4;
+    --panel-head-bg: var(--bg);   /* = --bg: nord's header is the page showing through */
+    --panel-head-fg: var(--text-strong);
     --panel-head-border: none;
-    --panel-action-fg: #9aa4b8;
+    --panel-action-fg: var(--muted);
     /* 4.83:1 on --panel-bg. Was #7b869d at 2.75, the worst of the three
        themes — see scripts/contrast.py. */
     --panel-group-fg: #a9b4cb;
@@ -154,13 +173,18 @@
     --data-table-th-font-size: var(--fs-2xs);
     --data-table-cell-font-size: var(--fs-md);
     --data-table-border-radius: 0;
-    --data-table-th-bg: #434c5e;
-    --data-table-th-fg: #d8dee9;
+    /* var(), not the literal #434c5e it used to be. That number WAS
+       --surface-2, written out a second time -- so when --surface-2 was
+       darkened for contrast this stayed behind on the old value and a table
+       header went on failing after every pair had been fixed. midnight.css
+       already referenced the token; this now says the same thing the same way. */
+    --data-table-th-bg: var(--surface-2);
+    --data-table-th-fg: var(--text);
     --data-table-thead-border: none;
     --data-table-tr-border: none;   /* UNIT3D nord separates rows by stripe only */
     --data-table-tr-odd-bg: transparent;
     --data-table-tr-even-bg: rgba(255, 255, 255, 0.03);
-    --data-table-tr-hover-bg: #434c5e;
+    --data-table-tr-hover-bg: var(--surface-2);
     --data-table-tfoot-border: 2px solid #4c566a;
 
     /* ---- top nav ------------------------------------------------------ */
@@ -168,47 +192,47 @@
     --top-nav-fg: var(--text);
     --top-nav-border: none;
     --top-nav-box-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.2);
-    --top-nav-tagline-fg: #7b869d;
+    --top-nav-tagline-fg: var(--muted-2);
     /* Snow Storm against Frost — see cosmic-void.css for the reasoning. */
-    --wordmark-fg: #eceff4;
+    --wordmark-fg: var(--text-strong);
     --wordmark-accent-fg: #88c0d0;
     --wordmark-shadow: 0 1px 2px rgba(46, 52, 64, 0.65);
-    --top-nav-dropdown-menu-bg: #2e3440;
+    --top-nav-dropdown-menu-bg: var(--bg);
     --top-nav-dropdown-menu-border: none;
     --top-nav-dropdown-menu-border-radius: var(--radius-sm);
     --top-nav-dropdown-menu-box-shadow: var(--shadow-lg);
-    --top-nav-dropdown-menu-item-fg: #d8dee9;
-    --top-nav-dropdown-menu-item-hover-bg: #3b4252;
-    --top-nav-dropdown-menu-item-icon-fg: #d8dee9;
-    --top-nav-icon-bar-icon-bg: #434c5e;
-    --top-nav-icon-bar-icon-fg: #d8dee9;
-    --top-nav-icon-bar-icon-hover-bg: #4c566a;
-    --top-nav-icon-bar-icon-hover-fg: #eceff4;
+    --top-nav-dropdown-menu-item-fg: var(--text);
+    --top-nav-dropdown-menu-item-hover-bg: var(--surface);
+    --top-nav-dropdown-menu-item-icon-fg: var(--text);
+    --top-nav-icon-bar-icon-bg: var(--surface-2);
+    --top-nav-icon-bar-icon-fg: var(--text);
+    --top-nav-icon-bar-icon-hover-bg: var(--surface-3);
+    --top-nav-icon-bar-icon-hover-fg: var(--text-strong);
     --top-nav-icon-bar-icon-border-radius: 50%;
     --top-nav-badge-bg: #bf616a;
-    --top-nav-badge-fg: #eceff4;
+    --top-nav-badge-fg: var(--text-strong);
 
     /* ---- quick search ------------------------------------------------- */
-    --quick-search-bg: #3b4252;
-    --quick-search-fg: #d8dee9;
-    --quick-search-placeholder-fg: #7b869d;
+    --quick-search-bg: var(--surface);
+    --quick-search-fg: var(--text);
+    --quick-search-placeholder-fg: var(--muted-2);
     --quick-search-border: 1px solid transparent;
     --quick-search-border-radius: var(--radius-pill);
     --quick-search-box-shadow: 0 4px 6px rgba(32, 33, 36, 0.28);
-    --quick-search-hotkey-bg: #4c566a;
-    --quick-search-hotkey-fg: #d8dee9;
+    --quick-search-hotkey-bg: var(--surface-3);
+    --quick-search-hotkey-fg: var(--text);
 
     /* ---- secondary nav (the main icon+label row) ---------------------- */
     --secondary-nav-bg: #242933;
     --secondary-nav-box-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.2);
-    --secondary-nav-tab-fg: #d8dee9;
+    --secondary-nav-tab-fg: var(--text);
     --secondary-nav-tab-bg: transparent;
     --secondary-nav-tab-hover-fg: #88c0d0;
     --secondary-nav-tab-hover-bg: transparent;
-    --secondary-nav-tab-active-fg: #eceff4;
+    --secondary-nav-tab-active-fg: var(--text-strong);
     --secondary-nav-tab-active-underline: #81a1c1;
     --secondary-nav-tab-padding: var(--space-5) var(--space-6);
-    --secondary-nav-tab-menu-bg: #2e3440;
+    --secondary-nav-tab-menu-bg: var(--bg);
     --secondary-nav-tab-menu-border: none;
     --secondary-nav-tab-menu-border-radius: var(--radius-sm);
     --secondary-nav-tab-menu-box-shadow: var(--shadow-lg);
@@ -216,8 +240,8 @@
     /* ---- stat strip --------------------------------------------------- */
     --stat-strip-bg: #242933;
     --stat-strip-border: 1px solid #4c566a;
-    --stat-strip-label-fg: #7b869d;
-    --stat-strip-value-fg: #d8dee9;
+    --stat-strip-label-fg: var(--muted-2);
+    --stat-strip-value-fg: var(--text);
     --stat-strip-icon-fg: #88c0d0;
 
     /* ---- buttons ------------------------------------------------------ */
@@ -227,23 +251,23 @@
     --button-outlined-bg: transparent;
     --button-outlined-fg: var(--text);
     --button-outlined-border: 1px solid #4c566a;
-    --button-text-fg: #9aa4b8;
+    --button-text-fg: var(--muted);
     --button-border-radius: var(--radius-pill);
 
     /* ---- forms -------------------------------------------------------- */
-    --input-bg: #2e3440;
-    --input-fg: #d8dee9;
-    --input-placeholder-fg: #7b869d;
+    --input-bg: var(--bg);
+    --input-fg: var(--text);
+    --input-placeholder-fg: var(--muted-2);
     --input-border: 1px solid #4c566a;
     /* 1px at every state: UNIT3D's 2px hover/active would reflow the control. */
     --input-border-hover: 1px solid #8fbcbb;
     --input-border-active: 1px solid #88c0d0;
     --input-border-radius: var(--radius-sm);
-    --label-fg: #9aa4b8;
+    --label-fg: var(--muted);
 
     /* ---- posters / chips ------------------------------------------ */
 
-    --poster-bg: #434c5e;
+    --poster-bg: var(--surface-2);
     --poster-radius: var(--radius);
     --poster-hue: 265;
     /* Muted, cool placeholders so they sit inside the Nord palette. */
@@ -252,13 +276,13 @@
         radial-gradient(120% 80% at 22% 6%, hsl(var(--poster-hue) 26% 42% / 0.9) 0%, transparent 62%),
         linear-gradient(160deg, hsl(var(--poster-hue) 22% 32%) 0%, hsl(calc(var(--poster-hue) + 26) 20% 22%) 100%);
     /* user-tag — role colours, straight from the Nord aurora/frost ramps. */
-    --user-tag-member-fg: #d8dee9;       /* snow storm 0 */
+    --user-tag-member-fg: var(--text);       /* snow storm 0 */
     /* Lightened 22 Aug 2026 to clear 4.5:1 on --surface. A username is
        normal text and a panel is the lighter of the two grounds, so the
        panel is the binding constraint. Hue is kept; saturation is what
        gives way, because a role colour that cannot be read is not a
        subtler role colour. Was #bf616a (2.46:1). */
-    --user-tag-admin-fg: #d9a1a6;        /* aurora red, lightened for AA */
+    --user-tag-admin-fg: #dda5aa;        /* aurora red, lightened for AA */
     --user-tag-mod-fg: #88c0d0;          /* frost, matches --link-fg */
     --user-tag-contributor-fg: #a3be8c;  /* aurora green */
     /* Lightened 22 Aug 2026 to clear 4.5:1 on --surface. A username is
@@ -266,27 +290,31 @@
        panel is the binding constraint. Hue is kept; saturation is what
        gives way, because a role colour that cannot be read is not a
        subtler role colour. Was #6b7280 (2.08:1). */
-    --user-tag-banned-fg: #aaafb8;
+    --user-tag-banned-fg: #aeb3bc;
 
     --avatar-fallback-bg: linear-gradient(150deg, hsl(var(--poster-hue) 24% 40%), hsl(calc(var(--poster-hue) + 30) 22% 28%));
 
-    --chip-bg: #434c5e;
-    --chip-fg: #d8dee9;
+    --chip-bg: var(--surface-2);
+    --chip-fg: var(--text);
     --chip-border: 1px solid #4c566a;
 
-    --pill-bg: #3b4252;
-    --pill-fg: #d8dee9;
+    --pill-bg: var(--surface);
+    --pill-fg: var(--text);
     --pill-border: 1px solid #4c566a;
-    --pill-hover-bg: #434c5e;
+    --pill-hover-bg: var(--surface-2);
 
-    --rank-chip-bg: #4c566a;
-    --rank-chip-fg: #d8dee9;
+    --rank-chip-bg: var(--surface-3);
+    --rank-chip-fg: var(--text);
     --rank-1-bg: rgba(235, 203, 139, 0.18);
     --rank-1-fg: #ebcb8b;
     --rank-2-bg: rgba(216, 222, 233, 0.16);
-    --rank-2-fg: #d8dee9;
+    --rank-2-fg: var(--text);
     --rank-3-bg: rgba(208, 135, 112, 0.18);
-    --rank-3-fg: #d08770;
+    /* Lifted from Nord's aurora orange #d08770 on 22 Aug 2026: 3.33:1 on
+       --surface-3, the ground a rank chip sits on in the leaderboard. Same
+       trade the surfaces above took -- a bronze nobody can read is not a
+       subtler bronze. midnight's is already a lighter orange for this reason. */
+    --rank-3-fg: #eba28b;
 
     /* ---- list rows ---------------------------------------------------- */
     --list-row-padding: var(--space-4) var(--space-6);
@@ -297,34 +325,34 @@
     --key-value-border-radius: 0;
     --key-value-odd-bg: transparent;
     --key-value-even-bg: rgba(255, 255, 255, 0.03);
-    --meta-chip-name-fg: #7b869d;
-    --meta-chip-value-fg: #d8dee9;
+    --meta-chip-name-fg: var(--muted-2);
+    --meta-chip-value-fg: var(--text);
 
     /* ---- pagination --------------------------------------------------- */
-    --paginate-bg: #3b4252;
-    --paginate-bg-hover: #434c5e;
-    --paginate-bg-current: #4c566a;
-    --paginate-fg: #d8dee9;
-    --paginate-fg-disabled: #7b869d;
+    --paginate-bg: var(--surface);
+    --paginate-bg-hover: var(--surface-2);
+    --paginate-bg-current: var(--surface-3);
+    --paginate-fg: var(--text);
+    --paginate-fg-disabled: var(--muted-2);
     --paginate-divider: #4c566a;
     --paginate-border-radius: 0;
 
     /* ---- torrent-card --------------------------------------------- */
-    --torrent-card-bg: #434c5e;
+    --torrent-card-bg: var(--surface-2);
     --torrent-card-border: none;
-    --torrent-card-fg: #d8dee9;
-    --torrent-card-head-bg: #434c5e;
-    --torrent-card-head-fg: #d8dee9;
+    --torrent-card-fg: var(--text);
+    --torrent-card-head-bg: var(--surface-2);
+    --torrent-card-head-fg: var(--text);
 
     /* ---- footer ------------------------------------------------------- */
     --footer-bg: #232833;
-    --footer-fg: #d8dee9;
-    --footer-heading-fg: #9aa4b8;
-    --footer-link-fg: #d8dee9;
-    --footer-link-hover-fg: #eceff4;
+    --footer-fg: var(--text);
+    --footer-heading-fg: var(--muted);
+    --footer-link-fg: var(--text);
+    --footer-link-hover-fg: var(--text-strong);
     --footer-hr-fg: #4c566a;
-    --footer-social-bg: #3b4252;
-    --footer-social-fg: #d8dee9;
+    --footer-social-bg: var(--surface);
+    --footer-social-fg: var(--text);
     --footer-social-hover-bg: #88c0d0;
     --footer-social-hover-fg: #2e3440;
 
@@ -368,7 +396,7 @@
     --panel-heading-weight: 700;
 
     /* ── Quick Info: the hover card over a release row ─────────────────────── */
-    --quick-info-bg: #3b4252;
+    --quick-info-bg: var(--surface);
     --quick-info-fg: var(--text);
     --quick-info-border: 1px solid #4c566a;
     --quick-info-label-fg: var(--muted);

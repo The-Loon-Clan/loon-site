@@ -51,18 +51,63 @@ PAIRS = [
     # checking the one that happens to be plain text. Lighthouse found the
     # admin red at 3.65:1 on a panel; the other three had never been measured.
     #
-    # Against --surface only: a panel is the LIGHTER of the two grounds in
-    # every theme here, so it is the binding constraint, and a pair that clears
-    # it clears the canvas too.
-    ("--user-tag-member-fg", "--surface", "a member's name on a panel"),
-    ("--user-tag-admin-fg", "--surface", "an admin's name on a panel"),
-    ("--user-tag-mod-fg", "--surface", "a moderator's name on a panel"),
-    ("--user-tag-contributor-fg", "--surface", "a contributor's name on a panel"),
-    ("--user-tag-banned-fg", "--surface", "a banned member's name on a panel"),
+    # Against --surface-3, and the ground moved on 22 Aug 2026 because the old
+    # reasoning had stopped being true. It said "a panel is the LIGHTER of the
+    # two grounds in every theme, so it is the binding constraint" -- which was
+    # sound when there were two grounds. There are four, --surface-3 is the
+    # lightest in all three themes, and cosmic-void's scale was corrected so
+    # that --surface is now its DARKEST raised ground: the exact inversion of
+    # what the sentence assumed. Six role colours failed there and here, one of
+    # them the admin red on /staff, which is the page that lists them all.
+    #
+    # A pair that clears --surface-3 clears every ground below it, so this is
+    # one line per role rather than four.
+    ("--user-tag-member-fg", "--surface-3", "a member's name on a raised row"),
+    ("--user-tag-admin-fg", "--surface-3", "an admin's name on a raised row"),
+    ("--user-tag-mod-fg", "--surface-3", "a moderator's name on a raised row"),
+    ("--user-tag-contributor-fg", "--surface-3", "a contributor's name on a raised row"),
+    ("--user-tag-banned-fg", "--surface-3", "a banned member's name on a raised row"),
     # The primary button: a filled control with a 14px label, so AA applies
     # at 4.5. No pair named it, which is how cosmic-void shipped 3.15:1 and
     # midnight 4.35:1 — the second never measured by anything at all.
     ("--primary-fg", "--primary-strong", "the label on a primary button"),
+    # Added 22 Aug 2026 by MEASUREMENT rather than by thinking of them.
+    #
+    # --surface-3 was in this file's grounds exactly nowhere, in any pair, for
+    # its whole life. The token above calls it "pressed", which is why nobody
+    # listed it -- but a dozen components rest on it (.tag--cat, .prose th, the
+    # inbox rows, two plugins), so it is a text ground like any other, and the
+    # LIGHTEST one there is. --muted-2 was lifted on this same day with a note
+    # saying it "clears all three grounds"; it counted three and there are four.
+    #
+    # Found by rendering plugin pages in every theme and reading the contrast of
+    # what the browser actually PAINTED (scripts/audit_paint.py). That is the
+    # answer to this file's own limitation: a hand-written list finds what
+    # somebody thought to list, and no amount of care fixes that from the inside.
+    ("--text", "--surface-3", "body text on a raised row"),
+    ("--muted", "--surface-3", "secondary copy on a raised row"),
+    ("--muted-2", "--surface-3", "timestamps and captions on a raised row"),
+    # A tag is a filled chip with a small label, and it sits on both raised
+    # grounds. Neither was measured against anything.
+    ("--success", "--surface-2", "a success tag on a chip"),
+    ("--success", "--surface-3", "a success tag on a raised row"),
+    ("--primary-tint", "--surface-2", "avatar initials on a chip"),
+    ("--primary-tint", "--surface-3", "avatar initials on a raised row"),
+    # A table header has its OWN ground token, and two of the three themes set
+    # it to something other than --surface-2 -- cosmic-void deliberately, nord
+    # by writing --surface-2's value out a second time and then not following
+    # it. Checked as the separate ground it is, which is what would have caught
+    # that literal on the day it stopped matching.
+    ("--text", "--data-table-th-bg", "a column heading"),
+    ("--muted", "--data-table-th-bg", "secondary copy in a column heading"),
+    ("--success", "--data-table-th-bg", "a success tag in a table header"),
+    # The leaderboard's medal chips. Found by audit_paint.py on the FRONT PAGE,
+    # which is as visited as a page gets -- the bronze read 3.33:1 in nord and
+    # 3.92:1 in cosmic-void, and no pair here had ever named a rank colour, so
+    # nothing had measured any of the three in any theme.
+    ("--rank-1-fg", "--surface-3", "first place on the leaderboard"),
+    ("--rank-2-fg", "--surface-3", "second place on the leaderboard"),
+    ("--rank-3-fg", "--surface-3", "third place on the leaderboard"),
 ]
 
 AA_NORMAL = 4.5
@@ -116,11 +161,54 @@ def tokens(path: Path) -> dict:
     return out
 
 
+# ── the palette must be the only place a ground colour is written ───────────
+#
+# Every ground in PAIRS is a palette token, and a component token that repeats
+# one of their VALUES as a literal is not checked by anything -- it is a second
+# copy that no longer moves when the first does.
+#
+# That is not hypothetical. nord's --surface-2 was darkened for contrast on
+# 22 Aug 2026 and eight component tokens stayed behind on #434c5e, so a table
+# header, a chip and a poster went on failing after every pair in this file
+# cleared. The painted audit still saw it; this file could not, because the
+# colour it was checking was no longer the colour being drawn.
+PALETTE = ("--bg", "--surface", "--surface-2", "--surface-3")
+
+# A background token whose literal is DELIBERATELY not a palette value needs no
+# entry here -- only one that repeats a palette value is a copy. cosmic-void's
+# --data-table-th-bg (#19191b) is the case that matters: it is UNIT3D's dark
+# table header, chosen to differ from --surface-2, and it stays a literal.
+BG_TOKEN = re.compile(r"^\s*(--[a-z0-9-]*bg[a-z0-9-]*):\s*(#[0-9a-fA-F]{6});", re.M | re.I)
+
+
+def literal_copies(path: Path) -> list:
+    """Background tokens that write a palette value out a second time."""
+    tk = tokens(path)
+    by_value = {}
+    for name in PALETTE:
+        if name in tk:
+            by_value.setdefault(tk[name].lower(), name)
+    text = path.read_text(encoding="utf-8")
+    text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+    out = []
+    for m in BG_TOKEN.finditer(text):
+        token, value = m.group(1), m.group(2).lower()
+        owner = by_value.get(value)
+        if owner and token != owner:
+            out.append((token, value, owner))
+    return out
+
+
 def main() -> int:
     failures = 0
+    copies = 0
     for css in sorted(THEMES.glob("*.css")):
         tok = tokens(css)
         print(css.stem)
+        for token, value, owner in literal_copies(css):
+            copies += 1
+            print("  %-38s %s repeats %s -- write var(%s)"
+                  % ("a ground written twice", token, owner, owner))
         for fg, bg, what in PAIRS:
             if fg not in tok or bg not in tok:
                 print("  %-38s (token not resolvable to a hex value)" % what)
@@ -132,10 +220,16 @@ def main() -> int:
             print("  %-38s %s on %s  %.2f  %s"
                   % (what, tok[fg], tok[bg], r, "" if ok else "FAIL"))
     print()
+    if copies:
+        print("%d background token(s) repeat a palette colour as a literal. "
+              "A copy does not move when the palette does: that is how nord's "
+              "--surface-2 was darkened for contrast and eight components kept "
+              "drawing the old colour. Write var(--token) instead." % copies)
     if failures:
         print("%d pair(s) below the %.1f:1 WCAG AA minimum for normal text" % (failures, AA_NORMAL))
+    if failures or copies:
         return 1
-    print("every checked pair clears %.1f:1" % AA_NORMAL)
+    print("every checked pair clears %.1f:1, and no ground is written twice" % AA_NORMAL)
     return 0
 
 

@@ -36,11 +36,18 @@
        caption sits on, and it was never in the contrast pairs until
        cosmic-void's scale was corrected and the pair was added. 4.50:1
        there, under the 4.5 minimum. Clears all three grounds now. */
-    --muted-2: #7c88a2;         /* tertiary: timestamps, captions, disabled */
+    /* Lifted from #7c88a2 on 22 Aug 2026: 4.16:1 on --surface-3, which is a
+       ground no contrast pair had ever named -- see nord.css for how that
+       happened and how it was found. Midnight is fixed on the TEXT side and
+       nord on the ground side, because the constraint differs: midnight's
+       surfaces are dark enough that one nudge clears it and the tier stays
+       below --muted (#8b97b1), while nord's are so light that no foreground
+       clears them without collapsing into --text. */
+    --muted-2: #838fa9;         /* tertiary: timestamps, captions, disabled */
 
     --primary: #7c5cff;         /* indigo/violet — the one brand accent */
     --primary-strong: #6a45ff;
-    --primary-fg: #ffffff;      /* text ON a filled primary surface */
+    --primary-fg: var(--text-strong);      /* text ON a filled primary surface */
     --primary-tint: #b6a4ff;    /* primary readable AS text on dark */
     --primary-soft: rgba(124, 92, 255, 0.14);
     --primary-soft-strong: rgba(124, 92, 255, 0.28);
@@ -241,7 +248,7 @@
         radial-gradient(120% 80% at 22% 6%, hsl(var(--poster-hue) 62% 38% / 0.9) 0%, transparent 62%),
         linear-gradient(160deg, hsl(var(--poster-hue) 48% 24%) 0%, hsl(calc(var(--poster-hue) + 26) 44% 12%) 100%);
     /* user-tag — role colours on the navy/indigo ramp. */
-    --user-tag-member-fg: #e6ecf7;
+    --user-tag-member-fg: var(--text);
     --user-tag-admin-fg: #f87171;
     --user-tag-mod-fg: #a78bfa;          /* the indigo accent */
     --user-tag-contributor-fg: #4ade80;
@@ -250,7 +257,7 @@
        panel is the binding constraint. Hue is kept; saturation is what
        gives way, because a role colour that cannot be read is not a
        subtler role colour. Was #6b7280 (3.67:1). */
-    --user-tag-banned-fg: #7b8291;
+    --user-tag-banned-fg: #888f9e;
 
     --avatar-fallback-bg: linear-gradient(150deg, hsl(var(--poster-hue) 50% 34%), hsl(calc(var(--poster-hue) + 30) 46% 20%));
 
