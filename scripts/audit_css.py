@@ -476,7 +476,10 @@ PLUGIN_BASELINE = {
     "mediainfo": 1,
     "messages": 1,
     "offers": 1,
-    "releasegroups": 1,
+    # 0 since 23 Aug 2026: the one undefined name was .rg-bio, which the detail
+    # template had been carrying while its font-size and line-height sat in a
+    # style attribute beside it. Naming the class defined it.
+    "releasegroups": 0,
     "requests": 31,
     "uploads": 1,
 }
