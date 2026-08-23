@@ -492,30 +492,35 @@ two row counts changed.
 
 ---
 
-## 13. Plugin CSS ships as `<style>` inside the page body — HALF DONE
+## 13. Plugin CSS ships as `<style>` inside the page body — DONE, bar one plugin
 
-The VALIDITY half is fixed. `renderStatus` hoists a fragment's `<style>`
-blocks into the head (loon-demo-site `0017975`,
-`web/handlers/fragmentstyles.go`), in order, after the site's own stylesheets
-so a fragment rule that overrode a site rule still does. That was 19 of the 52
-errors `make html` reported once it stopped looking at five pages, and
-`audit_html` is at zero across all 111 public pages now.
+Closed 22 Aug 2026. The seam this entry asked for exists
+(`pluginapi.StylesheetRegistrar`, host side in
+`web/handlers/pluginstyles_web.go`) and every plugin template in the tree has
+moved onto it except `requests`, which belongs to another workstream.
 
-**The other two costs are untouched, and they are the ones this entry is
-really about:**
+**3,608 lines out of 34 templates**, served from `/pluginstyle/<name>.css?v=<hash>`
+with a year of immutable caching. forum alone was 841 lines that rode inside
+every forum page.
 
-- **CSP.** The style is still INLINE, just inline in the head. The host still
-  cannot drop `style-src 'unsafe-inline'` — see `docs/QUALITY.md`.
-- **Caching.** Every plugin page still re-sends its CSS in the document. The
-  news feed is still 90 lines of CSS in a template, duplicated across that
-  plugin's four pages and paid for on every view.
+Checked before moving anything: not one of the 37 blocks contained a template
+action, so all of it was static CSS.
 
-So the seam this entry proposes is still the fix: something like a
-`Deps.RegisterCSS(name, css)` the host serves from `/static/plugin/<name>.css`
-and links in `<head>` — one request per plugin, cacheable, valid, and
-nonce-free. The hoist made the pages VALID without making the CSS cacheable or
-the CSP tighter, and it is worth being precise about that rather than letting a
-green `make html` read as this item being done.
+**What the merge cost, and it is the interesting part.** Four plugins defined
+the same selector in more than one of their own templates, which only worked
+while each page shipped its CSS inside its own fragment — a scoping the merge
+takes away. Almost all were a selector written twice in ONE file, which is
+ordinary cascade and survives a merge that preserves order. Three were
+cross-file, and one of those was identical rules flattened by the detector. The
+two real ones are modifiers now: `.c-page--hero` (the community view zeroes its
+top padding for a banner hero; the index does not) and `.wiki-empty--boxed`
+(the topic page draws its empty state in a dashed box; the index draws it
+plain).
+
+**What is still not done.** The CSP still carries `style-src 'unsafe-inline'`,
+and moving these sheets is necessary but not sufficient: inline `style="…"`
+ATTRIBUTES are everywhere in this tree and are covered by the same directive.
+Dropping it needs those too. See `docs/QUALITY.md`.
 
 ## 14. Spotnet import (spike done, design in SPOTNET.md)
 
