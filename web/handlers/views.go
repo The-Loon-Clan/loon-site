@@ -145,6 +145,14 @@ type web struct {
 	userWidgets    []core.View          // cards on the /u/<name> profile page (user.* slot)
 	jobsWidgets    map[string]core.View // job-group name -> override widget
 	siteNavEntries []siteNavEntry       // site pages, pre-sorted for the nav (built once at boot)
+
+	// engine is kept only so the widget-rule preview can ask what routes this
+	// site actually serves (widgetpreview.go). Read at REQUEST time rather
+	// than snapshotted at mount, because a snapshot would have to be taken
+	// after the last plugin registered its routes and nothing enforces that
+	// ordering -- an early snapshot would quietly under-report, which is the
+	// failure the preview exists to prevent.
+	engine *gin.Engine
 }
 
 // pageTemplates is every page under web/templates that newWeb parses into its
@@ -370,6 +378,7 @@ func (w *web) viewer(c *gin.Context) (*core.User, bool) {
 // ── routes + rendering ──────────────────────────────────────────────
 
 func (w *web) mount(e *gin.Engine) {
+	w.engine = e
 	sub, _ := fs.Sub(site.FS, "web/static")
 	// CSP and friends first, so they cover /static and every error path too —
 	// a policy that covers only the HTML is a map of where it is not.

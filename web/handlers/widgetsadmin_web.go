@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -34,7 +33,7 @@ func (w *web) widgetsAdminPage(c *gin.Context) {
 		"Title":     "Widgets",
 		"Regions":   widgetRegions,
 		"Region":    region,
-		"Placed":    w.placedWidgets(ctx, region),
+		"Placed":    w.placedWidgets(c, region),
 		"Available": w.availableWidgets(ctx, region),
 	})
 }
@@ -57,6 +56,11 @@ type placedVM struct {
 	// Pages restricts the placement to part of the site; empty is all of
 	// it. Unlike Config, this belongs to the HOST and every widget has it.
 	Pages string
+	// Preview is which pages that rule reaches, resolved for the row rather
+	// than only for the live htmx endpoint. Without it the answer would exist
+	// only while somebody was typing, and the operator who saved a typo and
+	// reloaded -- the exact person this is for -- would be told nothing.
+	Preview widgetPagesVM
 }
 
 // placedWidgets resolves a region's placements against the live registry so an
@@ -64,7 +68,8 @@ type placedVM struct {
 // "missing" is the whole reason resolution reports rather than skips: a row
 // that silently vanished would leave somebody wondering why their layout
 // changed.
-func (w *web) placedWidgets(ctx context.Context, region string) []placedVM {
+func (w *web) placedWidgets(c *gin.Context, region string) []placedVM {
+	ctx := c.Request.Context()
 	// Runtime.Core() guards a nil receiver and returns nil; Core.WidgetBySlug
 	// does NOT — it takes a mutex on the receiver, so a nil Core panics rather
 	// than reporting "no such widget". Resolved once here instead of at every
@@ -77,6 +82,7 @@ func (w *web) placedWidgets(ctx context.Context, region string) []placedVM {
 	for _, p := range w.data.ReadPlacements(ctx, region) {
 		vm := placedVM{Slug: p.Slug, Position: p.Position, Enabled: p.Enabled,
 			Title: p.Slug, Missing: true, Config: p.Config, Pages: p.Pages}
+		vm.Preview = w.previewPages(p.Pages, c)
 		if reg != nil {
 			if wd, ok := reg.WidgetBySlug(p.Slug); ok {
 				vm.Title, vm.Missing = wd.Title, false
@@ -169,7 +175,7 @@ func (w *web) widgetsAdminAction(c *gin.Context) {
 	// swapped table is what a reload would have drawn.
 	if isHTMX(c) {
 		w.renderFragmentWithNotice(c, http.StatusOK, "admin_widgets.html", "placed-widgets",
-			map[string]any{"Region": region, "Placed": w.placedWidgets(ctx, region)},
+			map[string]any{"Region": region, "Placed": w.placedWidgets(c, region)},
 			noticeOK("Layout updated."))
 		return
 	}

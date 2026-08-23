@@ -134,12 +134,19 @@ const shellPage = "home.html"
 // same from the page and from here. Forgetting it would produce a button that
 // works once and then 403s, which is exactly the class of bug the prod tree
 // has and the reason this helper exists at all.
-func (w *web) renderFragment(c *gin.Context, page, fragment string, data map[string]any) {
-	if data == nil {
-		data = map[string]any{}
-	}
-	if _, ok := data["CSRFToken"]; !ok {
-		data["CSRFToken"] = middleware.Token(c)
+func (w *web) renderFragment(c *gin.Context, page, fragment string, data any) {
+	// CSRFToken is injected into the MAP form only, which is what every
+	// fragment carrying a form uses. A struct payload is a read-only view --
+	// the widget-rule preview is the first -- and reaching into one here would
+	// take reflection to do what its own field already does.
+	if m, ok := data.(map[string]any); ok || data == nil {
+		if m == nil {
+			m = map[string]any{}
+		}
+		if _, has := m["CSRFToken"]; !has {
+			m["CSRFToken"] = middleware.Token(c)
+		}
+		data = m
 	}
 
 	t, ok := w.fragmentSet(c, page)

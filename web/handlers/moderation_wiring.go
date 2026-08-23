@@ -57,4 +57,9 @@ func mountModeration(engine *gin.Engine, wsrv *web) {
 func mountWidgetsAdmin(admin *gin.RouterGroup, wsrv *web) {
 	admin.GET("/widgets", wsrv.widgetsAdminPage)
 	admin.POST("/widgets/apply", wsrv.widgetsAdminAction)
+	// Which pages a rule reaches, answered while it is being typed and before
+	// it is saved (widgetpreview.go). Separate from /apply because it must NOT
+	// write: the value being asked about is the one in the box, which the
+	// operator has not committed to yet.
+	admin.POST("/widgets/preview", wsrv.widgetsAdminPreview)
 }

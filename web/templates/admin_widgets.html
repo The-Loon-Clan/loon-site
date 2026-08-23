@@ -171,11 +171,31 @@
                             <input type="hidden" name="action" value="pages">
                             <label class="form__label" for="pages-{{.Slug}}">Pages</label>
                             <textarea class="form__input" id="pages-{{.Slug}}" name="pages" rows="3"
-                                      placeholder="every page">{{.Pages}}</textarea>
+                                      placeholder="every page"
+                                      hx-post="/admin/widgets/preview"
+                                      hx-trigger="keyup changed delay:400ms, change"
+                                      hx-target="#pages-preview-{{.Slug}}" hx-swap="innerHTML"
+                                      hx-include="closest form"
+                                      aria-describedby="pages-preview-{{.Slug}}">{{.Pages}}</textarea>
                             <div class="text-muted small">
                                 One rule per line; empty is every page.
                                 <code>/</code> &middot; <code>/browse</code> &middot;
                                 <code>/community*</code> &middot; <code>!/admin*</code>
+                            </div>
+                            {{/* WHERE THE RULE LANDS, and the reason this column
+                                 is not just a textarea. A mistyped rule matches
+                                 nothing and hides the widget site-wide, and the
+                                 save still answers "Layout updated" -- so the
+                                 box says what it will do before it is saved.
+
+                                 The live region is this div and it is NOT what
+                                 gets swapped: htmx replaces the INNER html, so
+                                 the element carrying aria-live survives the
+                                 swap and a screen reader is told the answer
+                                 changed. Swapping the region itself is the
+                                 usual way that announcement is lost. */}}
+                            <div class="text-muted small mt-1" id="pages-preview-{{.Slug}}" aria-live="polite">
+                                {{template "widget-pages-preview" .Preview}}
                             </div>
                             <button class="button button--outlined button--sm mt-2" type="submit">Save</button>
                         </form>
@@ -207,4 +227,36 @@
         <p class="text-muted">Nothing here yet. Add one below.</p>
         {{end}}
     </div>
+{{end}}
+
+{{/* The answer for one rule (widgetpreview.go).
+
+     Four outcomes and no ranking between them: three are ordinary and only the
+     last is a mistake. Rendered from the STORED rule when the table draws and
+     from the typed one as it changes, from this one define, so the two cannot
+     drift into telling an operator different things about the same rule.
+
+     Expects: a widgetPagesVM. */}}
+{{define "widget-pages-preview"}}
+    {{if .Every}}
+        Shows on <strong>every page</strong>.
+    {{else if .Matched}}
+        {{/* .Total, not len .Matched -- the list is capped at ten and the
+             COUNT must not be. "Shows on 10+ of 82" was the cap leaking into
+             the answer: the true number was 47, and an operator checking
+             whether a rule was too broad was reading the wrong one. */}}
+        Shows on {{.Total}} of {{.Known}} known pages:
+        {{range .Matched}}<code>{{.Path}}</code> {{end}}
+        {{if .More}}and {{.More}} more.{{end}}
+    {{else if .Route}}
+        {{/* Correct, and it would read as broken without this sentence: the
+             list holds pages, and /release/:id is a shape no list can hold. */}}
+        No page in the list matches, but this reaches <code>{{.Route}}</code>.
+        Releases, threads, communities and profiles are served from patterns
+        like that one and are not listed here.
+    {{else if .Unknown}}
+        <span class="tag tag--warning">no match</span>
+        Nothing on this site matches this rule &mdash; check the spelling. As
+        written, this widget will not appear anywhere.
+    {{end}}
 {{end}}
