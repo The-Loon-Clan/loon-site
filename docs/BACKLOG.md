@@ -467,37 +467,30 @@ rendering as free.
 The host needs no change, which is the test of whether the seam is in the right
 place.
 
-## 12. Two "Site stats" pages, and one of them is an estimate
+## 12. Two "Site stats" pages, and one of them is an estimate — DONE
 
-Both are now in Other (`/stats` "Stats", `/p/stats` "Site snapshot") — see
-`navPlacement` in admin_views.go. The placement is fixed; the numbers are not.
+Closed 22 Aug 2026 in loon-plugins `9412cbc`. Both pages read 160,673, which
+is `COUNT(*)` on the table.
 
-They disagree, and a member has no way to tell which to believe:
+This entry offered two fixes and recommended the cheap one: relabel the metric
+"NZBs indexed (approx.)". The other one was taken instead, because the reason
+the estimate was there did not apply to the caller that was publishing it.
 
-    host   /stats     Releases      160,692    <- exact, matches the table
-    plugin /p/stats   NZBs indexed  160,980    <- 288 high
+`statsTotals` reads `pg_class.reltuples` and is right to: it answers a
+5-second liveness poll, where an exact count is a table scan on every tick,
+and its own comment records the 2026-07-24 production timeout that shape
+caused at 33M staged rows.
 
-Neither is wrong. The host runs `COUNT(*)`. The plugin's figure comes from the
-usenet plugin's `est()` (usenet/store.go), which reads `pg_class.reltuples` — a
-PLANNER ESTIMATE — and only falls back to a bounded count when that is
-unusable. That is a sound choice for a 5-second liveness poll on a table with
-millions of rows; an exact count there would be a scan on every tick.
+But the SNAPSHOT is a different question asked by a different caller.
+`stats/plugin.go` collects it from a background job on a one-hour interval,
+and the page says "refreshed hourly" on its face. A scan an hour is affordable
+where a scan every five seconds is not, so the hook uses `statsTotalsExact`
+and the two numbers agree rather than one being labelled.
 
-The problem is presentational: both pages are headed "Site stats" and print
-their number the same way, so an estimate is displayed as a fact beside a fact.
-Both figures are also plausible, which is worse than one being obviously
-broken.
+`Active newsgroups` was already exact — `COUNT(*)` on newsgroups — so only the
+two row counts changed.
 
-Fix, in the shared tree:
-
-- `usenet/service.go:61` labels the metric "NZBs indexed". Saying "NZBs indexed
-  (approx.)" costs one word and removes the whole confusion.
-- Consider whether the snapshot page should show the exact count instead. It
-  refreshes hourly, not every five seconds, so it can afford one.
-
-Neither is the host's to change. Recorded here rather than worked around,
-because the host relabelling its own page would not help — the misleading
-number is on the other one.
+---
 
 ## 13. Plugin CSS ships as `<style>` inside the page body
 
