@@ -389,6 +389,24 @@ def main():
     print("a11y: %d finding(s) across %d pages (%d shapes offered, %d seeds)"
           % (total, checked, len(pages), len(SEEDS)))
 
+    # ...and printing that number is not the same as ACTING on it. This audit
+    # exited 0 reporting "0 finding(s) across 0 pages" on the day a new rate
+    # limiter refused every fetch: 140 shapes offered, none reached, and a
+    # green build. The comment above says the count is the whole reason this
+    # audit stopped reporting a false clean -- so the count has to be able to
+    # fail, not just be displayed.
+    #
+    # Half of what was offered, floor of ten. Pages legitimately drop out by
+    # redirecting or being gated; a healthy run reaches about 95%, so half is
+    # far below any real day and far above a broken fetch path.
+    if checked < max(10, len(pages) // 2):
+        print("")
+        print("a11y: only %d of %d offered page(s) were fetched." % (checked, len(pages)))
+        print("Something is refusing or redirecting them -- a rate limit, a signed-out")
+        print("session, a stopped site -- and a clean result over that many pages means")
+        print("nothing. Fix the fetch before reading the findings.")
+        return 1
+
     over = [(s, n, A11Y_BASELINE.get(s, 0)) for s, n in sorted(counts.items())
             if n > A11Y_BASELINE.get(s, 0)]
     if over:

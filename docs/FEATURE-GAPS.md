@@ -81,6 +81,34 @@ three quarters of the document.
 
 # INDEXER — DETAIL
 
+## Request rate limiting — S — DONE 22 Aug 2026
+
+UNIT3D throttles and the host did not, anywhere except the Newznab API's
+per-day quota. `internal/middleware/throttle.go`: a token bucket in three
+tiers — browse, work (search), auth (login/register/reset/2FA).
+
+A bucket rather than a fixed window, and that is the whole design. UNIT3D's
+own limiter answers "you have loaded too many pages too fast" when you open
+ten tabs, because a window of N-per-minute cannot tell ten tabs from a
+scraper. A bucket spends ten tokens out of a full one and nobody notices.
+
+Two things this cost, both worth recording because both were found by
+measurement rather than reasoning:
+
+  - the first browse tier (60 at two a second) refused 18 of 60 signed-in
+    fetches, so `audit_a11y` reached **0 of 140 pages** — and exited 0,
+    reporting a clean run. A page-rate limit catches every crawler,
+    friendly ones included. Staff are now exempt from the two reading
+    tiers, checked only on a request about to be refused so it costs
+    nothing on the normal path.
+  - `audit_a11y` printed "0 finding(s) across 0 pages" and passed. It had
+    printed both numbers for exactly this reason and still did not act on
+    them; it now fails below half the offered pages.
+
+Not done: nothing here is shared between instances. A second replica has its
+own buckets, so the effective limit doubles. Redis is already a core seam
+(`core.Redis`) and that is where a multi-instance version would live.
+
 ## Send to SABnzbd / NZBGet — S
 
 One click puts the NZB in the downloader's queue instead of the browser's

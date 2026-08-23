@@ -146,6 +146,12 @@ type web struct {
 	jobsWidgets    map[string]core.View // job-group name -> override widget
 	siteNavEntries []siteNavEntry       // site pages, pre-sorted for the nav (built once at boot)
 
+	// Rate limiting, one instance per tier (internal/middleware/throttle.go).
+	// Held here rather than built at the route so a tier is ONE table: a
+	// limiter constructed per call site would give every route its own
+	// allowance, which is the same as having none.
+	tBrowse, tWork, tAuth *middleware.Throttle
+
 	// engine is kept only so the widget-rule preview can ask what routes this
 	// site actually serves (widgetpreview.go). Read at REQUEST time rather
 	// than snapshotted at mount, because a snapshot would have to be taken
@@ -360,6 +366,27 @@ func (w *web) authed(h gin.HandlerFunc) gin.HandlersChain {
 	return append(w.auth.Require(core.RoleUser), h)
 }
 
+// limited mounts one handler behind a rate-limit tier, in the same shape as
+// authed() above so a route reads the same either way.
+//
+// The AUTH tier is the one that matters and the one that is felt: login,
+// register, password reset and the second factor are the four places where
+// repeating the request IS the attack, and they are the only routes where a
+// person could notice the limit at all.
+func limited(t *middleware.Throttle, h gin.HandlerFunc) gin.HandlersChain {
+	if t == nil {
+		return gin.HandlersChain{h} // unconfigured: mount it bare rather than refuse
+	}
+	return gin.HandlersChain{t.Guard(), h}
+}
+
+// throttleExempt reports whether this viewer is staff, and is called only on a
+// request the limiter is about to refuse.
+func (w *web) throttleExempt(c *gin.Context) bool {
+	u, ok := w.auth.Current(c)
+	return ok && u != nil && u.AtLeast(core.RoleMod)
+}
+
 // viewer returns the signed-in user on a route mounted behind authed.
 //
 // The gate guarantees one, so a nil here is a MOUNTING mistake — a handler
@@ -379,6 +406,21 @@ func (w *web) viewer(c *gin.Context) (*core.User, bool) {
 
 func (w *web) mount(e *gin.Engine) {
 	w.engine = e
+	w.tBrowse = middleware.NewThrottle(middleware.LimitBrowse)
+	w.tWork = middleware.NewThrottle(middleware.LimitWork)
+	w.tAuth = middleware.NewThrottle(middleware.LimitAuth)
+	// Idle buckets are forgotten every minute; see Throttle.sweep for why a
+	// full bucket is safe to drop. No stop func is kept: these live as long as
+	// the process, and a limiter that stopped sweeping would only leak.
+	// Staff are exempt from the two READING tiers, and from neither of the
+	// writing ones. An operator crawling their own site with the audit scripts
+	// is the case this exists for; the auth tier stays universal because
+	// nobody is staff yet at the moment they are trying to log in.
+	w.tBrowse.Exempt = w.throttleExempt
+	w.tWork.Exempt = w.throttleExempt
+	w.tBrowse.Sweeper(time.Minute)
+	w.tWork.Sweeper(time.Minute)
+	w.tAuth.Sweeper(time.Minute)
 	sub, _ := fs.Sub(site.FS, "web/static")
 	// CSP and friends first, so they cover /static and every error path too —
 	// a policy that covers only the HTML is a map of where it is not.
@@ -387,6 +429,11 @@ func (w *web) mount(e *gin.Engine) {
 	// without this nothing tells a browser when to look again.
 	e.Use(staticCacheHeaders())
 	e.StaticFS("/static", http.FS(sub))
+	// The browse tier covers everything mounted BELOW this line, which is why
+	// it sits here: gin applies Use() to later registrations only, so /static
+	// and /healthz are outside it by construction rather than by an exemption
+	// list. A page costs a token; the eighty images on it do not.
+	e.Use(w.tBrowse.Guard())
 	// Plugin stylesheets, handed over at Provision and served from a URL so
 	// they are cached rather than re-sent inside every fragment.
 	if w.pluginCSS != nil {
@@ -428,7 +475,7 @@ func (w *web) mount(e *gin.Engine) {
 	e.GET("/subscriptions", w.authed(w.subscriptionsPage)...)
 	// Invite codes (invitecodes_web.go).
 	e.GET("/login/2fa", w.twoFactorPage)
-	e.POST("/login/2fa", w.twoFactorPost)
+	e.POST("/login/2fa", limited(w.tAuth, w.twoFactorPost)...)
 	e.GET("/wishlist", w.authed(w.wishlistPage)...)
 	e.POST("/wishlist", w.authed(w.wishlistAdd)...)
 	e.POST("/wishlist/:id", w.authed(w.wishlistUpdate)...)
@@ -456,10 +503,10 @@ func (w *web) mount(e *gin.Engine) {
 	// POST because it creates one, and behind auth because the tracker's pages
 	// need an account.
 	e.POST("/release/:id/torrent", w.authed(w.mirrorRelease)...)
-	e.GET("/search", w.search)
+	e.GET("/search", limited(w.tWork, w.search)...)
 	// The quick-search dropdown. A fragment, so it is never a page — see
 	// suggest_web.go.
-	e.GET("/search/suggest", w.suggestPage)
+	e.GET("/search/suggest", limited(w.tWork, w.suggestPage)...)
 	e.GET("/browse", w.browse)
 	// Releases grouped by the show they belong to (series_web.go). Mounted
 	// unconditionally and gated INSIDE the handler: the capability is looked up
@@ -478,13 +525,13 @@ func (w *web) mount(e *gin.Engine) {
 	// Viewer settings: /settings/privacy, /settings/notifications.
 	w.mountSettings(e)
 	e.GET("/login", w.loginPage)
-	e.POST("/login", w.loginPost)
+	e.POST("/login", limited(w.tAuth, w.loginPost)...)
 	e.GET("/register", w.registerPage)
-	e.POST("/register", w.registerPost)
+	e.POST("/register", limited(w.tAuth, w.registerPost)...)
 	e.GET("/forgot", w.forgotPage)
-	e.POST("/forgot", w.forgotPost)
+	e.POST("/forgot", limited(w.tAuth, w.forgotPost)...)
 	e.GET("/reset", w.resetPage)
-	e.POST("/reset", w.resetPost)
+	e.POST("/reset", limited(w.tAuth, w.resetPost)...)
 	e.GET("/verify", w.verifyEmail)
 	// State-changing: POST + CSRF. A GET logout/resend is forgeable via a
 	// cross-site top-level navigation (SameSite=Lax still sends the cookie).
