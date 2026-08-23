@@ -61,6 +61,53 @@ help:
 	@echo
 	@echo "  The Go toolchain runs in Docker by default. Pass GO=go to use the host's."
 
+## fuzz: run every fuzz target for FUZZTIME each (default 30s)
+##
+## Go's fuzzer, not a separate tool. `go test ./...` already REPLAYS every
+## corpus entry under testdata/fuzz on every run, so a crash found once is a
+## regression test from then on and costs nothing -- this target is for going
+## looking for new ones.
+##
+## What it found on the day it was written, both in under two minutes:
+##   - the sanitiser emitted NESTED <a> tags, which HTML forbids, so a browser
+##     re-parsing its output built a different DOM than the sanitiser had
+##     approved. That gap is the shape a mutation XSS takes.
+##   - markdown passed invalid UTF-8 straight through into template.HTML, so
+##     the bytes stored, the bytes served and the characters displayed all
+##     disagreed, and every downstream consumer that must be valid UTF-8
+##     inherited it.
+##
+## Neither was found by any of the checks that already existed, and neither
+## was a crash -- both were violations of a PROPERTY, which is what makes a
+## sanitiser and a renderer worth fuzzing at all.
+##
+##   make fuzz FUZZTIME=5m
+## race: the whole suite under the data-race detector
+##
+## THIS IS GO'S ANSWER TO "use after free", and the answer is that the question
+## does not apply in the shape it has in C. There is no free() to use after: the
+## collector will not reclaim anything still reachable, and this tree contains
+## no `unsafe` and no cgo in any of its four repositories, which are the only
+## two ways out of that guarantee.
+##
+## What DOES bite a Go server is the neighbouring bug: two goroutines touching
+## one value without synchronisation. That is memory unsafety in practice --
+## torn reads, a map resized mid-lookup, a slice header half-updated -- and it
+## is invisible until it is a production crash under load. The detector finds it
+## deterministically wherever a test exercises the path.
+##
+## Its own target rather than part of `check` because -race makes the suite
+## roughly ten times slower; CI runs it, a laptop runs it before touching
+## anything concurrent.
+race:
+	@$(GO) test ./... -race -count=1
+
+FUZZTIME ?= 30s
+fuzz:
+	@$(GO) test ./internal/sanitize/ -run FuzzHTML -fuzz FuzzHTML -fuzztime $(FUZZTIME)
+	@$(GO) test ./internal/markdown/ -run FuzzRender -fuzz FuzzRender -fuzztime $(FUZZTIME)
+	@$(GO) test ./internal/markdown/ -run FuzzEllipsis -fuzz FuzzEllipsis -fuzztime $(FUZZTIME)
+
 ## check: everything CI runs
 check: fmt build lint golint ctlchars sql css bootstrap branding capabilities contrast resources seams test cover
 

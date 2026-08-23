@@ -41,12 +41,24 @@ func HTML(in string) string {
 	}
 	var sb strings.Builder
 	for _, n := range nodes {
-		writeSanitized(&sb, n)
+		writeSanitized(&sb, n, false)
 	}
 	return sb.String()
 }
 
-func writeSanitized(sb *strings.Builder, n *html.Node) {
+// writeSanitized re-serialises one node.
+//
+// inAnchor carries HTML's own rule down the tree: an <a> may not contain
+// another <a>. The parser will happily hand us a nested pair -- from misnested
+// input, or after a disallowed wrapper between them is dropped -- and writing
+// it back out produces markup that a BROWSER re-parses differently from the
+// tree we just sanitised. That gap between "what the sanitiser saw" and "what
+// the browser builds" is the shape a mutation XSS takes, and it is worth
+// closing even where the concrete instance is only a restructured link.
+//
+// Found by fuzzing (fuzz_test.go), after 8.8 million executions, as a failure
+// of the idempotence property rather than of any of the specific checks.
+func writeSanitized(sb *strings.Builder, n *html.Node, inAnchor bool) {
 	switch n.Type {
 	case html.TextNode:
 		sb.WriteString(html.EscapeString(n.Data))
@@ -56,10 +68,19 @@ func writeSanitized(sb *strings.Builder, n *html.Node) {
 		if n.DataAtom == atom.Script || n.DataAtom == atom.Style {
 			return
 		}
+		// A nested <a> is treated exactly like a disallowed wrapper: the tag
+		// goes, the words stay. Dropping the text instead would delete the
+		// link's own label, which is prose.
+		if n.DataAtom == atom.A && inAnchor {
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				writeSanitized(sb, c, true)
+			}
+			return
+		}
 		if !newsAllowedTags[n.DataAtom] {
 			// Unknown wrapper: keep the prose inside it.
 			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				writeSanitized(sb, c)
+				writeSanitized(sb, c, inAnchor)
 			}
 			return
 		}
@@ -81,13 +102,13 @@ func writeSanitized(sb *strings.Builder, n *html.Node) {
 		}
 		sb.WriteString(">")
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			writeSanitized(sb, c)
+			writeSanitized(sb, c, inAnchor || n.DataAtom == atom.A)
 		}
 		sb.WriteString("</" + n.Data + ">")
 	default:
 		// Comments, doctypes and anything else contribute nothing.
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			writeSanitized(sb, c)
+			writeSanitized(sb, c, inAnchor)
 		}
 	}
 }

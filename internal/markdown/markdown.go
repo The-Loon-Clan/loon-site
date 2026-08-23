@@ -51,6 +51,20 @@ var siteMD = goldmark.New(
 // registered as the {{prose}} template helper for the plugin-rendered pages
 // whose bodies arrive as plain strings.
 func Render(src string) template.HTML {
+	// Invalid UTF-8 is replaced before anything looks at it. A member's post
+	// arrives as form bytes and can be any byte at all; goldmark passes an
+	// invalid sequence through unchanged, and the result is marked
+	// template.HTML and served inside a document that declares UTF-8. The
+	// browser substitutes U+FFFD on the way in, so the bytes stored, the bytes
+	// served and the characters displayed all disagree -- and everything
+	// downstream that must be valid UTF-8 (the RSS feed, a JSON API response,
+	// the search index) inherits the problem from here.
+	//
+	// Doing it here rather than at the form binding covers every caller: this
+	// is the Deps.Markdown seam every prose plugin renders through.
+	// Found by fuzzing (fuzz_test.go) on the input "æ".
+	src = strings.ToValidUTF8(src, "�")
+
 	var buf bytes.Buffer
 	if err := siteMD.Convert([]byte(src), &buf); err != nil {
 		// Render nothing rather than the raw source: on a page that marks its
