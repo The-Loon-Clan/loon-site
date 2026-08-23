@@ -94,7 +94,12 @@ func assetURL(p string) string {
 // again. Without the version this header would be the bug rather than the fix.
 func staticCacheHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if strings.HasPrefix(c.Request.URL.Path, "/static/") {
+		// /pluginstyle/ on the same terms as /static/: a plugin sheet is served
+		// with its content hash in the URL by pluginStyles.links(), so it earns
+		// the same immutable year. Its own prefix because gin will not accept a
+		// route under StaticFS's catch-all -- see pluginstyles_web.go.
+		p := c.Request.URL.Path
+		if strings.HasPrefix(p, "/static/") || strings.HasPrefix(p, pluginCSSPrefix) {
 			if c.Request.URL.Query().Get("v") != "" {
 				c.Header("Cache-Control", "public, max-age=31536000, immutable")
 			} else {

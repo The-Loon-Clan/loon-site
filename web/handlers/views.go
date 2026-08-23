@@ -69,6 +69,10 @@ type web struct {
 	auth      webauth.Auth
 	loginLog  loginlog.Store     // login-attempt audit (recorded here, viewed via its views)
 	captcha   *captcha.Verifier  // Turnstile hook (disabled when no keys configured)
+	// pluginCSS holds the stylesheets plugins hand over at Provision, and
+	// serves them from a URL so they are cached instead of re-sent inside
+	// every fragment. See pluginstyles_web.go.
+	pluginCSS *pluginStyles
 	points    core.PointsService // for the navbar balance readout
 	inbox     notify.InboxStore  // for the navbar unread-count bell
 	cache     cache.Cache        // page cache (in-memory by default, redis if configured)
@@ -374,6 +378,11 @@ func (w *web) mount(e *gin.Engine) {
 	// without this nothing tells a browser when to look again.
 	e.Use(staticCacheHeaders())
 	e.StaticFS("/static", http.FS(sub))
+	// Plugin stylesheets, handed over at Provision and served from a URL so
+	// they are cached rather than re-sent inside every fragment.
+	if w.pluginCSS != nil {
+		e.GET(pluginCSSPrefix+":name", w.pluginCSS.serve)
+	}
 	e.GET("/", w.home)
 	e.GET("/groups", w.groups)
 	// Trending — most-grabbed releases (trending_web.go). Public: it exposes no
@@ -749,6 +758,13 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	}
 	u, _ := w.currentUser(c)
 	data["User"] = u
+	// The stylesheets plugins handed over at Provision. One <link> each, with
+	// the content hash in the URL, so they are fetched once and then immutable
+	// — instead of the same bytes riding inside every fragment that needs them.
+	// See pluginstyles_web.go.
+	if w.pluginCSS != nil {
+		data["PluginCSS"] = w.pluginCSS.links()
+	}
 	// Gate the admin nav on actual role, not mere logged-in-ness — the
 	// /admin/* routes sit behind Require(RoleAdmin), so a plain user
 	// clicking them lands on a 403 JSON blob instead of a page.

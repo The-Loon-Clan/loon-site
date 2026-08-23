@@ -113,6 +113,13 @@
     <link rel="stylesheet" href="{{asset .Theme.Href}}" id="theme-css">
     <link rel="stylesheet" href="{{asset "/static/css/layout.css"}}">
     <link rel="stylesheet" href="{{asset "/static/css/components.css"}}">
+    {{/* Plugin stylesheets, handed over at Provision and served from a URL.
+         AFTER the site's own, so a plugin rule that overrode a site rule
+         still does — the same order the in-fragment <style> had, and the
+         same order the hoist in fragmentstyles.go preserves for whatever
+         has not moved over yet. */}}
+    {{range .PluginCSS}}<link rel="stylesheet" href="{{.}}">
+    {{end}}
     <link rel="stylesheet" href="{{asset "/static/css/theme.css"}}">
 {{end}}
 

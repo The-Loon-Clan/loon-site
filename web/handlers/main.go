@@ -216,6 +216,11 @@ func Main() {
 		os.Exit(1)
 	}
 	wsrv := newWeb(st.users, st.sessionSecret, logger, data)
+	// Created HERE, not where it is registered below: mount() adds the route
+	// that serves these sheets and runs long before Boot, so a sink built at
+	// registration time would be nil when the route is decided and the URL
+	// would 404 while the <link> in every head pointed at it.
+	wsrv.pluginCSS = newPluginStyles()
 
 	// READINESS, beside the liveness probe above in meaning if not in position
 	// — ops_web.go has the argument for why conflating the two turns a database
@@ -642,6 +647,14 @@ func Main() {
 	// disabled verifier means plugins gate nothing (graceful).
 	if err := c.Register("captcha", wsrv.captcha); err != nil {
 		logger.Error("register captcha capability", "err", err)
+	}
+	// The stylesheet sink, so a plugin can hand over its CSS at Provision
+	// instead of shipping it inside every fragment it renders. Registered
+	// before Boot for the same reason as everything here: Provision is where a
+	// plugin asks, and Provision runs during Boot. See pluginstyles_web.go and
+	// docs/BACKLOG.md #13.
+	if err := c.Register(pluginapi.StylesheetRegistrarName, wsrv.pluginCSS); err != nil {
+		logger.Error("register plugin stylesheet sink", "err", err)
 	}
 	// Publish the notification fan-out so a plugin can Add its own delivery
 	// channel (Lookup "notify.fanout" + Add a sink) during Provision.
