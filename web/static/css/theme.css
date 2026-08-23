@@ -605,6 +605,11 @@ dd { margin-inline-start: 0; }
 .text-break { overflow-wrap: anywhere; word-break: break-word; }
 .text-decoration-none { text-decoration: none; }
 .text-muted { color: var(--muted); }
+/* The third text tier, matching the --text-subtle alias above it. Added
+   23 Aug 2026 so that inline `opacity:.6` has somewhere measured to go: a
+   blend is not a colour the contrast checks can see, and on nord --text at
+   0.6 over --surface is 4.05:1, already under AA. --muted-2 is 5.92 there. */
+.text-subtle { color: var(--muted-2); }
 .text-danger { color: var(--danger); }
 .text-success { color: var(--success); }
 .text-warning { color: var(--warning); }

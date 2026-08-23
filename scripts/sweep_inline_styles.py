@@ -134,6 +134,10 @@ def classes_for(decl_text):
         k, v = d.split(":", 1)
         k, v = k.strip().lower(), v.strip().lower().rstrip(";")
         v = re.sub(r"\s+", "", v)
+        # An attribute that sets BOTH a colour and an opacity would produce two
+        # colour classes fighting each other. Left whole for a person.
+        if "opacity" in decl_text and "color:" in decl_text:
+            return None
         cls = None
         if k == "font-size":
             cls = fs_class(v)
@@ -145,6 +149,25 @@ def classes_for(decl_text):
             cls = WEIGHT.get(v)
         elif k == "text-decoration" and v == "none":
             cls = "text-decoration-none"
+        elif k == "opacity":
+            # A DECISION, not a rename, and the only one in this script.
+            #
+            # Opacity over text is how contrast is lost with nothing in the
+            # source looking wrong -- the colour is still the approved token
+            # and only the composite fails, which no token check can see. On
+            # nord, --text at 0.6 over --surface is 4.05:1, already under AA
+            # before anybody dimmed anything further.
+            #
+            # So a dim becomes a TIER: .6 is the tertiary text colour and
+            # anything above it the secondary. Both are real tokens that
+            # contrast.py measures against every ground in every theme. The
+            # rendered result is within a few percent of the blend everywhere
+            # (0.6 vs --muted-2: 4.92/5.24 cosmic, 6.05/5.47 midnight,
+            # 4.05/5.92 nord) and passes where the blend did not.
+            if v in ("0.6", ".6", "0.60"):
+                cls = "text-subtle"
+            elif v in ("0.7", ".7", "0.75", ".75", "0.8", ".8"):
+                cls = "text-muted"
         elif k == "gap":
             cls = GAP.get(v)
         elif k in SPACE_PREFIX and v in SPACE:
