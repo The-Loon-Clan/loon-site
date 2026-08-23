@@ -224,6 +224,12 @@ var navPlacedByHost = map[string]bool{
 	"/p/inbox":   true,
 	"/p/account": true,
 	"/p/api-key": true,
+	// account bar, Settings group. Appearance is the other half of "About
+	// you" -- your words and your look -- and Download reports carries your
+	// own key for a downloader to use, which is the same shape as API key
+	// directly above it.
+	"/p/cosmetics": true,
+	"/p/downloads": true,
 	// account menu, Activity group — your medal cabinet. Re-homed out of the
 	// plugin's Community hint by navPlacement below; this is the half that
 	// stops it appearing a second time as a loose site link.
@@ -285,6 +291,19 @@ var navPlacement = map[string]struct{ Group, Label string }{
 	// sat in Community because a shop sounds communal. A member looking for
 	// their own badges looks where Achievements is.
 	"/p/medals": {Group: "", Label: "Medals"},
+
+	// Both asked for Group "Account" and were answered with none, because the
+	// top nav answers "where is the SITE?" and neither of these is the site's
+	// -- they are the viewer's. Two of them was enough to collapse into a
+	// top-level ACCOUNT dropdown sitting between Other and Donate, which is
+	// docs/NAVIGATION.md's first rule broken by the generic bucketing rather
+	// than by anybody deciding to.
+	//
+	// With no group they fall to the ungrouped branch of siteNav, where
+	// navPlacedByHost below catches them: the account BAR lists them by hand,
+	// under Settings, beside the other things that configure your account.
+	"/p/cosmetics": {Group: "", Label: "Appearance"},
+	"/p/downloads": {Group: "", Label: "Download reports"},
 }
 
 // accountPluginPages is the fallback for a per-viewer plugin page the host has

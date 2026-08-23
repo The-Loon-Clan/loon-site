@@ -46,6 +46,14 @@ func TestAccountMenuEntriesAreReachable(t *testing.T) {
 		// w.mount — same category as /p/api-key above: named by hand because
 		// the host cannot see the route, verified by hand because of that.
 		"/store": true, "/rewards": true, // /store/history is already listed above
+		// Moved onto the bar on 23 Aug 2026 out of a top-nav ACCOUNT dropdown
+		// the generic bucketing had built for them. Same category again --
+		// the cosmetics and downloads plugins register these as VIEWS, so
+		// w.mount never sees a route and this list is the only thing that can
+		// say they exist. Both verified answering 200 on the running site
+		// before being written here, which is the whole of what "verified by
+		// hand" can mean for an entry a program cannot check.
+		"/p/cosmetics": true, "/p/downloads": true,
 	}
 	// Walks GROUPS too. A group has no Href of its own, so checking only the
 	// top level would cover almost nothing — most of the menu is grouped.

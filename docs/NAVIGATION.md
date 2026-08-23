@@ -41,6 +41,37 @@ Enforced by `TestAccountDropdownHasAtMostOneStaffDoor`, which counts the
 and deliberately so: the failure it guards against is somebody adding one more
 link, and a crude check catches that on the line it happens.
 
+## The rule applies to the TOP nav too, and nothing was enforcing it
+
+The table says the top nav holds "the site's own sections". On 23 Aug 2026 it
+also held **ACCOUNT**, a dropdown with Appearance and Download reports in it,
+sitting between Other and Donate.
+
+Nobody decided that. Both plugins declare `NavHint{Group: "Account"}`, and
+`siteNav` collapses any group with two or more visible pages into a top-level
+dropdown — so the second plugin to ask for that group is what created the tab.
+One would have flattened to a plain link and looked like an oversight; two
+looked like a feature.
+
+The fix is the one `/p/medals` and `/p/api-key` already use: answer the hint
+with no group (`navPlacement`), let `navPlacedByHost` stop the generic nav
+placing a loose copy, and list the page by hand on the account BAR — which is
+the row that answers "what else is in my account?" and appears across `/u/`,
+`/settings/` and the rest of the area.
+
+Two things that are easy to miss when moving a page this way:
+
+- **add it to `accountAreaPrefixes`.** A page listed on the bar that does not
+  itself show the bar strands whoever clicks it.
+- **add it to the `served` map in `sectionnav_test.go`.** A plugin registers
+  these as VIEWS, so `w.mount` never sees a route and the test cannot discover
+  them; that list is the only thing that can say the page exists, and the
+  entry is worth nothing unless somebody actually loaded the page first.
+
+`accountPluginPages` exists for the same problem and catches nothing, because
+it only sees pages that arrive ungrouped. A plugin that names a group skips
+past it entirely.
+
 ## The second rule: one word, one destination
 
 **No label may name two different pages.** A menu that offers "Store" twice is

@@ -124,6 +124,9 @@ var accountMenu = []sectionTab{
 	{Label: "Settings", Items: []sectionTab{
 		{Label: "Account", Href: "/p/account"},
 		{Label: "About you", Href: "/settings/profile"},
+		// The other half of "About you": that page is your words, this one is
+		// your look. Both are how you present, so they sit together.
+		{Label: "Appearance", Href: "/p/cosmetics"},
 		{Label: "Privacy", Href: "/settings/privacy"},
 		{Label: "Security", Href: "/settings/security"},
 		{Label: "Alerts", Href: "/settings/notifications"},
@@ -133,6 +136,10 @@ var accountMenu = []sectionTab{
 		// (admin_views.go), which keeps the generic nav from adding a second
 		// copy.
 		{Label: "API key", Href: "/p/api-key"},
+		// Beside API key because it is the same shape: your own key, handed to
+		// a machine you run. Not Activity -- the page's job is to give you a
+		// script that works, not to list what you have downloaded.
+		{Label: "Download reports", Href: "/p/downloads"},
 	}},
 }
 
@@ -193,6 +200,9 @@ func accountNav(path string) []sectionTab {
 var accountAreaPrefixes = []string{
 	"/u/", "/inbox", "/p/inbox", "/p/account", "/p/api-key",
 	"/p/topics", "/p/posts", "/p/medals", "/settings/",
+	// Listed on the bar, so the bar has to cover them: a page reachable from
+	// the account area that then drops the account area strands you there.
+	"/p/cosmetics", "/p/downloads",
 	"/bookmarks", "/calendar", "/achievements", "/subscriptions", "/gifts", "/wishlist",
 	// The member's own tracker standing — see trackerAccountGroup.
 	"/hitrun", "/perks", "/seedlock",
