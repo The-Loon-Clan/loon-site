@@ -154,7 +154,13 @@ def saved_pages(paths):
                 continue
             if code != 200 or "<html" not in html[:2000].lower():
                 continue
+            # /pluginstyle/ as well as /static/. A plugin stylesheet is served from its
+            # own prefix (handlers/pluginstyles_web.go), and a saved page that does not
+            # rewrite it loads nothing for that link -- every plugin page then measures
+            # and photographs as UNSTYLED, which reads as the site being broken rather
+            # than the harness missing an asset.
             for a, b in (('href="/static', 'href="%s/static' % _site.BASE),
+                         ('href="/pluginstyle', 'href="%s/pluginstyle' % _site.BASE),
                          ('src="/static', 'src="%s/static' % _site.BASE),
                          ('src="/uploads', 'src="%s/uploads' % _site.BASE),
                          ("url('/uploads", "url('%s/uploads" % _site.BASE)):
