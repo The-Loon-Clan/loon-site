@@ -125,16 +125,54 @@ def used(root=None, rel_to=None):
     return out
 
 
+# A plugin's CSS lives in a Go string now, not a <style> block.
+#
+# The RegisterStylesheet migration moved every plugin's rules out of its
+# templates and into <plugin>/stylesheet.go, so the host can serve them from a
+# URL with a hash and a year of caching -- and so script-src could drop
+# 'unsafe-inline'. Sixteen plugins moved.
+#
+# This audit read .html and .css and nothing else, so the day that landed it
+# started reporting seven classes as styled by nobody -- .chat-msg, .chat-user,
+# .expanded, .voted and three more -- every one of which has a rule, sitting in
+# a file the audit could not see. The rules never moved; the reader did.
+#
+# That is the worse half of this failure mode. A check that misses a real
+# problem is quiet; a check that invents seven is read once, disbelieved, and
+# then ignored along with the real finding it reports next week.
+STYLESHEET_GO = "stylesheet.go"
+
+
+def _go_stylesheet_classes(path):
+    """Class names the CSS constants in a Go file write rules for.
+
+    Go raw strings cannot contain a backtick, so the delimiters are unambiguous
+    and this needs no Go parser.
+    """
+    out = set()
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        text = fh.read()
+    for block in re.findall(chr(96) + "([^" + chr(96) + "]*)" + chr(96), text, re.S):
+        block = re.sub(r"/\*.*?\*/", " ", block, flags=re.S)
+        for cls in re.findall(r"\.(-?[A-Za-z_][A-Za-z0-9_-]*)", block):
+            out.add(cls)
+    return out
+
+
 def inline_styles(root):
-    """Class names the <style> blocks under `root` write rules for.
+    """Class names the stylesheets under `root` write rules for.
+
+    Both kinds: the <style> blocks still in templates, and the CSS constants in
+    <plugin>/stylesheet.go, which is where sixteen plugins' rules now live. See
+    STYLESHEET_GO above for what reading only the first kind cost.
 
     SCOPED, and that is the whole point. These used to be pooled across both
     trees, so a rule in the forum's stylesheet counted as defining that class
     for lists and roadmap -- whose pages never load it. Writing one plugin's
     stylesheet moved two other plugins' baselines without touching them.
 
-    A page gets the host's stylesheets plus the <style> blocks in its OWN
-    template set. Nothing else.
+    A page gets the host's stylesheets plus its OWN plugin's rules. Nothing
+    else.
     """
     out = set()
     if not os.path.isdir(root):
@@ -142,9 +180,13 @@ def inline_styles(root):
     for dirpath, dirs, files in os.walk(root):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         for fn in files:
+            path = os.path.join(dirpath, fn)
+            if fn == STYLESHEET_GO:
+                out |= _go_stylesheet_classes(path)
+                continue
             if not fn.endswith(".html"):
                 continue
-            with open(os.path.join(dirpath, fn), encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 text = fh.read()
             for block in re.findall(r"<style[^>]*>(.*?)</style>", text, re.S | re.I):
                 block = re.sub(r"/\*.*?\*/", " ", block, flags=re.S)

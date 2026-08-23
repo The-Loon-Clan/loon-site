@@ -97,7 +97,14 @@ IMAGE_ALLOW = {
     #
     # Delete these three entries in the commit that lands the registry. That
     # is what makes this list a to-do rather than a graveyard.
-    "donations/templates/help_donate.html",  # hero-rain.png, mascot-thumb.png
+    #
+    # The path is stylesheet.go and not the template because the RegisterCSS
+    # migration moved the rules that draw them: a plugin's CSS is a Go constant
+    # now, served from a URL with a hash, so script-src could drop
+    # 'unsafe-inline'. Same two images, same open to-do, one file along -- and
+    # the entry has to follow the code or the audit reports a to-do it was
+    # already told about, which is how a list like this starts being ignored.
+    "donations/stylesheet.go",  # hero-rain.png, mascot-thumb.png
 }
 # wiki/templates/wiki_topic.html was here for /static/posters/ame.png and left
 # on 22 Aug 2026 — not because the registry landed, but because the image was
