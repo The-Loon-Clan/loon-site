@@ -439,8 +439,21 @@ const (
 	// so the whole page is still one release query.
 	homeReleaseWindow = 60
 	homeTableRows     = 25 // rows in the main listing table
-	homeFeatured      = 6  // posters in the featured strip
-	homeTopGroups     = 5  // rows in the busiest-groups panel
+	// homeFeatured — posters in the featured strip. Six filled about half the
+	// track on a wide screen and left the carousel's own arrows with nothing to
+	// do, which reads as a broken control rather than a short list.
+	//
+	// 18 is three screenfuls at six visible. NOT the whole window: 53 of the 60
+	// rows have cover art (measured 23 Aug 2026), so the strip could run to 53
+	// without a gradient tile, but at that point it is a second browse page
+	// stacked on top of the 25-row table directly below it. 18 leaves enough
+	// headroom that a drop in cover coverage still never shows a fallback here.
+	//
+	// Costs nothing extra to fetch: the strip slices the SAME 60-row window the
+	// rest of the page already queried, and the posters are loading="lazy" with
+	// explicit width/height, so the ones off the right edge are never requested.
+	homeFeatured  = 18
+	homeTopGroups = 5 // rows in the busiest-groups panel
 
 	// v2: the cached value changed shape when the home page became
 	// movies-and-TV only. Reusing v1 would have served the old unfiltered rows
