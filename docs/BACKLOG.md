@@ -492,33 +492,30 @@ two row counts changed.
 
 ---
 
-## 13. Plugin CSS ships as `<style>` inside the page body
+## 13. Plugin CSS ships as `<style>` inside the page body — HALF DONE
 
-`vnu` on `/news`:
+The VALIDITY half is fixed. `renderStatus` hoists a fragment's `<style>`
+blocks into the head (loon-demo-site `0017975`,
+`web/handlers/fragmentstyles.go`), in order, after the site's own stylesheets
+so a fragment rule that overrode a site rule still does. That was 19 of the 52
+errors `make html` reported once it stopped looking at five pages, and
+`audit_html` is at zero across all 111 public pages now.
 
-    Element "style" not allowed as child of element "div" in this context.
+**The other two costs are untouched, and they are the ones this entry is
+really about:**
 
-A plugin renders a fragment, the host wraps it in chrome, and any CSS the
-fragment needs travels with it — inside a `<div>`, where `<style>` is metadata
-content that does not belong. Every browser honours it, so nothing looks broken;
-the page is simply not valid HTML.
+- **CSP.** The style is still INLINE, just inline in the head. The host still
+  cannot drop `style-src 'unsafe-inline'` — see `docs/QUALITY.md`.
+- **Caching.** Every plugin page still re-sends its CSS in the document. The
+  news feed is still 90 lines of CSS in a template, duplicated across that
+  plugin's four pages and paid for on every view.
 
-Not one template's problem. **37 plugin templates and 3 host templates** carry an
-in-body `<style>` block today, so `make html` reports it on most plugin pages.
-
-It is also the other half of the `'unsafe-inline'` concession in the CSP (item
-in `docs/QUALITY.md`): the host cannot drop `style-src 'unsafe-inline'` while
-every plugin page needs it.
-
-The fix is a seam, not an edit. Something like a `Deps.RegisterCSS(name, css)`
-the host serves from `/static/plugin/<name>.css` and links in `<head>` — one
-request per plugin, cacheable, valid, and nonce-free. Until then a plugin that
-wants styling has no other way to ask for it, which is why this is a design task
-rather than a cleanup.
-
-Found while cleaning up the news feed, which is also where the shape of the
-problem is clearest: 90 lines of CSS in a template, re-sent on every page view,
-duplicated across the plugin's four pages.
+So the seam this entry proposes is still the fix: something like a
+`Deps.RegisterCSS(name, css)` the host serves from `/static/plugin/<name>.css`
+and links in `<head>` — one request per plugin, cacheable, valid, and
+nonce-free. The hoist made the pages VALID without making the CSS cacheable or
+the CSP tighter, and it is worth being precise about that rather than letting a
+green `make html` read as this item being done.
 
 ## 14. Spotnet import (spike done, design in SPOTNET.md)
 
