@@ -45,8 +45,17 @@ PLUGINS = os.path.join(os.path.dirname(ROOT), "loon-plugins")
 SKIP = {".git", "node_modules", "vendor", "scratchpad", "examples", "testdata",
         ".claude", "deploy", ".github"}
 
-# Where it stood when this was written. Both may fall and neither may rise.
-BASELINE_INLINE = {"host": 44, "plugins": 1671}
+# Where it stands. Both may fall and neither may rise.
+#
+#   23 Aug 2026, first measurement:  host 44, plugins 1671  (1,715)
+#   23 Aug 2026, after the sweep:    host 41, plugins 1054  (1,095)
+#
+# 620 went in one commit because they said something theme.css already had a
+# class for -- see scripts/sweep_inline_styles.py. What is left says things no
+# class covers: widths, gaps, paddings, backgrounds, one-off accent colours.
+# Those need NAMING, which is judgment rather than transcription, and 302 of
+# them are in requests/ and belong to another workstream.
+BASELINE_INLINE = {"host": 41, "plugins": 1054}
 BASELINE_DEAD = {"host": 0, "plugins": 32}
 
 STYLE_ATTR = re.compile(r'style\s*=\s*"([^"]*)"', re.I)

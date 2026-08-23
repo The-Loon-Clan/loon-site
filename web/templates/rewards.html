@@ -22,8 +22,8 @@
         {{/* h1, not the h5 the store's own pages use. Every page needs exactly
              one h1 and this page's heading is it; matching the neighbours'
              SIZE is a class, not a level. */}}
-        <h1 class="h5 mb-0" style="font-weight:600;">Rewards</h1>
-        {{if .HasPoints}}<span class="badge bg-warning text-dark" style="font-size:0.82rem;">{{.Points}} pts</span>{{end}}
+        <h1 class="h5 mb-0 fw-semibold">Rewards</h1>
+        {{if .HasPoints}}<span class="badge bg-warning text-dark fs-xs">{{.Points}} pts</span>{{end}}
     </div>
 
     {{if .Unavailable}}
