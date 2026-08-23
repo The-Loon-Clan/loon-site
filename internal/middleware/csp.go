@@ -35,11 +35,26 @@ package middleware
 //	                         applies to its own requests, applied to
 //	                         everything else on the page
 //
-// The path to removing 'unsafe-inline' is to move the host's four blocks into
-// files under /static and give plugins a way to declare a nonce. That is a real
-// piece of work and it is written down in docs/ASYNC.md rather than pretended
-// away with a policy that would have to be reverted the first time a plugin
-// page went blank.
+// # The nonce, and why the objection above no longer holds
+//
+// Everything above was written when a plugin's inline <script> was beyond the
+// host's reach: a fragment arrived as finished HTML and went into the page
+// untouched, so a nonce policy really would have blanked every plugin page.
+//
+// The host rewrites fragments now. It already lifts their <style> blocks into
+// the head (handlers/fragmentstyles.go); adding a nonce to their inline
+// <script> tags is the same seam, and the plugin never learns the nonce exists
+// — which is the property that makes this safe for a published contract.
+//
+// So script-src carries a per-request nonce and no longer carries
+// 'unsafe-inline'. A browser that supports nonces ignores 'unsafe-inline'
+// anyway when one is present, so keeping it would buy nothing but the
+// appearance of the concession still being here.
+//
+// What this does NOT do is make the sanitizer redundant. An injected script
+// still has no nonce and will not run, which is new; but the sanitizer is
+// still what stops injected markup existing in the first place, and CSP is the
+// second line, not the first.
 //
 // img-src stays permissive. User prose may legitimately embed a remote image —
 // internal/sanitize allows an https src through safeURL — and an image cannot
@@ -47,6 +62,8 @@ package middleware
 // proxied), so this exists for user content alone.
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -58,7 +75,10 @@ var contentSecurityPolicy = strings.Join([]string{
 	"default-src 'self'",
 	// See the file comment: 'unsafe-inline' is required by 39 inline blocks
 	// across the host and the plugin ecosystem.
-	"script-src 'self' 'unsafe-inline'",
+	// script-src is completed per request with the nonce; see nonceKey and
+	// SecurityHeaders. It is NOT in this list, because this list is joined
+	// once at init and a nonce that never changes is not a nonce.
+	// (script-src goes here, per request)
 	// The FALLBACK, and it is now doing one job only: covering inline style=""
 	// ATTRIBUTES, of which this tree has 1,647 and 98% are static. Removing
 	// those is a large sweep for another day; an inline style cannot reach the
@@ -96,10 +116,55 @@ var contentSecurityPolicy = strings.Join([]string{
 //
 // Applied to every response including /static: a policy that covers only the
 // HTML is a policy an attacker reads as a map of where it is not.
+// nonceKey is where the request's script nonce lives on the gin context.
+//
+// Exported through Nonce() rather than as a raw key: a template needs the
+// value and nothing else needs to know where it is kept.
+const nonceKey = "csp_script_nonce"
+
+// Nonce returns this request's script nonce, or "" outside a request that has
+// one. A template writing nonce="" is a script that will not run, which is the
+// safe direction to fail.
+func Nonce(c *gin.Context) string {
+	if c == nil {
+		return ""
+	}
+	v, _ := c.Get(nonceKey)
+	s, _ := v.(string)
+	return s
+}
+
+// newNonce is 16 bytes of crypto/rand, base64. Per REQUEST, never per process:
+// a nonce reused across responses is a value an attacker can read from one page
+// and replay into an injection on the next, which is the whole attack it
+// exists to prevent.
+func newNonce() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		// No nonce rather than a predictable one. Every inline script on the
+		// page then fails to run, which is loud, and the alternative is a
+		// policy that looks enforced and is not.
+		return ""
+	}
+	// URL-safe alphabet, and that is not cosmetic. Standard base64 yields
+	// '+' and '/', and html/template escapes '+' to &#43; inside an
+	// attribute — so the tag carried a nonce that did not match the header
+	// byte for byte. Browsers decode the entity before comparing, so it
+	// worked; it also made every check of the two look like a mismatch.
+	// [A-Za-z0-9_-] survives escaping untouched.
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
 func SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h := c.Writer.Header()
-		h.Set("Content-Security-Policy", contentSecurityPolicy)
+		n := newNonce()
+		c.Set(nonceKey, n)
+		script := "script-src 'self'"
+		if n != "" {
+			script += " 'nonce-" + n + "'"
+		}
+		h.Set("Content-Security-Policy", script+"; "+contentSecurityPolicy)
 		// Content sniffing turns a user-uploaded file the server labelled
 		// text/plain into whatever the browser decides it looks like. This site
 		// takes avatar uploads, so that path exists.

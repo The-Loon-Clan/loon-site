@@ -758,6 +758,9 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 	}
 	u, _ := w.currentUser(c)
 	data["User"] = u
+	// The request's CSP script nonce. Every inline <script> in these templates
+	// must carry it or it will not run — see internal/middleware/csp.go.
+	data["Nonce"] = middleware.Nonce(c)
 	// The stylesheets plugins handed over at Provision. One <link> each, with
 	// the content hash in the URL, so they are fetched once and then immutable
 	// — instead of the same bytes riding inside every fragment that needs them.
@@ -997,8 +1000,12 @@ func (w *web) renderStatus(c *gin.Context, status int, page string, data map[str
 	// fragmentstyles.go.
 	if frag, ok := data["Fragment"].(template.HTML); ok {
 		if body, styles := hoistFragmentStyles(frag); styles != "" {
-			data["Fragment"], data["FragmentStyles"] = body, styles
+			frag = body
+			data["FragmentStyles"] = styles
 		}
+		// And the nonce, for the same reason and through the same seam: a
+		// plugin cannot know a per-request value, so the host stamps it on.
+		data["Fragment"] = nonceFragmentScripts(frag, middleware.Nonce(c))
 	}
 	data = w.chromeData(c, data)
 	// The set for this request's language. chromeData resolved it already and

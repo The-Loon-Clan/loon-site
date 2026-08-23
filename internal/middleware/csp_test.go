@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"regexp"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -43,9 +44,9 @@ func TestTheSecurityHeadersAreSet(t *testing.T) {
 	}
 }
 
-// The directives that do real work even though script-src carries
-// 'unsafe-inline'. Each one is named here because each one stops an attack that
-// does not require executing a script — see csp.go.
+// The directives that do real work without blocking scripts. Each one is named
+// here because each one stops an attack that does not require executing a
+// script — see csp.go.
 func TestTheDirectivesThatWorkWithoutBlockingScripts(t *testing.T) {
 	policy := serveWithHeaders(t).Header().Get("Content-Security-Policy")
 
@@ -81,9 +82,10 @@ func TestUnsafeInlineIsConfinedToScriptAndStyle(t *testing.T) {
 			continue
 		}
 		name, _, _ := strings.Cut(directive, " ")
-		if name != "script-src" && name != "style-src" {
-			t.Errorf("'unsafe-inline' has spread to %q — see csp.go for why it is "+
-				"confined to script-src and style-src", name)
+		if name != "style-src" {
+			t.Errorf("'unsafe-inline' has spread to %q — see csp.go. It is confined "+
+				"to style-src, which covers inline style ATTRIBUTES; script-src "+
+				"carries a nonce instead and style-src-elem carries neither", name)
 		}
 	}
 	// 'unsafe-eval' was never needed: htmx runs with allowEval false.
@@ -137,5 +139,44 @@ func TestHeadersAreSetOnErrorsToo(t *testing.T) {
 	}
 	if rec.Header().Get("Content-Security-Policy") == "" {
 		t.Error("no CSP on a 404 response")
+	}
+}
+
+// The nonce is the whole reason script-src can stop carrying 'unsafe-inline',
+// so these check the two properties it depends on.
+func TestScriptSrcCarriesANonceAndNotUnsafeInline(t *testing.T) {
+	policy := serveWithHeaders(t).Header().Get("Content-Security-Policy")
+	var script string
+	for _, d := range strings.Split(policy, ";") {
+		if strings.HasPrefix(strings.TrimSpace(d), "script-src ") {
+			script = strings.TrimSpace(d)
+		}
+	}
+	if script == "" {
+		t.Fatal("no script-src directive at all")
+	}
+	if strings.Contains(script, "'unsafe-inline'") {
+		t.Errorf("script-src still carries 'unsafe-inline': %s", script)
+	}
+	if !strings.Contains(script, "'nonce-") {
+		t.Errorf("script-src carries no nonce, so every inline script is blocked: %s", script)
+	}
+}
+
+// A nonce reused across responses is a value an attacker reads from one page
+// and replays into an injection on the next. That is the attack it exists to
+// prevent, so the test is not ceremony.
+func TestTheNonceIsDifferentEveryRequest(t *testing.T) {
+	seen := map[string]bool{}
+	for i := 0; i < 5; i++ {
+		policy := serveWithHeaders(t).Header().Get("Content-Security-Policy")
+		m := regexp.MustCompile(`'nonce-([^']+)'`).FindStringSubmatch(policy)
+		if m == nil {
+			t.Fatalf("request %d: no nonce in %q", i, policy)
+		}
+		if seen[m[1]] {
+			t.Fatalf("nonce %q was reused", m[1])
+		}
+		seen[m[1]] = true
 	}
 }

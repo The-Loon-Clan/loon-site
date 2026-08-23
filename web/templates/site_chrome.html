@@ -1150,7 +1150,7 @@
          before htmx issues its first request, and defer preserves document
          order between the two while still not blocking the parser. */}}
     <script src="{{asset "/static/js/htmx.min.js"}}" defer></script>
-    <script>
+    <script nonce="{{.Nonce}}">
     // CSRF for every htmx request, in ONE place.
     //
     // This listener is the whole reason the async layer is allowed to grow. The
@@ -1197,7 +1197,7 @@
         if (m) e.detail.headers['X-CSRF-Token'] = decodeURIComponent(m[1]);
     });
     </script>
-    <script>
+    <script nonce="{{.Nonce}}">
     // Double-submit CSRF: on submit, make every same-origin POST form carry the
     // current token from the JS-readable csrf_tok cookie. Host forms also embed
     // it server-side ({{"{{.CSRFToken}}"}}) as a no-JS fallback; this line is

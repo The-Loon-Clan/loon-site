@@ -47,3 +47,37 @@ func TestHoistFragmentStylesKeepsOrder(t *testing.T) {
 		t.Fatalf("order lost: %q", styles)
 	}
 }
+
+// The nonce is what lets script-src drop 'unsafe-inline', and a plugin cannot
+// know it. These are the properties the host has to hold up on its behalf.
+func TestNonceFragmentScripts(t *testing.T) {
+	for _, c := range []struct{ name, in, want string }{
+		{"plain inline script",
+			`<script>go()</script>`, `<script nonce="N1">go()</script>`},
+		{"attributes are kept",
+			`<script type="module">go()</script>`, `<script type="module" nonce="N1">go()</script>`},
+		{"external is left alone",
+			`<script src="/static/x.js"></script>`, `<script src="/static/x.js"></script>`},
+		{"an existing nonce is not doubled",
+			`<script nonce="other">go()</script>`, `<script nonce="other">go()</script>`},
+		{"no script at all",
+			`<p>hi</p>`, `<p>hi</p>`},
+		{"two scripts both get it",
+			`<script>a()</script><p>x</p><script>b()</script>`,
+			`<script nonce="N1">a()</script><p>x</p><script nonce="N1">b()</script>`},
+	} {
+		got := string(nonceFragmentScripts(template.HTML(c.in), "N1"))
+		if got != c.want {
+			t.Errorf("%s:\n  got  %s\n  want %s", c.name, got, c.want)
+		}
+	}
+}
+
+// An empty nonce means crypto/rand failed. Stamping nonce="" would look wired
+// and run nothing; leaving the tag alone fails the same way but honestly.
+func TestNoNonceStampsNothing(t *testing.T) {
+	in := `<script>go()</script>`
+	if got := string(nonceFragmentScripts(template.HTML(in), "")); got != in {
+		t.Errorf("got %s, want it untouched", got)
+	}
+}

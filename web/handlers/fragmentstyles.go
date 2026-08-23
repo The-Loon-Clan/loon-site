@@ -47,3 +47,34 @@ func hoistFragmentStyles(frag template.HTML) (template.HTML, template.HTML) {
 	}
 	return template.HTML(body), template.HTML(styles.String()) //nolint:gosec // both halves came from the same fragment
 }
+
+// nonceFragmentScripts stamps the request's CSP nonce onto a fragment's inline
+// <script> tags.
+//
+// A plugin cannot know the nonce -- it is per request, and a plugin is a
+// published contract rendered by hosts it does not control. csp.go used to give
+// exactly that as the reason a nonce policy was impossible here. It is possible
+// because the host rewrites the fragment on its way into the page, the same
+// seam that lifts <style> out of it: the plugin ships an ordinary inline
+// script and the host makes it runnable.
+//
+// Only tags WITHOUT src. An external script is covered by 'self' and a nonce on
+// it would say nothing.
+//
+// An empty nonce stamps nothing, so the scripts stay unrunnable rather than
+// carrying nonce="" and looking wired. See newNonce on why it can be empty.
+var fragmentScriptOpen = regexp.MustCompile(`(?i)<script(?:\s[^>]*)?>`)
+
+func nonceFragmentScripts(frag template.HTML, nonce string) template.HTML {
+	if nonce == "" || !strings.Contains(strings.ToLower(string(frag)), "<script") {
+		return frag
+	}
+	out := fragmentScriptOpen.ReplaceAllStringFunc(string(frag), func(tag string) string {
+		low := strings.ToLower(tag)
+		if strings.Contains(low, " src=") || strings.Contains(low, "nonce=") {
+			return tag
+		}
+		return tag[:len(tag)-1] + ` nonce="` + nonce + `">`
+	})
+	return template.HTML(out) //nolint:gosec // the nonce is generated, the rest is the fragment as it arrived
+}
