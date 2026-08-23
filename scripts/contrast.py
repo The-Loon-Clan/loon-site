@@ -41,6 +41,11 @@ PAIRS = [
     # is what this file is for. They answer different questions.
     ("--muted-2", "--bg", "timestamps and captions on the page canvas"),
     ("--muted-2", "--surface", "timestamps and captions on a panel"),
+    # --surface-2 is a text ground too: avatars, badge tiles, dash tiles and
+    # the forum poster column all sit on it, and in cosmic-void it is now the
+    # LIGHTEST of the three, so it binds where --bg and --surface do not.
+    ("--muted-2", "--surface-2", "timestamps and captions on a raised block"),
+    ("--text", "--surface-2", "body text on a raised block"),
     # Every ROLE colour, not just member. A username is on nearly every row of
     # this site and the role decides its colour, so checking one of five was
     # checking the one that happens to be plain text. Lighthouse found the

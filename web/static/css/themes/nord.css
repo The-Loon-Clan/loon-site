@@ -45,7 +45,11 @@
        --muted (#aab4c8), so the tiers now differ by size and weight more
        than by colour. That is the honest trade: a timestamp is content, and
        content that cannot be read is not a subtler tier. */
-    --muted-2: #a5b0c7;
+        /* Lifted again on 22 Aug 2026: --surface-2 is the LIGHTEST ground a
+       caption sits on, and it was never in the contrast pairs until
+       cosmic-void's scale was corrected and the pair was added. 3.96:1
+       there, under the 4.5 minimum. Clears all three grounds now. */
+    --muted-2: #b5bed1;
 
     --primary: #88c0d0;         /* frost — UNIT3D's link + active-border colour */
     --primary-strong: #6fa8bd;

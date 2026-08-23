@@ -32,7 +32,11 @@
     --muted: #8b97b1;           /* secondary copy */
     /* 4.86:1 on --surface, where --panel-group-fg puts it. Was #5f6b85 at
        3.32 — see scripts/contrast.py. */
-    --muted-2: #7a86a0;         /* tertiary: timestamps, captions, disabled */
+        /* Lifted again on 22 Aug 2026: --surface-2 is the LIGHTEST ground a
+       caption sits on, and it was never in the contrast pairs until
+       cosmic-void's scale was corrected and the pair was added. 4.50:1
+       there, under the 4.5 minimum. Clears all three grounds now. */
+    --muted-2: #7c88a2;         /* tertiary: timestamps, captions, disabled */
 
     --primary: #7c5cff;         /* indigo/violet — the one brand accent */
     --primary-strong: #6a45ff;

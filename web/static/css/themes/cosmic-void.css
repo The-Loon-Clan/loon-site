@@ -26,7 +26,21 @@
     --bg: #222222;
     --bg-sunken: #161618;
     --surface: #282828;   /* one step above the page — see --panel-bg */
-    --surface-2: #19191b;
+    /* #19191b until 22 Aug 2026, which was DARKER than --bg (#222222) and
+       inverted the whole scale. Both other themes define this as one step
+       ABOVE the panel -- midnight names it "raised inside a panel: thead,
+       chips, inputs" -- so the thirty-one components that use it (avatars,
+       badge tiles, dash tiles, calendar days, the forum poster column) read as
+       raised in two themes and as a recess in this one.
+
+       The dark UNIT3D table header this value came from has its own token,
+       --data-table-th-bg, twelve lines down, so nothing is lost by putting
+       this back in order: #222222 < #282828 < #2c2c2c < #303030.
+
+       Found by scripts/audit_depth.py, which measures every theme; the bug
+       that prompted it had been reported in midnight, where this token is
+       fine. */
+    --surface-2: #2c2c2c;
     --surface-3: #303030;
     --bg-elevated: var(--surface-2);
 
@@ -41,7 +55,12 @@
        the rendered front page while contrast.py passed, because the pair
        list did not include this tier. Still clearly dimmer than --muted
        (#aaaaaa), so the three text tiers survive. */
-    --muted-2: #909090;         /* --paginate-fg */
+    /* #909090 cleared 4.5:1 on --bg and --surface, and --surface-2 has just
+       become a lighter ground than either: #909090 on #2c2c2c is 4.37. This
+       clears all three (5.65 / 5.24 / 4.96). The gap to --muted narrows again,
+       which is the same trade nord already records: a caption that cannot be
+       read is not a subtler tier. */
+    --muted-2: #9a9a9a;         /* --paginate-fg */
 
     /* The one chromatic accent in an otherwise greyscale theme. */
     --primary: #2195f3;

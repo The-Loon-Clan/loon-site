@@ -44,7 +44,7 @@ COVER_MIN ?= 22.0
 # LOON_TEST_DSN present means the substantial half is running.
 COVER_MIN_SERVICES ?= 33.0
 
-.PHONY: help check build test itest cover lint golint fmt sql ctlchars css capabilities contrast resources seams contracts vuln grade html lh run clean
+.PHONY: help check build test itest cover lint golint fmt sql ctlchars css capabilities contrast resources seams contracts depth vuln grade html lh run clean
 
 # `make` on its own explains itself, rather than silently building the first
 # target. Every target below already carried a `## name: description` line and
@@ -223,6 +223,20 @@ capabilities:
 seams:
 	@$(PYTHON) scripts/audit_seams.py
 
+## depth: nothing inside a panel is darker than the page behind it
+##
+## A surface scale has an ORDER — canvas, panel, raised inside the panel —
+## and reaching past it for the page's deepest recess puts a region in the
+## basement of the thing it is standing in. Not a contrast failure, valid
+## HTML, no a11y violation: nothing else here can see it, and the one that
+## shipped was reported by a person looking at a screenshot.
+##
+## Runs every theme, because the tokens differ per theme and so does the
+## gap — the reported bug was invisible in two of the three. Needs the site
+## and Chrome, so it lives with the live checks.
+depth:
+	@$(PYTHON) scripts/audit_depth.py
+
 ## contracts: the /admin/contracts page, read by something other than a person
 ##
 ## The host already computed both halves of this and neither gated
@@ -303,16 +317,17 @@ lh:
 ## It STOPS at the first failure. A release check that prints twelve red
 ## sections is one nobody reads to the end.
 release:
-	@echo "== 1/8 check (no site needed)"      && $(MAKE) --no-print-directory check
-	@echo "== 2/8 bringing the stack up"       && docker compose up -d --build >/dev/null && 	  for i in $$(seq 1 60); do 	    [ "$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/healthz)" = "200" ] && break; 	    sleep 2; 	  done; 	  test "$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/healthz)" = "200" 	    || { echo "the site did not come up; nothing below this can be trusted"; exit 1; }
-	@echo "== 3/8 access (staff routes, destructive POSTs, table coverage)" && $(PYTHON) scripts/audit_access.py
-	@echo "== 4/8 links"                       && $(PYTHON) scripts/audit_links.py
-	@echo "== 5/8 admin nav (every admin page reachable)" && $(PYTHON) scripts/audit_adminnav.py
-	@echo "== 6/8 contracts (unfilled seams, orphan event listeners)" && $(PYTHON) scripts/audit_contracts.py
-	@echo "== 7/8 accessibility"               && $(PYTHON) scripts/audit_a11y.py
-	@echo "== 8/8 mobile (every page at 390px)" && $(PYTHON) scripts/mobile.py
+	@echo "== 1/9 check (no site needed)"      && $(MAKE) --no-print-directory check
+	@echo "== 2/9 bringing the stack up"       && docker compose up -d --build >/dev/null && 	  for i in $$(seq 1 60); do 	    [ "$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/healthz)" = "200" ] && break; 	    sleep 2; 	  done; 	  test "$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/healthz)" = "200" 	    || { echo "the site did not come up; nothing below this can be trusted"; exit 1; }
+	@echo "== 3/9 access (staff routes, destructive POSTs, table coverage)" && $(PYTHON) scripts/audit_access.py
+	@echo "== 4/9 links"                       && $(PYTHON) scripts/audit_links.py
+	@echo "== 5/9 admin nav (every admin page reachable)" && $(PYTHON) scripts/audit_adminnav.py
+	@echo "== 6/9 contracts (unfilled seams, orphan event listeners)" && $(PYTHON) scripts/audit_contracts.py
+	@echo "== 7/9 accessibility"               && $(PYTHON) scripts/audit_a11y.py
+	@echo "== 8/9 mobile (every page at 390px)" && $(PYTHON) scripts/mobile.py
+	@echo "== 9/9 depth (every theme, nothing in a panel below the canvas)" && $(PYTHON) scripts/audit_depth.py
 	@echo
-	@echo "all eight passed. html and lh are NOT in here — they need a browser"
+	@echo "all nine passed. html and lh are NOT in here — they need a browser"
 	@echo "container and a network pull, so run them by hand: make html, make lh"
 
 ## access: every route probed as anonymous, a member and an admin
