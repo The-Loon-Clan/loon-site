@@ -111,6 +111,12 @@ github.com/the-loon-clan/loon-plugins v0.0.0-20260822223050-376458a8f14e h1:1xAB
 github.com/the-loon-clan/loon-plugins v0.0.0-20260822223050-376458a8f14e/go.mod h1:O8s/mpAmfyw3L0mYvBhRi7vOoevfPCiAqkssjkZPWU4=
 github.com/the-loon-clan/loon-plugins v0.0.0-20260822224407-49edc6c91658 h1:aonCLqg7H/52cC9FlpKHiuRJ05CKB4o4MRCykHuf8OE=
 github.com/the-loon-clan/loon-plugins v0.0.0-20260822224407-49edc6c91658/go.mod h1:O8s/mpAmfyw3L0mYvBhRi7vOoevfPCiAqkssjkZPWU4=
+github.com/the-loon-clan/loon-plugins v0.0.0-20260822230557-147696aa8040 h1:DAd/UYhDAitQnIOhF2tWix7H1hJEYSl1l/lfxYnEK7Q=
+github.com/the-loon-clan/loon-plugins v0.0.0-20260822230557-147696aa8040/go.mod h1:O8s/mpAmfyw3L0mYvBhRi7vOoevfPCiAqkssjkZPWU4=
+github.com/the-loon-clan/loon-plugins v0.0.0-20260822230758-66d988862f5a h1:m+NxiNYryyPIWmkRH5X2gicu4mq8Q70CAtvIsEYSuUw=
+github.com/the-loon-clan/loon-plugins v0.0.0-20260822230758-66d988862f5a/go.mod h1:O8s/mpAmfyw3L0mYvBhRi7vOoevfPCiAqkssjkZPWU4=
+github.com/the-loon-clan/loon-plugins v0.0.0-20260823010220-0a5a5c7d8d5c h1:6NDPzz52csrd7ob1gh8HO18W7kZiXr2HZ7c7wz87g+s=
+github.com/the-loon-clan/loon-plugins v0.0.0-20260823010220-0a5a5c7d8d5c/go.mod h1:O8s/mpAmfyw3L0mYvBhRi7vOoevfPCiAqkssjkZPWU4=
 github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=
 github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2+aY1QWCk3Cedj/Gdt08=
 github.com/ugorji/go/codec v1.3.1 h1:waO7eEiFDwidsBN6agj1vJQ4AG7lh2yqXyOXqhgQuyY=
