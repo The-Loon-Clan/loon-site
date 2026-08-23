@@ -101,7 +101,7 @@
 {{else if .EmailUnverified}}
 <div class="notice notice--warning">
     <svg class="icon notice__icon" aria-hidden="true"><use href="#envelope"></use></svg>
-    <span>Please verify your email &mdash; <form method="post" action="/verify/resend" style="display:inline;margin:0" hx-post="/verify/resend" hx-target="closest .notice" hx-swap="outerHTML" hx-disabled-elt="find button"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button type="submit" class="button button--text button--sm">resend link</button></form>.</span>
+    <span>Please verify your email &mdash; <form class="d-inline m-0" method="post" action="/verify/resend" hx-post="/verify/resend" hx-target="closest .notice" hx-swap="outerHTML" hx-disabled-elt="find button"><input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button type="submit" class="button button--text button--sm">resend link</button></form>.</span>
 </div>
 {{end}}
 {{end}}

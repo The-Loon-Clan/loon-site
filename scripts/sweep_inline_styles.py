@@ -63,6 +63,49 @@ DISPLAY = {"inline": "d-inline", "block": "d-block", "none": "d-none",
 WEIGHT = {"700": "fw-bold", "bold": "fw-bold", "600": "fw-semibold",
           "400": "fw-normal", "normal": "fw-normal"}
 
+# SPACING IS MATCHED EXACTLY, never snapped. Font sizes could be rounded to the
+# nearest step because half a pixel of type is imperceptible and the scale is
+# the point; a margin is layout, and moving one by 0.05rem moves everything
+# beside it. A value off the scale is left alone for a person to decide.
+SPACE = {"0": "0", "0rem": "0", "0px": "0", ".25rem": "1", "0.25rem": "1",
+         ".5rem": "2", "0.5rem": "2", "1rem": "3", "1.5rem": "4", "3rem": "5"}
+SPACE_PREFIX = {"margin": "m", "margin-top": "mt", "margin-bottom": "mb",
+                "margin-left": "ms", "margin-right": "me",
+                "padding": "p", "padding-top": "pt", "padding-bottom": "pb",
+                "padding-left": "ps", "padding-right": "pe"}
+GAP = {".25rem": "gap-1", "0.25rem": "gap-1", ".5rem": "gap-2",
+       "0.5rem": "gap-2", "1rem": "gap-3"}
+# One value, one class. Anything not here has no class and stops the attribute.
+EXACT = {
+    "flex-wrap:wrap": "flex-wrap",
+    "flex-direction:column": "flex-column",
+    "flex-grow:1": "flex-grow-1",
+    "flex:1": "flex-1",
+    "align-items:center": "align-items-center",
+    "align-items:baseline": "align-items-baseline",
+    "align-items:flex-end": "align-items-end",
+    "align-items:flex-start": "align-items-start",
+    "align-self:center": "align-self-center",
+    "justify-content:space-between": "justify-content-between",
+    "justify-content:center": "justify-content-center",
+    "justify-content:flex-end": "justify-content-end",
+    "white-space:nowrap": "text-nowrap",
+    "vertical-align:middle": "align-middle",
+    "text-transform:uppercase": "text-uppercase",
+    "text-align:left": "text-start",
+    "text-align:center": "text-center",
+    "text-align:right": "text-end",
+    "width:100%": "w-100",
+    "margin-left:auto": "ms-auto",
+    "margin-right:auto": "me-auto",
+    "margin-top:auto": "mt-auto",
+    "background:var(--bg-elevated)": "bg-elevated",
+    "background:var(--bg-surface)": "bg-surface",
+    "background:var(--surface)": "bg-surface",
+    "background:var(--bg)": "bg-dark",
+    "background:var(--surface-3)": "bg-secondary",
+}
+
 STYLE_ATTR = re.compile(r'\sstyle\s*=\s*"([^"]*)"', re.I)
 CLASS_ATTR = re.compile(r'\sclass\s*=\s*"([^"]*)"', re.I)
 REM = re.compile(r"^([0-9]*\.?[0-9]+)rem$")
@@ -102,6 +145,12 @@ def classes_for(decl_text):
             cls = WEIGHT.get(v)
         elif k == "text-decoration" and v == "none":
             cls = "text-decoration-none"
+        elif k == "gap":
+            cls = GAP.get(v)
+        elif k in SPACE_PREFIX and v in SPACE:
+            cls = SPACE_PREFIX[k] + "-" + SPACE[v]
+        if cls is None:
+            cls = EXACT.get(k + ":" + v)
         if cls is None:
             return None
         out.append(cls)

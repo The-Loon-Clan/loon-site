@@ -710,6 +710,22 @@ dd { margin-inline-start: 0; }
 }
 
 /* Backgrounds + borders. */
+/* Surface backgrounds. The .bg-* family below is SEMANTIC -- .bg-warning also
+   sets its own ink -- and there was nothing for "the raised surface", which 32
+   inline attributes were asking for by name.
+
+   THERE IS DELIBERATELY NO .opacity-* HERE, though 57 inline declarations want
+   one. Opacity on text that is already --text-muted is how contrast is lost
+   without anything in the source looking wrong: the token is still the
+   approved one and only the composite fails. That is exactly what .rd-when did
+   on the donate page (3.88:1, found by Lighthouse on 23 Aug 2026). A utility
+   would make it one class away instead of one decision away. Text that should
+   be dimmer wants --muted-2, which is measured. */
+.bg-elevated { background: var(--bg-elevated); }
+.bg-surface { background: var(--surface); }
+.align-middle { vertical-align: middle; }
+.text-uppercase { text-transform: uppercase; }
+.flex-1 { flex: 1; }
 .bg-dark { background: var(--bg); }
 .bg-secondary { background: var(--surface-3); }
 .bg-primary { background: var(--primary); color: var(--primary-fg); }

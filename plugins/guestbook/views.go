@@ -21,9 +21,9 @@ var pageTmpl = template.Must(template.New("page").Parse(`
 
 <div class="card">
     <h2>Sign it</h2>
-    <form method="post" action="/p/guestbook/sign" style="display:flex;gap:.5rem">
+    <form class="d-flex gap-2" method="post" action="/p/guestbook/sign">
         <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
-        <input aria-label="Your message" type="text" name="message" placeholder="say something nice…" style="flex:1" maxlength="500">
+        <input class="flex-1" aria-label="Your message" type="text" name="message" placeholder="say something nice…" maxlength="500">
         <button class="btn btn-primary" type="submit">Sign</button>
     </form>
 </div>

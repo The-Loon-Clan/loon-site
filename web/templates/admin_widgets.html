@@ -119,8 +119,8 @@
                     </td>
                     <td>{{if .Enabled}}<span class="tag tag--success">on</span>{{else}}<span class="tag">off</span>{{end}}</td>
                     <td class="data-table__nowrap">
-                        <form hx-post="/admin/widgets/apply" hx-target="#placed-widgets" hx-swap="outerHTML"
-                              hx-disabled-elt="find button" method="post" action="/admin/widgets/apply" style="display:inline;margin:0">
+                        <form class="d-inline m-0" hx-post="/admin/widgets/apply" hx-target="#placed-widgets" hx-swap="outerHTML"
+                              hx-disabled-elt="find button" method="post" action="/admin/widgets/apply">
                             <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
                             <input type="hidden" name="region" value="{{$.Region}}">
                             <input type="hidden" name="slug" value="{{.Slug}}">
@@ -128,8 +128,8 @@
                             <input type="hidden" name="delta" value="-1">
                             <button class="button button--text button--sm" type="submit" aria-label="Move {{.Title}} up">↑</button>
                         </form>
-                        <form hx-post="/admin/widgets/apply" hx-target="#placed-widgets" hx-swap="outerHTML"
-                              hx-disabled-elt="find button" method="post" action="/admin/widgets/apply" style="display:inline;margin:0">
+                        <form class="d-inline m-0" hx-post="/admin/widgets/apply" hx-target="#placed-widgets" hx-swap="outerHTML"
+                              hx-disabled-elt="find button" method="post" action="/admin/widgets/apply">
                             <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
                             <input type="hidden" name="region" value="{{$.Region}}">
                             <input type="hidden" name="slug" value="{{.Slug}}">
@@ -201,16 +201,16 @@
                         </form>
                     </td>
                     <td class="data-table__nowrap">
-                        <form hx-post="/admin/widgets/apply" hx-target="#placed-widgets" hx-swap="outerHTML"
-                              hx-disabled-elt="find button" method="post" action="/admin/widgets/apply" style="display:inline;margin:0">
+                        <form class="d-inline m-0" hx-post="/admin/widgets/apply" hx-target="#placed-widgets" hx-swap="outerHTML"
+                              hx-disabled-elt="find button" method="post" action="/admin/widgets/apply">
                             <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
                             <input type="hidden" name="region" value="{{$.Region}}">
                             <input type="hidden" name="slug" value="{{.Slug}}">
                             <input type="hidden" name="action" value="toggle">
                             <button class="button button--outlined button--sm" type="submit">{{if .Enabled}}Turn off{{else}}Turn on{{end}}</button>
                         </form>
-                        <form hx-post="/admin/widgets/apply" hx-target="#placed-widgets" hx-swap="outerHTML"
-                              hx-disabled-elt="find button" method="post" action="/admin/widgets/apply" style="display:inline;margin:0">
+                        <form class="d-inline m-0" hx-post="/admin/widgets/apply" hx-target="#placed-widgets" hx-swap="outerHTML"
+                              hx-disabled-elt="find button" method="post" action="/admin/widgets/apply">
                             <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
                             <input type="hidden" name="region" value="{{$.Region}}">
                             <input type="hidden" name="slug" value="{{.Slug}}">
