@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"github.com/the-loon-clan/loon-site/internal/i18n"
+	"sync"
 
 	"fmt"
 	"hash/fnv"
@@ -566,4 +568,100 @@ func nameByID(names map[int]string, id any) string {
 		return ""
 	}
 	return names[n]
+}
+
+// renderUserTag draws the site's username chip as finished HTML, for plugins.
+//
+// The same partial the host's own listings use, executed against the chrome
+// set -- so a plugin gets the role colour, the equipped name effect and the
+// profile link without knowing any of them exist, and a change to the chip
+// reaches every plugin at once rather than fourteen times.
+//
+// Empty on error rather than a panic or a half-built chip: pluginapi's
+// RenderUserTag treats "" as "the host could not", and falls back to a plain
+// profile link. A missing colour is a smaller failure than a missing name.
+func (w *web) renderUserTag(name string) template.HTML {
+	// Parsed ONCE, on first use, and kept: this is called per author on every
+	// listing a plugin draws, and re-parsing site_chrome.html each time would
+	// put a template parse on the hot path of every forum page.
+	userTagOnce.Do(func() {
+		t, err := pluginTemplates()
+		if err != nil {
+			w.log.Error("parse chrome for user-tag", "err", err)
+			return
+		}
+		userTagTmpl = t
+	})
+	if userTagTmpl == nil {
+		return ""
+	}
+	var sb strings.Builder
+	if err := userTagTmpl.ExecuteTemplate(&sb, "user-tag", map[string]any{
+		"Name": name,
+		// The ROLE, or the chip tells every reader that the site's admins are
+		// ordinary members. The partial defaults a missing .Role to the member
+		// slug, which is a plausible-looking lie rather than a blank —
+		// playlists shipped it that way and nobody noticed, because a wrong
+		// colour looks like a colour.
+		"Role": w.roleOf(name),
+	}); err != nil {
+		w.log.Error("render user tag", "name", name, "err", err)
+		return ""
+	}
+	return template.HTML(sb.String())
+}
+
+var (
+	userTagOnce sync.Once
+	userTagTmpl *template.Template
+)
+
+// roleCache answers "what role does this name have?" for the username chip.
+//
+// A CACHE because the chip is drawn per author on every listing a plugin
+// renders, and the honest lookup is two round trips — name to id, id to user.
+// A forum page with twenty posts would be forty queries to colour twenty
+// names. Five seconds, the same window the cosmetics helpers use and for the
+// same reason: somebody promoted a moment ago seeing it take effect within
+// five seconds is indistinguishable from instant.
+var roleCache struct {
+	mu   sync.Mutex
+	at   map[string]time.Time
+	role map[string]core.Role
+}
+
+const roleTTL = 5 * time.Second
+
+// roleOf resolves one member's role, cached.
+//
+// A name it cannot resolve returns the zero Role rather than an error: this is
+// decoration on somebody else's page, and a chip that failed to draw because a
+// deleted member was quoted would take the page with it.
+func (w *web) roleOf(name string) core.Role {
+	if name == "" || w.store == nil {
+		return 0
+	}
+	roleCache.mu.Lock()
+	if roleCache.at == nil {
+		roleCache.at, roleCache.role = map[string]time.Time{}, map[string]core.Role{}
+	}
+	if seen, ok := roleCache.at[name]; ok && time.Since(seen) < roleTTL {
+		r := roleCache.role[name]
+		roleCache.mu.Unlock()
+		return r
+	}
+	roleCache.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	var role core.Role
+	if id, err := w.store.IDByName(ctx, name); err == nil {
+		if u, err := w.store.ByID(ctx, id); err == nil && u != nil {
+			role = u.Role
+		}
+	}
+	roleCache.mu.Lock()
+	roleCache.at[name], roleCache.role[name] = time.Now(), role
+	roleCache.mu.Unlock()
+	return role
 }

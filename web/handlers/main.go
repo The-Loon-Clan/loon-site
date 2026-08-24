@@ -14,6 +14,7 @@ package handlers
 import (
 	"github.com/the-loon-clan/loon-site/internal/config"
 	"github.com/the-loon-clan/loon-site/internal/storage"
+	"html/template"
 
 	"github.com/the-loon-clan/loon-site/internal/middleware"
 
@@ -716,6 +717,22 @@ func Main() {
 	// look up. Before Boot, like every seam a plugin resolves at Provision.
 	if err := c.Register(IconCatalogExtension, func() []string { return siteIcons() }); err != nil {
 		logger.Error("register icon catalogue", "err", err)
+	}
+	// How this site draws a username (site_chrome.html's user-tag partial), so
+	// a plugin fragment can show the role colour and the equipped name effect
+	// instead of a bare string.
+	//
+	// ONE registration for every plugin, rather than a callback threaded into
+	// each plugin's Deps. playlists had exactly this seam and declared it
+	// privately, so nobody else could use it: eighteen plugins render a
+	// username and four applied the effects, by four different mechanisms.
+	// A member who bought a name effect saw it in some places and not others.
+	//
+	// Registered BEFORE Boot like every seam a plugin resolves at Provision.
+	if err := c.Register(pluginapi.UserTagName, pluginapi.UserTag(func(name string) template.HTML {
+		return wsrv.renderUserTag(name)
+	})); err != nil {
+		logger.Error("register user tag", "err", err)
 	}
 	if err := c.Register("magic.csrf",
 		func(gc *gin.Context) string { return middleware.Token(gc) }); err != nil {
