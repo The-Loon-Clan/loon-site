@@ -198,6 +198,8 @@ var pageTemplates = []string{
 	"admin_access.html", "admin_contracts.html", "admin_covers.html",
 	// What aired without arriving (tvgapsadmin_web.go).
 	"admin_tvgaps.html",
+	// The external tracker directory (trackersadmin_web.go).
+	"admin_trackers.html",
 	// The message catalogue (i18nadmin_web.go).
 	"admin_i18n.html",
 	// Editable site pages (pagesadmin_web.go).

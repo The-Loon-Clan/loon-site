@@ -89,6 +89,9 @@ func wireAdminAndViews(
 	// What aired without arriving (tvgapsadmin_web.go). Beside Jobs because it
 	// is the output of one -- the TV Schedule pass computes it.
 	admin.GET("/tv-gaps", wsrv.adminTVGaps)
+	// The external tracker directory (trackersadmin_web.go): what the future
+	// multi-tracker search will choose from.
+	admin.GET("/trackers", wsrv.adminTrackers)
 	admin.GET("/features", wsrv.adminFeatures)
 	admin.POST("/features", wsrv.adminFeaturesSave)
 	admin.GET("/nav", wsrv.adminNavEditor)

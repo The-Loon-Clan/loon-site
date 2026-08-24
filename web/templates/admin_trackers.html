@@ -1,0 +1,97 @@
+{{/* The external tracker directory (trackersadmin_web.go). .VM.
+
+     Filters are LINKS, not a form with state: every view of this table is a
+     URL an operator can paste to a colleague, and the back button undoes a
+     filter the way it undoes anything else. */}}
+{{define "content"}}
+<header class="mb-3">
+    <h1 class="h3 m-0">Tracker directory</h1>
+    <p class="text-muted small m-0 mt-1">
+        {{.VM.Total}} external trackers known: {{.VM.Public}} public, {{.VM.Private}} private,
+        {{.VM.Semi}} semi-private. {{.VM.Episode}} can be asked for an exact episode;
+        {{.VM.WithIDs}} accept an external id (IMDb, TVDB&hellip;) and skip title matching entirely.
+        Facts from the Prowlarr community definitions at <code>{{.VM.Commit}}</code>; nothing is wired
+        to search yet &mdash; this page is the catalogue the wiring will choose from.
+    </p>
+</header>
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    {{/* The tag row reads as "everything | public | private | semi-private",
+         with the active one lit. Each keeps the other filters as they are. */}}
+    <nav class="d-flex flex-wrap gap-1" aria-label="Filter by type">
+        <a class="tag {{if eq .VM.Type ""}}tag--info{{end}}" {{if eq .VM.Type ""}}aria-current="page"{{end}} href="/admin/trackers{{if eq .VM.TV "episode"}}?tv=episode{{end}}">All types</a>
+        <a class="tag {{if eq .VM.Type "public"}}tag--info{{end}}" {{if eq .VM.Type "public"}}aria-current="page"{{end}} href="/admin/trackers?type=public{{if eq .VM.TV "episode"}}&amp;tv=episode{{end}}">Public</a>
+        <a class="tag {{if eq .VM.Type "private"}}tag--info{{end}}" {{if eq .VM.Type "private"}}aria-current="page"{{end}} href="/admin/trackers?type=private{{if eq .VM.TV "episode"}}&amp;tv=episode{{end}}">Private</a>
+        <a class="tag {{if eq .VM.Type "semi-private"}}tag--info{{end}}" {{if eq .VM.Type "semi-private"}}aria-current="page"{{end}} href="/admin/trackers?type=semi-private{{if eq .VM.TV "episode"}}&amp;tv=episode{{end}}">Semi-private</a>
+    </nav>
+    {{/* Two states, not a lone toggle: with only the "on" link, the nav has
+         no current item at all when the filter is off, which is both an
+         audit finding and a reader guessing. */}}
+    <nav class="d-flex gap-1" aria-label="Filter by search precision">
+        <a class="tag {{if ne .VM.TV "episode"}}tag--info{{end}}" {{if ne .VM.TV "episode"}}aria-current="page"{{end}} href="/admin/trackers{{with .VM.Type}}?type={{.}}{{end}}">Any search</a>
+        <a class="tag {{if eq .VM.TV "episode"}}tag--info{{end}}" {{if eq .VM.TV "episode"}}aria-current="page"{{end}} href="/admin/trackers?tv=episode{{with .VM.Type}}&amp;type={{.}}{{end}}">Episode search</a>
+    </nav>
+    <form method="get" action="/admin/trackers" class="d-flex gap-1 ms-auto">
+        {{with .VM.Type}}<input type="hidden" name="type" value="{{.}}">{{end}}
+        {{if eq .VM.TV "episode"}}<input type="hidden" name="tv" value="episode">{{end}}
+        <label class="visually-hidden" for="tracker-q">Search the directory</label>
+        <input class="form-control form-control-sm" id="tracker-q" type="search" name="q"
+               value="{{.VM.Query}}" placeholder="Name or domain&hellip;">
+        <button class="btn btn--sm" type="submit">Filter</button>
+    </form>
+</div>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#globe"></use></svg>Trackers
+        </h2>
+        <div class="panel__actions"><span class="panel__grouping">{{.VM.Shown}} of {{.VM.Total}}</span></div>
+    </header>
+    {{if .VM.Rows}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <caption class="visually-hidden">External trackers and what each can be asked</caption>
+            <thead>
+                <tr><th>Tracker</th><th>Type</th><th>Content</th><th>TV search</th><th>Wants</th><th>Domain</th></tr>
+            </thead>
+            <tbody>
+                {{range .VM.Rows}}
+                <tr>
+                    <td>
+                        <span class="data-table__title" {{with .Desc}}title="{{.}}"{{end}}>{{.Name}}</span>
+                    </td>
+                    <td>
+                        {{if eq .Type "public"}}<span class="chip chip--ok">public</span>
+                        {{else if eq .Type "private"}}<span class="chip">private</span>
+                        {{else}}<span class="chip chip--warn">semi</span>{{end}}
+                    </td>
+                    <td class="text-muted small">{{.Content}}</td>
+                    <td>
+                        {{if eq .TV "episode"}}<span class="chip chip--ok">S/E</span>
+                        {{else if eq .TV "title"}}<span class="chip">title</span>
+                        {{else}}<span class="text-subtle small">&mdash;</span>{{end}}
+                        {{with .TVIDs}}<span class="text-muted small">{{.}}</span>{{end}}
+                    </td>
+                    <td class="small">
+                        {{if eq .Auth "none"}}<span class="text-muted">nothing</span>{{else}}{{.Auth}}{{end}}
+                        {{if .Guarded}}<span class="chip chip--warn" title="Behind an anti-bot wall a polite client cannot pass">guarded</span>{{end}}
+                        {{if .Captcha}}<span class="chip chip--warn" title="Login requires solving an image captcha &mdash; credentials alone cannot be wired unattended">captcha</span>{{end}}
+                        {{if .TwoFA}}<span class="chip chip--warn" title="Login requires a 2FA code &mdash; credentials alone cannot be wired unattended">2FA</span>{{end}}
+                        {{with .Delay}}<span class="text-subtle" title="Politeness delay between requests">{{.}}</span>{{end}}
+                    </td>
+                    <td class="small">
+                        <code>{{.Domain}}</code>{{if .Extra}} <span class="text-subtle">+{{.Extra}}</span>{{end}}
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="panel__body">
+        <p class="text-muted small m-0">Nothing matches this filter.</p>
+    </div>
+    {{end}}
+</section>
+{{end}}
