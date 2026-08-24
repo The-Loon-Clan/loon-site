@@ -12,6 +12,21 @@
         Episodes of shows this site carries that aired in the last {{.VM.Window}} days
         with no matching release in the index.
     </p>
+    {{with .VM.Req}}
+    {{/* The auto-request trigger's last word. It runs in the schedule job and,
+         with no request board wired here, files nothing -- so this reports
+         what it WOULD file rather than pretending the loop is closed. */}}
+    {{if .FilerWired}}
+    <p class="text-muted small m-0 mt-1">
+        Auto-request: {{.Filed}} filed, {{.Deduped}} already open, of {{.Requestable}} requestable.
+    </p>
+    {{else if gt .Requestable 0}}
+    <p class="text-muted small m-0 mt-1">
+        {{.Requestable}} gap{{if ne .Requestable 1}}s{{end}} past a day old and requestable &mdash;
+        no request board is wired to file them, so nothing is filed automatically yet.
+    </p>
+    {{end}}
+    {{end}}
 </header>
 
 {{with .Search}}

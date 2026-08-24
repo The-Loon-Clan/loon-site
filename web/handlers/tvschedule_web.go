@@ -61,6 +61,13 @@ type tvSchedule struct {
 	// value because the index is wired on the Core and a host may have none --
 	// see tvgaps_web.go.
 	seriesIndex func() pluginapi.SeriesIndex
+	// requestFiler is the proposed auto-request seam, nil until a request
+	// board publishes one -- which is every host today. See tvgapsrequest_web.go.
+	requestFiler pluginapi.RequestFiler
+	// crossIDs resolves a show's imdb/tvdb ids from its tvmaze id, so an
+	// automated request identifies the show precisely. A func for the same
+	// reason carried is one: it reaches host storage a test does not have.
+	crossIDs func(ctx context.Context, tvmazeID string) (imdb, tvdb string, err error)
 
 	mu      sync.RWMutex
 	eps     []pluginapi.TVEpisode // sorted by AirsAt
@@ -72,6 +79,9 @@ type tvSchedule struct {
 	// reader.
 	gaps   []pluginapi.TVGap
 	gapsOK bool
+	// lastReq is what the most recent trigger pass decided, shown on the gaps
+	// page so the dormant seam is visible: "3 requestable, no filer wired".
+	lastReq tvRequestOutcome
 }
 
 var _ pluginapi.TVScheduleProvider = (*tvSchedule)(nil)
@@ -251,6 +261,7 @@ func (w *web) wireTVSchedule(c *core.Core, src *tvmaze.Source) {
 		},
 	}
 	w.tv.seriesIndex = func() pluginapi.SeriesIndex { return w.series }
+	w.tv.crossIDs = w.data.TVCrossIDs
 	if err := c.Register(pluginapi.TVScheduleName, pluginapi.TVScheduleProvider(w.tv)); err != nil {
 		w.log.Error("register tv schedule", "err", err)
 	}
@@ -258,6 +269,13 @@ func (w *web) wireTVSchedule(c *core.Core, src *tvmaze.Source) {
 	// for gaps, not for a schedule it would have to join itself.
 	if err := c.Register(pluginapi.TVGapsName, pluginapi.TVGapFinder(w.tv)); err != nil {
 		w.log.Error("register tv gaps", "err", err)
+	}
+	// The auto-request filer, if any board published one BEFORE this ran.
+	// Resolved once here and re-checked each pass is overkill; a board that
+	// registers late is a restart away from being seen, same as every other
+	// capability wired at boot.
+	if filer, ok := pluginapi.LookupRequestFiler(c); ok {
+		w.tv.requestFiler = filer
 	}
 
 	job := schedule.RegisterJob("TV Schedule",
@@ -291,6 +309,14 @@ func (w *web) runTVSchedule(ctx context.Context, job *schedule.JobInfo) {
 	// per show-season per viewer.
 	w.tv.recomputeGaps(ctx)
 
+	// The auto-request trigger, right after the gaps it reads. Files nothing
+	// when no board is wired -- see tvgapsrequest_web.go -- but always
+	// computes what it WOULD file, so the page can show it.
+	req := w.runGapRequests(ctx, w.tv.requestFiler)
+	w.tv.mu.Lock()
+	w.tv.lastReq = req
+	w.tv.mu.Unlock()
+
 	w.tv.mu.RLock()
 	n, missing, ok := len(w.tv.eps), len(w.tv.gaps), w.tv.gapsOK
 	w.tv.mu.RUnlock()
@@ -299,6 +325,11 @@ func (w *web) runTVSchedule(ctx context.Context, job *schedule.JobInfo) {
 		job.Log("%d aired episode(s) have no matching release", missing)
 	} else {
 		job.Log("No series index wired; gaps not computed")
+	}
+	if req.FilerWired {
+		job.Log("Auto-request: %d filed, %d already open (%d requestable)", req.Filed, req.Deduped, req.Requestable)
+	} else if req.Requestable > 0 {
+		job.Log("Auto-request: %d gap(s) requestable, no request board wired to file them", req.Requestable)
 	}
 	job.SetIdle(next)
 }

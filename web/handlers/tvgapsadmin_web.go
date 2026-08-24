@@ -46,6 +46,9 @@ type tvGapsVM struct {
 	Window   int
 	Computed bool
 	Filled   time.Time
+	// Req is what the last auto-request pass decided, so the dormant trigger
+	// is visible: "3 requestable, no request board wired".
+	Req tvRequestOutcome
 }
 
 func (w *web) adminTVGaps(c *gin.Context) {
@@ -69,6 +72,7 @@ func (w *web) tvGapsVM(ctx context.Context) tvGapsVM {
 	}
 	w.tv.mu.RLock()
 	vm.Computed, vm.Filled, vm.Judged = w.tv.gapsOK, w.tv.filled, len(w.tv.eps)
+	vm.Req = w.tv.lastReq
 	w.tv.mu.RUnlock()
 
 	gaps, err := w.tv.Gaps(ctx, time.Now().AddDate(0, 0, -tvBackfillDays), time.Now())
