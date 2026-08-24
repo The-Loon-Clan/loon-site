@@ -177,9 +177,14 @@ func wireAdminAndViews(
 	// each source closes over one of them; a source whose dependency is absent
 	// contributes nothing and the grid simply has fewer chips on it, which is
 	// the whole reason the page reads a slice instead of naming its sources.
+	// The broadcast schedule, and the job that fills it. Before the sources
+	// below, because calTV closes over the service it builds.
+	wsrv.wireTVSchedule(c, tvmazeSrc)
+
 	wsrv.calSources = []calSource{
 		wsrv.calAttendance(),
 		wsrv.calBookmarks(),
+		wsrv.calTV(),
 	}
 
 	// Newznab / Torznab API (Sonarr/Radarr/Prowlarr consume these).

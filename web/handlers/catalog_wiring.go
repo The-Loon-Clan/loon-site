@@ -33,6 +33,11 @@ import (
 //
 // Fatal on a failed registration on purpose: a host that cannot publish its
 // registry will serve a catalogue with no art and no obvious reason why.
+// tvmazeSrc is the TVmaze client, shared by the metadata chain and the TV
+// calendar. Package level because the two are wired at different points in
+// boot and neither owns the other.
+var tvmazeSrc *tvmaze.Source
+
 func wireMetadataSources(c *core.Core, logger *slog.Logger) {
 	// The shared catalog.Registry + its metadata sources. Sources are idle until
 	// their key/client is set via env (hook up now, test later):
@@ -122,13 +127,19 @@ func wireMetadataSources(c *core.Core, logger *slog.Logger) {
 	// answered is not a source that was right, and a wrong poster looks exactly
 	// like a right one. See internal/catalogchain and docs/METADATA-METHODS.md.
 	key := os.Getenv("TMDB_API_KEY")
+	// Built once and kept, because it answers TWO questions. The chain below
+	// asks it "what show is this release?"; the TV calendar asks it "what airs
+	// on Tuesday?" (tvschedule_web.go). Constructing a second one would be a
+	// second client under a shared, keyless rate limit -- two clients each
+	// politely inside twenty calls per ten seconds and together outside it.
+	tvmazeSrc = tvmaze.New("")
 	addChain("movie", map[string]catalog.MetadataSource{
 		"tmdb":      tmdb.New(key, tmdb.KindMovie, ""),
 		"wikipedia": wikipedia.New(""),
 	}, "tmdb", "wikipedia")
 	addChain("tv", map[string]catalog.MetadataSource{
 		"tmdb":   tmdb.New(key, tmdb.KindTV, ""),
-		"tvmaze": tvmaze.New(""),
+		"tvmaze": tvmazeSrc,
 	}, "tmdb", "tvmaze")
 	// AniDB returns nil without a client name — which is what made this a
 	// choice at all. It used to build itself regardless, hold the domain, and

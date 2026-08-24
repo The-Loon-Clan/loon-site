@@ -131,6 +131,12 @@ type web struct {
 	// does not touch the page.
 	calSources []calSource
 
+	// tv is the broadcast schedule for the shows this site carries
+	// (tvschedule_web.go), filled by a job and read by the calendar. nil when
+	// no TVmaze source is registered, which is a calendar without television
+	// rather than a broken one.
+	tv *tvSchedule
+
 	// dailyStatus answers "may this member claim today?" for the stat strip's
 	// compact button. nil when the plugin is absent, which renders no button.
 	dailyStatus dailyreward.StatusFunc

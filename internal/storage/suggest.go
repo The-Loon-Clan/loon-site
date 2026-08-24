@@ -89,3 +89,32 @@ func (st *Store) Suggest(ctx context.Context, q string) ([]Suggestion, bool) {
 	}
 	return out, true
 }
+
+// CarriedShowIDs is the upstream id of every series this site has a catalogue
+// entry for, in one namespace.
+//
+// For the TV calendar (web/handlers/tvschedule_web.go): the public schedule is
+// about 140 episodes a day and a calendar showing all of them is a listings
+// magazine. The useful question is the narrow one an indexer can act on --
+// something we carry has a new episode -- and this is the set that answers it.
+//
+// A map because the caller tests membership per episode across a fortnight of
+// them; a slice would be a linear scan a few thousand times.
+//
+// Constant SQL with the namespace as a PARAMETER: scripts/sqllint.py refuses
+// anything assembled, and a namespace is exactly the kind of value that looks
+// safe to concatenate right up until it comes from a config file.
+func (st *Store) CarriedShowIDs(ctx context.Context, namespace string) (map[string]bool, error) {
+	var ids []string
+	if err := st.db.SelectContext(ctx, &ids, `
+		SELECT ext_id
+		  FROM catalog.catalog_entry
+		 WHERE kind = 'tv' AND ext_namespace = $1 AND ext_id <> ''`, namespace); err != nil {
+		return nil, err
+	}
+	out := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out, nil
+}
