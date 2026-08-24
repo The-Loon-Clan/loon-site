@@ -18,7 +18,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	goredis "github.com/redis/go-redis/v9"
+	"github.com/the-loon-clan/loon-plugins/trackersearch"
 
 	"github.com/the-loon-clan/loon-baseline/account"
 	"github.com/the-loon-clan/loon-baseline/adminusers"
@@ -89,6 +91,7 @@ func wireAdminAndViews(
 	// What aired without arriving (tvgapsadmin_web.go). Beside Jobs because it
 	// is the output of one -- the TV Schedule pass computes it.
 	admin.GET("/tv-gaps", wsrv.adminTVGaps)
+	admin.GET("/tv-gaps/find", wsrv.adminTVGapsFind)
 	// The external tracker directory (trackersadmin_web.go): what the future
 	// multi-tracker search will choose from.
 	admin.GET("/trackers", wsrv.adminTrackers)
@@ -186,6 +189,14 @@ func wireAdminAndViews(
 	// The broadcast schedule, and the job that fills it. Before the sources
 	// below, because calTV closes over the service it builds.
 	wsrv.wireTVSchedule(c, tvmazeSrc)
+	// The external-tracker search client (trackers.search): three public
+	// no-credential adapters over the trackerdir facts. Registered on the
+	// Core because the auto-request trigger is its intended consumer; the
+	// gaps page is merely the first.
+	wsrv.trackers = trackersearch.New()
+	if err := c.Register(pluginapi.TrackerSearchName, pluginapi.TrackerSearcher(wsrv.trackers)); err != nil {
+		wsrv.log.Error("register tracker search", "err", err)
+	}
 
 	wsrv.calSources = []calSource{
 		wsrv.calAttendance(),

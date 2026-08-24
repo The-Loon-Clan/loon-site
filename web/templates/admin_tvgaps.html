@@ -14,6 +14,57 @@
     </p>
 </header>
 
+{{with .Search}}
+{{/* One search's answer, above the tables it was asked from. Sources that
+     failed are named: "knaben found nothing" and "knaben did not answer"
+     must never read the same. */}}
+<section class="panelV2 mb-3">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#globe"></use></svg>{{.Query}} {{.Code}} on the trackers
+        </h2>
+        {{with .Hits}}<div class="panel__actions"><span class="panel__grouping">{{len .}}</span></div>{{end}}
+    </header>
+    <div class="panel__body">
+        <p class="text-muted small m-0 mb-2">
+            Asked{{range .Sources}} <code>{{.Slug}}</code>{{if .LastErr}} <span class="chip chip--warn" title="{{.LastErr}}">no answer</span>{{end}}{{end}}{{with .IMDb}} &middot; matched by <code>{{.}}</code>{{end}}.
+        </p>
+    </div>
+    {{if .Hits}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <caption class="visually-hidden">Candidate releases found on external trackers</caption>
+            <thead>
+                <tr><th>Source</th><th>Title</th><th>Size</th><th>Swarm</th><th>Posted</th><th></th></tr>
+            </thead>
+            <tbody>
+                {{range .Hits}}
+                <tr>
+                    <td class="small">{{.Source}}{{with .Via}} <span class="text-subtle">via {{.}}</span>{{end}}</td>
+                    <td><span class="data-table__title">{{.Title}}</span></td>
+                    <td class="small">{{.Size}}</td>
+                    <td class="small"><span class="chip {{if gt .Seeders 0}}chip--ok{{else}}chip--warn{{end}}" title="Seeders / leechers">{{.Seeders}} / {{.Leech}}</span></td>
+                    <td class="text-muted small">{{.Age}}</td>
+                    <td class="small">
+                        {{if .PageURL}}<a class="btn btn--sm btn--ghost" href="{{.PageURL}}" rel="noreferrer noopener">Page</a>{{end}}
+                        {{if .Magnet}}<a class="btn btn--sm btn--ghost" href="{{.Magnet}}">Magnet</a>{{end}}
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="panel__body">
+        <p class="text-muted small m-0">
+            Nothing found. With every source answering, that usually means no public copy
+            exists yet &mdash; which is itself worth knowing before a request is filed.
+        </p>
+    </div>
+    {{end}}
+</section>
+{{end}}
+
 {{if not .VM.Computed}}
 {{/* The empty state that is NOT an answer. A page reading "nothing missing"
      when the job has simply never run is worse than one that says so. */}}
@@ -52,7 +103,10 @@
                     <td class="text-muted small">
                         <time datetime="{{.Aired.Format "2006-01-02T15:04:05Z07:00"}}">{{.Age}}</time>
                     </td>
-                    <td><a class="btn btn--sm btn--ghost" href="{{.Search}}">Search index</a></td>
+                    <td>
+                        <a class="btn btn--sm btn--ghost" href="{{.Search}}">Search index</a>
+                        {{with .Find}}<a class="btn btn--sm btn--ghost" href="{{.}}">Find on trackers</a>{{end}}
+                    </td>
                 </tr>
                 {{end}}
             </tbody>

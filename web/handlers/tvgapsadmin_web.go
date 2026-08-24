@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -23,12 +25,16 @@ import (
 
 // tvGapRow is one line on the page.
 type tvGapRow struct {
-	Show    string
-	Code    string
-	Title   string
-	Aired   time.Time
-	Age     string
-	Search  string
+	Show   string
+	Code   string
+	Title  string
+	Aired  time.Time
+	Age    string
+	Search string
+	// Find asks the external trackers (tvgapsadmin find handler); "" when no
+	// searcher is wired, and the template drops the button rather than offer
+	// a dead one.
+	Find    string
 	Indexed bool
 }
 
@@ -83,6 +89,11 @@ func (w *web) tvGapsVM(ctx context.Context) tvGapsVM {
 			Search:  "/search?q=" + url.QueryEscape(g.Episode.ShowTitle+" "+tvEpisodeCode(g.Episode)),
 			Indexed: g.Indexed,
 		}
+		if w.trackers != nil {
+			row.Find = "/admin/tv-gaps/find?title=" + url.QueryEscape(g.Episode.ShowTitle) +
+				"&s=" + strconv.Itoa(g.Episode.Season) + "&e=" + strconv.Itoa(g.Episode.Number) +
+				"&ext=" + url.QueryEscape(g.Episode.ShowExtID)
+		}
 		if g.Indexed {
 			vm.Missed = append(vm.Missed, row)
 		} else {
@@ -119,5 +130,109 @@ func humanAge(d time.Duration) string {
 			return "yesterday"
 		}
 		return itoa(days) + " days ago"
+	}
+}
+
+// ── Ask the trackers ────────────────────────────────────────────────────────
+//
+// The "Find" link on a gap row. OPERATOR-TRIGGERED, never on render: a page
+// load must not knock on three external doors times twenty rows. One click,
+// one search, results above the table -- and each source is spaced by the
+// client's own politeness whatever the operator's clicking rate.
+
+// tvGapHitRow is one candidate as the results table shows it.
+type tvGapHitRow struct {
+	Source  string
+	Via     string
+	Title   string
+	Size    string
+	Seeders int
+	Leech   int
+	Age     string
+	Magnet  string
+	PageURL string
+}
+
+// tvGapSearchVM is the results panel.
+type tvGapSearchVM struct {
+	Query   string
+	Code    string
+	Hits    []tvGapHitRow
+	Sources []pluginapi.TrackerSource
+	IMDb    string
+}
+
+// adminTVGapsFind runs one search and re-renders the gaps page with results.
+func (w *web) adminTVGapsFind(c *gin.Context) {
+	if w.tv == nil || w.trackers == nil {
+		c.Redirect(http.StatusSeeOther, "/admin/tv-gaps")
+		return
+	}
+	title := strings.TrimSpace(c.Query("title"))
+	season, episode := atoiQuery(c, "s"), atoiQuery(c, "e")
+	if title == "" || season <= 0 || episode <= 0 {
+		c.Redirect(http.StatusSeeOther, "/admin/tv-gaps")
+		return
+	}
+	q := pluginapi.EpisodeSearch{
+		ShowTitle: title, Season: season, Episode: episode,
+		TVMazeID: c.Query("ext"),
+	}
+	// The ids EZTV and friends actually answer by, resolved from the catalog
+	// rather than asked of the operator -- they clicked a row, not a form.
+	if q.TVMazeID != "" {
+		if imdb, tvdb, err := w.data.TVCrossIDs(c.Request.Context(), q.TVMazeID); err == nil {
+			q.IMDbID, q.TVDBID = imdb, tvdb
+		}
+	}
+	// Bounded: three sources with a 2s spacing each still finish inside
+	// this, and an operator watching a spinner deserves an end.
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 25*time.Second)
+	defer cancel()
+	hits, err := w.trackers.SearchEpisode(ctx, q)
+	search := &tvGapSearchVM{
+		Query: title, Code: tvEpisodeCode(pluginapi.TVEpisode{Season: season, Number: episode}),
+		Sources: w.trackers.Sources(), IMDb: q.IMDbID,
+	}
+	if err == nil {
+		now := time.Now()
+		for _, h := range hits {
+			row := tvGapHitRow{
+				Source: h.TrackerSlug, Via: h.Via, Title: h.Title,
+				Seeders: h.Seeders, Leech: h.Leechers,
+				Magnet: h.Magnet, PageURL: h.PageURL,
+			}
+			if h.SizeBytes > 0 {
+				row.Size = humanSize(h.SizeBytes)
+			}
+			if !h.PostedAt.IsZero() {
+				row.Age = humanAge(now.Sub(h.PostedAt))
+			}
+			search.Hits = append(search.Hits, row)
+		}
+	}
+	vm := w.tvGapsVM(c.Request.Context())
+	w.render(c, "admin_tvgaps.html", map[string]any{
+		"Title":  "Missing episodes",
+		"VM":     vm,
+		"Search": search,
+	})
+}
+
+// atoiQuery is one query parameter as a number, zero when absent or junk.
+func atoiQuery(c *gin.Context, name string) int {
+	n, _ := strconv.Atoi(c.Query(name))
+	return n
+}
+
+// humanSize is bytes at the scale a release listing uses.
+func humanSize(b int64) string {
+	switch {
+	case b >= 1<<30:
+		return strconv.FormatFloat(float64(b)/float64(1<<30), 'f', 1, 64) + " GB"
+	case b >= 1<<20:
+		return strconv.FormatFloat(float64(b)/float64(1<<20), 'f', 0, 64) + " MB"
+	default:
+		return strconv.FormatInt(b, 10) + " B"
 	}
 }

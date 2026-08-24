@@ -102,6 +102,8 @@ type web struct {
 	// series answers about shows — the /series pages. Nil on a host whose
 	// indexer publishes no series index; every surface that uses it is gated.
 	series pluginapi.SeriesIndex
+	// trackers asks the outside world (trackers.search); nil when unwired.
+	trackers pluginapi.TrackerSearcher
 	// mirrors answers which releases the TRACKER also carries, so a listing can
 	// offer both ways of getting the same content on one row. Nil on a pure
 	// indexer, and on a tracker that is configured off — see mirrors_web.go,

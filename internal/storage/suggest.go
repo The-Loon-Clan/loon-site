@@ -118,3 +118,38 @@ func (st *Store) CarriedShowIDs(ctx context.Context, namespace string) (map[stri
 	}
 	return out, nil
 }
+
+// TVCrossIDs resolves a carried show's other identities from its TVmaze id.
+//
+// For the tracker search (web/handlers/tvgapsadmin_web.go): EZTV answers only
+// an IMDb id, and a gap arrives carrying the TVmaze one, because that is what
+// the schedule provider speaks. The catalog's cross-id table already holds
+// both sides of the translation -- 10,627 imdb rows at last count -- so this
+// is a self-join, not a network call.
+//
+// Both joins go through catalog_external rather than reading ext_id off the
+// entry: an entry's own namespace says where it was FIRST seen, and a show
+// discovered via TMDB still carries its tvmaze id in the external table.
+func (st *Store) TVCrossIDs(ctx context.Context, tvmazeID string) (imdb, tvdb string, err error) {
+	var rows []struct {
+		Namespace string `db:"namespace"`
+		Value     string `db:"value"`
+	}
+	if err := st.db.SelectContext(ctx, &rows, `
+		SELECT x2.namespace, x2.value
+		  FROM catalog.catalog_external x1
+		  JOIN catalog.catalog_external x2 ON x2.entry_id = x1.entry_id
+		 WHERE x1.namespace = 'tvmaze' AND x1.value = $1
+		   AND x2.namespace IN ('imdb', 'tvdb')`, tvmazeID); err != nil {
+		return "", "", err
+	}
+	for _, r := range rows {
+		switch r.Namespace {
+		case "imdb":
+			imdb = r.Value
+		case "tvdb":
+			tvdb = r.Value
+		}
+	}
+	return imdb, tvdb, nil
+}
