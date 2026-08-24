@@ -196,6 +196,8 @@ var pageTemplates = []string{
 	"site_page.html", "admin_view.html", "admin_settings.html",
 	"admin_jobs.html", "admin_plugins.html", "admin_features.html", "admin_dashboard.html",
 	"admin_access.html", "admin_contracts.html", "admin_covers.html",
+	// What aired without arriving (tvgapsadmin_web.go).
+	"admin_tvgaps.html",
 	// The message catalogue (i18nadmin_web.go).
 	"admin_i18n.html",
 	// Editable site pages (pagesadmin_web.go).

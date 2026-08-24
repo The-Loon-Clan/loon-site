@@ -100,6 +100,7 @@ func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup
 		navItem{Href: "/admin/i18n", Label: "Localization"},
 		navItem{Href: "/admin/widgets", Label: "Widgets"},
 		navItem{Href: "/admin/jobs", Label: "Jobs"},
+		navItem{Href: "/admin/tv-gaps", Label: "Missing episodes"},
 		// Both of these shipped without a link and were reachable only by URL —
 		// features on 20 Aug with the runtime toggles, metrics the same day
 		// with /metrics. A page nobody can find is a page nobody uses.

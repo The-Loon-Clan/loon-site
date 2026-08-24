@@ -86,6 +86,9 @@ func wireAdminAndViews(
 	// numbers". A deployment that wants an unauthenticated scrape should bind
 	// a second listener on an internal interface rather than open this one.
 	admin.GET("/metrics", wsrv.metricsEndpoint)
+	// What aired without arriving (tvgapsadmin_web.go). Beside Jobs because it
+	// is the output of one -- the TV Schedule pass computes it.
+	admin.GET("/tv-gaps", wsrv.adminTVGaps)
 	admin.GET("/features", wsrv.adminFeatures)
 	admin.POST("/features", wsrv.adminFeaturesSave)
 	admin.GET("/nav", wsrv.adminNavEditor)

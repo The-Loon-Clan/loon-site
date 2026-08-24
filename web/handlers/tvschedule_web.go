@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"sort"
 	"sync"
@@ -58,10 +57,21 @@ type tvSchedule struct {
 	// filter().
 	carried func(ctx context.Context) (map[string]bool, error)
 
+	// seriesIndex reaches the index the gap join asks. A func rather than the
+	// value because the index is wired on the Core and a host may have none --
+	// see tvgaps_web.go.
+	seriesIndex func() pluginapi.SeriesIndex
+
 	mu      sync.RWMutex
 	eps     []pluginapi.TVEpisode // sorted by AirsAt
 	filled  time.Time
 	lastErr error
+	// gaps is what aired without arriving, oldest first, recomputed after each
+	// refill. gapsOK distinguishes "nothing is missing" from "nobody asked" --
+	// an empty list means the same thing in Go and very different things to a
+	// reader.
+	gaps   []pluginapi.TVGap
+	gapsOK bool
 }
 
 var _ pluginapi.TVScheduleProvider = (*tvSchedule)(nil)
@@ -178,8 +188,19 @@ func (w *web) calTV() calSource {
 			if err != nil || len(eps) == 0 {
 				return nil
 			}
+			// Which of them the index has nothing for. Read from the list the
+			// job already computed, so a month view costs a map build rather
+			// than a query per show-season per viewer.
+			missing := w.tv.gapSet(ctx, from, to)
 			out := make([]calEvent, 0, len(eps))
 			for _, e := range eps {
+				kind, icon := "tv", "film"
+				if missing[tvEpisodeID(e)] {
+					// The whole point of putting television on an INDEXER's
+					// calendar: not "this aired" but "this aired and we do not
+					// have it".
+					kind, icon = "tv-gap", "info"
+				}
 				out = append(out, calEvent{
 					Start: e.AirsAt,
 					// End == Start: a broadcast is an instant on this grid, not
@@ -187,8 +208,8 @@ func (w *web) calTV() calSource {
 					// cover two cells, which is not what "it airs Tuesday"
 					// means to anybody reading a calendar.
 					End:   e.AirsAt,
-					Kind:  "tv",
-					Icon:  "film",
+					Kind:  kind,
+					Icon:  icon,
 					Label: e.ShowTitle + " " + tvEpisodeLabel(e),
 					// The search, not the upstream episode page. This calendar
 					// belongs to an indexer and the question it raises is
@@ -205,7 +226,7 @@ func (w *web) calTV() calSource {
 // tvEpisodeLabel is "S01E04 — Title", or just the code when the episode has no
 // name of its own, which daily programming usually does not.
 func tvEpisodeLabel(e pluginapi.TVEpisode) string {
-	code := fmt.Sprintf("S%02dE%02d", e.Season, e.Number)
+	code := tvEpisodeCode(e)
 	if e.Title == "" {
 		return code
 	}
@@ -229,8 +250,14 @@ func (w *web) wireTVSchedule(c *core.Core, src *tvmaze.Source) {
 			return w.data.CarriedShowIDs(ctx, "tvmaze")
 		},
 	}
+	w.tv.seriesIndex = func() pluginapi.SeriesIndex { return w.series }
 	if err := c.Register(pluginapi.TVScheduleName, pluginapi.TVScheduleProvider(w.tv)); err != nil {
 		w.log.Error("register tv schedule", "err", err)
+	}
+	// The join, published separately -- the thing that will file requests asks
+	// for gaps, not for a schedule it would have to join itself.
+	if err := c.Register(pluginapi.TVGapsName, pluginapi.TVGapFinder(w.tv)); err != nil {
+		w.log.Error("register tv gaps", "err", err)
 	}
 
 	job := schedule.RegisterJob("TV Schedule",
@@ -259,9 +286,19 @@ func (w *web) runTVSchedule(ctx context.Context, job *schedule.JobInfo) {
 		w.log.Error("tv schedule", "err", err)
 		return
 	}
+	// AFTER the refill and inside the same pass: the join is only as good as
+	// the window it ran against, and computing it on render would be a query
+	// per show-season per viewer.
+	w.tv.recomputeGaps(ctx)
+
 	w.tv.mu.RLock()
-	n := len(w.tv.eps)
+	n, missing, ok := len(w.tv.eps), len(w.tv.gaps), w.tv.gapsOK
 	w.tv.mu.RUnlock()
 	job.Log("Schedule holds %d episode(s) across %d days", n, tvBackfillDays+tvHorizonDays)
+	if ok {
+		job.Log("%d aired episode(s) have no matching release", missing)
+	} else {
+		job.Log("No series index wired; gaps not computed")
+	}
 	job.SetIdle(next)
 }

@@ -1,0 +1,109 @@
+{{/* What aired and never arrived (tvgapsadmin_web.go). .VM.
+
+     TWO TABLES, not one with a column. "We missed episode 4 of a show we
+     otherwise carry" and "we have never held a byte of this show" are
+     different problems with different responses, and on live data the second
+     outnumbers the first by enough to bury it. Splitting them is the whole
+     reason TVGap carries Indexed. */}}
+{{define "content"}}
+<header class="mb-3">
+    <h1 class="h3 m-0">Missing episodes</h1>
+    <p class="text-muted small m-0 mt-1">
+        Episodes of shows this site carries that aired in the last {{.VM.Window}} days
+        with no matching release in the index.
+    </p>
+</header>
+
+{{if not .VM.Computed}}
+{{/* The empty state that is NOT an answer. A page reading "nothing missing"
+     when the job has simply never run is worse than one that says so. */}}
+<div class="notice notice--warn">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>
+        Not computed yet. The TV Schedule job fills this after each pass &mdash;
+        it runs six-hourly and first runs shortly after start-up.
+        <a href="/admin/jobs">Jobs</a> can run it now.
+    </span>
+</div>
+{{else}}
+
+<section class="panelV2 mb-3">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#film"></use></svg>Missed
+        </h2>
+        {{with .VM.Missed}}<div class="panel__actions"><span class="panel__grouping">{{len .}}</span></div>{{end}}
+    </header>
+    {{if .VM.Missed}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <caption class="visually-hidden">Aired episodes of carried shows with no release in the index</caption>
+            <thead>
+                <tr><th>Show</th><th>Episode</th><th>Aired</th><th>Search</th></tr>
+            </thead>
+            <tbody>
+                {{range .VM.Missed}}
+                <tr>
+                    <td><span class="data-table__title">{{.Show}}</span></td>
+                    <td>
+                        <code>{{.Code}}</code>
+                        {{if .Title}}<span class="text-muted small">{{.Title}}</span>{{end}}
+                    </td>
+                    <td class="text-muted small">
+                        <time datetime="{{.Aired.Format "2006-01-02T15:04:05Z07:00"}}">{{.Age}}</time>
+                    </td>
+                    <td><a class="btn btn--sm btn--ghost" href="{{.Search}}">Search index</a></td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="panel__body">
+        <p class="text-muted small m-0">
+            Nothing missed. Every episode of a carried show that aired in the last
+            {{.VM.Window}} days has a release, judged across {{.VM.Judged}} airing(s).
+        </p>
+    </div>
+    {{end}}
+</section>
+
+{{if .VM.Unheld}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#info"></use></svg>Never indexed
+        </h2>
+        <div class="panel__actions"><span class="panel__grouping">{{len .VM.Unheld}}</span></div>
+    </header>
+    <div class="panel__body">
+        <p class="text-muted small m-0 mb-2">
+            Shows in the catalogue with no release of any episode. Usually a catalogue entry
+            nobody has ever posted for, rather than something worth chasing &mdash; which is
+            why these are kept out of the list above rather than mixed into it.
+        </p>
+    </div>
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <caption class="visually-hidden">Carried shows with no releases at all</caption>
+            <thead>
+                <tr><th>Show</th><th>Episode</th><th>Aired</th><th>Search</th></tr>
+            </thead>
+            <tbody>
+                {{range .VM.Unheld}}
+                <tr>
+                    <td><span class="data-table__title">{{.Show}}</span></td>
+                    <td><code>{{.Code}}</code></td>
+                    <td class="text-muted small">
+                        <time datetime="{{.Aired.Format "2006-01-02T15:04:05Z07:00"}}">{{.Age}}</time>
+                    </td>
+                    <td><a class="btn btn--sm btn--ghost" href="{{.Search}}">Search index</a></td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}
+{{end}}
+{{end}}

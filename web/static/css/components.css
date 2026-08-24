@@ -2773,6 +2773,13 @@ a.cal-ev:hover { background: var(--surface-3); }
 .cal-ev--release { background: var(--info-soft);    color: var(--info); }
 .cal-ev--expiry  { background: var(--danger-soft);  color: var(--danger); }
 .cal-ev--boost   { background: var(--success-soft); color: var(--success); }
+/* Television. Added late: calTV shipped with Kind "tv" and no rule, so every
+   airing rendered with no ground at all -- found by grepping for the class
+   rather than by looking at the calendar, which is the wrong order. */
+.cal-ev--tv      { background: var(--accent-soft);  color: var(--accent); }
+/* Aired, and the index has nothing matching it. Warning rather than danger:
+   a missing episode is something to go and get, not something broken. */
+.cal-ev--tv-gap  { background: var(--warning-soft); color: var(--warning); }
 .cal-ev--more    { color: var(--text-muted); background: transparent; }
 
 /* Legend. Its chips are samples, not controls, so they size to their text. */
