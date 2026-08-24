@@ -3,7 +3,7 @@
 # loon, loon-plugins and loon-baseline are ordinary module dependencies, so
 # this image builds from a clone of this repository alone — no sibling
 # checkouts, no named build contexts.
-FROM golang:1.26 AS build
+FROM golang:1.27 AS build
 WORKDIR /app
 # GOWORK=off so a developer's go.work (which points at their sibling checkouts,
 # and is gitignored) cannot change what ends up inside the image. What ships is
