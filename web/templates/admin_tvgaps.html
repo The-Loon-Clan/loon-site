@@ -80,6 +80,53 @@
 </section>
 {{end}}
 
+{{with .VM.Grabs}}
+{{/* The auto-grab: the top torrent chosen for the oldest few gaps, packed and
+     ready to hand to an agent. This is where the demo stops -- the agent that
+     downloads the torrent, re-uploads to Usenet and returns an NZB with
+     screenshots, metadata and subtitles is production infrastructure, not part
+     of this reference host. So the row shows what WOULD be dispatched. */}}
+<section class="panelV2 mb-3">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#download"></use></svg>Ready to dispatch
+        </h2>
+        <div class="panel__actions"><span class="panel__grouping">{{len .}}</span></div>
+    </header>
+    <div class="panel__body">
+        <p class="text-muted small m-0 mb-2">
+            The best torrent found for the oldest gaps, healthiest swarm first &mdash; the copy an
+            agent would fetch, re-upload to Usenet, and return as an NZB with screenshots, metadata
+            and subtitles. No agent runtime is wired to this demo host, so nothing is dispatched.
+        </p>
+    </div>
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <caption class="visually-hidden">The top torrent chosen for each of the oldest gaps</caption>
+            <thead>
+                <tr><th>Episode</th><th>Chosen release</th><th>Source</th><th>Size</th><th>Swarm</th><th></th></tr>
+            </thead>
+            <tbody>
+                {{range .}}
+                <tr>
+                    <td><span class="data-table__title">{{.Show}}</span> <code>{{.Code}}</code></td>
+                    {{if .Found}}
+                    <td>{{.Title}}</td>
+                    <td class="small">{{.Source}}{{with .Via}} <span class="text-subtle">via {{.}}</span>{{end}}</td>
+                    <td class="small">{{.Size}}</td>
+                    <td class="small"><span class="chip chip--ok" title="Seeders">{{.Seeders}}</span></td>
+                    <td class="small">{{with .Magnet}}<a class="btn btn--sm btn--ghost" href="{{.}}">Magnet</a>{{end}}</td>
+                    {{else}}
+                    <td class="text-muted small" colspan="5">No live copy found &mdash; nothing seedable to dispatch.</td>
+                    {{end}}
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}
+
 {{if not .VM.Computed}}
 {{/* The empty state that is NOT an answer. A page reading "nothing missing"
      when the job has simply never run is worse than one that says so. */}}

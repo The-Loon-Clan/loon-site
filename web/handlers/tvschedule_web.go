@@ -82,6 +82,10 @@ type tvSchedule struct {
 	// lastReq is what the most recent trigger pass decided, shown on the gaps
 	// page so the dormant seam is visible: "3 requestable, no filer wired".
 	lastReq tvRequestOutcome
+	// grabs is the top torrent chosen for the oldest few requestable gaps --
+	// the "request from the top tracker, get the torrent" step, packed and
+	// ready for an agent the demo has no runtime to dispatch to.
+	grabs []tvGrab
 }
 
 var _ pluginapi.TVScheduleProvider = (*tvSchedule)(nil)
@@ -313,8 +317,13 @@ func (w *web) runTVSchedule(ctx context.Context, job *schedule.JobInfo) {
 	// when no board is wired -- see tvgapsrequest_web.go -- but always
 	// computes what it WOULD file, so the page can show it.
 	req := w.runGapRequests(ctx, w.tv.requestFiler)
+	// The top torrent for the oldest few gaps: a live search, packed ready to
+	// hand to an agent. Bounded because it hits real trackers -- see
+	// tvgrab_web.go.
+	grabs := w.runAutoGrab(ctx)
 	w.tv.mu.Lock()
 	w.tv.lastReq = req
+	w.tv.grabs = grabs
 	w.tv.mu.Unlock()
 
 	w.tv.mu.RLock()
@@ -330,6 +339,15 @@ func (w *web) runTVSchedule(ctx context.Context, job *schedule.JobInfo) {
 		job.Log("Auto-request: %d filed, %d already open (%d requestable)", req.Filed, req.Deduped, req.Requestable)
 	} else if req.Requestable > 0 {
 		job.Log("Auto-request: %d gap(s) requestable, no request board wired to file them", req.Requestable)
+	}
+	if len(grabs) > 0 {
+		found := 0
+		for _, gr := range grabs {
+			if gr.Found {
+				found++
+			}
+		}
+		job.Log("Auto-grab: a live copy found for %d of the oldest %d gap(s)", found, len(grabs))
 	}
 	job.SetIdle(next)
 }

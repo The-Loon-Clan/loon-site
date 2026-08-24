@@ -49,6 +49,23 @@ type tvGapsVM struct {
 	// Req is what the last auto-request pass decided, so the dormant trigger
 	// is visible: "3 requestable, no request board wired".
 	Req tvRequestOutcome
+	// Grabs is the top torrent chosen for the oldest few gaps, ready to hand
+	// to an agent -- the "request from the top tracker" step made concrete.
+	Grabs []tvGrabRow
+}
+
+// tvGrabRow is one chosen torrent as the dispatch table shows it.
+type tvGrabRow struct {
+	Show    string
+	Code    string
+	Age     string
+	Found   bool
+	Title   string
+	Source  string
+	Via     string
+	Size    string
+	Seeders int
+	Magnet  string
 }
 
 func (w *web) adminTVGaps(c *gin.Context) {
@@ -73,7 +90,23 @@ func (w *web) tvGapsVM(ctx context.Context) tvGapsVM {
 	w.tv.mu.RLock()
 	vm.Computed, vm.Filled, vm.Judged = w.tv.gapsOK, w.tv.filled, len(w.tv.eps)
 	vm.Req = w.tv.lastReq
+	grabs := make([]tvGrab, len(w.tv.grabs))
+	copy(grabs, w.tv.grabs)
 	w.tv.mu.RUnlock()
+	for _, g := range grabs {
+		row := tvGrabRow{Show: g.Show, Code: g.Code, Age: g.Age, Found: g.Found}
+		if g.Found {
+			row.Title = g.Best.Title
+			row.Source = g.Best.TrackerSlug
+			row.Via = g.Best.Via
+			row.Seeders = g.Best.Seeders
+			row.Magnet = g.Best.Magnet
+			if g.Best.SizeBytes > 0 {
+				row.Size = humanSize(g.Best.SizeBytes)
+			}
+		}
+		vm.Grabs = append(vm.Grabs, row)
+	}
 
 	gaps, err := w.tv.Gaps(ctx, time.Now().AddDate(0, 0, -tvBackfillDays), time.Now())
 	if err != nil {
