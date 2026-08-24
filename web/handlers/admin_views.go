@@ -306,15 +306,24 @@ var navPlacement = map[string]struct{ Group, Label string }{
 	"/p/downloads": {Group: "", Label: "Download reports"},
 }
 
-// accountPluginPages is the fallback for a per-viewer plugin page the host has
-// NOT placed by hand: it lands at the tail of the account menu rather than in
-// the site nav's Other bucket, next to About and Sitemap.
+// accountPluginPages is the fallback for an UNGROUPED per-viewer plugin page
+// the host has NOT placed by hand: it lands at the tail of the account menu
+// rather than in the site nav's Other bucket, next to About and Sitemap.
+//
+// Ungrouped is the word that matters. A page that names the Account group is
+// handled in siteNav's grouped branch instead — this map never saw one, which
+// is how two of them built a top-nav ACCOUNT tab nobody chose.
 //
 // Empty today, because every registered per-viewer page is placed above. It is
 // the entry the next one would need, and an empty map here is the difference
 // between "nothing needs this" and "a new personal page silently appears in a
 // site-info menu".
 var accountPluginPages = map[string]bool{}
+
+// accountGroupHint is the NavHint group a plugin uses to say "this page is the
+// viewer's own". Matched case-insensitively, because it is a free-text field a
+// plugin author types.
+const accountGroupHint = "Account"
 
 // siteNav builds the top nav for the current viewer from the pre-sorted
 // entries: ungrouped pages become plain links; a named group with 2+ visible
@@ -357,6 +366,28 @@ func (w *web) siteNav(c *gin.Context) ([]navNode, map[string][]navItem, []navIte
 		switch {
 		case len(kids) == 0:
 			// nothing visible in this group
+		case strings.EqualFold(e.group, accountGroupHint):
+			// A plugin naming the Account group is saying the page is the
+			// VIEWER'S, and the top nav answers "where is the site?" -- so the
+			// hint is honoured by sending it to the account menu rather than
+			// by building a tab out of it.
+			//
+			// This is the branch accountPluginPages was written for and never
+			// reached: it only sees pages that arrive UNGROUPED, so a plugin
+			// that names a group skipped straight past it. Two of them did,
+			// and because siteNav collapses any group of two or more into a
+			// dropdown, the second one to ask built an ACCOUNT tab in the top
+			// nav between Other and Donate. One would have flattened to a
+			// plain link and read as an oversight; two read as a feature.
+			//
+			// Pages the host has placed BY HAND are skipped, or they would
+			// appear twice -- once on the bar where somebody put them, once
+			// here at the tail of the menu.
+			for _, k := range kids {
+				if !navPlacedByHost[k.Href] {
+					account = append(account, k)
+				}
+			}
 		case hostNavGroups[e.group]:
 			// Even a single entry merges: the whole point is that it appears
 			// under the host menu it named, not beside it.

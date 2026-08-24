@@ -68,9 +68,18 @@ Two things that are easy to miss when moving a page this way:
   them; that list is the only thing that can say the page exists, and the
   entry is worth nothing unless somebody actually loaded the page first.
 
-`accountPluginPages` exists for the same problem and catches nothing, because
-it only sees pages that arrive ungrouped. A plugin that names a group skips
-past it entirely.
+**Since 23 Aug 2026 the hint routes itself.** `siteNav` sends any group named
+`Account` (case-insensitively — it is free text a plugin author types) to the
+account menu instead of building a tab from it, skipping anything already
+placed by hand so it cannot appear twice. So a new plugin declaring
+`NavHint{Group: "Account"}` lands somewhere sensible without anybody editing
+the host, and the two steps above are only needed to move a page onto the BAR
+with a deliberate group, which is better than the tail of a menu but is a
+decision rather than a default.
+
+`accountPluginPages` remains the same fallback for pages that arrive
+*ungrouped*, and is still empty because every one of those is placed by hand.
+Guarded by `TestAnAccountNavHintNeverBecomesATopNavTab`.
 
 ## The second rule: one word, one destination
 

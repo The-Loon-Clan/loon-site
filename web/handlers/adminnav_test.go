@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -192,5 +193,71 @@ func TestSettingsViewFallsBack(t *testing.T) {
 	w := &web{}
 	if _, ok := w.settingsView("usenet"); ok {
 		t.Error("no registered sections should resolve to nothing, not to a zero View")
+	}
+}
+
+// A plugin naming the Account group must not build a top-nav tab out of it.
+//
+// This is the bug that shipped: two plugins declared NavHint{Group:"Account"},
+// siteNav collapses any group of two or more into a dropdown, and an ACCOUNT
+// tab appeared in the top nav between Other and Donate — which docs/NAVIGATION
+// .md says holds the site's own sections, not the viewer's. One plugin would
+// have flattened to a plain link and read as an oversight; two read as a
+// feature, which is why nobody questioned it.
+//
+// accountPluginPages was written for exactly this and never reached it: it
+// only sees pages that arrive UNGROUPED.
+func TestAnAccountNavHintNeverBecomesATopNavTab(t *testing.T) {
+	pub := core.View{Public: true}
+	w := &web{siteNavEntries: []siteNavEntry{
+		{href: "/p/appearance", label: "Appearance", group: "Account", view: pub},
+		{href: "/p/reports", label: "Reports", group: "Account", view: pub},
+		// Lower-case, because the group is free text a plugin author types.
+		{href: "/p/thing", label: "Thing", group: "account", view: pub},
+		// A page the host placed by hand must not ALSO arrive here, or it
+		// shows up twice — once where somebody put it, once at the tail.
+		{href: "/p/api-key", label: "API key", group: "Account", view: pub},
+		// An unrelated group still behaves as it always did.
+		{href: "/p/logs", label: "Logs", group: "Operations", view: pub},
+		{href: "/p/backup", label: "Backup", group: "Operations", view: pub},
+	}}
+	gin.SetMode(gin.TestMode)
+	w.auth = webauth.Auth{Session: session.Config{Secret: []byte("test-secret-test-secret-abc")}}
+	var nodes []navNode
+	var account []navItem
+	e := gin.New()
+	e.Use(w.auth.Session.Middleware())
+	e.GET("/", func(c *gin.Context) { nodes, _, account = w.siteNav(c) })
+	e.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil))
+
+	for _, n := range nodes {
+		if strings.EqualFold(n.Label, "Account") {
+			t.Errorf("an ACCOUNT tab was built in the top nav from a plugin's "+
+				"NavHint; the top nav holds the site's sections, not the "+
+				"viewer's (nodes = %+v)", nodes)
+		}
+	}
+	got := map[string]bool{}
+	for _, a := range account {
+		got[a.Href] = true
+	}
+	for _, want := range []string{"/p/appearance", "/p/reports", "/p/thing"} {
+		if !got[want] {
+			t.Errorf("%s did not reach the account menu; it has nowhere to be", want)
+		}
+	}
+	if got["/p/api-key"] {
+		t.Error("/p/api-key reached the account menu as well as the bar the host " +
+			"wrote it onto — that is the same page listed twice")
+	}
+	// The unrelated group is untouched.
+	var ops bool
+	for _, n := range nodes {
+		if n.Label == "Operations" && len(n.Children) == 2 {
+			ops = true
+		}
+	}
+	if !ops {
+		t.Errorf("the Operations dropdown stopped working; nodes = %+v", nodes)
 	}
 }
