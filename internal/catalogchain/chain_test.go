@@ -259,3 +259,83 @@ func TestUnconfiguredSourcesAreSkippedNotCounted(t *testing.T) {
 		t.Error("the configured source was not reachable")
 	}
 }
+
+// fakeSearcher is a query-only source: empty index, matches through Search --
+// the shape of TMDB/TVmaze/Wikipedia/AniList, which chain_test never exercised
+// and which the Chain silently could not drive until it grew a Search method.
+type fakeSearcher struct {
+	key     string
+	byQuery map[string]catalog.CatalogEntry
+	calls   int
+}
+
+func (f *fakeSearcher) Domain() catalog.DomainInfo {
+	return catalog.DomainInfo{Key: f.key, UnitNoun: "thing"}
+}
+func (f *fakeSearcher) Normalize(raw string) string { return raw }
+func (f *fakeSearcher) TitleIndex(context.Context) (map[string]int64, error) {
+	return map[string]int64{}, nil // no local id space
+}
+func (f *fakeSearcher) Fetch(context.Context, int64) (catalog.CatalogEntry, error) {
+	return catalog.CatalogEntry{}, errors.New("no local id")
+}
+func (f *fakeSearcher) Search(_ context.Context, query string) (catalog.CatalogEntry, bool, error) {
+	f.calls++
+	e, ok := f.byQuery[query]
+	return e, ok, nil
+}
+
+// A chain of query-only sources must resolve through Search -- the regression
+// that zeroed movie and TV enrichment.
+func TestChainSearchDrivesQueryOnlySources(t *testing.T) {
+	tmdb := &fakeSearcher{key: "movie", byQuery: map[string]catalog.CatalogEntry{}}
+	wiki := &fakeSearcher{key: "movie", byQuery: map[string]catalog.CatalogEntry{
+		"Blade Runner 2049": {Title: "Blade Runner 2049"},
+	}}
+	c, err := New(map[string]catalog.MetadataSource{"tmdb": tmdb, "wikipedia": wiki}, "tmdb", "wikipedia")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The Chain must satisfy the scraper's Searcher shape structurally.
+	var _ interface {
+		Search(context.Context, string) (catalog.CatalogEntry, bool, error)
+	} = c
+	entry, ok, err := c.Search(context.Background(), "Blade Runner 2049")
+	if err != nil || !ok {
+		t.Fatalf("query-only chain did not resolve: ok=%v err=%v", ok, err)
+	}
+	if entry.Title != "Blade Runner 2049" {
+		t.Fatalf("wrong entry: %q", entry.Title)
+	}
+	if tmdb.calls != 1 {
+		t.Fatalf("primary source must be asked first; tmdb calls=%d", tmdb.calls)
+	}
+}
+
+// Order holds: the first source that answers wins, later ones are not asked.
+func TestChainSearchStopsAtTheFirstHit(t *testing.T) {
+	tmdb := &fakeSearcher{key: "tv", byQuery: map[string]catalog.CatalogEntry{"Silo": {Title: "Silo (TMDB)"}}}
+	tvmaze := &fakeSearcher{key: "tv", byQuery: map[string]catalog.CatalogEntry{"Silo": {Title: "Silo (TVmaze)"}}}
+	c, _ := New(map[string]catalog.MetadataSource{"tmdb": tmdb, "tvmaze": tvmaze}, "tmdb", "tvmaze")
+	entry, ok, _ := c.Search(context.Background(), "Silo")
+	if !ok || entry.Title != "Silo (TMDB)" {
+		t.Fatalf("primary should win; got ok=%v %q", ok, entry.Title)
+	}
+	if tvmaze.calls != 0 {
+		t.Fatalf("the fallback must not be asked when the primary answers; tvmaze calls=%d", tvmaze.calls)
+	}
+}
+
+// A query-only primary that misses falls through to the fallback.
+func TestChainSearchFallsThroughAMiss(t *testing.T) {
+	tmdb := &fakeSearcher{key: "tv", byQuery: map[string]catalog.CatalogEntry{}}
+	tvmaze := &fakeSearcher{key: "tv", byQuery: map[string]catalog.CatalogEntry{"Silo": {Title: "Silo"}}}
+	c, _ := New(map[string]catalog.MetadataSource{"tmdb": tmdb, "tvmaze": tvmaze}, "tmdb", "tvmaze")
+	entry, ok, _ := c.Search(context.Background(), "Silo")
+	if !ok || entry.Title != "Silo" {
+		t.Fatalf("fallback should answer; got ok=%v %q", ok, entry.Title)
+	}
+	if tmdb.calls != 1 || tvmaze.calls != 1 {
+		t.Fatalf("both should be asked; tmdb=%d tvmaze=%d", tmdb.calls, tvmaze.calls)
+	}
+}

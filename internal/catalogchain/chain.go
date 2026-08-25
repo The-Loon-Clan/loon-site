@@ -147,6 +147,48 @@ func (c *Chain) Fetch(ctx context.Context, id int64) (catalog.CatalogEntry, erro
 
 // FindByTitle is the chain proper: each source in turn, and every candidate
 // confirmed before it is accepted.
+// searcher is the query capability, duck-typed so this host-internal package
+// need not import the scraper package that declares scraper.Searcher. A source
+// with this method matches its own titles from a free-text query.
+type searcher interface {
+	Search(ctx context.Context, query string) (catalog.CatalogEntry, bool, error)
+}
+
+// Search resolves a release title to an entry by trying each source in order,
+// returning the first that answers.
+//
+// THIS IS WHAT LETS A CHAIN BE MATCHED AT ALL. The scraper's matchOne feature-
+// detects scraper.Searcher and, finding it, calls Search; a source without it
+// falls to the index/TitleFinder path. Every query-only source -- TMDB,
+// TVmaze, Wikipedia, AniList -- has an empty index and matches ONLY through
+// Search, so before the Chain grew this method it satisfied the Searcher
+// assertion falsely-by-absence: matchOne skipped the query path, the empty
+// index missed, FindByTitle could not drive a Searcher, and a chain of these
+// sources enriched nothing. Movie and TV -- the two biggest categories --
+// matched zero releases the moment their sources were wrapped in a chain.
+//
+// A query source is trusted the way a directly-registered one is: its own
+// Search IS the match. The confirm step stays for the index path, where a
+// fuzzy title->id map genuinely can answer wrongly; applying it to a Search
+// hit would mean re-judging the source's match against the noisy raw release
+// title, which is exactly what the source already cleaned away.
+func (c *Chain) Search(ctx context.Context, query string) (catalog.CatalogEntry, bool, error) {
+	for _, src := range c.sources {
+		if qs, ok := src.(searcher); ok {
+			if entry, found, err := qs.Search(ctx, query); err == nil && found {
+				return entry, true, nil
+			}
+			continue
+		}
+		if local, ok := c.askOne(src, query); ok {
+			if entry, err := src.Fetch(ctx, local); err == nil && Similar(entry.Title, query) >= c.threshold() {
+				return entry, true, nil
+			}
+		}
+	}
+	return catalog.CatalogEntry{}, false, nil
+}
+
 func (c *Chain) FindByTitle(raw string) (int64, bool) {
 	for i, src := range c.sources {
 		local, ok := c.askOne(src, raw)
