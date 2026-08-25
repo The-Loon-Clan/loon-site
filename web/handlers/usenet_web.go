@@ -47,7 +47,7 @@ func (w *web) newznabAPI(c *gin.Context) {
 	req := pluginapi.NewznabRequest{
 		Function:   in.Function,
 		Query:      in.Query,
-		Categories: parseCats(in.Cats),
+		Categories: w.expandCatList(c.Request.Context(), parseCats(in.Cats)),
 		Limit:      in.Limit,
 		Offset:     in.Offset,
 		ID:         in.ID,
@@ -119,6 +119,34 @@ func parseCats(s string) []int {
 	for _, part := range strings.Split(s, ",") {
 		if n, err := strconv.Atoi(strings.TrimSpace(part)); err == nil && n > 0 {
 			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// expandCatList expands a Newznab cat= list through the taxonomy so a bare
+// PARENT id (5000, 2000, …) becomes its subcategory ids.
+//
+// Sonarr/Radarr and every Newznab client routinely query a top-level category:
+// cat=5000 means "all TV". But the indexer stores only SUBcategory ids
+// (categorize never emits a bare parent) and matches category_id with an exact
+// IN(…). So a parent alone matched nothing and the feed came back empty -- the
+// automation read "no releases" for the whole of television. Reuses the browse
+// path's expandCats per id and dedups; a non-parent id expands to itself, so a
+// plain cat=5040 query is unchanged. No catalog wired -> pass-through, never an
+// error on the query path.
+func (w *web) expandCatList(ctx context.Context, cats []int) []int {
+	if len(cats) == 0 || w.catalog == nil {
+		return cats
+	}
+	seen := map[int]bool{}
+	var out []int
+	for _, c := range cats {
+		for _, id := range w.expandCats(ctx, c) {
+			if !seen[id] {
+				seen[id] = true
+				out = append(out, id)
+			}
 		}
 	}
 	return out

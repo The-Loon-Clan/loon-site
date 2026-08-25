@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
@@ -220,5 +221,64 @@ func TestTheBaseURLKeepsANonDefaultPort(t *testing.T) {
 
 	if got := requestBaseURL(c); got != "http://indexer.example:8090" {
 		t.Errorf("requestBaseURL = %q, want the port kept", got)
+	}
+}
+
+// stubCatalog is a minimal taxonomy for expandCatList: one parent with subcats.
+type stubCatalog struct{ tree []pluginapi.Category }
+
+func (s stubCatalog) All(context.Context) ([]pluginapi.Category, error)     { return s.tree, nil }
+func (s stubCatalog) Enabled(context.Context) ([]pluginapi.Category, error) { return s.tree, nil }
+func (s stubCatalog) IsEnabled(context.Context, int) (bool, error)          { return true, nil }
+func (s stubCatalog) Categorize(string, string) int                         { return 8010 }
+func (s stubCatalog) Name(int) string                                       { return "" }
+
+// TestParentCategoryExpandsToSubcats pins the fix for a review finding: a
+// downloader querying a top-level category (cat=5000, "all TV") must not get an
+// empty feed because the indexer stores only subcategory ids.
+func TestParentCategoryExpandsToSubcats(t *testing.T) {
+	w := &web{catalog: stubCatalog{tree: []pluginapi.Category{
+		{ID: 5000, Name: "TV", Subcats: []pluginapi.Subcategory{{ID: 5040, Name: "HD"}, {ID: 5070, Name: "Anime"}}},
+		{ID: 2000, Name: "Movies", Subcats: []pluginapi.Subcategory{{ID: 2040, Name: "HD"}}},
+	}}}
+	ctx := context.Background()
+
+	// A bare parent expands to itself + its subcats.
+	got := w.expandCatList(ctx, []int{5000})
+	has := map[int]bool{}
+	for _, id := range got {
+		has[id] = true
+	}
+	if !has[5040] || !has[5070] {
+		t.Fatalf("cat=5000 = %v, want the TV subcats 5040 and 5070 included", got)
+	}
+
+	// A subcategory query is unchanged (no accidental widening).
+	if got := w.expandCatList(ctx, []int{5040}); len(got) != 1 || got[0] != 5040 {
+		t.Fatalf("cat=5040 = %v, want just [5040]", got)
+	}
+
+	// A mixed list dedups across parents and subcats.
+	got = w.expandCatList(ctx, []int{5000, 5040, 2000})
+	seen := map[int]int{}
+	for _, id := range got {
+		seen[id]++
+	}
+	for id, n := range seen {
+		if n != 1 {
+			t.Fatalf("id %d appears %d times; expansion must dedup", id, n)
+		}
+	}
+	if seen[2040] == 0 {
+		t.Fatalf("Movies parent did not expand: %v", got)
+	}
+}
+
+// TestExpandCatListWithoutCatalogPassesThrough: no catalog wired -> the ids are
+// returned unchanged rather than erroring on the query path.
+func TestExpandCatListWithoutCatalogPassesThrough(t *testing.T) {
+	w := &web{}
+	if got := w.expandCatList(context.Background(), []int{5000}); len(got) != 1 || got[0] != 5000 {
+		t.Fatalf("no-catalog = %v, want the input unchanged", got)
 	}
 }
