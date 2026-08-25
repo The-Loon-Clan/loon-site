@@ -659,6 +659,14 @@ func (w *web) profilePage(c *gin.Context) {
 		return
 	}
 	core.SetViewSubject(c, subject.ID)
+	// This IS the public profile — the page answering "what do other members
+	// see". A SlotUserWidget that carries a CONTROL rather than a fact (the agent
+	// fleet roster, an IRC verification token) is correct on the owner's own
+	// settings surface and wrong here, even for the owner looking at their own
+	// page. The plugin's viewer==subject check cannot tell the two apart — the
+	// owner passes it on both — so the host marks which page this is and the
+	// widget suppresses itself. Set here and nowhere else, per core.SetPublicProfile.
+	core.SetPublicProfile(c)
 
 	viewer, _ := w.currentUser(c)
 	subj := subject.ToCore()
