@@ -366,10 +366,10 @@ var structuralKeys = map[string]map[string]any{
 	// renders the whole page as an empty dashboard and passes. So a handler
 	// that stopped setting it would degrade silently. The real-data case below
 	// is what actually pins it — this entry only supplies the shape.
-	"admin_dashboard.html": {"Dash": dashVM{}},
+	"admin_dashboard.html":    {"Dash": dashVM{}},
 	"admin_tracker_keys.html": {"VM": trackerKeysVM{}},
-	"profile.html":         {"Missing": true},
-	"home.html":            {"Blocks": []homeBlock{}},
+	"profile.html":            {"Missing": true},
+	"home.html":               {"Blocks": []homeBlock{}},
 	// series.html has the same either/or contract profile.html has: seriesPage
 	// sets Missing for "no such show" and for a host with no series index, and
 	// the whole body sits in the else. Missing is the structural half — the
