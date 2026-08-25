@@ -61,8 +61,8 @@
                     <td class="small"><span class="chip {{if gt .Seeders 0}}chip--ok{{else}}chip--warn{{end}}" title="Seeders / leechers">{{.Seeders}} / {{.Leech}}</span></td>
                     <td class="text-muted small">{{.Age}}</td>
                     <td class="small">
-                        {{if .PageURL}}<a class="btn btn--sm btn--ghost" href="{{.PageURL}}" rel="noreferrer noopener">Page</a>{{end}}
-                        {{if .Magnet}}<a class="btn btn--sm btn--ghost" href="{{.Magnet}}">Magnet</a>{{end}}
+                        {{if .PageURL}}<a class="btn btn-sm btn-outline-secondary" href="{{.PageURL}}" rel="noreferrer noopener">Page</a>{{end}}
+                        {{if .Magnet}}<a class="btn btn-sm btn-outline-secondary" href="{{.Magnet}}">Magnet</a>{{end}}
                     </td>
                 </tr>
                 {{end}}
@@ -96,8 +96,15 @@
     <div class="panel__body">
         <p class="text-muted small m-0 mb-2">
             The best torrent found for the oldest gaps, healthiest swarm first &mdash; the copy an
-            agent would fetch, re-upload to Usenet, and return as an NZB with screenshots, metadata
-            and subtitles. No agent runtime is wired to this demo host, so nothing is dispatched.
+            agent fetches, re-uploads to Usenet, and returns as an NZB with screenshots, metadata
+            and subtitles.
+            {{if $.VM.DispatchOn}}
+            Dispatch is <strong>on</strong>: each of these is queued for the fleet and shows
+            <em>dispatched</em> once an agent can take it. See <a href="/admin/agents">Agents</a>.
+            {{else}}
+            Dispatch is <strong>off</strong>, so these are computed and queued nowhere &mdash; set
+            <code>AGENT_DISPATCH=1</code> to hand them to the fleet.
+            {{end}}
         </p>
     </div>
     <div class="data-table-wrapper">
@@ -117,7 +124,7 @@
                     <td class="small"><span class="chip chip--ok" title="Seeders">{{.Seeders}}</span></td>
                     <td class="small">
                         {{if .Dispatched}}<span class="chip chip--ok" title="Handed to the fleet to fetch">dispatched</span>{{end}}
-                        {{with .Magnet}}<a class="btn btn--sm btn--ghost" href="{{.}}">Magnet</a>{{end}}
+                        {{with .Magnet}}<a class="btn btn-sm btn-outline-secondary" href="{{.}}">Magnet</a>{{end}}
                     </td>
                     {{else}}
                     <td class="text-muted small" colspan="5">No live copy found &mdash; nothing seedable to dispatch.</td>
@@ -133,7 +140,7 @@
 {{if not .VM.Computed}}
 {{/* The empty state that is NOT an answer. A page reading "nothing missing"
      when the job has simply never run is worse than one that says so. */}}
-<div class="notice notice--warn">
+<div class="notice notice--warning">
     <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
     <span>
         Not computed yet. The TV Schedule job fills this after each pass &mdash;
@@ -169,8 +176,8 @@
                         <time datetime="{{.Aired.Format "2006-01-02T15:04:05Z07:00"}}">{{.Age}}</time>
                     </td>
                     <td>
-                        <a class="btn btn--sm btn--ghost" href="{{.Search}}">Search index</a>
-                        {{with .Find}}<a class="btn btn--sm btn--ghost" href="{{.}}">Find on trackers</a>{{end}}
+                        <a class="btn btn-sm btn-outline-secondary" href="{{.Search}}">Search index</a>
+                        {{with .Find}}<a class="btn btn-sm btn-outline-secondary" href="{{.}}">Find on trackers</a>{{end}}
                     </td>
                 </tr>
                 {{end}}
@@ -216,7 +223,7 @@
                     <td class="text-muted small">
                         <time datetime="{{.Aired.Format "2006-01-02T15:04:05Z07:00"}}">{{.Age}}</time>
                     </td>
-                    <td><a class="btn btn--sm btn--ghost" href="{{.Search}}">Search index</a></td>
+                    <td><a class="btn btn-sm btn-outline-secondary" href="{{.Search}}">Search index</a></td>
                 </tr>
                 {{end}}
             </tbody>

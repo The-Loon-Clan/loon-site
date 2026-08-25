@@ -52,6 +52,11 @@ type tvGapsVM struct {
 	// Grabs is the top torrent chosen for the oldest few gaps, ready to hand
 	// to an agent -- the "request from the top tracker" step made concrete.
 	Grabs []tvGrabRow
+	// DispatchOn is whether a chosen torrent actually reaches the fleet. The
+	// runtime and its queue exist now (agentdispatch_web.go); AGENT_DISPATCH
+	// decides whether they are fed, so the panel must say which of the two
+	// reasons applies rather than the old flat "no agent runtime is wired".
+	DispatchOn bool
 }
 
 // tvGrabRow is one chosen torrent as the dispatch table shows it.
@@ -108,6 +113,7 @@ func (w *web) tvGapsVM(ctx context.Context) tvGapsVM {
 		}
 		vm.Grabs = append(vm.Grabs, row)
 	}
+	vm.DispatchOn = agentDispatchEnabled()
 
 	gaps, err := w.tv.Gaps(ctx, time.Now().AddDate(0, 0, -tvBackfillDays), time.Now())
 	if err != nil {
