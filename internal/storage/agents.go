@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -425,10 +426,39 @@ func (st *Store) UsernameByID(ctx context.Context, id int64) string {
 	return name
 }
 
-// hashAgentToken is the at-rest form of a bearer token: SHA-256, hex. Fast
-// hashing is correct here (no KDF): the input is 128 random bits, not a
-// password, so brute force is the search for the token itself.
+// agentTokenSecret keys the at-rest hash when the operator provides one. Set
+// once from the composition root (main), before any minting or lookup.
+var agentTokenSecret []byte
+
+// SetAgentTokenSecret installs the optional HMAC key (AGENT_TOKEN_SECRET).
+// Changing it orphans existing rows — their stored hashes verify only under
+// the key that made them — which the agent table can afford: workers
+// re-register. A durable credential table could not adopt this scheme as-is.
+func SetAgentTokenSecret(secret string) {
+	if secret == "" {
+		agentTokenSecret = nil
+		return
+	}
+	agentTokenSecret = []byte(secret)
+}
+
+// hashAgentToken is the at-rest form of a bearer token, hex. No KDF in either
+// branch, and correctly so: the input is 128 random bits, not a password, so
+// brute force is the search for the token itself.
+//
+// With AGENT_TOKEN_SECRET set this is HMAC-SHA256 under that key — prod's
+// scheme, where a database-only leak (dump, backup, an injected read) yields
+// hashes that cannot even be VERIFIED against candidate tokens without the
+// secret, which lives outside the database. Without it, plain SHA-256: weaker
+// by exactly that one property, and the deliberate demo default because a
+// required secret is a boot barrier and `git clone && docker compose up` must
+// work. This is NOT parity with prod unless the secret is set.
 func hashAgentToken(tok string) string {
+	if len(agentTokenSecret) > 0 {
+		mac := hmac.New(sha256.New, agentTokenSecret)
+		mac.Write([]byte(tok))
+		return hex.EncodeToString(mac.Sum(nil))
+	}
 	sum := sha256.Sum256([]byte(tok))
 	return hex.EncodeToString(sum[:])
 }

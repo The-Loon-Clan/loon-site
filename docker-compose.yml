@@ -122,6 +122,13 @@ services:
       # value so the mock client registers out of the box; override in real
       # deploys. Empty disables self-registration (create agents by hand).
       AGENT_TOKEN: "${AGENT_TOKEN:-demo-agent-token}"
+      # Optional HMAC key for agent tokens at rest. Unset (the default) the
+      # store keeps plain SHA-256 of each token — fine for a demo, weaker than
+      # prod by one property: a database-only leak can VERIFY candidate tokens
+      # against plain hashes, but not against HMAC ones without this secret.
+      # Set 32+ chars for prod's scheme. Changing it orphans registered agents
+      # (they simply re-register).
+      AGENT_TOKEN_SECRET: "${AGENT_TOKEN_SECRET:-}"
       TPDB_API_KEY: "${TPDB_API_KEY:-}"
       ANIDB_CLIENT: "${ANIDB_CLIENT:-}"
       # Cloudflare Turnstile (optional). Unset = captcha disabled. Cloudflare's

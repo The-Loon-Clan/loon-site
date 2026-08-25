@@ -476,6 +476,10 @@ func Main() {
 
 	// The fleet agent write surface is opt-in: only live when a token is set.
 	wsrv.agentToken = os.Getenv("AGENT_TOKEN")
+	// Optional HMAC key for agent tokens at rest (prod's scheme); empty falls
+	// back to plain SHA-256 so a fresh clone boots without a secret. Installed
+	// before wiring — every minting and lookup path must share one scheme.
+	storage.SetAgentTokenSecret(os.Getenv("AGENT_TOKEN_SECRET"))
 	wsrv.wireAgentPlugin()
 
 	c, err := core.New(core.Deps{
