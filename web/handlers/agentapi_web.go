@@ -92,14 +92,24 @@ func (w *web) authAgent(c *gin.Context) (storage.Agent, bool) {
 	// agent was told the site required "protocol v0", a version that has never
 	// existed, instead of the real floor.
 	if p, _ := strconv.Atoi(c.GetHeader("X-Agent-Protocol")); p != 0 && p < minAgentProtocol {
-		c.JSON(http.StatusUpgradeRequired, gin.H{
-			"error":        "agent protocol too old",
-			"message":      "this site requires a newer agent",
-			"min_protocol": minAgentProtocol,
-		})
+		c.JSON(http.StatusUpgradeRequired, upgradeRequiredBody())
 		return storage.Agent{}, false
 	}
 	return a, true
+}
+
+// upgradeRequiredBody is the 426 payload, and its KEYS are the contract: the
+// client unmarshals min_protocol / message / error (loon-agent
+// parseUpgradeRequired) and ignores anything else. Lifted out of authAgent so
+// the keys can be pinned by a test rather than only by a live probe -- this
+// once said "min", which unmarshalled into nothing and told operators the site
+// required "protocol v0".
+func upgradeRequiredBody() gin.H {
+	return gin.H{
+		"error":        "agent protocol too old",
+		"message":      "this site requires a newer agent",
+		"min_protocol": minAgentProtocol,
+	}
 }
 
 // agentTaskWire is the poll response, prod's AgentTask tag-for-tag (loon-agent
