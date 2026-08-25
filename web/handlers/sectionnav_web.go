@@ -177,14 +177,39 @@ func trackerAccountGroup() (sectionTab, bool) {
 	return sectionTab{Label: "Tracker", Items: items}, true
 }
 
+// agentsMemberHref is the agent plugin's member page ("My Agents" — the
+// owner's own workers: live status, per-file details, token self-service), or
+// "" while the plugin does not register one.
+//
+// Written ONCE, from wireViews at boot, then only read — same lifecycle as the
+// nav tables beside it there, so no lock. A package-level var rather than a
+// field because accountNav is a pure function (TestAccountBarScope relies on
+// that), and the tracker group above already draws its existence test from
+// package scope the same way (flavourTracker).
+//
+// Gated on the view actually being REGISTERED for the same reason the seedlock
+// entry is gated on its rule being armed: the entry must not exist before the
+// page does, because these menus are exactly where a member is sent by an
+// error message, and a dead link lands on somebody already confused.
+var agentsMemberHref = ""
+
 // accountNav returns the account entries with the page you are on marked.
 func accountNav(path string) []sectionTab {
 	menu := accountMenu
+	extra := []sectionTab{}
 	if g, ok := trackerAccountGroup(); ok {
+		extra = append(extra, g)
+	}
+	if agentsMemberHref != "" {
+		// A plain entry, not a group: one destination has nothing to group —
+		// the same call the points ledger settled for this file.
+		extra = append(extra, sectionTab{Label: "My Agents", Href: agentsMemberHref})
+	}
+	if len(extra) > 0 {
 		// Copied before appending: accountMenu is a package-level slice shared
 		// by every request, and appending to it in place would grow the menu by
 		// one group per page load.
-		menu = append(append([]sectionTab{}, accountMenu...), g)
+		menu = append(append([]sectionTab{}, accountMenu...), extra...)
 	}
 	return markActive(menu, path)
 }
@@ -206,6 +231,10 @@ var accountAreaPrefixes = []string{
 	"/bookmarks", "/calendar", "/achievements", "/subscriptions", "/gifts", "/wishlist",
 	// The member's own tracker standing — see trackerAccountGroup.
 	"/hitrun", "/perks", "/seedlock",
+	// The member's own fleet — see agentsMemberHref. Harmless while the plugin
+	// registers no page: the path then 404s before the bar matters, and a
+	// prefix for a page that does not exist selects nothing.
+	"/p/agents",
 	// The points economy: the store, its ledger, and the claim page.
 	"/store", "/rewards",
 }

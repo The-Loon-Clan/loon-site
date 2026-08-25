@@ -45,6 +45,17 @@ func (w *web) wireViews(c *core.Core, engine *gin.Engine, admin *gin.RouterGroup
 	// in the gate wrapped around each handler.
 	w.settingsViews = c.AllViews(core.SlotAdminSettings)
 	w.sitePages = c.AllViews(core.SlotSitePage)
+	// The agent plugin's member page, when it ships one: the "My Agents" entry
+	// on the account bar points here (sectionnav_web.go, agentsMemberHref).
+	// Detected rather than assumed so the entry cannot exist before the page
+	// does — the pin may lag the plugin, and a menu entry that 404s lands on
+	// somebody an error message just sent there.
+	for _, v := range w.sitePages {
+		if v.Slug == "agents" {
+			agentsMemberHref = "/p/" + v.Slug
+			break
+		}
+	}
 	w.siteWidgets = c.AllViews(core.SlotSiteWidget)
 	w.userWidgets = c.AllViews(core.SlotUserWidget) // /u/<name> profile cards
 	w.userTabs = c.AllViews(core.SlotUserTab)       // /u/<name> profile panels
@@ -239,6 +250,11 @@ var navPlacedByHost = map[string]bool{
 	// plugin's Community hint by navPlacement below; this is the half that
 	// stops it appearing a second time as a loose site link.
 	"/p/medals": true,
+	// account bar, "My Agents" (sectionnav_web.go, agentsMemberHref). Listed
+	// here AHEAD of the plugin shipping the page: the entry itself is gated on
+	// the view being registered, and this line only stops the generic nav
+	// adding a second copy on the day it is.
+	"/p/agents": true,
 }
 
 // navPlacement re-homes and re-labels a plugin page whose own NavHint puts it
