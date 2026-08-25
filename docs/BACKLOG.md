@@ -219,10 +219,15 @@ gave every textarea on the site no accessible name at all.
 
 **Still open, deliberately not fixed here:**
 
-* **23 undefined CSS classes remain**, mostly structural BEM names in plugin
-  markup (`.blocks__*`, `.meta__line`, `.form__checkbox`). Each needs a design
-  decision — define it or delete it — rather than an invented rule. This is the
-  closest of the three to being gateable in CI once resolved.
+* **Undefined CSS classes: the HOST is now clean, 57 remain in plugin markup.**
+  The host's last three went on 25 Aug 2026 (`b79abfa`) and were not design
+  decisions at all but spelling: `.btn--sm`, `.btn--ghost` and `.notice--warn`
+  written in one button family's grammar while the element sat in the other's
+  (`.button--*` in components.css, `.btn-*` in theme.css), so the tracker-keys,
+  trackers and tv-gaps controls rendered as bare text. What remains is plugin
+  markup and still needs the design decision this entry describes — define it
+  or delete it. The host half being zero is what makes this gateable in CI for
+  the host now, ahead of the plugins.
 * **12 a11y findings remain**, nearly all in plugin markup: unlabelled search
   and ticket fields (wiki, messages, tickets), `h2 -> h6` from dailyreward,
   `h1 -> h5` from store, two `<h1>`s on `/news` and `/wiki`, and unnamed tables
@@ -326,6 +331,13 @@ exercise a GitHub Action. Merging them is a decision to find out on the next
 push, which is the maintainer's to make. The cost of leaving them is the one
 this entry always recorded — they rot, and a stale dependency PR gets closed
 rather than reviewed.
+
+**All five are now applied to the current tree on the branch
+`chore/action-bumps` (`cdc7761`)**, so the decision no longer carries the
+merge-from-a-stale-base question with it: nine changed lines, every one a
+`uses:`, all three workflows still parsing with their jobs intact. That is
+everything checkable without running them. Merge it to find out, or drop the
+branch — the blast radius either way is CI and releases, not the site.
 
 ---
 
