@@ -3,10 +3,15 @@ package handlers
 import (
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
+	"context"
 	"log/slog"
+	"time"
 
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 	"github.com/the-loon-clan/loon-plugins/tracker"
+	"github.com/the-loon-clan/loon/schedule"
+
+	"github.com/the-loon-clan/loon-site/internal/config"
 )
 
 // Demo data for the BitTorrent tracker.
@@ -284,4 +289,94 @@ func trackerStatsSeed(db storage.Conn, log *slog.Logger, hashes []string,
 		}
 	}
 	return rows
+}
+
+// How often the seeded swarm is nudged forward.
+//
+// demoSwarmWindow must match the interval internal/storage/tracker.go counts
+// "now" over. It is the definition of stale here, and it is what decides which
+// rows this touches at all.
+const (
+	demoSwarmEveryMin = 20
+	demoSwarmWindow   = time.Hour
+)
+
+// demoTrackerActivity keeps the seeded swarm inside the window the tracker's
+// "now" figures are counted over.
+//
+// The seed lays down last_seen values between 0 and 55 minutes old, and every
+// per-torrent seeder/leecher count is `last_seen > now() - interval '1 hour'`
+// (internal/storage/tracker.go). Those two facts agree for exactly one hour.
+// After that the demo tracker reads 0 seeding and 0 leeching on every torrent
+// while the tables below still list who is on them — which is not a subtle
+// staleness, it is a tracker that looks broken. This host had been showing it
+// for eight days.
+//
+// The fix is a SHIFT, not a rewrite: every row moves by the same delta, so the
+// spread the seeder deliberately arranged — who announced recently, who is
+// trailing — survives intact, and no row's accounting is touched. Sliding the
+// newest row up to now() reproduces exactly the distribution seeding created.
+//
+// ONLY STALE ROWS MOVE, and that is the whole safety argument: a peer that is
+// genuinely announcing is inside the window by definition, so it is never
+// selected and never touched.
+//
+// It REGENERATES the spread rather than shifting it, and that took two goes to
+// get right. A shift has to anchor somewhere, and both anchors were wrong on
+// real data: against the newest row overall it measured itself against a live
+// announce and moved the seeded block by seconds; against the newest STALE row
+// it latched onto a lone fifteen-hour-old row sitting between the live peers
+// and the block, and left the block a day out. Timestamps in this table arrive
+// in arbitrary clusters, so nothing derived from one row survives contact with
+// them. Rebuilding the ladder by RANK does: the order of who announced most
+// recently is preserved, and every stale row lands inside the window whatever
+// shape it was in.
+//
+// The step and the ceiling are the SEEDER'S own constants, passed as
+// parameters, so the two halves cannot drift into disagreeing about what the
+// demo swarm looks like — and the ceiling reproduces its clamp, which is what
+// keeps a large stale set from spilling back out of the window.
+//
+// DEMO SEEDING, like everything else in this file: it fabricates activity and
+// belongs to the reference host, not to a real deployment.
+func demoTrackerActivity(db storage.Conn, log *slog.Logger) {
+	if !flavourTracker() || !db.Valid() {
+		return
+	}
+	res, err := db.Exec(`
+		UPDATE tracker.user_stats s
+		   SET last_seen = now() - (LEAST(r.rn * $2, $3) || ' minutes')::interval
+		  FROM (SELECT user_id, info_hash,
+		               row_number() OVER (ORDER BY last_seen DESC) - 1 AS rn
+		          FROM tracker.user_stats
+		         WHERE last_seen < now() - $1::interval) r
+		 WHERE s.user_id = r.user_id AND s.info_hash = r.info_hash`,
+		demoSwarmWindow.String(), demoLastSeenStep, demoLastSeenMax)
+	if err != nil {
+		// Warn, never fail: a demo whose swarm went stale is worse-looking than
+		// one that logged why, and neither is worth failing a boot over.
+		log.Warn("demo tracker activity", "err", err)
+		return
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		log.Info("demo tracker activity: seeded swarm nudged forward", "rows", n)
+	}
+}
+
+// wireDemoTrackerActivity registers the nudge as a visible job, so an operator
+// reading /admin/jobs finds out the demo is doing this rather than wondering
+// why the swarm never ages.
+func wireDemoTrackerActivity(db storage.Conn, log *slog.Logger) {
+	if !flavourTracker() {
+		return
+	}
+	job := schedule.RegisterJob("Demo tracker activity",
+		"Keeps the SEEDED tracker swarm inside the one-hour window the seeder/leecher counts are measured over, so the demo does not read as a dead tracker. Demo data only: it stops the moment a real peer announces.")
+	job.IntervalMin = demoSwarmEveryMin
+	job.SetTrigger(func() { go demoTrackerActivity(db, log) })
+	if config.RunsJobs() {
+		go schedule.ServiceLoop(context.Background(), job,
+			10*time.Second, demoSwarmEveryMin*time.Minute,
+			func(context.Context) { demoTrackerActivity(db, log) })
+	}
 }

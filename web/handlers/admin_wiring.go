@@ -195,6 +195,11 @@ func wireAdminAndViews(
 	// inserted into them any earlier. Each seeder checks its own table is
 	// empty, so this runs once and never fights an operator's own data.
 	demoSeed(db, logger)
+	// Keeps the seeded swarm inside the window its counts are measured over, so
+	// the demo tracker does not read as dead after an hour. See
+	// demoseedtracker_web.go — demo data only, and it stops the moment a real
+	// peer announces.
+	wireDemoTrackerActivity(db, logger)
 
 	// Calendar sources. Registered AFTER the capability lookups above because
 	// each source closes over one of them; a source whose dependency is absent
