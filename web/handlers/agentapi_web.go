@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -89,15 +90,85 @@ func (w *web) authAgent(c *gin.Context) (storage.Agent, bool) {
 	return a, true
 }
 
-// agentPoll answers "is there work for me". The demo dispatches none -- the
-// mock invents its own tasks -- so this is an empty queue, which is a valid,
-// common answer a real agent handles (it just sleeps and polls again).
+// agentTaskWire is the poll response, prod's AgentTask tag-for-tag (loon-agent
+// client.go). Only the fields this host can honestly fill are sent; the rest
+// are omitempty by prod's additive rule, so a real client sees a task it
+// understands with the optional half absent.
+//
+// Season and Episodes are STRINGS here and ints in the store. That is prod's
+// wire, not a slip: its episodes field carries ranges ("01-12"), which an int
+// cannot hold.
+type agentTaskWire struct {
+	RequestID int64  `json:"request_id"`
+	LockID    int64  `json:"lock_id"`
+	Title     string `json:"title"`
+	InfoHash  string `json:"info_hash,omitempty"`
+	Category  string `json:"category,omitempty"`
+	Season    string `json:"season,omitempty"`
+	Episodes  string `json:"episodes,omitempty"`
+	Magnet    string `json:"magnet,omitempty"`
+}
+
+// agentPoll answers "is there work for me": it leases the oldest queued task
+// this agent has capacity for, or reports an empty queue.
+//
+// An empty queue is 204, which the real client explicitly handles as "no
+// content" -- and is what every poll answered before there was a queue at all.
+//
+// The lease is what makes two agents polling at once take two different rows.
+// A crashed agent's lease expires and its task returns to the queue; see
+// LeaseNextTask.
 func (w *web) agentPoll(c *gin.Context) {
-	if _, ok := w.authAgent(c); !ok {
+	a, ok := w.authAgent(c)
+	if !ok {
 		return
 	}
-	// 204: no work. A real client reads this as "nothing queued".
-	c.Status(http.StatusNoContent)
+	ctx := c.Request.Context()
+	// Polling IS contact. Without this an agent that only ever polls -- which
+	// is every idle agent -- showed "never seen" on the roster while visibly
+	// talking to the site.
+	if err := w.data.TouchAgent(ctx, a.ID); err != nil {
+		w.log.Error("agent poll touch", "agent", a.ID, "err", err)
+	}
+
+	cap := a.MaxConcurrent
+	if cap < 1 {
+		cap = hostMaxConcurrent()
+	}
+	t, err := w.data.LeaseNextTask(ctx, a.ID, cap)
+	if errors.Is(err, storage.ErrNoTask) {
+		c.Status(http.StatusNoContent)
+		return
+	}
+	if err != nil {
+		w.log.Error("agent lease task", "agent", a.ID, "err", err)
+		c.Status(http.StatusNoContent) // an idle answer beats an error the client must special-case
+		return
+	}
+
+	out := agentTaskWire{
+		// NEVER zero: the real client parses request_id 0 as "empty response,
+		// no work" and would silently discard every auto-grab. See
+		// AgentTask.WireRequestID.
+		RequestID: t.WireRequestID(),
+		LockID:    t.ID,
+		Title:     t.Title,
+		InfoHash:  t.InfoHash,
+		Category:  t.Category.String,
+		// DownloadURL is deliberately NOT sent. A private tracker's link
+		// carries the member's passkey; prod's answer is Private +
+		// TorrentFileURL with the site fetching the file, and until this host
+		// does that, a magnet is the only artifact it can hand out safely.
+		Magnet: t.Magnet.String,
+	}
+	if t.Season.Valid && t.Season.Int64 > 0 {
+		out.Season = strconv.FormatInt(t.Season.Int64, 10)
+	}
+	if t.Episode.Valid && t.Episode.Int64 > 0 {
+		out.Episodes = strconv.FormatInt(t.Episode.Int64, 10)
+	}
+	w.log.Info("agent task leased", "agent", a.ID, "task", t.ID, "title", t.Title)
+	c.JSON(http.StatusOK, out)
 }
 
 // agentProgressBody is the lightweight per-lock ping between statuses.
@@ -108,7 +179,8 @@ type agentProgressBody struct {
 	Warnings string `json:"warnings"`
 }
 
-// agentProgress records a fast progress ping (keeps the agent marked online).
+// agentProgress records a fast progress ping (keeps the agent marked online)
+// and stores the line against the agent's own lease.
 func (w *web) agentProgress(c *gin.Context) {
 	a, ok := w.authAgent(c)
 	if !ok {
@@ -116,8 +188,20 @@ func (w *web) agentProgress(c *gin.Context) {
 	}
 	var body agentProgressBody
 	_ = c.ShouldBindJSON(&body) // fields optional; the ping itself is the signal
-	if err := w.data.TouchAgent(c.Request.Context(), a.ID); err != nil {
+	ctx := c.Request.Context()
+	if err := w.data.TouchAgent(ctx, a.ID); err != nil {
 		w.log.Error("agent progress", "agent", a.ID, "err", err)
+	}
+	if body.LockID > 0 {
+		line := strings.TrimSpace(body.Progress)
+		if s := strings.TrimSpace(body.Speed); s != "" {
+			line = strings.TrimSpace(line + " · " + s)
+		}
+		// Scoped to this agent's lease inside the query, so a report about
+		// somebody else's task updates nothing.
+		if err := w.data.RecordTaskProgress(ctx, a.ID, int64(body.LockID), line); err != nil {
+			w.log.Error("agent task progress", "agent", a.ID, "task", body.LockID, "err", err)
+		}
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
@@ -144,19 +228,66 @@ func (w *web) agentStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// agentComplete records a finished upload. Production's /complete is a
-// multipart bundle (NZB + screenshots + metadata + subtitles); the demo does
-// not ingest, so it accepts the call, bumps the counter, and returns the
-// completed verdict a client expects.
+// agentComplete records a finished upload and closes the task's lease.
+//
+// DUAL-DIALECT, because the two clients that reach it speak differently and
+// both are legitimate: the real agent posts a MULTIPART bundle (the NZB with
+// its screenshots, metadata and subtitles), while the mock posts JSON. Reading
+// only one dialect would either break the rig or fail the real-client test
+// this whole runtime exists to pass. gin's PostForm already covers multipart
+// and urlencoded, so JSON is the only extra case.
+//
+// The bundle itself is ACCEPTED AND DROPPED: this demo has no ContentPipeline
+// implementation, so there is nothing to ingest an NZB into. That is the
+// honest gap, and it is why a completed row keeps blocking its info hash --
+// the gap that caused the grab is still open. See agenttasks.go.
 func (w *web) agentComplete(c *gin.Context) {
 	a, ok := w.authAgent(c)
 	if !ok {
 		return
 	}
-	if err := w.data.CompleteTask(c.Request.Context(), a.ID); err != nil {
-		w.log.Error("agent complete", "agent", a.ID, "err", err)
+	lockID, status, failReason := agentCompleteFields(c)
+	ctx := c.Request.Context()
+
+	// "completed" is the success verdict; prod also sends failure statuses,
+	// and a failed grab must not be counted as an upload.
+	succeeded := status == "" || strings.EqualFold(status, "completed") || strings.EqualFold(status, "success")
+
+	if lockID > 0 {
+		closed, err := w.data.CloseTask(ctx, a.ID, lockID, succeeded, failReason)
+		if err != nil {
+			w.log.Error("agent close task", "agent", a.ID, "task", lockID, "err", err)
+		} else if !closed {
+			// Not this agent's lease, or already closed. Logged rather than
+			// refused: the upload really did happen, and an agent that retries
+			// a completion must not be told its work failed.
+			w.log.Warn("agent completed an unheld task", "agent", a.ID, "task", lockID)
+		}
+	}
+	if succeeded {
+		if err := w.data.CompleteTask(ctx, a.ID); err != nil {
+			w.log.Error("agent complete", "agent", a.ID, "err", err)
+		}
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "completed"})
+}
+
+// agentCompleteFields reads the completion in whichever dialect arrived.
+func agentCompleteFields(c *gin.Context) (lockID int64, status, failReason string) {
+	if strings.Contains(c.ContentType(), "application/json") {
+		var body struct {
+			LockID     int64  `json:"lock_id"`
+			RequestID  int64  `json:"request_id"`
+			Status     string `json:"status"`
+			FailReason string `json:"fail_reason"`
+		}
+		if err := c.ShouldBindJSON(&body); err == nil {
+			return body.LockID, body.Status, body.FailReason
+		}
+		return 0, "", ""
+	}
+	lockID, _ = strconv.ParseInt(strings.TrimSpace(c.PostForm("lock_id")), 10, 64)
+	return lockID, strings.TrimSpace(c.PostForm("status")), strings.TrimSpace(c.PostForm("fail_reason"))
 }
 
 // bearerToken returns the token from an Authorization: Bearer header, or "".

@@ -129,6 +129,14 @@ services:
       # Set 32+ chars for prod's scheme. Changing it orphans registered agents
       # (they simply re-register).
       AGENT_TOKEN_SECRET: "${AGENT_TOKEN_SECRET:-}"
+      # Let the TV auto-grab QUEUE real torrents for the fleet (agent.dispatch).
+      # OFF by default and deliberately not folded into AGENT_TOKEN, which has a
+      # default value here: a queued row carries a LIVE magnet from a public
+      # tracker, and a real agent that leases it will actually download the
+      # torrent and try to post it to Usenet. Off, the auto-grab computes what
+      # it would fetch and queues nothing — the demo's long-standing behaviour.
+      #   AGENT_DISPATCH=1 docker compose up --build -d
+      AGENT_DISPATCH: "${AGENT_DISPATCH:-}"
       TPDB_API_KEY: "${TPDB_API_KEY:-}"
       ANIDB_CLIENT: "${ANIDB_CLIENT:-}"
       # Cloudflare Turnstile (optional). Unset = captcha disabled. Cloudflare's

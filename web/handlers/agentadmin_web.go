@@ -65,6 +65,18 @@ type agentRow struct {
 	Files         []agentFileRow
 }
 
+// taskRow is one queue entry as the admin table shows it.
+type taskRow struct {
+	ID       int64
+	Title    string
+	State    string
+	Agent    string
+	InfoHash string
+	Progress string
+	Age      string
+	Fail     string
+}
+
 type agentsVM struct {
 	Rows        []agentRow
 	Online      int
@@ -73,6 +85,11 @@ type agentsVM struct {
 	TokenSet    bool
 	RegisterURL string
 	StatusURL   string
+
+	// The dispatch queue (agentdispatch_web.go + agenttasks.go).
+	DispatchOn bool
+	Tasks      []taskRow
+	TaskCounts storage.TaskCounts
 	// NewToken is set once, right after a create or rotate, so the operator can
 	// copy the freshly minted token (never stored in the clear anywhere else).
 	NewToken     string
@@ -118,7 +135,57 @@ func (w *web) agentsVM(ctx context.Context) agentsVM {
 		vm.Rows = append(vm.Rows, row)
 	}
 	vm.Online, vm.Total = online, len(agents)
+
+	// The queue. Shown whether or not dispatch is enabled: rows outlive the
+	// flag, and an operator who just turned it off still needs to see what is
+	// already queued.
+	vm.DispatchOn = agentDispatchEnabled()
+	if counts, err := w.data.CountTasks(ctx); err == nil {
+		vm.TaskCounts = counts
+	}
+	tasks, err := w.data.RecentTasks(ctx, 25)
+	if err != nil {
+		w.log.Error("list agent tasks", "err", err)
+		return vm
+	}
+	for _, t := range tasks {
+		row := taskRow{
+			ID: t.ID, Title: t.Title, State: t.State,
+			InfoHash: shortHash(t.InfoHash),
+			Progress: t.Progress.String,
+			Age:      humanAge(now.Sub(t.CreatedAt)),
+			Fail:     t.FailReason.String,
+		}
+		if t.LeasedAgentID.Valid {
+			if a, ok, _ := w.data.AgentByID(ctx, t.LeasedAgentID.Int64); ok {
+				row.Agent = a.Name
+			}
+		}
+		vm.Tasks = append(vm.Tasks, row)
+	}
 	return vm
+}
+
+// shortHash is the first 12 of an info hash — enough to recognise a torrent,
+// short enough for a table cell.
+func shortHash(h string) string {
+	if len(h) <= 12 {
+		return h
+	}
+	return h[:12]
+}
+
+// adminTaskDelete retires one queue row. Rows are permanent by design (dedup
+// must outlive completion, see agenttasks.go), so this is the only way to let
+// a grab be re-queued.
+func (w *web) adminTaskDelete(c *gin.Context) {
+	id, _ := strconv.ParseInt(strings.TrimSpace(c.PostForm("id")), 10, 64)
+	if id > 0 {
+		if err := w.data.DeleteTask(c.Request.Context(), id); err != nil {
+			w.log.Error("delete agent task", "task", id, "err", err)
+		}
+	}
+	c.Redirect(http.StatusSeeOther, "/admin/agents")
 }
 
 // agentRowFrom flattens one stored agent (identity + last status snapshot) into

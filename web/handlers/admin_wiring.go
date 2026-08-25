@@ -102,6 +102,7 @@ func wireAdminAndViews(
 	admin.POST("/agents/create", wsrv.adminAgentCreate)
 	admin.POST("/agents/token", wsrv.adminAgentToken)
 	admin.POST("/agents/delete", wsrv.adminAgentDelete)
+	admin.POST("/agents/task/delete", wsrv.adminTaskDelete)
 	// Per-tracker API keys (trackerskeys_web.go): storing a key activates a
 	// private tracker's search adapter, live.
 	admin.GET("/tracker-keys", wsrv.adminTrackerKeys)
@@ -199,6 +200,12 @@ func wireAdminAndViews(
 	// each source closes over one of them; a source whose dependency is absent
 	// contributes nothing and the grid simply has fewer chips on it, which is
 	// the whole reason the page reads a slice instead of naming its sources.
+	// The fleet's grab dispatcher (agent.dispatch), BEFORE wireTVSchedule:
+	// that function resolves the dispatcher once, at boot, so registering
+	// after it would leave the auto-grab dormant until the next restart.
+	// Opt-in via AGENT_DISPATCH — a queued row carries a live magnet. See
+	// agentdispatch_web.go.
+	wsrv.wireAgentDispatch(c)
 	// The broadcast schedule, and the job that fills it. Before the sources
 	// below, because calTV closes over the service it builds.
 	wsrv.wireTVSchedule(c, tvmazeSrc)

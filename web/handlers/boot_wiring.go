@@ -177,6 +177,11 @@ func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PG
 	if err := data.MigrateAgents(); err != nil {
 		return fmt.Errorf("agents migrate: %w", err)
 	}
+	// The fleet's work queue (agenttasks.go). Created always; only FILLED when
+	// AGENT_DISPATCH is set, so a default demo has the table and no rows.
+	if err := data.MigrateAgentTasks(); err != nil {
+		return fmt.Errorf("agent tasks migrate: %w", err)
+	}
 	if err := loadAccessSettings(context.Background(), data.DB()); err != nil {
 		logger.Error("load access settings", "err", err)
 	}

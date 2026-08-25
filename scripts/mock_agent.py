@@ -87,9 +87,29 @@ def speed_str(bytes_per_s):
     return human_bytes(bytes_per_s) + "/s"
 
 
-def new_job(agent_name):
-    """A fresh job: a title, a lock id, and a handful of files to move."""
-    title = random.choice(TITLES)
+def new_job(agent_name, task=None):
+    """A fresh job.
+
+    With a TASK (a real lease from /poll) the identity is the site's: its
+    title, its lock_id, its request_id — so completing the job closes that
+    exact queue row. The file list is still invented, because the mock does not
+    actually download anything and a plausible set of sizes is the whole point
+    of a rig for debugging the UI.
+
+    Without one — the queue is empty, or AGENT_DISPATCH is off, which is the
+    demo's default — it invents the job as before, so the surfaces keep moving
+    with no dispatcher wired.
+    """
+    if task:
+        title = task.get("title") or random.choice(TITLES)
+        lock_id = int(task.get("lock_id") or 0)
+        request_id = int(task.get("request_id") or lock_id)
+        dispatched = True
+    else:
+        title = random.choice(TITLES)
+        lock_id = 1000 + random.randint(0, 8999)
+        request_id = lock_id
+        dispatched = False
     nfiles = random.randint(2, 4)
     files = []
     for i in range(nfiles):
@@ -101,11 +121,33 @@ def new_job(agent_name):
         })
     return {
         "title": title,
-        "lock_id": 1000 + random.randint(0, 8999),
+        "lock_id": lock_id,
+        "request_id": request_id,
+        "dispatched": dispatched,
         "phase_i": 0,
         "files": files,
         "idle": False,
     }
+
+
+def poll_for_task(poll_url, token):
+    """Ask the site for work. Returns a task dict, or None for an empty queue.
+
+    204 is the site saying "nothing queued" and is the ordinary answer; the
+    real client treats it the same way. A 200 carries the task.
+    """
+    code, body = post(poll_url, token, None, protocol=True)
+    if code != 200 or not body.strip():
+        return None
+    try:
+        task = json.loads(body)
+    except ValueError:
+        return None
+    # The real client reads request_id 0 as "no work"; mirror that exactly, so
+    # the mock finds the same contract bug a real agent would.
+    if not task.get("request_id"):
+        return None
+    return task
 
 
 def build_status(agent_name, job):
@@ -142,7 +184,7 @@ def build_status(agent_name, job):
         "public_ip": "185.%d.%d.%d" % (random.randint(10, 99), random.randint(0, 255), random.randint(2, 254)),
         "files": files,
         "task_title": job["title"],
-        "request_id": job["lock_id"],
+        "request_id": job["request_id"],
         "disk_free_gb": round(random.uniform(120, 480), 1),
         "seeding_count": random.randint(0, 12),
     }
@@ -220,7 +262,10 @@ def main():
     progress_url = base + "/api/agent/progress"
     complete_url = base + "/api/agent/complete"
 
-    jobs = {a["agent"]: new_job(a["agent"]) for a in AGENTS}
+    # Poll before the first job too, so a queued task is picked up on round one
+    # rather than after the mock's invented job finishes.
+    jobs = {a["agent"]: new_job(a["agent"], poll_for_task(poll_url, tokens[a["agent"]]))
+            for a in AGENTS}
 
     print("registered %d agents against %s %s" % (
         len(AGENTS), base, "(one round)" if args.once else "(Ctrl-C to stop)"))
@@ -230,17 +275,16 @@ def main():
             tok = tokens[name]
             job = jobs[name]
 
-            # Poll for dispatched work (the demo queues none -> 204); a real
-            # agent would act on a returned task. The mock invents its own.
-            post(poll_url, tok, None, protocol=True)
-
             if job["idle"]:
-                # Idle a beat, then pick up a new job next round.
+                # Idle a beat, then pick up a new job. Polling happens HERE,
+                # when there is capacity to work what comes back — polling
+                # every round would lease tasks the mock is too busy to start
+                # and hold them until the lease expired.
                 idle_status = {"phase": "idle", "vpn_status": "connected",
                                "public_ip": "185.10.0.1", "disk_free_gb": 480.0}
                 code, resp = post(status_url, tok, idle_status, protocol=True)
                 job["idle"] = False
-                jobs[name] = new_job(name)
+                jobs[name] = new_job(name, poll_for_task(poll_url, tok))
                 print("  %-12s idle        -> %s" % (name, _tag(code, resp)))
                 continue
 
@@ -261,13 +305,25 @@ def main():
             }, protocol=True)
 
             if finished:
+                # Completing with the LEASED lock_id is what closes the queue
+                # row; an invented one closes nothing, which is the difference
+                # between exercising the queue and pretending to.
                 post(complete_url, tok, {"lock_id": job["lock_id"],
-                                         "request_id": job["lock_id"],
+                                         "request_id": job["request_id"],
                                          "status": "completed"}, protocol=True)
-                job["idle"] = random.random() < 0.3
+                # A finished job is DONE with, always. Leaving it in place kept
+                # advance() returning "finished" every round, so the agent
+                # re-completed the same task forever — harmless while /complete
+                # only bumped a counter, but against a real queue it is a
+                # completion storm for a row that closed the first time.
+                if random.random() < 0.3:
+                    job["idle"] = True          # show the idle state a beat
+                else:
+                    jobs[name] = new_job(name, poll_for_task(poll_url, tok))
 
-            print("  %-12s %-11s %5.1f%% -> %s%s" % (
+            print("  %-12s %-11s %5.1f%% -> %s%s%s" % (
                 name, status["phase"], overall, _tag(code, resp),
+                "  [dispatched #%d]" % job["lock_id"] if job["dispatched"] else "",
                 "  [completed]" if finished else ""))
 
         if args.once:

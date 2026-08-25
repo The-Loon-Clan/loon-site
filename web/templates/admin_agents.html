@@ -65,6 +65,79 @@
 </div>
 {{end}}
 
+{{/* The dispatch queue. Shown whether or not dispatch is enabled — rows
+     outlive the flag, and an operator who just switched it off still needs to
+     see what is already queued. */}}
+<section class="panelV2 mb-3">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#server"></use></svg>Dispatch queue
+        </h2>
+        <div class="panel__actions">
+            <span class="panel__grouping">
+                {{.VM.TaskCounts.Queued}} queued · {{.VM.TaskCounts.Leased}} leased ·
+                {{.VM.TaskCounts.Completed}} done{{if .VM.TaskCounts.Failed}} · {{.VM.TaskCounts.Failed}} failed{{end}}
+            </span>
+        </div>
+    </header>
+    {{if not .VM.DispatchOn}}
+    <div class="panel__body">
+        <div class="notice notice--warning m-0">
+            <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+            <span>
+                Dispatch is <strong>off</strong>. The TV auto-grab computes which torrent it would fetch for each
+                schedule gap and queues nothing. Set <code>AGENT_DISPATCH=1</code> and restart to let it queue for
+                real — a queued row carries a <strong>live magnet</strong>, and an agent that leases it will
+                actually download and re-upload it.
+            </span>
+        </div>
+    </div>
+    {{end}}
+    {{if .VM.Tasks}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <caption class="visually-hidden">Torrents queued for the fleet</caption>
+            <thead>
+                <tr><th>Task</th><th>State</th><th>Agent</th><th>Progress</th><th>Queued</th><th></th></tr>
+            </thead>
+            <tbody>
+                {{range .VM.Tasks}}
+                <tr>
+                    <td>
+                        <span class="data-table__title">{{.Title}}</span>
+                        <span class="text-subtle small d-block">#{{.ID}} · {{.InfoHash}}</span>
+                    </td>
+                    <td>
+                        {{if eq .State "queued"}}<span class="chip">queued</span>
+                        {{else if eq .State "leased"}}<span class="chip chip--ok">leased</span>
+                        {{else if eq .State "completed"}}<span class="chip chip--ok">done</span>
+                        {{else}}<span class="chip chip--warn">failed</span>{{end}}
+                        {{with .Fail}}<span class="text-subtle small d-block">{{.}}</span>{{end}}
+                    </td>
+                    <td class="small">{{with .Agent}}{{.}}{{else}}<span class="text-subtle">—</span>{{end}}</td>
+                    <td class="small text-muted">{{with .Progress}}{{.}}{{else}}<span class="text-subtle">—</span>{{end}}</td>
+                    <td class="small text-muted">{{.Age}}</td>
+                    <td>
+                        <form method="post" action="/admin/agents/task/delete">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit"
+                                    title="Retire this row. Its info hash can then be queued again — nothing here ingests a finished upload, so a completed row is what stops the six-hourly pass re-queuing the same episode forever.">Retire</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else if .VM.DispatchOn}}
+    <div class="panel__body">
+        <p class="text-muted small m-0">Nothing queued yet. The TV schedule pass queues a grab when it finds an
+        aired episode the index is missing and a seedable torrent for it.</p>
+    </div>
+    {{end}}
+</section>
+
 {{if .VM.Rows}}
 <section class="panelV2">
     <header class="panel__header">
