@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"compress/gzip"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -83,8 +85,18 @@ func (w *web) authAgent(c *gin.Context) (storage.Agent, bool) {
 	}
 	// X-Agent-Protocol is how prod refuses an agent too old to trust; below the
 	// floor is a 426, the code prod uses for "upgrade required".
+	//
+	// The keys are the ones the client actually READS (loon-agent
+	// parseUpgradeRequired: min_protocol, message, error). It used to send
+	// "min", which unmarshalled into nothing — so an operator running an old
+	// agent was told the site required "protocol v0", a version that has never
+	// existed, instead of the real floor.
 	if p, _ := strconv.Atoi(c.GetHeader("X-Agent-Protocol")); p != 0 && p < minAgentProtocol {
-		c.JSON(http.StatusUpgradeRequired, gin.H{"error": "agent protocol too old", "min": minAgentProtocol})
+		c.JSON(http.StatusUpgradeRequired, gin.H{
+			"error":        "agent protocol too old",
+			"message":      "this site requires a newer agent",
+			"min_protocol": minAgentProtocol,
+		})
 		return storage.Agent{}, false
 	}
 	return a, true
@@ -192,6 +204,10 @@ func (w *web) agentProgress(c *gin.Context) {
 	if err := w.data.TouchAgent(ctx, a.ID); err != nil {
 		w.log.Error("agent progress", "agent", a.ID, "err", err)
 	}
+	// The agent just spoke, so none of its leases belong to a crashed worker.
+	if err := w.data.RenewAgentLeases(ctx, a.ID); err != nil {
+		w.log.Error("agent renew leases", "agent", a.ID, "err", err)
+	}
 	if body.LockID > 0 {
 		line := strings.TrimSpace(body.Progress)
 		if s := strings.TrimSpace(body.Speed); s != "" {
@@ -219,6 +235,12 @@ func (w *web) agentStatus(c *gin.Context) {
 	}
 	protocol, _ := strconv.Atoi(c.GetHeader("X-Agent-Protocol"))
 	version := c.GetHeader("X-Agent-Version")
+	// THE heartbeat the lease TTL is written against: prod agents post this
+	// every few seconds, so it is what keeps a long job from being reclaimed
+	// out from under a healthy worker.
+	if err := w.data.RenewAgentLeases(c.Request.Context(), a.ID); err != nil {
+		w.log.Error("agent renew leases", "agent", a.ID, "err", err)
+	}
 	if err := w.data.RecordStatus(c.Request.Context(), a.ID, protocol, version, s); err != nil {
 		w.log.Error("agent status", "agent", a.ID, "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not record status"})
@@ -288,6 +310,45 @@ func agentCompleteFields(c *gin.Context) (lockID int64, status, failReason strin
 	}
 	lockID, _ = strconv.ParseInt(strings.TrimSpace(c.PostForm("lock_id")), 10, 64)
 	return lockID, strings.TrimSpace(c.PostForm("status")), strings.TrimSpace(c.PostForm("fail_reason"))
+}
+
+// gunzipAgentBody transparently decompresses a gzipped request body.
+//
+// The real agent GZIPS its heavy posts -- /complete, /backfill, /screenshot
+// all go through postGzippedWith, which compresses the body and sets
+// Content-Encoding: gzip while keeping the multipart Content-Type. Go's
+// net/http never transparently decodes a REQUEST body (only responses), and
+// nothing else in this stack does either, so without this the multipart parser
+// reads gzip bytes, finds no fields, and every completion arrives with
+// lock_id 0: the task is never closed, its lease expires, and the same release
+// is downloaded and re-posted to Usenet on a loop.
+//
+// The mock could never have caught it -- it posts JSON, the one dialect that
+// worked -- which is exactly the kind of gap pointing a real client at this
+// rig is supposed to find, found by reading the client instead.
+func gunzipAgentBody() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !strings.EqualFold(strings.TrimSpace(c.GetHeader("Content-Encoding")), "gzip") {
+			c.Next()
+			return
+		}
+		zr, err := gzip.NewReader(c.Request.Body)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "malformed gzip body"})
+			return
+		}
+		//nolint:errcheck // a decompressor's Close only reports trailing-CRC
+		// trouble, and by then the handler has already read and acted on the body
+		defer zr.Close()
+		c.Request.Body = io.NopCloser(zr)
+		// Both matter. The header must go or a later reader would try to
+		// decompress the already-decompressed stream; ContentLength describes
+		// the COMPRESSED body, and leaving it would truncate the multipart
+		// parse at that many bytes -- a subtler version of the same bug.
+		c.Request.Header.Del("Content-Encoding")
+		c.Request.ContentLength = -1
+		c.Next()
+	}
 }
 
 // bearerToken returns the token from an Authorization: Bearer header, or "".

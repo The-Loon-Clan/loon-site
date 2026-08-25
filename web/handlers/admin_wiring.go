@@ -238,6 +238,9 @@ func wireAdminAndViews(
 	// master AGENT_TOKEN, and mints a per-agent token. CSRF-exempt (no session
 	// cookie), see internal/middleware/csrf.go.
 	agentAPI := engine.Group("/api/agent")
+	// The real client gzips its heavy posts (/complete and friends) and Go
+	// does not decode request bodies on its own — see gunzipAgentBody.
+	agentAPI.Use(gunzipAgentBody())
 	{
 		agentAPI.POST("/register", wsrv.agentRegister)
 		agentAPI.POST("/poll", wsrv.agentPoll)

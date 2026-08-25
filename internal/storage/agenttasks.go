@@ -40,9 +40,18 @@ const (
 	TaskFailed    = "failed"
 )
 
-// taskLeaseTTL is how long a lease survives without the agent reporting. Prod
+// taskLeaseTTL is how long a lease survives WITHOUT THE AGENT REPORTING. Prod
 // agents post status every few seconds; a lease outliving several minutes of
 // silence is an agent that crashed, and its work should go back in the queue.
+//
+// "Without reporting" is load-bearing and was once a lie: leased_at was only
+// ever written when the lease was granted, so the reclaim measured how long a
+// task had been HELD rather than how long its agent had been quiet. Real work
+// here is a torrent fetch plus assembly plus a Usenet re-upload -- routinely
+// hours -- so every long job was torn away from a healthy agent at fifteen
+// minutes and handed to a second one, which downloaded and re-posted the same
+// release while the first was still working it. RenewAgentLeases is the other
+// half of this constant's meaning.
 const taskLeaseTTL = 15 * time.Minute
 
 // ErrNoTask is the ordinary "queue is empty, or you are at your cap" answer to
@@ -191,6 +200,26 @@ func (st *Store) LeaseNextTask(ctx context.Context, agentID int64, maxConcurrent
 		return AgentTask{}, ErrNoTask
 	}
 	return t, err
+}
+
+// RenewAgentLeases pushes the expiry out on every task this agent holds,
+// because the agent just spoke and is therefore not the crashed worker the
+// reclaim exists to catch.
+//
+// Renewed per AGENT rather than per task, deliberately: an agent reports one
+// live status for the whole worker, so its heartbeat is evidence for every
+// lease it holds, and a per-task rule would expire the second of two
+// concurrent jobs while the first kept the worker visibly alive.
+//
+// The blind spot, stated rather than papered over: an agent that keeps
+// heartbeating while its transfer is wedged holds its lease indefinitely.
+// Catching that needs progress to actually MOVE, which is a judgement this
+// demo does not make; an operator has Retire on /admin/agents.
+func (st *Store) RenewAgentLeases(ctx context.Context, agentID int64) error {
+	_, err := st.db.ExecContext(ctx, `
+		UPDATE agent_task SET leased_at = now()
+		WHERE state = 'leased' AND leased_agent_id = $1`, agentID)
+	return err
 }
 
 // RecordTaskProgress stores the agent's short progress line against its lease.
