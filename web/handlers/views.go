@@ -202,6 +202,8 @@ var pageTemplates = []string{
 	"admin_tvgaps.html",
 	// The external tracker directory (trackersadmin_web.go).
 	"admin_trackers.html",
+	// Per-tracker API keys (trackerskeys_web.go).
+	"admin_tracker_keys.html",
 	// The message catalogue (i18nadmin_web.go).
 	"admin_i18n.html",
 	// Editable site pages (pagesadmin_web.go).

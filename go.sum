@@ -177,6 +177,8 @@ github.com/the-loon-clan/loon-plugins v0.0.0-20260824233638-f77e48636bf5 h1:S3Fi
 github.com/the-loon-clan/loon-plugins v0.0.0-20260824233638-f77e48636bf5/go.mod h1:O8s/mpAmfyw3L0mYvBhRi7vOoevfPCiAqkssjkZPWU4=
 github.com/the-loon-clan/loon-plugins v0.0.0-20260825003604-db301365abcd h1:txr4gGV6/Shoq2kL2TjZp/yg7pl76FFdL680S0PRWvo=
 github.com/the-loon-clan/loon-plugins v0.0.0-20260825003604-db301365abcd/go.mod h1:O8s/mpAmfyw3L0mYvBhRi7vOoevfPCiAqkssjkZPWU4=
+github.com/the-loon-clan/loon-plugins v0.0.0-20260825013902-a5d708e8c95c h1:Q6kN35GvvnviaoSQ5WI3kxF2ZnSivkYeyVGySFDkd0Q=
+github.com/the-loon-clan/loon-plugins v0.0.0-20260825013902-a5d708e8c95c/go.mod h1:O8s/mpAmfyw3L0mYvBhRi7vOoevfPCiAqkssjkZPWU4=
 github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=
 github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2+aY1QWCk3Cedj/Gdt08=
 github.com/ugorji/go/codec v1.3.1 h1:waO7eEiFDwidsBN6agj1vJQ4AG7lh2yqXyOXqhgQuyY=

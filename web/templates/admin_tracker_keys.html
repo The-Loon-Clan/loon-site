@@ -1,0 +1,96 @@
+{{/* Per-tracker API keys (trackerskeys_web.go). .VM.
+
+     The key is never rendered back: a configured tracker shows a masked hint,
+     and the add form is always a blank entry. Saving reconfigures the search
+     client live, so a keyed tracker is searched on the next gap. */}}
+{{define "content"}}
+<header class="mb-3">
+    <h1 class="h3 m-0">Tracker keys</h1>
+    <p class="text-muted small m-0 mt-1">
+        Store a private tracker's API key to make it a live search source. These are the
+        <strong>UNIT3D</strong> trackers &mdash; {{len .VM.Configured}} configured, {{len .VM.Available}} available &mdash;
+        the family behind one adapter. A stored key is searched on the next gap; it is never shown again.
+    </p>
+</header>
+
+<section class="panelV2 mb-3">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#globe"></use></svg>Configured
+        </h2>
+        {{with .VM.Configured}}<div class="panel__actions"><span class="panel__grouping">{{len .}}</span></div>{{end}}
+    </header>
+    {{if .VM.Configured}}
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <caption class="visually-hidden">Trackers with a stored API key</caption>
+            <thead>
+                <tr><th>Tracker</th><th>Key</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {{range .VM.Configured}}
+                <tr>
+                    <td><span class="data-table__title">{{.Name}}</span> <code class="text-muted small">{{.Domain}}</code></td>
+                    <td><code>{{.Hint}}</code></td>
+                    <td>
+                        {{if .Enabled}}<span class="chip chip--ok">searched</span>
+                        {{else}}<span class="chip chip--warn">paused</span>{{end}}
+                    </td>
+                    <td>
+                        <div class="d-flex flex-wrap gap-1">
+                            <form method="post" action="/admin/tracker-keys/toggle">
+                                <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                                <input type="hidden" name="slug" value="{{.Slug}}">
+                                <input type="hidden" name="enabled" value="{{if .Enabled}}0{{else}}1{{end}}">
+                                <button class="btn btn--sm" type="submit">{{if .Enabled}}Pause{{else}}Resume{{end}}</button>
+                            </form>
+                            <form method="post" action="/admin/tracker-keys/delete">
+                                <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                                <input type="hidden" name="slug" value="{{.Slug}}">
+                                <button class="btn btn--sm btn--ghost" type="submit">Remove</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="panel__body">
+        <p class="text-muted small m-0">No keys stored yet. Add one below to make a private tracker searchable.</p>
+    </div>
+    {{end}}
+</section>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#download"></use></svg>Add a tracker key
+        </h2>
+    </header>
+    <div class="panel__body">
+        <form method="post" action="/admin/tracker-keys/save" class="d-flex flex-column gap-2" style="max-width:40rem">
+            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+            <label class="d-flex flex-column gap-1">
+                <span class="small">Tracker</span>
+                <select class="form-control form-control-sm" name="slug" required>
+                    {{range .VM.Available}}<option value="{{.Slug}}">{{.Name}} — {{.Domain}}</option>{{end}}
+                </select>
+            </label>
+            <label class="d-flex flex-column gap-1">
+                <span class="small">API key</span>
+                {{/* type=password so the key is not shoulder-read as it is pasted;
+                     autocomplete off so a browser never stores or refills it. */}}
+                <input class="form-control form-control-sm" type="password" name="api_key"
+                       autocomplete="off" required placeholder="Bearer token from the tracker's settings">
+            </label>
+            <label class="d-flex flex-column gap-1">
+                <span class="small">Base URL <span class="text-subtle">(optional, overrides the directory domain)</span></span>
+                <input class="form-control form-control-sm" type="url" name="base_url" placeholder="https://tracker.example/">
+            </label>
+            <div><button class="btn btn--sm" type="submit">Save &amp; enable</button></div>
+        </form>
+    </div>
+</section>
+{{end}}

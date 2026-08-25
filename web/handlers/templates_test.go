@@ -367,6 +367,7 @@ var structuralKeys = map[string]map[string]any{
 	// that stopped setting it would degrade silently. The real-data case below
 	// is what actually pins it — this entry only supplies the shape.
 	"admin_dashboard.html": {"Dash": dashVM{}},
+	"admin_tracker_keys.html": {"VM": trackerKeysVM{}},
 	"profile.html":         {"Missing": true},
 	"home.html":            {"Blocks": []homeBlock{}},
 	// series.html has the same either/or contract profile.html has: seriesPage

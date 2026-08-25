@@ -166,6 +166,12 @@ func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PG
 	if err := data.MigrateSiteSettings(); err != nil {
 		return fmt.Errorf("site settings migrate: %w", err)
 	}
+	// Per-tracker API keys for the private-tracker search adapters
+	// (trackerskeys_web.go). Created always; empty on a host that configures
+	// none, which is every host until an operator stores a key.
+	if err := data.MigrateTrackerKeys(); err != nil {
+		return fmt.Errorf("tracker keys migrate: %w", err)
+	}
 	if err := loadAccessSettings(context.Background(), data.DB()); err != nil {
 		logger.Error("load access settings", "err", err)
 	}

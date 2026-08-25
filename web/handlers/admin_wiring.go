@@ -95,6 +95,12 @@ func wireAdminAndViews(
 	// The external tracker directory (trackersadmin_web.go): what the future
 	// multi-tracker search will choose from.
 	admin.GET("/trackers", wsrv.adminTrackers)
+	// Per-tracker API keys (trackerskeys_web.go): storing a key activates a
+	// private tracker's search adapter, live.
+	admin.GET("/tracker-keys", wsrv.adminTrackerKeys)
+	admin.POST("/tracker-keys/save", wsrv.adminTrackerKeysSave)
+	admin.POST("/tracker-keys/toggle", wsrv.adminTrackerKeysToggle)
+	admin.POST("/tracker-keys/delete", wsrv.adminTrackerKeysDelete)
 	admin.GET("/features", wsrv.adminFeatures)
 	admin.POST("/features", wsrv.adminFeaturesSave)
 	admin.GET("/nav", wsrv.adminNavEditor)
@@ -197,6 +203,10 @@ func wireAdminAndViews(
 	if err := c.Register(pluginapi.TrackerSearchName, pluginapi.TrackerSearcher(wsrv.trackers)); err != nil {
 		wsrv.log.Error("register tracker search", "err", err)
 	}
+	// Load any stored private-tracker keys into the client, so a UNIT3D
+	// tracker configured before this restart is live from boot, not just
+	// after the next save (trackerskeys_web.go).
+	wsrv.reloadTrackerKeys(context.Background())
 
 	wsrv.calSources = []calSource{
 		wsrv.calAttendance(),
