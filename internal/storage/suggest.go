@@ -106,10 +106,25 @@ func (st *Store) Suggest(ctx context.Context, q string) ([]Suggestion, bool) {
 // safe to concatenate right up until it comes from a config file.
 func (st *Store) CarriedShowIDs(ctx context.Context, namespace string) (map[string]bool, error) {
 	var ids []string
+	// TWO sources, UNION'd, because a carried show's id in this namespace can
+	// live in either place. A show first seen FROM this namespace has it on
+	// the entry (ext_namespace = $1). A show first seen from ANOTHER source --
+	// TMDB is the preferred TV metadata source, and then the entry's namespace
+	// is 'tmdb' -- keeps this namespace's id in catalog_external instead. The
+	// first version read only the entry, so on a TMDB-primary host every
+	// carried show had ext_namespace='tmdb' and the schedule (keyed on tvmaze
+	// ids) matched NONE of them, silently emptying the whole TV pipeline for
+	// the documented preferred configuration. The sibling TVCrossIDs already
+	// went through catalog_external for exactly this reason.
 	if err := st.db.SelectContext(ctx, &ids, `
 		SELECT ext_id
 		  FROM catalog.catalog_entry
-		 WHERE kind = 'tv' AND ext_namespace = $1 AND ext_id <> ''`, namespace); err != nil {
+		 WHERE kind = 'tv' AND ext_namespace = $1 AND ext_id <> ''
+		UNION
+		SELECT x.value
+		  FROM catalog.catalog_external x
+		  JOIN catalog.catalog_entry e ON e.id = x.entry_id
+		 WHERE e.kind = 'tv' AND x.namespace = $1 AND x.value <> ''`, namespace); err != nil {
 		return nil, err
 	}
 	out := make(map[string]bool, len(ids))

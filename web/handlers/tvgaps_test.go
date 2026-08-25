@@ -39,6 +39,26 @@ func (f *fakeSeries) Seasons(context.Context, string) ([]pluginapi.SeriesSeason,
 	return nil, nil
 }
 
+func (f *fakeSeries) SeasonPresence(_ context.Context, key string, season int) (map[int]bool, bool, error) {
+	f.calls++
+	if f.err != nil {
+		return nil, false, f.err
+	}
+	eps := map[int]bool{}
+	pack := false
+	for _, r := range f.rels[key] {
+		if r.Season != season {
+			continue
+		}
+		if r.Pack {
+			pack = true
+			continue
+		}
+		eps[r.Episode] = true
+	}
+	return eps, pack, nil
+}
+
 func (f *fakeSeries) Releases(_ context.Context, key string, season, episode, _ int) ([]pluginapi.Release, error) {
 	f.calls++
 	if f.err != nil {

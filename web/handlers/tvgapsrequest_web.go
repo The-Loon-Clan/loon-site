@@ -88,8 +88,14 @@ func (w *web) runGapRequests(ctx context.Context, filer pluginapi.RequestFiler) 
 			continue
 		}
 		out.Requestable++
-		if out.Filed+out.Deduped >= tvRequestPerPass {
-			continue // counted, not filed: the cap spreads a backlog
+		// The cap counts NEWLY FILED rows only. Counting dedup hits too meant a
+		// backlog never drained: once the board holds the first tvRequestPerPass
+		// gaps, every later pass re-files those same gaps, each dedups, the
+		// dedup count alone hits the cap, and the pass stops before reaching a
+		// single un-filed gap. So gaps past the cap would never be filed. The
+		// board dedups cheaply; what must stay bounded is new rows per pass.
+		if out.Filed >= tvRequestPerPass {
+			continue // counted, not filed: the cap spreads a backlog of NEW work
 		}
 		if filer == nil {
 			continue // dormant: computed, visible, filed nowhere

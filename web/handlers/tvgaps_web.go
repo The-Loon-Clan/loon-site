@@ -34,11 +34,6 @@ const (
 	// gaps would sit underneath them. Three hours is past the usual arrival and
 	// still early enough that acting on it is worth something.
 	tvGapGrace = 3 * time.Hour
-
-	// tvGapSeasonLimit caps the per-season release query. A season with more
-	// releases than this is comprehensively covered by any measure, and the
-	// only thing read off the rows is which episode numbers are present.
-	tvGapSeasonLimit = 500
 )
 
 var _ pluginapi.TVGapFinder = (*tvSchedule)(nil)
@@ -146,9 +141,12 @@ func (s *tvSchedule) recomputeGaps(ctx context.Context) {
 // seasonHave asks the index what it holds of one season of one show.
 func (s *tvSchedule) seasonHave(ctx context.Context, idx pluginapi.SeriesIndex, key string, season int) seasonHave {
 	h := seasonHave{eps: map[int]bool{}}
-	// episode -1 is "every episode of this season", which is what returns the
-	// packs as well as the singles.
-	rels, err := idx.Releases(ctx, key, season, -1, tvGapSeasonLimit)
+	// SeasonPresence, not Releases: it returns the DISTINCT episode set and the
+	// pack flag, unbounded. Reading them off Releases (capped at a few hundred
+	// rows) dropped the lowest episodes and the pack of any season with more
+	// releases than the cap -- and a popular season has thousands -- reporting
+	// held episodes as gaps.
+	eps, pack, err := idx.SeasonPresence(ctx, key, season)
 	if err != nil {
 		// Treat a failed lookup as "we have it". Reporting a gap because the
 		// database was briefly unhappy would file requests for episodes that
@@ -156,14 +154,8 @@ func (s *tvSchedule) seasonHave(ctx context.Context, idx pluginapi.SeriesIndex, 
 		h.pack = true
 		return h
 	}
-	for _, r := range rels {
-		h.any = true
-		if r.Pack {
-			h.pack = true
-			continue
-		}
-		h.eps[r.Episode] = true
-	}
+	h.eps, h.pack = eps, pack
+	h.any = len(eps) > 0 || pack
 	if !h.any {
 		// Nothing in this season says nothing about the show. Ask once whether
 		// the index knows it at all, so a gap can say which of the two

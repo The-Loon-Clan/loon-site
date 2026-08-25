@@ -46,6 +46,10 @@ func (stubIndex) Releases(context.Context, string, int, int, int) ([]pluginapi.R
 	return nil, nil
 }
 
+func (stubIndex) SeasonPresence(context.Context, string, int) (map[int]bool, bool, error) {
+	return nil, false, nil
+}
+
 func oldGap(show string, season, ep int, indexed bool) pluginapi.TVGap {
 	return pluginapi.TVGap{
 		Episode: pluginapi.TVEpisode{
@@ -159,4 +163,44 @@ func TestTheCapSpreadsABacklog(t *testing.T) {
 	if len(f.calls) != tvRequestPerPass {
 		t.Fatalf("the cap must stop the calls, not just the count; %d calls", len(f.calls))
 	}
+}
+
+// The backlog drains: dedup hits do not consume the per-pass budget, so new
+// gaps past the cap still get filed once the earlier ones are already open.
+func TestBacklogDrainsPastDedupHits(t *testing.T) {
+	// A filer that dedups the first N slugs (already open) and files the rest.
+	already := map[string]bool{}
+	var filed []string
+	f := filerFunc(func(_ context.Context, req pluginapi.FiledRequest) (pluginapi.RequestFileResult, error) {
+		if already[req.Title] {
+			return pluginapi.RequestFileResult{Created: false}, nil // deduped
+		}
+		filed = append(filed, req.Title)
+		return pluginapi.RequestFileResult{Created: true}, nil
+	})
+	// tvRequestPerPass+3 gaps; pretend the first tvRequestPerPass are already open.
+	var gaps []pluginapi.TVGap
+	for i := 0; i < tvRequestPerPass+3; i++ {
+		g := oldGap("Show", 1, i+1, true)
+		gaps = append(gaps, g)
+	}
+	w := webWithTV(gapSchedule(gaps...))
+	for _, g := range gaps[:tvRequestPerPass] {
+		already[g.Episode.ShowTitle+" "+tvEpisodeCode(g.Episode)] = true
+	}
+	out := w.runGapRequests(context.Background(), f)
+	// The 3 new gaps must be filed despite the tvRequestPerPass dedups.
+	if out.Filed != 3 {
+		t.Fatalf("the 3 fresh gaps must file even behind %d dedups; Filed=%d", tvRequestPerPass, out.Filed)
+	}
+	if len(filed) != 3 {
+		t.Fatalf("filer received %d new requests, want 3", len(filed))
+	}
+}
+
+// filerFunc adapts a func to pluginapi.RequestFiler.
+type filerFunc func(context.Context, pluginapi.FiledRequest) (pluginapi.RequestFileResult, error)
+
+func (f filerFunc) FileAutomated(ctx context.Context, r pluginapi.FiledRequest) (pluginapi.RequestFileResult, error) {
+	return f(ctx, r)
 }
