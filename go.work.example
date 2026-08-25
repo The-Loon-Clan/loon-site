@@ -23,7 +23,7 @@
 // pushing, or CI (which has no go.work) will fail on a version that only
 // exists on your machine.
 
-go 1.26.4
+go 1.26.6
 
 use (
 	.
