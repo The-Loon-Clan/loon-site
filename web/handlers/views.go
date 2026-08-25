@@ -153,6 +153,7 @@ type web struct {
 	sitePages      []core.View          // public-facing pages at /p/<slug>
 	siteWidgets    []core.View          // cards on the home page
 	userWidgets    []core.View          // cards on the /u/<name> profile page (user.* slot)
+	userTabs       []core.View          // panels on the /u/<name> profile page (user.tab slot)
 	jobsWidgets    map[string]core.View // job-group name -> override widget
 	siteNavEntries []siteNavEntry       // site pages, pre-sorted for the nav (built once at boot)
 
@@ -752,6 +753,31 @@ func (w *web) profilePage(c *gin.Context) {
 	}
 
 	data["SidebarWidgets"] = sidebarWidgets
+
+	// SlotUserTab: the profile's main-column panels. The core declares this
+	// slot beside SlotUserWidget, but nothing rendered it -- a plugin
+	// registering a user.tab view found it vanish, the seam-with-a-missing-half
+	// this codebase treats as a bug. Mounted here the same way widgets are:
+	// subject already set via SetViewSubject above, so a tab reads whose
+	// profile it is; guarded by canView; below the private gate so it never
+	// leaks on a private profile. None ship today, so this renders nothing --
+	// but the mount point exists, which is the point.
+	var profileTabs []widgetVM
+	for _, v := range w.userTabs {
+		if !w.canView(v, c) {
+			continue
+		}
+		frag, err := v.Render(c)
+		if err != nil {
+			w.log.Error("user tab", "slug", v.Slug, "err", err)
+			continue
+		}
+		if frag == "" {
+			continue
+		}
+		profileTabs = append(profileTabs, widgetVM{Title: v.Title, Fragment: frag})
+	}
+	data["ProfileTabs"] = profileTabs
 
 	// Real profile figures only. Each is guarded: a missing capability drops
 	// the tile rather than showing a zero, because "0 points" and "points are

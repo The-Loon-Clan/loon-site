@@ -424,6 +424,19 @@
             </header>
         </section>
         {{end}}
+
+        {{/* SlotUserTab panels (profilePage). Registered user.tab views land
+             here in the main column; none ship today, so this is usually
+             empty -- but a plugin that registers one now appears instead of
+             silently vanishing. */}}
+        {{range .ProfileTabs}}
+        <section class="panelV2">
+            <header class="panel__header">
+                <h2 class="panel__heading">{{.Title}}</h2>
+            </header>
+            <div class="panel__body">{{.Fragment}}</div>
+        </section>
+        {{end}}
         {{end}}{{/* .Private */}}
     </div>
 </div>
