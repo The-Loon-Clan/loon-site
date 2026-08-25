@@ -51,6 +51,14 @@ type tvGrab struct {
 	// still reported, because "we looked and there is no live copy" is a
 	// different, useful answer from "we have not looked".
 	Found bool
+	// Dispatched is true when a wired agent runtime accepted the chosen
+	// torrent to fetch. Dispatched false with DispatchWired false means "no
+	// runtime to hand it to" -- the demo's state -- which the page reports as
+	// such rather than as a failure.
+	Dispatched    bool
+	DispatchWired bool
+	// ep carries the gap so a dispatch can build its request; not rendered.
+	ep pluginapi.TVGap
 }
 
 // runAutoGrab searches the oldest requestable gaps and records the best torrent
@@ -77,19 +85,55 @@ func (w *web) runAutoGrab(ctx context.Context) []tvGrab {
 	}
 
 	now := time.Now()
+	disp := w.tv.grabDispatcher
 	out := make([]tvGrab, 0, len(requestable))
 	for _, g := range requestable {
 		grab := tvGrab{
-			Show: g.Episode.ShowTitle,
-			Code: tvEpisodeCode(g.Episode),
-			Age:  humanAge(now.Sub(g.Episode.AirsAt)),
+			Show:          g.Episode.ShowTitle,
+			Code:          tvEpisodeCode(g.Episode),
+			Age:           humanAge(now.Sub(g.Episode.AirsAt)),
+			DispatchWired: disp != nil,
+			ep:            g,
 		}
 		if best, ok := w.bestCandidate(ctx, g); ok {
 			grab.Best, grab.Found = best, true
+			// Hand the chosen torrent to the fleet, if one is wired. Dormant
+			// on this demo (no agent runtime); the seam is agent.dispatch, the
+			// outbound half of content.pipeline. See grabdispatch.go.
+			if disp != nil && w.dispatchGrab(ctx, disp, g, best) {
+				grab.Dispatched = true
+			}
 		}
 		out = append(out, grab)
 	}
 	return out
+}
+
+// dispatchGrab hands one chosen torrent to the fleet, resolving the gap's
+// external ids so the produced release is identified precisely.
+func (w *web) dispatchGrab(ctx context.Context, disp pluginapi.GrabDispatcher, g pluginapi.TVGap, best pluginapi.TrackerCandidate) bool {
+	req := pluginapi.GrabRequest{
+		Delivery:    pluginapi.DeliveryTorrent,
+		Magnet:      best.Magnet,
+		DownloadURL: best.DownloadURL,
+		InfoHash:    best.InfoHash,
+		TrackerSlug: best.TrackerSlug,
+		Title:       g.Episode.ShowTitle + " " + tvEpisodeCode(g.Episode),
+		Category:    "tv",
+		Season:      g.Episode.Season,
+		Episode:     g.Episode.Number,
+	}
+	if g.Episode.ShowExtID != "" && w.tv.crossIDs != nil {
+		if imdb, tvdb, err := w.tv.crossIDs(ctx, g.Episode.ShowExtID); err == nil {
+			req.ImdbID, req.TvdbID = imdb, tvdb
+		}
+	}
+	res, err := disp.Dispatch(ctx, req)
+	if err != nil {
+		w.log.Error("dispatch grab", "title", g.Episode.ShowTitle, "err", err)
+		return false
+	}
+	return res.Queued
 }
 
 // bestCandidate runs one gap's search and returns the top seedable torrent.

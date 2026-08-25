@@ -56,16 +56,17 @@ type tvGapsVM struct {
 
 // tvGrabRow is one chosen torrent as the dispatch table shows it.
 type tvGrabRow struct {
-	Show    string
-	Code    string
-	Age     string
-	Found   bool
-	Title   string
-	Source  string
-	Via     string
-	Size    string
-	Seeders int
-	Magnet  string
+	Show       string
+	Code       string
+	Age        string
+	Found      bool
+	Title      string
+	Source     string
+	Via        string
+	Size       string
+	Seeders    int
+	Magnet     string
+	Dispatched bool
 }
 
 func (w *web) adminTVGaps(c *gin.Context) {
@@ -94,7 +95,7 @@ func (w *web) tvGapsVM(ctx context.Context) tvGapsVM {
 	copy(grabs, w.tv.grabs)
 	w.tv.mu.RUnlock()
 	for _, g := range grabs {
-		row := tvGrabRow{Show: g.Show, Code: g.Code, Age: g.Age, Found: g.Found}
+		row := tvGrabRow{Show: g.Show, Code: g.Code, Age: g.Age, Found: g.Found, Dispatched: g.Dispatched}
 		if g.Found {
 			row.Title = g.Best.Title
 			row.Source = g.Best.TrackerSlug

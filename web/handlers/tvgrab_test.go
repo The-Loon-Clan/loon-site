@@ -106,3 +106,64 @@ func TestAutoGrabNoOpsWithoutASearcher(t *testing.T) {
 		t.Fatalf("no searcher means no grabs, got %d", len(grabs))
 	}
 }
+
+// dispatchFunc adapts a func to pluginapi.GrabDispatcher.
+type dispatchFunc func(context.Context, pluginapi.GrabRequest) (pluginapi.GrabResult, error)
+
+func (f dispatchFunc) Dispatch(ctx context.Context, r pluginapi.GrabRequest) (pluginapi.GrabResult, error) {
+	return f(ctx, r)
+}
+
+// A wired dispatcher receives the chosen torrent, carrying the release's
+// identity, and the grab is marked dispatched.
+func TestAutoGrabDispatchesTheChosenTorrent(t *testing.T) {
+	f := &fakeSearcher{cands: []pluginapi.TrackerCandidate{
+		{Title: "best", Seeders: 90, InfoHash: "ABC", Magnet: "magnet:?xt=urn:btih:ABC"},
+	}}
+	w := webWithSearch(gapSchedule(oldGap("The Ark", 3, 4, true)), f)
+	var got pluginapi.GrabRequest
+	w.tv.grabDispatcher = dispatchFunc(func(_ context.Context, r pluginapi.GrabRequest) (pluginapi.GrabResult, error) {
+		got = r
+		return pluginapi.GrabResult{Queued: true, TaskID: 7}, nil
+	})
+	grabs := w.runAutoGrab(context.Background())
+	if len(grabs) != 1 || !grabs[0].Dispatched {
+		t.Fatalf("the found grab must be dispatched; got %+v", grabs)
+	}
+	if got.InfoHash != "ABC" || got.Delivery != pluginapi.DeliveryTorrent {
+		t.Fatalf("dispatch request lost the torrent identity: %+v", got)
+	}
+	if got.Season != 3 || got.Episode != 4 || got.Category != "tv" {
+		t.Fatalf("dispatch request lost the release identity: %+v", got)
+	}
+}
+
+// A dispatcher that declines (dedup) does not mark the grab dispatched, and it
+// is not an error.
+func TestAutoGrabRespectsADeclinedDispatch(t *testing.T) {
+	f := &fakeSearcher{cands: []pluginapi.TrackerCandidate{{Title: "x", Seeders: 5, InfoHash: "H"}}}
+	w := webWithSearch(gapSchedule(oldGap("Show", 1, 1, true)), f)
+	w.tv.grabDispatcher = dispatchFunc(func(context.Context, pluginapi.GrabRequest) (pluginapi.GrabResult, error) {
+		return pluginapi.GrabResult{Queued: false}, nil // already downloading
+	})
+	grabs := w.runAutoGrab(context.Background())
+	if grabs[0].Dispatched {
+		t.Fatal("a declined (deduped) dispatch must not mark the grab dispatched")
+	}
+	if !grabs[0].Found {
+		t.Fatal("the copy was still found; only the dispatch declined")
+	}
+}
+
+// No dispatcher wired: the grab is found and reported, dispatched nothing.
+func TestAutoGrabWithoutADispatcherFindsButDoesNotDispatch(t *testing.T) {
+	f := &fakeSearcher{cands: []pluginapi.TrackerCandidate{{Title: "x", Seeders: 5, InfoHash: "H"}}}
+	w := webWithSearch(gapSchedule(oldGap("Show", 1, 1, true)), f)
+	grabs := w.runAutoGrab(context.Background())
+	if len(grabs) != 1 || !grabs[0].Found {
+		t.Fatalf("the copy must still be found, got %+v", grabs)
+	}
+	if grabs[0].Dispatched || grabs[0].DispatchWired {
+		t.Fatal("no dispatcher means nothing dispatched and DispatchWired false")
+	}
+}

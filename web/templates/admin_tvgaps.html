@@ -115,7 +115,10 @@
                     <td class="small">{{.Source}}{{with .Via}} <span class="text-subtle">via {{.}}</span>{{end}}</td>
                     <td class="small">{{.Size}}</td>
                     <td class="small"><span class="chip chip--ok" title="Seeders">{{.Seeders}}</span></td>
-                    <td class="small">{{with .Magnet}}<a class="btn btn--sm btn--ghost" href="{{.}}">Magnet</a>{{end}}</td>
+                    <td class="small">
+                        {{if .Dispatched}}<span class="chip chip--ok" title="Handed to the fleet to fetch">dispatched</span>{{end}}
+                        {{with .Magnet}}<a class="btn btn--sm btn--ghost" href="{{.}}">Magnet</a>{{end}}
+                    </td>
                     {{else}}
                     <td class="text-muted small" colspan="5">No live copy found &mdash; nothing seedable to dispatch.</td>
                     {{end}}

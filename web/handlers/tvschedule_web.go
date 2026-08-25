@@ -64,6 +64,9 @@ type tvSchedule struct {
 	// requestFiler is the proposed auto-request seam, nil until a request
 	// board publishes one -- which is every host today. See tvgapsrequest_web.go.
 	requestFiler pluginapi.RequestFiler
+	// grabDispatcher is the proposed agent-dispatch seam, nil until an agent
+	// runtime publishes one -- also every host today. See tvgrab_web.go.
+	grabDispatcher pluginapi.GrabDispatcher
 	// crossIDs resolves a show's imdb/tvdb ids from its tvmaze id, so an
 	// automated request identifies the show precisely. A func for the same
 	// reason carried is one: it reaches host storage a test does not have.
@@ -281,6 +284,9 @@ func (w *web) wireTVSchedule(c *core.Core, src *tvmaze.Source) {
 	if filer, ok := pluginapi.LookupRequestFiler(c); ok {
 		w.tv.requestFiler = filer
 	}
+	if disp, ok := pluginapi.LookupGrabDispatcher(c); ok {
+		w.tv.grabDispatcher = disp
+	}
 
 	job := schedule.RegisterJob("TV Schedule",
 		"Fetches the broadcast schedule for the shows this site carries, so the calendar can show when the next episode airs.")
@@ -341,13 +347,22 @@ func (w *web) runTVSchedule(ctx context.Context, job *schedule.JobInfo) {
 		job.Log("Auto-request: %d gap(s) requestable, no request board wired to file them", req.Requestable)
 	}
 	if len(grabs) > 0 {
-		found := 0
+		found, dispatched, wired := 0, 0, false
 		for _, gr := range grabs {
 			if gr.Found {
 				found++
 			}
+			if gr.Dispatched {
+				dispatched++
+			}
+			wired = wired || gr.DispatchWired
 		}
 		job.Log("Auto-grab: a live copy found for %d of the oldest %d gap(s)", found, len(grabs))
+		if wired {
+			job.Log("Auto-grab: dispatched %d to the fleet", dispatched)
+		} else if found > 0 {
+			job.Log("Auto-grab: no agent runtime wired; %d copy(ies) ready but not dispatched", found)
+		}
 	}
 	job.SetIdle(next)
 }
