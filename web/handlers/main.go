@@ -474,6 +474,10 @@ func Main() {
 	}
 	logger.Info("process role", "mode", role, "runs_jobs", config.RunsJobs())
 
+	// The fleet agent write surface is opt-in: only live when a token is set.
+	wsrv.agentToken = os.Getenv("AGENT_TOKEN")
+	wsrv.wireAgentPlugin()
+
 	c, err := core.New(core.Deps{
 		Process: role,
 		// Which capabilities are switched on today (features_web.go). Wired at

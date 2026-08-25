@@ -95,6 +95,9 @@ func wireAdminAndViews(
 	// The external tracker directory (trackersadmin_web.go): what the future
 	// multi-tracker search will choose from.
 	admin.GET("/trackers", wsrv.adminTrackers)
+	// The fleet agent roster (agentadmin_web.go): settings + live progress.
+	admin.GET("/agents", wsrv.adminAgents)
+	admin.POST("/agents/concurrent", wsrv.adminAgentConcurrent)
 	// Per-tracker API keys (trackerskeys_web.go): storing a key activates a
 	// private tracker's search adapter, live.
 	admin.GET("/tracker-keys", wsrv.adminTrackerKeys)
@@ -217,6 +220,10 @@ func wireAdminAndViews(
 	// Newznab / Torznab API (Sonarr/Radarr/Prowlarr consume these).
 	engine.GET("/api", wsrv.newznabAPI)
 	engine.GET("/rss", wsrv.newznabAPI)
+
+	// The fleet agent write surface (agentapi_web.go): an agent reports its
+	// state here. Bearer-token gated, opt-in via AGENT_TOKEN.
+	engine.POST("/api/agent/report", wsrv.agentReport)
 
 	// sitemap.xml, from loon-baseline/sitemap. Wired AFTER the usenet lookup
 	// above: its releases Source reads through that capability, and a demo

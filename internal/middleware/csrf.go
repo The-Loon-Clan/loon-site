@@ -58,7 +58,11 @@ func CSRF() gin.HandlerFunc {
 		// browser form, and that is the kind of blanket rule this file exists
 		// to avoid.
 		if p := c.FullPath(); p == "/api" || p == "/rss" ||
-			p == "/api/downloads/report" {
+			p == "/api/downloads/report" ||
+			// /api/agent/report is the same shape: a fleet agent POSTs its
+			// state authenticated by a bearer token, no session cookie, so a
+			// CSRF token it could not have is irrelevant. See agentapi_web.go.
+			p == "/api/agent/report" {
 			c.Next()
 			return
 		}

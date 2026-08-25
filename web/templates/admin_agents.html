@@ -1,0 +1,90 @@
+{{/* The fleet operator's roster (agentadmin_web.go). .VM.
+
+     Every agent, its owner, its one editable setting (concurrency), and what it
+     is doing right now. Fed by /api/agent/report; the profile fleet card and
+     the admin dispatch panel read the same rows more narrowly. */}}
+{{define "content"}}
+<header class="mb-3">
+    <h1 class="h3 m-0">Agents</h1>
+    <p class="text-muted small m-0 mt-1">
+        The upload fleet: workers that fetch a torrent, re-upload it to Usenet, and report
+        progress here. {{.VM.Online}} online of {{.VM.Total}}; per-agent dispatch cap defaults to {{.VM.MaxDefault}}.
+    </p>
+</header>
+
+{{if not .VM.TokenSet}}
+<div class="notice notice--warn">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>
+        The agent report endpoint is <strong>off</strong>: set <code>AGENT_TOKEN</code> and restart to let agents
+        report in. Until then this page stays empty and <code>POST {{.VM.ReportURL}}</code> answers 503.
+    </span>
+</div>
+{{else if not .VM.Rows}}
+<div class="notice">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>
+        No agent has reported yet. An agent authenticates with the bearer token and POSTs its state to
+        <code>{{.VM.ReportURL}}</code>; it appears here on its first heartbeat.
+    </span>
+</div>
+{{end}}
+
+{{if .VM.Rows}}
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#download"></use></svg>Fleet
+        </h2>
+        <div class="panel__actions"><span class="panel__grouping">{{.VM.Online}} / {{.VM.Total}} online</span></div>
+    </header>
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <caption class="visually-hidden">Every agent and its current task</caption>
+            <thead>
+                <tr><th>Agent</th><th>Owner</th><th>Status</th><th>Now</th><th>Lifetime</th><th>Concurrency</th></tr>
+            </thead>
+            <tbody>
+                {{range .VM.Rows}}
+                <tr>
+                    <td><span class="data-table__title">{{.Name}}</span></td>
+                    <td class="small">{{with .Owner}}<a href="/u/{{.}}">{{.}}</a>{{else}}<span class="text-subtle">—</span>{{end}}</td>
+                    <td>
+                        {{if .Online}}<span class="chip chip--ok">online</span>
+                        {{else}}<span class="chip chip--warn">offline</span>{{end}}
+                        <span class="text-subtle small">{{.LastSeen}}</span>
+                    </td>
+                    <td class="small">
+                        {{if .HasTask}}
+                        <div class="d-flex flex-column gap-1">
+                            <span><strong>{{.Phase}}</strong>{{with .Title}} · {{.}}{{end}}</span>
+                            {{/* Progress bucketed to the nearest 10% so the width comes
+                                 off a class, not an inline style -- keeps the CSP ratchet. */}}
+                            <div class="agent-progress" title="{{.Progress}}%" role="progressbar" aria-valuenow="{{.Progress}}" aria-valuemin="0" aria-valuemax="100">
+                                <span class="agent-progress__bar w-pct-{{.Bucket}}"></span>
+                            </div>
+                            {{with .Detail}}<span class="text-muted">{{.}}</span>{{end}}
+                        </div>
+                        {{else}}<span class="text-subtle">idle</span>{{end}}
+                    </td>
+                    <td class="small text-muted">
+                        <span title="Downloaded">↓ {{.Downloaded}}</span>
+                        <span title="Uploaded">↑ {{.Uploaded}}</span>
+                    </td>
+                    <td>
+                        <form method="post" action="/admin/agents/concurrent" class="d-flex gap-1 align-items-center">
+                            <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <label class="visually-hidden" for="conc-{{.ID}}">Max concurrent for {{.Name}}</label>
+                            <input id="conc-{{.ID}}" class="form-control form-control-sm agent-conc" type="number" name="max" value="{{.Max}}" min="1" max="16">
+                            <button class="btn btn--sm" type="submit">Set</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}
+{{end}}

@@ -116,6 +116,9 @@ services:
       #   ANIDB_CLIENT  = registered AniDB client name (anime)
       # Open Library (books) needs no credential and is always on.
       TMDB_API_KEY: "${TMDB_API_KEY:-}"
+      # Fleet agent report endpoint token (agentapi_web.go). A local debug value
+      # so /admin/agents works out of the box; override in real deploys.
+      AGENT_TOKEN: "${AGENT_TOKEN:-demo-agent-token}"
       TPDB_API_KEY: "${TPDB_API_KEY:-}"
       ANIDB_CLIENT: "${ANIDB_CLIENT:-}"
       # Cloudflare Turnstile (optional). Unset = captcha disabled. Cloudflare's

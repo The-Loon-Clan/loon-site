@@ -368,6 +368,7 @@ var structuralKeys = map[string]map[string]any{
 	// is what actually pins it — this entry only supplies the shape.
 	"admin_dashboard.html":    {"Dash": dashVM{}},
 	"admin_tracker_keys.html": {"VM": trackerKeysVM{}},
+	"admin_agents.html":       {"VM": agentsVM{}},
 	"profile.html":            {"Missing": true},
 	"home.html":               {"Blocks": []homeBlock{}},
 	// series.html has the same either/or contract profile.html has: seriesPage

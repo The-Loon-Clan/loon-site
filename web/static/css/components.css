@@ -2781,6 +2781,26 @@ a.cal-ev:hover { background: var(--surface-3); }
    admin forms want the same cap. */
 .form-narrow { max-width: 40rem; }
 
+/* Agent fleet: a slim progress track + fill, and the narrow concurrency input.
+   The bar's WIDTH is set inline per render (a percentage a class cannot hold);
+   everything else about it is here. */
+.agent-progress { position: relative; height: 6px; border-radius: 3px; background: var(--bg-elevated); overflow: hidden; min-width: 8rem; }
+.agent-progress__bar { position: absolute; inset: 0 auto 0 0; background: var(--success); border-radius: 3px; }
+.agent-conc { width: 4.5rem; }
+/* Progress-bar width buckets (nearest 10%), so a computed bar needs no
+   inline style attribute -- see admin_agents.html. */
+.w-pct-0 { width: 0%; }
+.w-pct-10 { width: 10%; }
+.w-pct-20 { width: 20%; }
+.w-pct-30 { width: 30%; }
+.w-pct-40 { width: 40%; }
+.w-pct-50 { width: 50%; }
+.w-pct-60 { width: 60%; }
+.w-pct-70 { width: 70%; }
+.w-pct-80 { width: 80%; }
+.w-pct-90 { width: 90%; }
+.w-pct-100 { width: 100%; }
+
 .cal-ev--tv      { background: var(--accent-soft);  color: var(--accent); }
 /* Aired, and the index has nothing matching it. Warning rather than danger:
    a missing episode is something to go and get, not something broken. */

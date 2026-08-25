@@ -172,6 +172,11 @@ func migrateSiteTables(data *storage.Store, logger *slog.Logger, users *users.PG
 	if err := data.MigrateTrackerKeys(); err != nil {
 		return fmt.Errorf("tracker keys migrate: %w", err)
 	}
+	// The fleet-agent runtime table (agents.go). Created always; empty until an
+	// agent reports in.
+	if err := data.MigrateAgents(); err != nil {
+		return fmt.Errorf("agents migrate: %w", err)
+	}
 	if err := loadAccessSettings(context.Background(), data.DB()); err != nil {
 		logger.Error("load access settings", "err", err)
 	}

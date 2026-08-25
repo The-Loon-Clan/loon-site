@@ -112,9 +112,12 @@ type web struct {
 	// mirrorMaker is the write side of the same relationship: making a torrent
 	// for a release that has none. Nil wherever mirrors is, and the release
 	// page then offers no button rather than one that cannot work.
-	mirrorMaker   pluginapi.TorrentMirrorMaker
-	usenetAPI     pluginapi.UsenetNewznab // Newznab /api + /rss
-	catalog       pluginapi.Catalog       // taxonomy + names for /browse (filled after Boot)
+	mirrorMaker pluginapi.TorrentMirrorMaker
+	usenetAPI   pluginapi.UsenetNewznab // Newznab /api + /rss
+	catalog     pluginapi.Catalog       // taxonomy + names for /browse (filled after Boot)
+	// agentToken is the shared bearer an agent presents to /api/agent/report;
+	// empty disables the fleet write surface entirely (agentapi_web.go).
+	agentToken    string
 	catalogSink   pluginapi.CatalogSink   // scraper write side (filled after Boot)
 	catalogCovers pluginapi.CatalogCovers // release↔cover store (filled after Boot)
 	// covers downloads scraped art to local storage so the site serves it
@@ -205,6 +208,8 @@ var pageTemplates = []string{
 	"admin_trackers.html",
 	// Per-tracker API keys (trackerskeys_web.go).
 	"admin_tracker_keys.html",
+	// The fleet agent roster (agentadmin_web.go).
+	"admin_agents.html",
 	// The message catalogue (i18nadmin_web.go).
 	"admin_i18n.html",
 	// Editable site pages (pagesadmin_web.go).

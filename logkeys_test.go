@@ -46,6 +46,7 @@ var logKeys = map[string]string{
 	"item":           "a moderation queue item id",
 	"flag":           "a cheat-flag id",
 	"slug":           "a plugin, widget, page or community slug",
+	"agent":          "a fleet agent, by name or id",
 	"job":            "a scheduled job's name",
 	"list":           "a named list (wishlist, bookmarks)",
 	"key":            "a settings or cache key",
