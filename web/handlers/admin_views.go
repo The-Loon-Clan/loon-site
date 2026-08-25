@@ -681,8 +681,15 @@ func (w *web) siteAction(v core.View, fn func(*gin.Context) (template.HTML, erro
 		}
 		frag, err := fn(c)
 		if err != nil {
+			// Log the cause, then land the member back on the page with the
+			// bare ?error=1 marker its template reads — the convention the
+			// achievements and agents pages are written against ("the host
+			// wrapper's bare ?error=1"). A bare 500 text response here turned
+			// every refusal a plugin could not name — an agent name already
+			// taken, a rotate of somebody else's id — into a white error page,
+			// when the page has an error banner waiting for exactly this.
 			w.log.Error("site page action", "slug", v.Slug, "err", err)
-			c.String(http.StatusInternalServerError, "action on %s failed", v.Slug)
+			c.Redirect(http.StatusSeeOther, "/p/"+v.Slug+"?error=1")
 			return
 		}
 		if frag == "" {

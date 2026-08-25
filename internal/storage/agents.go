@@ -118,7 +118,7 @@ func (st *Store) MigrateAgents() error {
 			}
 		}
 	}
-	_, err := st.db.Exec(`
+	if _, err := st.db.Exec(`
 		CREATE TABLE IF NOT EXISTS agent (
 			id             BIGSERIAL PRIMARY KEY,
 			name           TEXT NOT NULL UNIQUE,
@@ -134,6 +134,23 @@ func (st *Store) MigrateAgents() error {
 			task_title     TEXT,
 			status_json    TEXT,
 			status_at      TIMESTAMPTZ
+		)`); err != nil {
+		return err
+	}
+	// The member's publishing choice for their fleet card: whether it renders
+	// on /u/<name> for OTHER viewers. Its own table rather than a column on
+	// agent, because it is a fact about the MEMBER (one row each), not about any
+	// one worker — deleting your last agent must not delete your answer.
+	//
+	// show_on_profile defaults FALSE and an absent row reads as false: hidden is
+	// the default the agent plugin documents (an agent roster names machines,
+	// and nobody consented to that by installing an agent), so every path that
+	// cannot find an answer must land on the same side.
+	_, err := st.db.Exec(`
+		CREATE TABLE IF NOT EXISTS agent_prefs (
+			user_id         BIGINT PRIMARY KEY,
+			show_on_profile BOOLEAN NOT NULL DEFAULT FALSE,
+			updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 		)`)
 	return err
 }
@@ -159,6 +176,102 @@ func (st *Store) EnsureAgent(ctx context.Context, name string, userID int64) (Ag
 			user_id = COALESCE(EXCLUDED.user_id, agent.user_id)
 		RETURNING *`, name, tok, owner)
 	return a, err
+}
+
+// The self-service refusals, as sentinels so the handler can tell "you cannot"
+// from "the database broke" — the first is a message to the member, the second
+// is a logged error.
+var (
+	// ErrAgentNameTaken: the name already belongs to an agent. Returned instead
+	// of the existing row on purpose — see CreateAgentOwned.
+	ErrAgentNameTaken = errors.New("agent name already taken")
+	// ErrAgentNotOwned: no agent with that id belongs to that member. One
+	// sentinel for missing and not-yours together, so the refusal does not
+	// confirm which — an id probe learning "exists, someone else's" is exactly
+	// the distinction not to hand out.
+	ErrAgentNotOwned = errors.New("no such agent for this member")
+)
+
+// CreateAgentOwned is the SELF-SERVICE create: a member registering their own
+// worker from /p/agents. Distinct from EnsureAgent, and the difference is the
+// security line: EnsureAgent is idempotent for the master-token provisioning
+// path and RETURNS THE EXISTING ROW — token included — on a name it has seen.
+// Fine behind the master token; a leak in a member's hands, where "create
+// seedbox-01" would hand them the token of whoever owns seedbox-01 already.
+// So this inserts strictly: a taken name is ErrAgentNameTaken, never a row.
+func (st *Store) CreateAgentOwned(ctx context.Context, ownerID int64, name string) (Agent, error) {
+	if ownerID <= 0 {
+		return Agent{}, ErrAgentNotOwned
+	}
+	tok, err := newAgentToken()
+	if err != nil {
+		return Agent{}, err
+	}
+	var a Agent
+	err = st.db.GetContext(ctx, &a, `
+		INSERT INTO agent (name, token, user_id)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (name) DO NOTHING
+		RETURNING *`, name, tok, sql.NullInt64{Int64: ownerID, Valid: true})
+	if errors.Is(err, sql.ErrNoRows) {
+		return Agent{}, ErrAgentNameTaken
+	}
+	return a, err
+}
+
+// RotateAgentTokenOwned mints a new token for the member's OWN agent,
+// revoking the old one. Ownership is enforced in the WHERE clause, not by a
+// prior read — two statements would leave a window, and a filter cannot.
+func (st *Store) RotateAgentTokenOwned(ctx context.Context, ownerID, agentID int64) (string, error) {
+	tok, err := newAgentToken()
+	if err != nil {
+		return "", err
+	}
+	res, err := st.db.ExecContext(ctx, `
+		UPDATE agent SET token = $3 WHERE id = $1 AND user_id = $2`, agentID, ownerID, tok)
+	if err != nil {
+		return "", err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return "", ErrAgentNotOwned
+	}
+	return tok, nil
+}
+
+// DeleteAgentOwned removes the member's OWN agent, same ownership rule.
+func (st *Store) DeleteAgentOwned(ctx context.Context, ownerID, agentID int64) error {
+	res, err := st.db.ExecContext(ctx, `
+		DELETE FROM agent WHERE id = $1 AND user_id = $2`, agentID, ownerID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrAgentNotOwned
+	}
+	return nil
+}
+
+// ShowAgentsOnProfile reads the member's publishing choice; an absent row is
+// false — hidden is the default (see MigrateAgents).
+func (st *Store) ShowAgentsOnProfile(ctx context.Context, userID int64) (bool, error) {
+	var show bool
+	err := st.db.GetContext(ctx, &show, `
+		SELECT show_on_profile FROM agent_prefs WHERE user_id = $1`, userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return show, err
+}
+
+// SetShowAgentsOnProfile records it, one row per member.
+func (st *Store) SetShowAgentsOnProfile(ctx context.Context, userID int64, show bool) error {
+	_, err := st.db.ExecContext(ctx, `
+		INSERT INTO agent_prefs (user_id, show_on_profile, updated_at)
+		VALUES ($1, $2, now())
+		ON CONFLICT (user_id) DO UPDATE SET
+			show_on_profile = EXCLUDED.show_on_profile,
+			updated_at      = now()`, userID, show)
+	return err
 }
 
 // AgentByToken authenticates a report: the per-agent bearer token identifies

@@ -67,7 +67,76 @@ func (w *web) wireAgentPlugin() {
 		MaxConcurrent: func(ctx context.Context) int {
 			return hostMaxConcurrent()
 		},
+
+		// The /p/agents member page's optional seams — this host wires the full
+		// set. Every verb is owner-scoped IN SQL (WHERE user_id = owner), so
+		// ownership holds even if a caller above ever went wrong.
+		AgentsDetail: func(ctx context.Context, ownerID int) ([]agentplugin.AgentDetail, error) {
+			rows, err := w.data.AgentsForUser(ctx, int64(ownerID))
+			if err != nil {
+				return nil, err
+			}
+			out := make([]agentplugin.AgentDetail, 0, len(rows))
+			for _, a := range rows {
+				out = append(out, agentplugin.AgentDetail{
+					Agent:  toPluginAgent(a),
+					Status: toPluginStatus(a),
+				})
+			}
+			return out, nil
+		},
+		CreateAgentFor: func(ctx context.Context, ownerID int, name string) (string, error) {
+			a, err := w.data.CreateAgentOwned(ctx, int64(ownerID), name)
+			if err != nil {
+				return "", err
+			}
+			return a.Token, nil
+		},
+		RotateTokenFor: func(ctx context.Context, ownerID, agentID int) (string, error) {
+			return w.data.RotateAgentTokenOwned(ctx, int64(ownerID), int64(agentID))
+		},
+		DeleteAgentFor: func(ctx context.Context, ownerID, agentID int) error {
+			return w.data.DeleteAgentOwned(ctx, int64(ownerID), int64(agentID))
+		},
+		ShowOnProfile: func(ctx context.Context, ownerID int) (bool, error) {
+			return w.data.ShowAgentsOnProfile(ctx, int64(ownerID))
+		},
+		SetShowOnProfile: func(ctx context.Context, ownerID int, show bool) error {
+			return w.data.SetShowAgentsOnProfile(ctx, int64(ownerID), show)
+		},
 	})
+}
+
+// toPluginStatus narrows a stored live report to the member page's view type,
+// or nil when there is none fresh enough: a status older than the online
+// window is an agent that has STOPPED, and rendering its last words as live
+// detail says "downloading" about a machine that is off.
+func toPluginStatus(a storage.Agent) *agentplugin.AgentStatus {
+	if !a.StatusAt.Valid || time.Since(a.StatusAt.Time) > agentOnlineWindow {
+		return nil
+	}
+	s := a.Status()
+	out := &agentplugin.AgentStatus{
+		Phase:         s.Phase,
+		VPNStatus:     s.VPNStatus,
+		PublicIP:      s.PublicIP,
+		DownloadSpeed: s.DownloadSpeed,
+		// The plugin's view has one upload figure; the wire has three (direct,
+		// nzb post, seeding). Show the one that is moving.
+		UploadSpeed: firstNonEmpty(s.UploadSpeed, s.NzbUploadSpeed, s.SeedUploadSpeed),
+		DiskFreeGB:  s.DiskFreeGB,
+		TaskTitle:   s.TaskTitle,
+		RequestID:   s.RequestID,
+	}
+	for _, f := range s.Files {
+		out.Files = append(out.Files, agentplugin.FileDetail{
+			Name:    f.Name,
+			Percent: f.Percent,
+			Phase:   f.Phase,
+			Speed:   firstNonEmpty(f.Speed, f.UpSpeed),
+		})
+	}
+	return out
 }
 
 // toPluginAgent narrows a stored agent to the plugin's public view type: name

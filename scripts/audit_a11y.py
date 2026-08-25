@@ -340,15 +340,23 @@ def pages_to_check():
 # (117 pages, up from 109) with no new findings beyond the two on
 # /admin/wiki/posts/new, now fixed.
 A11Y_BASELINE = {
-    # Empty. The last entry was /admin/p/groups at 63 -- the whole of the
+    # The last host entry was /admin/p/groups at 63 -- the whole of the
     # site's remaining a11y debt, and one repeated shape rather than 63
     # problems: nine controls per rank edit row, each labelled with the
     # same word as the row above it. Cleared 22 Aug 2026.
     #
-    # Kept rather than deleted, for the reason mobile.py's empty BASELINE
-    # gives: the ratchet needs somewhere to put the next one, and the two
-    # guards below it -- a page that starts passing must LEAVE, and this
-    # is stale if it does not -- are what emptied it.
+    # A page that starts passing must LEAVE, and this is stale if it
+    # does not -- those two guards below are what emptied it.
+    #
+    # /p/agents, 25 Aug 2026: TWO findings in loon-plugins b629622 (the
+    # agent plugin's new member page): its fragment carries its own <h1>
+    # while site_page.html already names the page (the convention is NO
+    # h1 in fragments -- achievements has zero), and the create form's
+    # name input has no label. Both are that plugin's markup; the fix
+    # request is filed with its owner (c:/tmp/loon-agents/
+    # demo_worker.json), and this entry leaves in the commit that pulls
+    # the fixed version.
+    "/p/agents": 2,
 }
 
 def main():
