@@ -58,7 +58,7 @@ SKIP = {".git", "node_modules", "vendor", "scratchpad", "examples", "testdata",
 # class covers: widths, gaps, paddings, backgrounds, one-off accent colours.
 # Those need NAMING, which is judgment rather than transcription, and 302 of
 # them are in requests/ and belong to another workstream.
-BASELINE_INLINE = {"host": 34, "plugins": 867}
+BASELINE_INLINE = {"host": 34, "plugins": 837}
 BASELINE_DEAD = {"host": 0, "plugins": 32}
 
 STYLE_ATTR = re.compile(r'style\s*=\s*"([^"]*)"', re.I)

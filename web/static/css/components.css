@@ -2776,6 +2776,11 @@ a.cal-ev:hover { background: var(--surface-3); }
 /* Television. Added late: calTV shipped with Kind "tv" and no rule, so every
    airing rendered with no ground at all -- found by grepping for the class
    rather than by looking at the calendar, which is the wrong order. */
+/* A form or block constrained to a comfortable editing width -- long inputs
+   in a full-bleed panel are hard to scan. A utility, not a component: several
+   admin forms want the same cap. */
+.form-narrow { max-width: 40rem; }
+
 .cal-ev--tv      { background: var(--accent-soft);  color: var(--accent); }
 /* Aired, and the index has nothing matching it. Warning rather than danger:
    a missing episode is something to go and get, not something broken. */

@@ -41,7 +41,7 @@ SKIP = {".git", "node_modules", "vendor", "scratchpad", "examples", "testdata",
 # Another workstream's files. Named rather than guessed at: this repository is
 # shared two ways and a sweep that rewrites 636 attributes across somebody
 # else's in-flight work is a merge conflict with a script's name on it.
-SKIP_PREFIX = ("requests/", "agent/", "ranks/")
+SKIP_PREFIX = ("requests/", "agent/", "ranks/", "feeds/")
 
 # The --fs-* scale from tokens.css, in rem.
 SCALE = [("3xs", 0.70), ("2xs", 0.75), ("xs", 0.80), ("sm", 0.85), ("md", 0.90),
@@ -91,6 +91,11 @@ EXACT = {
     "justify-content:flex-end": "justify-content-end",
     "white-space:nowrap": "text-nowrap",
     "vertical-align:middle": "align-middle",
+    "line-height:1.1": "lh-1",
+    "line-height:1.5": "lh-base",
+    "cursor:pointer": "cursor-pointer",
+    "min-width:0": "min-w-0",
+    "border:1px solid var(--border)": "border",
     "text-transform:uppercase": "text-uppercase",
     "text-align:left": "text-start",
     "text-align:center": "text-center",

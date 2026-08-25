@@ -642,6 +642,18 @@ dd { margin-inline-start: 0; }
 .fw-bold { font-weight: 700; }
 .fw-semibold { font-weight: 600; }
 .fw-normal { font-weight: 400; }
+/* Line-height utilities, so a heading's tight leading and a body block's
+   comfortable one come off classes rather than inline style attributes (the
+   last thing keeping style-src 'unsafe-inline'). Two steps, both real: 1.1 is
+   a display heading, 1.5 is running text. */
+.lh-1 { line-height: 1.1; }
+.lh-base { line-height: 1.5; }
+/* Layout utilities that carry no scale decision, only replace an inline
+   attribute: a clickable affordance, the min-width:0 that lets a flex child
+   actually shrink, and a one-pixel token border. */
+.cursor-pointer { cursor: pointer; }
+.min-w-0 { min-width: 0; }
+.border { border: 1px solid var(--border); }
 .font-monospace { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); }
 .small { font-size: .85em; }
 .h3 { font-size: 1.5rem; } .h4 { font-size: 1.3rem; } .h5 { font-size: 1.15rem; } .h6 { font-size: 1rem; }
