@@ -53,11 +53,11 @@ func (w *web) wireAgentPlugin() {
 		},
 		ActiveTask: func(ctx context.Context, agentID int) (*agentplugin.Task, error) {
 			a, ok, err := w.data.AgentByID(ctx, int64(agentID))
-			if err != nil || !ok || !a.Phase.Valid || a.Phase.String == "" {
+			if err != nil || !ok || !agentBusy(a) {
 				return nil, err // no task, or the agent is idle
 			}
 			return &agentplugin.Task{
-				RequestID: a.RequestID.Int64,
+				RequestID: a.Status().RequestID,
 				Progress:  agentProgressLine(a),
 			}, nil
 		},
@@ -82,20 +82,56 @@ func toPluginAgent(a storage.Agent) agentplugin.Agent {
 	return out
 }
 
+// agentBusy reports whether an agent has an active, non-idle task. Prod's
+// phase is "" or "idle" when a worker is between jobs.
+func agentBusy(a storage.Agent) bool {
+	if !a.Phase.Valid {
+		return false
+	}
+	p := strings.ToLower(strings.TrimSpace(a.Phase.String))
+	return p != "" && p != "idle"
+}
+
 // agentProgressLine renders one agent's current task as the short human line
-// the fleet card shows: "downloading · 42% · 12 of 45 segments".
+// the fleet card shows: "downloading · 42% · 24.1 MB/s". The percent is the
+// mean across the files in flight, which is what a member reads as "how far
+// along is this job".
 func agentProgressLine(a storage.Agent) string {
+	s := a.Status()
 	parts := []string{}
 	if a.Phase.Valid && a.Phase.String != "" {
 		parts = append(parts, a.Phase.String)
 	}
-	if a.ProgressPct.Valid {
-		parts = append(parts, fmt.Sprintf("%d%%", a.ProgressPct.Int64))
+	if pct, ok := agentOverallPercent(s); ok {
+		parts = append(parts, fmt.Sprintf("%d%%", pct))
 	}
-	if a.Detail.Valid && a.Detail.String != "" {
-		parts = append(parts, a.Detail.String)
+	if speed := firstNonEmpty(s.DownloadSpeed, s.UploadSpeed, s.NzbUploadSpeed); speed != "" {
+		parts = append(parts, speed)
 	}
 	return strings.Join(parts, " · ")
+}
+
+// agentOverallPercent is the mean file percent, rounded. ok is false when there
+// are no files to average.
+func agentOverallPercent(s storage.AgentLiveStatus) (int, bool) {
+	if len(s.Files) == 0 {
+		return 0, false
+	}
+	var sum float64
+	for _, f := range s.Files {
+		sum += f.Percent
+	}
+	return int(sum/float64(len(s.Files)) + 0.5), true
+}
+
+// firstNonEmpty returns the first non-empty string, or "".
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // hostMaxConcurrent is the host-wide per-agent dispatch cap the panel shows,

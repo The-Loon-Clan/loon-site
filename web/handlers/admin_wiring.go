@@ -95,9 +95,13 @@ func wireAdminAndViews(
 	// The external tracker directory (trackersadmin_web.go): what the future
 	// multi-tracker search will choose from.
 	admin.GET("/trackers", wsrv.adminTrackers)
-	// The fleet agent roster (agentadmin_web.go): settings + live progress.
+	// The fleet agent roster (agentadmin_web.go): settings, credentials, and
+	// live per-file progress.
 	admin.GET("/agents", wsrv.adminAgents)
 	admin.POST("/agents/concurrent", wsrv.adminAgentConcurrent)
+	admin.POST("/agents/create", wsrv.adminAgentCreate)
+	admin.POST("/agents/token", wsrv.adminAgentToken)
+	admin.POST("/agents/delete", wsrv.adminAgentDelete)
 	// Per-tracker API keys (trackerskeys_web.go): storing a key activates a
 	// private tracker's search adapter, live.
 	admin.GET("/tracker-keys", wsrv.adminTrackerKeys)
@@ -221,9 +225,19 @@ func wireAdminAndViews(
 	engine.GET("/api", wsrv.newznabAPI)
 	engine.GET("/rss", wsrv.newznabAPI)
 
-	// The fleet agent write surface (agentapi_web.go): an agent reports its
-	// state here. Bearer-token gated, opt-in via AGENT_TOKEN.
-	engine.POST("/api/agent/report", wsrv.agentReport)
+	// The fleet agent runtime (agentapi_web.go), aligned to production's
+	// split-verb agent protocol (X-Agent-Protocol v3). Each verb is
+	// per-agent-token gated; /register is the one exception, gated by the
+	// master AGENT_TOKEN, and mints a per-agent token. CSRF-exempt (no session
+	// cookie), see internal/middleware/csrf.go.
+	agentAPI := engine.Group("/api/agent")
+	{
+		agentAPI.POST("/register", wsrv.agentRegister)
+		agentAPI.POST("/poll", wsrv.agentPoll)
+		agentAPI.POST("/progress", wsrv.agentProgress)
+		agentAPI.POST("/status", wsrv.agentStatus)
+		agentAPI.POST("/complete", wsrv.agentComplete)
+	}
 
 	// sitemap.xml, from loon-baseline/sitemap. Wired AFTER the usenet lookup
 	// above: its releases Source reads through that capability, and a demo

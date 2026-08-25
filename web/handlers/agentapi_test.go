@@ -16,53 +16,79 @@ func agentCtx(rec *httptest.ResponseRecorder, r *http.Request) *gin.Context {
 	return c
 }
 
-// The report endpoint is off until AGENT_TOKEN is set, and rejects a bad token
-// when it is on -- an endpoint that WRITES must not be open.
-func TestAgentReportIsOptInAndAuthenticated(t *testing.T) {
-	// Off: no token configured -> 503 regardless of what is sent.
+// Registration is off until the master AGENT_TOKEN is set, and rejects a wrong
+// master token when it is on -- the endpoint that MINTS credentials must not be
+// open.
+func TestAgentRegisterIsOptInAndAuthenticated(t *testing.T) {
+	// Off: no master token configured -> 503 regardless of what is sent.
 	w := &web{}
 	rec := httptest.NewRecorder()
-	c := agentCtx(rec, agentPostReq("Bearer anything", `{"agent":"x"}`))
-	w.agentReport(c)
+	c := agentCtx(rec, agentPostReq("/api/agent/register", "Bearer anything", `{"agent":"x"}`))
+	w.agentRegister(c)
 	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("no token -> want 503, got %d", rec.Code)
+		t.Fatalf("no master token -> want 503, got %d", rec.Code)
 	}
 
-	// On but wrong token -> 401.
+	// On but wrong master token -> 401.
 	w2 := &web{agentToken: "secret"}
 	rec = httptest.NewRecorder()
-	c = agentCtx(rec, agentPostReq("Bearer wrong", `{"agent":"x"}`))
-	w2.agentReport(c)
+	c = agentCtx(rec, agentPostReq("/api/agent/register", "Bearer wrong", `{"agent":"x"}`))
+	w2.agentRegister(c)
 	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("wrong token -> want 401, got %d", rec.Code)
+		t.Fatalf("wrong master token -> want 401, got %d", rec.Code)
 	}
 
 	// A missing Authorization header is not authorized either.
 	rec = httptest.NewRecorder()
-	c = agentCtx(rec, agentPostReq("", `{"agent":"x"}`))
-	w2.agentReport(c)
+	c = agentCtx(rec, agentPostReq("/api/agent/register", "", `{"agent":"x"}`))
+	w2.agentRegister(c)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("no header -> want 401, got %d", rec.Code)
 	}
 }
 
-// agentAuthorized tolerates a bare token or the Bearer prefix, and never
+// A protocol verb with no bearer token is rejected before any store lookup --
+// the token IS the identity, so its absence is an immediate 401.
+func TestAgentVerbRejectsMissingToken(t *testing.T) {
+	w := &web{}
+	for _, verb := range []struct {
+		name string
+		h    func(*gin.Context)
+	}{
+		{"poll", w.agentPoll},
+		{"progress", w.agentProgress},
+		{"status", w.agentStatus},
+		{"complete", w.agentComplete},
+	} {
+		rec := httptest.NewRecorder()
+		c := agentCtx(rec, agentPostReq("/api/agent/"+verb.name, "", `{}`))
+		verb.h(c)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("%s with no token -> want 401, got %d", verb.name, rec.Code)
+		}
+	}
+}
+
+// bearerToken tolerates a bare token or the Bearer prefix; bearerEquals never
 // accepts an empty token as a match for an empty want.
-func TestAgentAuthorizedTolerantButStrict(t *testing.T) {
+func TestBearerHelpers(t *testing.T) {
 	rec := httptest.NewRecorder()
-	if !agentAuthorized(agentCtx(rec, agentPostReq("Bearer secret", "")), "secret") {
-		t.Fatal("Bearer <token> should authorize")
+	if got := bearerToken(agentCtx(rec, agentPostReq("/x", "Bearer secret", ""))); got != "secret" {
+		t.Fatalf("Bearer <token> -> want secret, got %q", got)
 	}
-	if !agentAuthorized(agentCtx(rec, agentPostReq("secret", "")), "secret") {
-		t.Fatal("a bare token should authorize")
+	if got := bearerToken(agentCtx(rec, agentPostReq("/x", "secret", ""))); got != "secret" {
+		t.Fatalf("bare token -> want secret, got %q", got)
 	}
-	if agentAuthorized(agentCtx(rec, agentPostReq("Bearer ", "")), "") {
+	if !bearerEquals(agentCtx(rec, agentPostReq("/x", "Bearer secret", "")), "secret") {
+		t.Fatal("Bearer <token> should equal the want")
+	}
+	if bearerEquals(agentCtx(rec, agentPostReq("/x", "Bearer ", "")), "") {
 		t.Fatal("an empty token must never match an empty want")
 	}
 }
 
-func agentPostReq(auth, body string) *http.Request {
-	r := httptest.NewRequest(http.MethodPost, "/api/agent/report", strings.NewReader(body))
+func agentPostReq(path, auth, body string) *http.Request {
+	r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	if auth != "" {
 		r.Header.Set("Authorization", auth)

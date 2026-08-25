@@ -2787,6 +2787,19 @@ a.cal-ev:hover { background: var(--surface-3); }
 .agent-progress { position: relative; height: 6px; border-radius: 3px; background: var(--bg-elevated); overflow: hidden; min-width: 8rem; }
 .agent-progress__bar { position: absolute; inset: 0 auto 0 0; background: var(--success); border-radius: 3px; }
 .agent-conc { width: 4.5rem; }
+/* The live-status metadata an agent posts (VPN, public IP, speeds, disk): a
+   compact wrapping row of labelled chips. */
+.agent-meta { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .35rem; }
+.agent-meta__item { display: inline-flex; align-items: baseline; gap: .3rem; padding: .1rem .4rem; border-radius: 4px; background: var(--bg-elevated); font-size: .75rem; }
+.agent-meta__k { color: var(--text-subtle); text-transform: uppercase; letter-spacing: .03em; font-size: .65rem; }
+.agent-meta__v { font-variant-numeric: tabular-nums; }
+/* Per-file progress within a job. */
+.agent-files { display: flex; flex-direction: column; gap: .4rem; margin-top: .4rem; }
+.agent-file__name { display: block; font-size: .75rem; word-break: break-all; }
+.agent-file__row { display: flex; align-items: center; gap: .5rem; }
+.agent-file__pct { min-width: 2.5rem; text-align: right; font-variant-numeric: tabular-nums; font-size: .72rem; color: var(--text-subtle); }
+/* The one-time token reveal after a create or rotate. */
+.agent-token__value { font-family: var(--font-mono, monospace); word-break: break-all; user-select: all; }
 /* Progress-bar width buckets (nearest 10%), so a computed bar needs no
    inline style attribute -- see admin_agents.html. */
 .w-pct-0 { width: 0%; }

@@ -59,10 +59,16 @@ func CSRF() gin.HandlerFunc {
 		// to avoid.
 		if p := c.FullPath(); p == "/api" || p == "/rss" ||
 			p == "/api/downloads/report" ||
-			// /api/agent/report is the same shape: a fleet agent POSTs its
-			// state authenticated by a bearer token, no session cookie, so a
-			// CSRF token it could not have is irrelevant. See agentapi_web.go.
-			p == "/api/agent/report" {
+			// The fleet agent runtime is the same shape: a worker POSTs to each
+			// verb authenticated by a bearer token, no session cookie, so a CSRF
+			// token it could not have is irrelevant. Listed by exact path, not a
+			// /api/agent/ prefix, for the reason above: a prefix would also
+			// exempt a browser form somebody later mounts under it. Every verb
+			// here is bearer-gated (per-agent token, or the master token on
+			// /register). See agentapi_web.go.
+			p == "/api/agent/register" || p == "/api/agent/poll" ||
+			p == "/api/agent/progress" || p == "/api/agent/status" ||
+			p == "/api/agent/complete" {
 			c.Next()
 			return
 		}

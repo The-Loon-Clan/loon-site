@@ -116,8 +116,11 @@ services:
       #   ANIDB_CLIENT  = registered AniDB client name (anime)
       # Open Library (books) needs no credential and is always on.
       TMDB_API_KEY: "${TMDB_API_KEY:-}"
-      # Fleet agent report endpoint token (agentapi_web.go). A local debug value
-      # so /admin/agents works out of the box; override in real deploys.
+      # Fleet agent MASTER token (agentapi_web.go): gates /api/agent/register,
+      # where a client self-provisions its own per-agent token. The protocol
+      # verbs authenticate by that per-agent token, not this. A local debug
+      # value so the mock client registers out of the box; override in real
+      # deploys. Empty disables self-registration (create agents by hand).
       AGENT_TOKEN: "${AGENT_TOKEN:-demo-agent-token}"
       TPDB_API_KEY: "${TPDB_API_KEY:-}"
       ANIDB_CLIENT: "${ANIDB_CLIENT:-}"

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -9,79 +10,161 @@ import (
 	"github.com/the-loon-clan/loon-site/internal/storage"
 )
 
-// The fleet agent runtime's write surface: where an agent reports its state.
+// The fleet agent runtime's API, aligned to production's split-verb contract
+// (loon-agent, X-Agent-Protocol v3): an agent POLLs for work, POSTs a rich
+// live status and lightweight progress, and COMPLETEs an upload -- each
+// authenticated by a PER-AGENT bearer token so one worker can be attributed
+// and revoked. This is the debug surface of that contract; a real agent binary
+// pointed here speaks the same verbs and shapes.
 //
-// This is the endpoint a real agent will POST to, shaped now so the mock
-// client that drives the UI and the eventual real client speak the SAME
-// contract -- the point of building it against the real API rather than
-// seeding rows is that testing the real client later reveals gaps in THIS,
-// not in a throwaway mock. The agent PLUGIN renders read-only surfaces over
-// what lands here; see internal/storage/agents.go.
-//
-// OPT-IN AND AUTHENTICATED. An endpoint that writes must not be open. It is
-// live only when the operator sets AGENT_TOKEN; unset, it answers 503, so a
-// host that has not chosen to run a fleet exposes no write surface at all. The
-// token is a shared bearer the operator gives its agents -- per-agent
-// registration is production's concern, not this debug runtime's.
+// TWO kinds of token. The per-agent token (minted per worker) authenticates
+// the protocol verbs. A separate MASTER token, AGENT_TOKEN, gates ONE endpoint
+// -- /register -- which mints a per-agent token for a named worker. Production
+// provisions agents through its admin UI; the demo also offers this register
+// bootstrap so the mock client (and a real client under test) can self-provision
+// without a human minting a token first. Unset AGENT_TOKEN disables register
+// AND is the signal the whole runtime is opt-out; the protocol verbs still work
+// for any agent an admin created.
 
-// agentReportBody is one heartbeat, as an agent posts it. Field names are the
-// wire contract -- keep them stable for the real client.
-type agentReportBody struct {
-	Agent      string `json:"agent"`      // required: the worker's name
-	User       string `json:"user"`       // owner username, resolved to an id
-	Phase      string `json:"phase"`      // downloading|uploading|assembling|idle
-	RequestID  int64  `json:"request_id"` // the request being fulfilled
-	TaskTitle  string `json:"task_title"` // what is being fetched
-	Progress   int    `json:"progress"`   // 0..100
-	Detail     string `json:"detail"`     // "12 of 45 segments", free text
-	Downloaded int64  `json:"downloaded"` // lifetime count
-	Uploaded   int64  `json:"uploaded"`   // lifetime count
+// minAgentProtocol is the oldest protocol version this runtime accepts. Prod's
+// rule is additive-with-omitempty, so an older agent is refused rather than
+// mis-parsed.
+const minAgentProtocol = 3
+
+// agentRegisterBody bootstraps a worker: name + owner, authenticated by the
+// master token, returns a per-agent token.
+type agentRegisterBody struct {
+	Agent string `json:"agent"`
+	User  string `json:"user"`
 }
 
-// agentReport receives one heartbeat.
-func (w *web) agentReport(c *gin.Context) {
+// agentRegister mints (or returns) a per-agent token. Master-token gated.
+func (w *web) agentRegister(c *gin.Context) {
 	if w.agentToken == "" {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "agent runtime not configured (set AGENT_TOKEN)"})
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "agent provisioning off (set AGENT_TOKEN)"})
 		return
 	}
-	if !agentAuthorized(c, w.agentToken) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "bad or missing agent token"})
+	if !bearerEquals(c, w.agentToken) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "bad master token"})
 		return
 	}
-	var body agentReportBody
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "malformed JSON"})
-		return
-	}
-	name := strings.TrimSpace(body.Agent)
-	if name == "" {
+	var body agentRegisterBody
+	if err := c.ShouldBindJSON(&body); err != nil || strings.TrimSpace(body.Agent) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "agent name is required"})
 		return
 	}
 	ctx := c.Request.Context()
 	userID := w.data.UserIDByUsername(ctx, strings.TrimSpace(body.User))
-	if err := w.data.UpsertAgentReport(ctx, storage.AgentReport{
-		Name:        name,
-		Username:    body.User,
-		Phase:       strings.ToLower(strings.TrimSpace(body.Phase)),
-		RequestID:   body.RequestID,
-		TaskTitle:   strings.TrimSpace(body.TaskTitle),
-		ProgressPct: body.Progress,
-		Detail:      strings.TrimSpace(body.Detail),
-		Downloaded:  body.Downloaded,
-		Uploaded:    body.Uploaded,
-	}, userID); err != nil {
-		w.log.Error("agent report", "agent", name, "err", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not record report"})
+	a, err := w.data.EnsureAgent(ctx, strings.TrimSpace(body.Agent), userID)
+	if err != nil {
+		w.log.Error("register agent", "agent", body.Agent, "err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not register"})
 		return
+	}
+	c.JSON(http.StatusOK, gin.H{"agent": a.Name, "token": a.Token})
+}
+
+// authAgent resolves the per-agent token and checks the protocol version. It
+// returns the agent and writes the error response itself on failure.
+func (w *web) authAgent(c *gin.Context) (storage.Agent, bool) {
+	tok := bearerToken(c)
+	if tok == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing agent token"})
+		return storage.Agent{}, false
+	}
+	a, ok, err := w.data.AgentByToken(c.Request.Context(), tok)
+	if err != nil || !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unknown agent token"})
+		return storage.Agent{}, false
+	}
+	// X-Agent-Protocol is how prod refuses an agent too old to trust; below the
+	// floor is a 426, the code prod uses for "upgrade required".
+	if p, _ := strconv.Atoi(c.GetHeader("X-Agent-Protocol")); p != 0 && p < minAgentProtocol {
+		c.JSON(http.StatusUpgradeRequired, gin.H{"error": "agent protocol too old", "min": minAgentProtocol})
+		return storage.Agent{}, false
+	}
+	return a, true
+}
+
+// agentPoll answers "is there work for me". The demo dispatches none -- the
+// mock invents its own tasks -- so this is an empty queue, which is a valid,
+// common answer a real agent handles (it just sleeps and polls again).
+func (w *web) agentPoll(c *gin.Context) {
+	if _, ok := w.authAgent(c); !ok {
+		return
+	}
+	// 204: no work. A real client reads this as "nothing queued".
+	c.Status(http.StatusNoContent)
+}
+
+// agentProgressBody is the lightweight per-lock ping between statuses.
+type agentProgressBody struct {
+	LockID   int    `json:"lock_id"`
+	Progress string `json:"progress"`
+	Speed    string `json:"speed"`
+	Warnings string `json:"warnings"`
+}
+
+// agentProgress records a fast progress ping (keeps the agent marked online).
+func (w *web) agentProgress(c *gin.Context) {
+	a, ok := w.authAgent(c)
+	if !ok {
+		return
+	}
+	var body agentProgressBody
+	_ = c.ShouldBindJSON(&body) // fields optional; the ping itself is the signal
+	if err := w.data.TouchAgent(c.Request.Context(), a.ID); err != nil {
+		w.log.Error("agent progress", "agent", a.ID, "err", err)
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// agentAuthorized checks the shared bearer token, tolerant of the "Bearer "
-// prefix or a bare token.
-func agentAuthorized(c *gin.Context, want string) bool {
+// agentStatus records the rich live snapshot the dashboard renders.
+func (w *web) agentStatus(c *gin.Context) {
+	a, ok := w.authAgent(c)
+	if !ok {
+		return
+	}
+	var s storage.AgentLiveStatus
+	if err := c.ShouldBindJSON(&s); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "malformed status"})
+		return
+	}
+	protocol, _ := strconv.Atoi(c.GetHeader("X-Agent-Protocol"))
+	version := c.GetHeader("X-Agent-Version")
+	if err := w.data.RecordStatus(c.Request.Context(), a.ID, protocol, version, s); err != nil {
+		w.log.Error("agent status", "agent", a.ID, "err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not record status"})
+		return
+	}
+	// The status response can carry a cancel command; the demo never cancels.
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// agentComplete records a finished upload. Production's /complete is a
+// multipart bundle (NZB + screenshots + metadata + subtitles); the demo does
+// not ingest, so it accepts the call, bumps the counter, and returns the
+// completed verdict a client expects.
+func (w *web) agentComplete(c *gin.Context) {
+	a, ok := w.authAgent(c)
+	if !ok {
+		return
+	}
+	if err := w.data.CompleteTask(c.Request.Context(), a.ID); err != nil {
+		w.log.Error("agent complete", "agent", a.ID, "err", err)
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "completed"})
+}
+
+// bearerToken returns the token from an Authorization: Bearer header, or "".
+func bearerToken(c *gin.Context) string {
 	h := strings.TrimSpace(c.GetHeader("Authorization"))
-	h = strings.TrimSpace(strings.TrimPrefix(h, "Bearer"))
-	return h != "" && h == want
+	return strings.TrimSpace(strings.TrimPrefix(h, "Bearer"))
+}
+
+// bearerEquals reports whether the request's bearer token equals want, never
+// treating an empty token as a match for an empty want.
+func bearerEquals(c *gin.Context, want string) bool {
+	t := bearerToken(c)
+	return t != "" && t == want
 }

@@ -115,8 +115,10 @@ type web struct {
 	mirrorMaker pluginapi.TorrentMirrorMaker
 	usenetAPI   pluginapi.UsenetNewznab // Newznab /api + /rss
 	catalog     pluginapi.Catalog       // taxonomy + names for /browse (filled after Boot)
-	// agentToken is the shared bearer an agent presents to /api/agent/report;
-	// empty disables the fleet write surface entirely (agentapi_web.go).
+	// agentToken is the MASTER bearer that gates /api/agent/register (where a
+	// client self-provisions a per-agent token); empty disables registration.
+	// The protocol verbs themselves authenticate by per-agent token, not this.
+	// See agentapi_web.go.
 	agentToken    string
 	catalogSink   pluginapi.CatalogSink   // scraper write side (filled after Boot)
 	catalogCovers pluginapi.CatalogCovers // release↔cover store (filled after Boot)

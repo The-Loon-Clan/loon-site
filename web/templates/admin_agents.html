@@ -1,8 +1,10 @@
 {{/* The fleet operator's roster (agentadmin_web.go). .VM.
 
-     Every agent, its owner, its one editable setting (concurrency), and what it
-     is doing right now. Fed by /api/agent/report; the profile fleet card and
-     the admin dispatch panel read the same rows more narrowly. */}}
+     Every agent, its owner, its credential, its one editable setting
+     (concurrency), and the live status it last posted -- VPN, public IP,
+     transfer speeds, disk, and per-file progress. Fed by the split agent
+     protocol (/api/agent/status et al.); the profile fleet card and the admin
+     dispatch panel read the same rows more narrowly. */}}
 {{define "content"}}
 <header class="mb-3">
     <h1 class="h3 m-0">Agents</h1>
@@ -12,21 +14,54 @@
     </p>
 </header>
 
-{{if not .VM.TokenSet}}
-<div class="notice notice--warn">
-    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+{{if .VM.NewToken}}
+<div class="notice notice--success">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#lock"></use></svg>
     <span>
-        The agent report endpoint is <strong>off</strong>: set <code>AGENT_TOKEN</code> and restart to let agents
-        report in. Until then this page stays empty and <code>POST {{.VM.ReportURL}}</code> answers 503.
+        Token for <strong>{{.VM.NewTokenName}}</strong> (shown once — copy it now):
+        <code class="agent-token__value">{{.VM.NewToken}}</code><br>
+        The agent sends it as <code>Authorization: Bearer &lt;token&gt;</code> with <code>X-Agent-Protocol: 3</code>.
     </span>
 </div>
-{{else if not .VM.Rows}}
-<div class="notice">
+{{end}}
+
+{{if not .VM.TokenSet}}
+<div class="notice notice--warning">
     <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
     <span>
-        No agent has reported yet. An agent authenticates with the bearer token and POSTs its state to
-        <code>{{.VM.ReportURL}}</code>; it appears here on its first heartbeat.
+        Agent self-provisioning is <strong>off</strong>: set the master <code>AGENT_TOKEN</code> and restart to let a
+        client register itself at <code>POST {{.VM.RegisterURL}}</code>. You can still create agents by hand below;
+        each protocol verb is authenticated by that agent's own token regardless.
     </span>
+</div>
+{{end}}
+
+<section class="panelV2 mb-3">
+    <header class="panel__header">
+        <h2 class="panel__heading">
+            <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#plus"></use></svg>Add an agent
+        </h2>
+    </header>
+    <div class="panel__body">
+        <form method="post" action="/admin/agents/create" class="d-flex flex-wrap gap-2 align-items-end">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <div>
+                <label class="form-label small" for="new-name">Name</label>
+                <input id="new-name" class="form-control form-control-sm" type="text" name="name" placeholder="seedbox-01" required>
+            </div>
+            <div>
+                <label class="form-label small" for="new-owner">Owner (username, optional)</label>
+                <input id="new-owner" class="form-control form-control-sm" type="text" name="owner" placeholder="alice">
+            </div>
+            <button class="btn btn-primary btn-sm" type="submit">Create &amp; mint token</button>
+        </form>
+    </div>
+</section>
+
+{{if not .VM.Rows}}
+<div class="notice">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>No agents yet. Create one above, then point a client at <code>{{.VM.StatusURL}}</code> with its token.</span>
 </div>
 {{end}}
 
@@ -40,45 +75,91 @@
     </header>
     <div class="data-table-wrapper">
         <table class="data-table">
-            <caption class="visually-hidden">Every agent and its current task</caption>
+            <caption class="visually-hidden">Every agent, its live status and its current task</caption>
             <thead>
-                <tr><th>Agent</th><th>Owner</th><th>Status</th><th>Now</th><th>Lifetime</th><th>Concurrency</th></tr>
+                <tr><th>Agent</th><th>Owner</th><th>Status</th><th>Now</th><th>Done</th><th>Concurrency</th><th>Token</th></tr>
             </thead>
             <tbody>
                 {{range .VM.Rows}}
                 <tr>
-                    <td><span class="data-table__title">{{.Name}}</span></td>
+                    <td>
+                        <span class="data-table__title">{{.Name}}</span>
+                        {{if or .Protocol .Version}}<span class="text-subtle small d-block">{{.Version}}{{if .Protocol}} · proto {{.Protocol}}{{end}}</span>{{end}}
+                    </td>
                     <td class="small">{{with .Owner}}<a href="/u/{{.}}">{{.}}</a>{{else}}<span class="text-subtle">—</span>{{end}}</td>
                     <td>
                         {{if .Online}}<span class="chip chip--ok">online</span>
                         {{else}}<span class="chip chip--warn">offline</span>{{end}}
                         <span class="text-subtle small">{{.LastSeen}}</span>
+                        {{if or .VPNStatus .PublicIP .DiskFreeGB}}
+                        <div class="agent-meta">
+                            {{with .VPNStatus}}<span class="agent-meta__item"><span class="agent-meta__k">vpn</span><span class="agent-meta__v">{{.}}</span></span>{{end}}
+                            {{with .PublicIP}}<span class="agent-meta__item"><span class="agent-meta__k">ip</span><span class="agent-meta__v">{{.}}</span></span>{{end}}
+                            {{with .DiskFreeGB}}<span class="agent-meta__item"><span class="agent-meta__k">free</span><span class="agent-meta__v">{{.}}</span></span>{{end}}
+                            {{if .SeedingCount}}<span class="agent-meta__item"><span class="agent-meta__k">seeding</span><span class="agent-meta__v">{{.SeedingCount}}</span></span>{{end}}
+                        </div>
+                        {{end}}
                     </td>
                     <td class="small">
                         {{if .HasTask}}
                         <div class="d-flex flex-column gap-1">
                             <span><strong>{{.Phase}}</strong>{{with .Title}} · {{.}}{{end}}</span>
-                            {{/* Progress bucketed to the nearest 10% so the width comes
-                                 off a class, not an inline style -- keeps the CSP ratchet. */}}
-                            <div class="agent-progress" title="{{.Progress}}%" role="progressbar" aria-valuenow="{{.Progress}}" aria-valuemin="0" aria-valuemax="100">
-                                <span class="agent-progress__bar w-pct-{{.Bucket}}"></span>
+                            {{if or .DownloadSpeed .UploadSpeed .NzbSpeed}}
+                            <span class="text-muted">
+                                {{with .DownloadSpeed}}↓ {{.}}{{end}}
+                                {{with .UploadSpeed}} ↑ {{.}}{{end}}
+                                {{with .NzbSpeed}} nzb {{.}}{{end}}
+                            </span>
+                            {{end}}
+                            {{if .Files}}
+                            <div class="agent-files">
+                                {{range .Files}}
+                                <div>
+                                    <span class="agent-file__name" title="{{.Name}}">{{.Name}}{{with .Size}} <span class="text-subtle">({{.}})</span>{{end}}</span>
+                                    <div class="agent-file__row">
+                                        {{/* Percent bucketed to the nearest 10% so the bar's width
+                                             comes off a class, not an inline style -- keeps the CSP
+                                             ratchet at baseline. */}}
+                                        <div class="agent-progress" role="progressbar" aria-valuenow="{{.Percent}}" aria-valuemin="0" aria-valuemax="100" aria-label="{{.Name}} progress">
+                                            <span class="agent-progress__bar w-pct-{{.Bucket}}"></span>
+                                        </div>
+                                        <span class="agent-file__pct">{{.Percent}}%</span>
+                                    </div>
+                                    {{if or .Speed .UpSpeed .Peers}}
+                                    <span class="text-subtle small">{{.Phase}}{{with .Speed}} · ↓ {{.}}{{end}}{{with .UpSpeed}} · ↑ {{.}}{{end}}{{if .Peers}} · {{.Peers}} peers{{end}}</span>
+                                    {{end}}
+                                    {{range .Warnings}}<span class="chip chip--warn">{{.}}</span>{{end}}
+                                </div>
+                                {{end}}
                             </div>
-                            {{with .Detail}}<span class="text-muted">{{.}}</span>{{end}}
+                            {{end}}
                         </div>
                         {{else}}<span class="text-subtle">idle</span>{{end}}
                     </td>
-                    <td class="small text-muted">
-                        <span title="Downloaded">↓ {{.Downloaded}}</span>
-                        <span title="Uploaded">↑ {{.Uploaded}}</span>
-                    </td>
+                    <td class="small text-muted" title="Lifetime uploads completed">{{.Completed}}</td>
                     <td>
                         <form method="post" action="/admin/agents/concurrent" class="d-flex gap-1 align-items-center">
                             <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
                             <input type="hidden" name="id" value="{{.ID}}">
                             <label class="visually-hidden" for="conc-{{.ID}}">Max concurrent for {{.Name}}</label>
                             <input id="conc-{{.ID}}" class="form-control form-control-sm agent-conc" type="number" name="max" value="{{.Max}}" min="1" max="16">
-                            <button class="btn btn--sm" type="submit">Set</button>
+                            <button class="btn btn-sm" type="submit">Set</button>
                         </form>
+                    </td>
+                    <td class="small">
+                        <span class="text-subtle" title="Token ends in these characters">…{{.TokenTail}}</span>
+                        <div class="d-flex gap-1 mt-1">
+                            <form method="post" action="/admin/agents/token">
+                                <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                                <input type="hidden" name="id" value="{{.ID}}">
+                                <button class="btn btn-sm" type="submit" title="Revoke and mint a new token">Rotate</button>
+                            </form>
+                            <form method="post" action="/admin/agents/delete" data-confirm="Delete agent {{.Name}}?">
+                                <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                                <input type="hidden" name="id" value="{{.ID}}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {{end}}
