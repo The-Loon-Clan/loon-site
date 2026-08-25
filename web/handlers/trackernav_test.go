@@ -50,7 +50,7 @@ func TestAccountNavDoesNotGrowTheSharedMenu(t *testing.T) {
 	t.Setenv("LOON_TRACKER", "1")
 	before := len(accountMenu)
 	for i := 0; i < 5; i++ {
-		accountNav("/hitrun")
+		accountNav("/hitrun", true)
 	}
 	if got := len(accountMenu); got != before {
 		t.Errorf("accountMenu grew from %d to %d across five renders", before, got)

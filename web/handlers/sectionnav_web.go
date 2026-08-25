@@ -194,13 +194,19 @@ func trackerAccountGroup() (sectionTab, bool) {
 var agentsMemberHref = ""
 
 // accountNav returns the account entries with the page you are on marked.
-func accountNav(path string) []sectionTab {
+//
+// canUseAgents is the VIEWER's answer, not the site's: the fleet entry is
+// gated on an entitlement (agentEntitlementKey), so two members signed in at
+// once legitimately see different menus. It arrives as a parameter rather than
+// being looked up here because this stays a pure function -- TestAccountBarScope
+// depends on that -- and because the caller has already resolved the viewer.
+func accountNav(path string, canUseAgents bool) []sectionTab {
 	menu := accountMenu
 	extra := []sectionTab{}
 	if g, ok := trackerAccountGroup(); ok {
 		extra = append(extra, g)
 	}
-	if agentsMemberHref != "" {
+	if agentsMemberHref != "" && canUseAgents {
 		// A plain entry, not a group: one destination has nothing to group —
 		// the same call the points ledger settled for this file.
 		extra = append(extra, sectionTab{Label: "My Agents", Href: agentsMemberHref})
@@ -300,7 +306,7 @@ func inAccountArea(path string) bool {
 // signedIn gates the whole bar; own narrows the profile case further. Both are
 // parameters rather than a *gin.Context so the rule stays testable as a pure
 // function, which is what TestAccountBarScope relies on.
-func accountBar(path string, signedIn, ownProfile bool) []sectionTab {
+func accountBar(path string, signedIn, ownProfile, canUseAgents bool) []sectionTab {
 	if !signedIn || !inAccountArea(path) {
 		return nil
 	}
@@ -323,7 +329,7 @@ func accountBar(path string, signedIn, ownProfile bool) []sectionTab {
 			return nil
 		}
 	}
-	return accountNav(path)
+	return accountNav(path, canUseAgents)
 }
 
 // profileNameFromPath pulls the username out of /u/<name> and its children

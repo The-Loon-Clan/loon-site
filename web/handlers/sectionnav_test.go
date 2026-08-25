@@ -116,7 +116,7 @@ func TestAccountMenuLightsTheGroupAPageIsIn(t *testing.T) {
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			var found bool
-			for _, tab := range accountNav(tc.path) {
+			for _, tab := range accountNav(tc.path, true) {
 				if tab.Label != tc.group {
 					if tab.Active {
 						t.Errorf("%s: group %q is lit as well", tc.path, tab.Label)
@@ -151,8 +151,8 @@ func TestAccountMenuLightsTheGroupAPageIsIn(t *testing.T) {
 // place would leave one reader's active page lit for everyone — a bug that only
 // shows under concurrency, so it is asserted directly instead.
 func TestAccountMenuDoesNotMutateTheSharedEntries(t *testing.T) {
-	_ = accountNav("/achievements")
-	_ = accountNav("/store/history")
+	_ = accountNav("/achievements", true)
+	_ = accountNav("/store/history", true)
 	for _, tab := range accountMenu {
 		if tab.Active {
 			t.Errorf("entry %q was marked active in the shared slice", tab.Label)
@@ -194,7 +194,7 @@ func TestAccountMenuSelectsOneEntry(t *testing.T) {
 		// menu is grouped — so descend into a lit group and name its lit child,
 		// keeping this an assertion about pages rather than about groups.
 		var active []string
-		for _, tab := range accountNav(tc.path) {
+		for _, tab := range accountNav(tc.path, true) {
 			if !tab.Active {
 				continue
 			}
@@ -225,7 +225,7 @@ func TestAccountMenuLightsNothingOffMenu(t *testing.T) {
 	// under Bonus Points, so lighting is what it is SUPPOSED to do. The
 	// positive case for it lives in the highlight table above.
 	for _, p := range []string{"/", "/browse", "/community/forums", "/admin/settings"} {
-		for _, tab := range accountNav(p) {
+		for _, tab := range accountNav(p, true) {
 			if tab.Active {
 				t.Errorf("%s: lit account entry %q", p, tab.Label)
 			}
@@ -242,7 +242,7 @@ func TestAccountMenuLightsNothingOffMenu(t *testing.T) {
 // by a hypothetical /settings/privacy-policy, and /store must not light Points
 // at /store/history's expense.
 func TestAccountMenuMatchesWholeSegments(t *testing.T) {
-	for _, tab := range accountNav("/settings/privacy-policy") {
+	for _, tab := range accountNav("/settings/privacy-policy", true) {
 		for _, it := range tab.Items {
 			if it.Active {
 				t.Errorf("/settings/privacy-policy lit %q on a partial-segment match", it.Label)
@@ -267,7 +267,7 @@ func TestAccountBarScope(t *testing.T) {
 		// pages now — see TestPointsPagesGetOneStripNotTwo.
 		"/store", "/store/history", "/rewards",
 	} {
-		if accountBar(p, true, true) == nil {
+		if accountBar(p, true, true, true) == nil {
 			t.Errorf("%s is in the account area but gets no bar", p)
 		}
 	}
@@ -279,7 +279,7 @@ func TestAccountBarScope(t *testing.T) {
 		// /store above, which is the host's.
 		"/p/store",
 	} {
-		if tabs := accountBar(p, true, true); tabs != nil {
+		if tabs := accountBar(p, true, true, true); tabs != nil {
 			t.Errorf("%s got an account bar (%d entries) — that is the site-wide second bar again", p, len(tabs))
 		}
 	}
@@ -295,7 +295,7 @@ func TestAccountBarNeedsAViewer(t *testing.T) {
 	for _, p := range []string{
 		"/u/alice", "/achievements", "/inbox", "/settings/privacy", "/p/api-key",
 	} {
-		if tabs := accountBar(p, false, false); tabs != nil {
+		if tabs := accountBar(p, false, false, true); tabs != nil {
 			t.Errorf("signed OUT on %s got %d account entries — a personal menu shown to a stranger", p, len(tabs))
 		}
 	}
@@ -305,14 +305,14 @@ func TestAccountBarNeedsAViewer(t *testing.T) {
 // place as the area's landing page only on the way to your OWN profile; on
 // another member's it is a menu about you attached to a page about them.
 func TestAccountBarOnlyOnYourOwnProfile(t *testing.T) {
-	if tabs := accountBar("/u/bob", true, false); tabs != nil {
+	if tabs := accountBar("/u/bob", true, false, true); tabs != nil {
 		t.Errorf("viewing another member's profile got %d account entries", len(tabs))
 	}
-	if accountBar("/u/alice", true, true) == nil {
+	if accountBar("/u/alice", true, true, true) == nil {
 		t.Error("your own profile must still carry the bar — it is the area's landing page")
 	}
 	// The children of someone else's profile behave the same way.
-	if tabs := accountBar("/u/bob/followers", true, false); tabs != nil {
+	if tabs := accountBar("/u/bob/followers", true, false, true); tabs != nil {
 		t.Errorf("another member's followers page got %d account entries", len(tabs))
 	}
 }
@@ -352,7 +352,7 @@ func TestProfileNameFromPath(t *testing.T) {
 // test; this is the host's half, and the pair of them is the invariant.
 func TestPointsPagesGetOneStripNotTwo(t *testing.T) {
 	for _, p := range []string{"/store", "/store/history", "/rewards"} {
-		tabs := accountBar(p, true, true)
+		tabs := accountBar(p, true, true, true)
 		if tabs == nil {
 			t.Errorf("%s gets no account bar — the points area is cut off from the "+
 				"rest of the account again", p)
@@ -622,5 +622,40 @@ func TestChromeLinksAppearOnTheSitemap(t *testing.T) {
 		if !listed[href] {
 			t.Errorf("the chrome links %s and the sitemap page does not list it", href)
 		}
+	}
+}
+
+// Running an agent is gated on an entitlement (agentEntitlementKey), and the
+// account bar is the door: a member without the grant must not be offered it.
+//
+// The bar is only half the gate and deliberately so -- canView refuses the page
+// and its POST actions for the same viewer -- but it is the half a member SEES,
+// and an entry that leads somewhere they will be refused is worse than no entry.
+// Guarded here because the flag arrives as a parameter: a caller that forgets to
+// resolve it would silently pass false and hide the feature from everyone, or
+// pass true and offer it to a member who cannot use it.
+func TestAgentEntryFollowsTheEntitlement(t *testing.T) {
+	// The entry only exists once the plugin registers its page; without that
+	// there is nothing to assert either way.
+	saved := agentsMemberHref
+	agentsMemberHref = "/p/agents"
+	defer func() { agentsMemberHref = saved }()
+
+	has := func(tabs []sectionTab) bool {
+		for _, tab := range tabs {
+			if tab.Label == "My Agents" {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !has(accountBar("/p/account", true, true, true)) {
+		t.Error("a member WITH the entitlement is not offered My Agents — the " +
+			"gate has closed on everyone")
+	}
+	if has(accountBar("/p/account", true, true, false)) {
+		t.Error("a member WITHOUT the entitlement is offered My Agents — the bar " +
+			"is advertising a page canView will refuse them")
 	}
 }

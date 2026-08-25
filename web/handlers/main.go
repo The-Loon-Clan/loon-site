@@ -621,6 +621,20 @@ func Main() {
 				// tracker mounted and refusing everyone, which looks like a
 				// bug rather than a policy.
 				core.RoleUser: {{Key: tracker.EntitlementKey, Val: 1, Source: "role"}},
+				// Running an agent is an OPERATOR act on this demo, not a member
+				// one: an agent fetches a torrent and re-uploads it to Usenet
+				// under whoever's credentials it holds, and a queued grab carries
+				// a live magnet. So the fleet surfaces are admin-only by default
+				// and every other member sees no agent nav, page, card or token
+				// at all — the gate fails closed, which is also what keeps the
+				// feature from overwhelming a new member who has no use for it.
+				//
+				// Baseline is a MINIMUM role, so this is "admin and above". To
+				// widen it, an operator does not edit this list: the ranks plugin
+				// already syncs group membership into entitlements (tagged
+				// group:<slug>), so marking any group with this key lets its
+				// members in, and core ORs the sources together.
+				core.RoleAdmin: {{Key: agentEntitlementKey, Val: 1, Source: "role"}},
 			},
 		}),
 		HTTPClient: core.NewHTTPClient(),
@@ -638,6 +652,9 @@ func Main() {
 		logger.Error("core.New", "err", err)
 		os.Exit(1)
 	}
+	// The access-decision service, for the host's own gates (canView). core.New
+	// requires it, so this is never nil — but the readers still fail closed.
+	wsrv.ents = c.Entitlements
 
 	wirePluginSeams(c, wsrv, engine, logger)
 

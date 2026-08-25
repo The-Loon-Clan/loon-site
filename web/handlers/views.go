@@ -119,7 +119,12 @@ type web struct {
 	// client self-provisions a per-agent token); empty disables registration.
 	// The protocol verbs themselves authenticate by per-agent token, not this.
 	// See agentapi_web.go.
-	agentToken    string
+	agentToken string
+	// ents answers "may this member do X" (core.Entitlements). Filled straight
+	// after core.New, because SetDeps and the view mounts run before it and
+	// only ever CALL this at render time. Reads fail closed: a nil service
+	// denies, which is the safe direction for a gate.
+	ents          core.EntitlementsService
 	catalogSink   pluginapi.CatalogSink   // scraper write side (filled after Boot)
 	catalogCovers pluginapi.CatalogCovers // release↔cover store (filled after Boot)
 	// covers downloads scraped art to local storage so the site serves it
@@ -1077,7 +1082,14 @@ func (w *web) chromeData(c *gin.Context, data map[string]any) map[string]any {
 				own = strings.EqualFold(name, viewer.Username)
 			}
 		}
-		data["AccountBar"] = accountBar(c.Request.URL.Path, viewer != nil, own)
+		// The fleet entry is per-VIEWER: it is gated on agentEntitlementKey, so
+		// a member without the grant never sees the door, and the page behind it
+		// refuses them anyway (canView).
+		canAgents := false
+		if viewer != nil && w.ents != nil {
+			canAgents = w.ents.Has(c.Request.Context(), viewer.ID, agentEntitlementKey)
+		}
+		data["AccountBar"] = accountBar(c.Request.URL.Path, viewer != nil, own, canAgents)
 	}
 	// PathQuery is Path PLUS the query string: the "send me back exactly here"
 	// target for the theme switcher's hidden next field. It has to be a SECOND

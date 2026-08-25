@@ -209,10 +209,56 @@ type navNode struct {
 	Children []navItem
 }
 
+// agentEntitlementKey is the access decision behind every fleet surface: may
+// this member run agents at all?
+//
+// An ENTITLEMENT rather than a role check or a group read, because that is the
+// split loon draws and this is the first place the host has needed it. Groups
+// answer "what badge do I draw"; core.Entitlements answers "may this user do
+// X", and pluginapi/groups.go is explicit that a badge consumer must never
+// start making authorization decisions. So the reader here asks one boolean and
+// knows nothing about who grants it: the host's own role baseline (admins, see
+// main.go) or any group the ranks plugin has marked with this key, ORed
+// together by core.
+const agentEntitlementKey = "agent.use"
+
+// viewEntitlement gates a plugin view on an entitlement its own declaration
+// cannot express. core.View has Public and MinRole -- a ladder -- and "members
+// of the uploader group" is not a rung on it.
+//
+// Keyed by SLUG, and the agent plugin's three views share one prefix by
+// design: the member page and the profile card are both the member's own fleet
+// and stand or fall together. The admin dispatch panel is deliberately absent:
+// it is already MinRole admin, and it reports fleet-wide counts an operator
+// needs whether or not they personally run an agent.
+var viewEntitlement = map[string]string{
+	"agents":      agentEntitlementKey, // SlotSitePage  /p/agents
+	"agent-fleet": agentEntitlementKey, // SlotUserWidget profile card
+}
+
 // canView applies a view's visibility to the current request.
+//
+// ONE chokepoint, which is why the entitlement check belongs here rather than
+// in each caller: site pages, their POST actions, profile widgets, profile
+// tabs, home widgets and the sitemap all ask this question, and a gate that
+// covered the page but not its actions would be a lock on a door with the
+// window open.
 func (w *web) canView(v core.View, c *gin.Context) bool {
 	u, _ := w.auth.Current(c)
-	return v.AllowsUser(u)
+	if !v.AllowsUser(u) {
+		return false
+	}
+	key, gated := viewEntitlement[v.Slug]
+	if !gated {
+		return true
+	}
+	// Fails CLOSED, in both directions: an anonymous viewer holds no
+	// entitlements, and a host that somehow reached here without the service
+	// denies rather than waving everyone through.
+	if u == nil || w.ents == nil {
+		return false
+	}
+	return w.ents.Has(c.Request.Context(), u.ID, key)
 }
 
 // hostNavGroups are the dropdowns site_chrome.html writes out itself. A plugin
