@@ -160,11 +160,20 @@ func movieKeys(releaseTitle string) []catalogKey {
 	if norm == "" {
 		return nil
 	}
-	keys := []catalogKey{{Norm: norm}, {Norm: norm + " film"}}
+	// With a year, MOST-SPECIFIC first and the year carried on every key. The
+	// old order put the bare {norm, Year:0} first, and a zero-year key "takes
+	// anything" in coverForKeys -- so "Suspiria.2018" matched the 1977 entry
+	// (norm_title "suspiria") and the remake wore the original's poster. Carry
+	// q.Year on the bare keys too, so coverForKeys rejects a year that
+	// disagrees while still accepting a catalog entry that has no year at all.
 	if q.Year > 0 {
-		keys = append(keys, catalogKey{Norm: fmt.Sprintf("%s %d film", norm, q.Year)})
+		return []catalogKey{
+			{Norm: fmt.Sprintf("%s %d film", norm, q.Year), Year: q.Year},
+			{Norm: norm + " film", Year: q.Year},
+			{Norm: norm, Year: q.Year},
+		}
 	}
-	return keys
+	return []catalogKey{{Norm: norm}, {Norm: norm + " film"}}
 }
 
 // linkFromCatalog gives cover art to releases whose SERIES is already known,

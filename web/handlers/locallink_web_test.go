@@ -197,3 +197,24 @@ func TestTelevisionSpecExcludesAnime(t *testing.T) {
 	}
 	t.Error("the television spec does not exclude 5070")
 }
+
+// TestMovieKeysYearGuardsAgainstARemake pins a review finding: a remake must
+// not wear the original's poster. The year-qualified key leads, and every key
+// carries the year so coverForKeys rejects a catalog entry from a different year.
+func TestMovieKeysYearGuardsAgainstARemake(t *testing.T) {
+	keys := movieKeys("Suspiria.2018.1080p.BluRay")
+	if len(keys) == 0 {
+		t.Fatal("no keys")
+	}
+	// Most-specific first.
+	if keys[0].Norm != "suspiria 2018 film" || keys[0].Year != 2018 {
+		t.Fatalf("first key = %+v, want the year-qualified form first", keys[0])
+	}
+	// EVERY key carries the year, so none "takes anything" and matches the
+	// 1977 original (whose entry has Year 1977).
+	for _, k := range keys {
+		if k.Year != 2018 {
+			t.Fatalf("key %q has Year %d; a zero-year key would match the original", k.Norm, k.Year)
+		}
+	}
+}
