@@ -55,13 +55,16 @@ func (w *web) agentRegister(c *gin.Context) {
 	}
 	ctx := c.Request.Context()
 	userID := w.data.UserIDByUsername(ctx, strings.TrimSpace(body.User))
-	a, err := w.data.EnsureAgent(ctx, strings.TrimSpace(body.Agent), userID)
+	// tok is the plaintext, alive only in this response: the store keeps its
+	// hash. Re-registering a known name re-mints (see EnsureAgent), so a
+	// client that registers every boot always holds the one live credential.
+	a, tok, err := w.data.EnsureAgent(ctx, strings.TrimSpace(body.Agent), userID)
 	if err != nil {
 		w.log.Error("register agent", "agent", body.Agent, "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not register"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"agent": a.Name, "token": a.Token})
+	c.JSON(http.StatusOK, gin.H{"agent": a.Name, "token": tok})
 }
 
 // authAgent resolves the per-agent token and checks the protocol version. It

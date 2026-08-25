@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -86,11 +87,13 @@ func (w *web) wireAgentPlugin() {
 			return out, nil
 		},
 		CreateAgentFor: func(ctx context.Context, ownerID int, name string) (string, error) {
-			a, err := w.data.CreateAgentOwned(ctx, int64(ownerID), name)
-			if err != nil {
-				return "", err
+			_, tok, err := w.data.CreateAgentOwned(ctx, int64(ownerID), name)
+			if errors.Is(err, storage.ErrAgentNameTaken) {
+				// The plugin's sentinel, so its create action can say "that
+				// name is taken" instead of the generic something-went-wrong.
+				return "", fmt.Errorf("%w: %s", agentplugin.ErrNameTaken, name)
 			}
-			return a.Token, nil
+			return tok, err
 		},
 		RotateTokenFor: func(ctx context.Context, ownerID, agentID int) (string, error) {
 			return w.data.RotateAgentTokenOwned(ctx, int64(ownerID), int64(agentID))

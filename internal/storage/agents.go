@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -60,10 +61,16 @@ type FileProgress struct {
 }
 
 // Agent is one fleet worker's stored identity, settings and last status.
+//
+// TokenHash is all the credential this row keeps: SHA-256 of the bearer token,
+// hex. The plaintext exists exactly once, in the return value of the call that
+// minted it — which is what the member page's token ceremony promises ("the
+// site keeps only a hash"), and what makes a database read-out not a
+// credential dump.
 type Agent struct {
 	ID            int64          `db:"id"`
 	Name          string         `db:"name"`
-	Token         string         `db:"token"`
+	TokenHash     string         `db:"token_hash"`
 	UserID        sql.NullInt64  `db:"user_id"`
 	MaxConcurrent int            `db:"max_concurrent"`
 	Protocol      sql.NullInt64  `db:"protocol"`
@@ -90,29 +97,30 @@ func (a Agent) Status() AgentLiveStatus {
 
 // MigrateAgents creates the table. Idempotent.
 //
-// The 4faa33a runtime shipped an earlier, incompatible `agent` shape (a shared
-// token, single-task columns, no per-agent token). Aligning to prod's contract
-// changed the columns, and CREATE TABLE IF NOT EXISTS cannot reconcile an
-// existing table -- so when the legacy shape is present (detected by the
-// absence of the `token` column) it is dropped and rebuilt. This is safe here
-// and only here: the agent table holds nothing durable -- ephemeral fleet
+// Two earlier shapes of `agent` have shipped: 4faa33a's (a shared token,
+// single-task columns) and 2d379db's (per-agent tokens stored PLAINTEXT in a
+// `token` column). This one keeps only token_hash. CREATE TABLE IF NOT EXISTS
+// cannot reconcile either predecessor, so a table without the token_hash
+// column -- which is both of them -- is dropped and rebuilt. Safe here and
+// only here: the agent table holds nothing durable -- ephemeral fleet
 // heartbeats and mock rows -- with no foreign keys pointing into it, so a
-// worker simply re-registers. A table that never held the old shape is
-// untouched.
+// worker simply re-registers. (A plaintext token could have been hashed in
+// place instead of dropped; a debug rig's rows are not worth a migration path
+// that then looks reusable for tables that ARE durable.)
 func (st *Store) MigrateAgents() error {
-	var hasTable, hasToken bool
+	var hasTable, hasHash bool
 	if err := st.db.Get(&hasTable, `SELECT to_regclass('public.agent') IS NOT NULL`); err != nil {
 		return err
 	}
 	if hasTable {
-		if err := st.db.Get(&hasToken, `
+		if err := st.db.Get(&hasHash, `
 			SELECT EXISTS (
 				SELECT 1 FROM information_schema.columns
-				WHERE table_name = 'agent' AND column_name = 'token'
+				WHERE table_name = 'agent' AND column_name = 'token_hash'
 			)`); err != nil {
 			return err
 		}
-		if !hasToken {
+		if !hasHash {
 			if _, err := st.db.Exec(`DROP TABLE agent`); err != nil {
 				return err
 			}
@@ -122,7 +130,7 @@ func (st *Store) MigrateAgents() error {
 		CREATE TABLE IF NOT EXISTS agent (
 			id             BIGSERIAL PRIMARY KEY,
 			name           TEXT NOT NULL UNIQUE,
-			token          TEXT NOT NULL UNIQUE,
+			token_hash     TEXT NOT NULL UNIQUE,
 			user_id        BIGINT,
 			max_concurrent INTEGER NOT NULL DEFAULT 2,
 			protocol       INTEGER,
@@ -155,27 +163,34 @@ func (st *Store) MigrateAgents() error {
 	return err
 }
 
-// EnsureAgent creates-or-returns an agent by name, minting a per-agent token on
-// first sight. Idempotent, so a provisioning caller (the demo register flow)
-// gets a stable token to hand its worker. A 0 owner does not clobber a known
-// one.
-func (st *Store) EnsureAgent(ctx context.Context, name string, userID int64) (Agent, error) {
+// EnsureAgent creates-or-refreshes an agent by name for the master-token
+// provisioning path, returning the plaintext token — the ONE time it exists;
+// only its hash is stored. A 0 owner does not clobber a known one.
+//
+// On a name it has seen, this RE-MINTS: the stored hash cannot be turned back
+// into a token to hand out, so re-registering issues a fresh credential and
+// the old one stops working. That is the right semantics for the path anyway
+// — a worker that comes back to /register is a worker being re-provisioned —
+// and it is why the mock client gets fresh tokens each run rather than
+// accumulating live ones.
+func (st *Store) EnsureAgent(ctx context.Context, name string, userID int64) (Agent, string, error) {
 	var owner sql.NullInt64
 	if userID > 0 {
 		owner = sql.NullInt64{Int64: userID, Valid: true}
 	}
 	tok, err := newAgentToken()
 	if err != nil {
-		return Agent{}, err
+		return Agent{}, "", err
 	}
 	var a Agent
 	err = st.db.GetContext(ctx, &a, `
-		INSERT INTO agent (name, token, user_id)
+		INSERT INTO agent (name, token_hash, user_id)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (name) DO UPDATE SET
-			user_id = COALESCE(EXCLUDED.user_id, agent.user_id)
-		RETURNING *`, name, tok, owner)
-	return a, err
+			token_hash = EXCLUDED.token_hash,
+			user_id    = COALESCE(EXCLUDED.user_id, agent.user_id)
+		RETURNING *`, name, hashAgentToken(tok), owner)
+	return a, tok, err
 }
 
 // The self-service refusals, as sentinels so the handler can tell "you cannot"
@@ -193,30 +208,30 @@ var (
 )
 
 // CreateAgentOwned is the SELF-SERVICE create: a member registering their own
-// worker from /p/agents. Distinct from EnsureAgent, and the difference is the
-// security line: EnsureAgent is idempotent for the master-token provisioning
-// path and RETURNS THE EXISTING ROW — token included — on a name it has seen.
-// Fine behind the master token; a leak in a member's hands, where "create
-// seedbox-01" would hand them the token of whoever owns seedbox-01 already.
-// So this inserts strictly: a taken name is ErrAgentNameTaken, never a row.
-func (st *Store) CreateAgentOwned(ctx context.Context, ownerID int64, name string) (Agent, error) {
+// worker from /p/agents, returning the plaintext token shown once. Distinct
+// from EnsureAgent, and the difference is the security line: EnsureAgent
+// re-mints on a name it has seen, which behind the master token is
+// re-provisioning — but in a member's hands "create seedbox-01" would
+// REVOKE-AND-REPLACE the credential of whoever owns seedbox-01 already. So
+// this inserts strictly: a taken name is ErrAgentNameTaken, never a write.
+func (st *Store) CreateAgentOwned(ctx context.Context, ownerID int64, name string) (Agent, string, error) {
 	if ownerID <= 0 {
-		return Agent{}, ErrAgentNotOwned
+		return Agent{}, "", ErrAgentNotOwned
 	}
 	tok, err := newAgentToken()
 	if err != nil {
-		return Agent{}, err
+		return Agent{}, "", err
 	}
 	var a Agent
 	err = st.db.GetContext(ctx, &a, `
-		INSERT INTO agent (name, token, user_id)
+		INSERT INTO agent (name, token_hash, user_id)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (name) DO NOTHING
-		RETURNING *`, name, tok, sql.NullInt64{Int64: ownerID, Valid: true})
+		RETURNING *`, name, hashAgentToken(tok), sql.NullInt64{Int64: ownerID, Valid: true})
 	if errors.Is(err, sql.ErrNoRows) {
-		return Agent{}, ErrAgentNameTaken
+		return Agent{}, "", ErrAgentNameTaken
 	}
-	return a, err
+	return a, tok, err
 }
 
 // RotateAgentTokenOwned mints a new token for the member's OWN agent,
@@ -228,7 +243,7 @@ func (st *Store) RotateAgentTokenOwned(ctx context.Context, ownerID, agentID int
 		return "", err
 	}
 	res, err := st.db.ExecContext(ctx, `
-		UPDATE agent SET token = $3 WHERE id = $1 AND user_id = $2`, agentID, ownerID, tok)
+		UPDATE agent SET token_hash = $3 WHERE id = $1 AND user_id = $2`, agentID, ownerID, hashAgentToken(tok))
 	if err != nil {
 		return "", err
 	}
@@ -281,7 +296,7 @@ func (st *Store) AgentByToken(ctx context.Context, token string) (Agent, bool, e
 		return Agent{}, false, nil
 	}
 	var a Agent
-	err := st.db.GetContext(ctx, &a, `SELECT * FROM agent WHERE token = $1`, token)
+	err := st.db.GetContext(ctx, &a, `SELECT * FROM agent WHERE token_hash = $1`, hashAgentToken(token))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Agent{}, false, nil
 	}
@@ -376,7 +391,7 @@ func (st *Store) RegenerateAgentToken(ctx context.Context, id int64) (string, er
 	if err != nil {
 		return "", err
 	}
-	_, err = st.db.ExecContext(ctx, `UPDATE agent SET token = $2 WHERE id = $1`, id, tok)
+	_, err = st.db.ExecContext(ctx, `UPDATE agent SET token_hash = $2 WHERE id = $1`, id, hashAgentToken(tok))
 	return tok, err
 }
 
@@ -408,6 +423,14 @@ func (st *Store) UsernameByID(ctx context.Context, id int64) string {
 		return ""
 	}
 	return name
+}
+
+// hashAgentToken is the at-rest form of a bearer token: SHA-256, hex. Fast
+// hashing is correct here (no KDF): the input is 128 random bits, not a
+// password, so brute force is the search for the token itself.
+func hashAgentToken(tok string) string {
+	sum := sha256.Sum256([]byte(tok))
+	return hex.EncodeToString(sum[:])
 }
 
 // newAgentToken mints a 32-character hex bearer token.

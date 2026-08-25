@@ -18,7 +18,7 @@
 <div class="notice notice--success">
     <svg class="icon notice__icon" aria-hidden="true"><use href="#lock"></use></svg>
     <span>
-        Token for <strong>{{.VM.NewTokenName}}</strong> (shown once — copy it now):
+        Token for <strong>{{.VM.NewTokenName}}</strong> (shown once — the site keeps only a hash; copy it now):
         <code class="agent-token__value">{{.VM.NewToken}}</code><br>
         The agent sends it as <code>Authorization: Bearer &lt;token&gt;</code> with <code>X-Agent-Protocol: 3</code>.
     </span>
@@ -147,7 +147,7 @@
                         </form>
                     </td>
                     <td class="small">
-                        <span class="text-subtle" title="Token ends in these characters">…{{.TokenTail}}</span>
+                        <span class="text-subtle" title="Credential fingerprint (hash tail) — the token itself is never stored">…{{.TokenTail}}</span>
                         <div class="d-flex gap-1 mt-1">
                             <form method="post" action="/admin/agents/token">
                                 <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">

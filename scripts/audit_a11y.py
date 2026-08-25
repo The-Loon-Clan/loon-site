@@ -348,15 +348,9 @@ A11Y_BASELINE = {
     # A page that starts passing must LEAVE, and this is stale if it
     # does not -- those two guards below are what emptied it.
     #
-    # /p/agents, 25 Aug 2026: TWO findings in loon-plugins b629622 (the
-    # agent plugin's new member page): its fragment carries its own <h1>
-    # while site_page.html already names the page (the convention is NO
-    # h1 in fragments -- achievements has zero), and the create form's
-    # name input has no label. Both are that plugin's markup; the fix
-    # request is filed with its owner (c:/tmp/loon-agents/
-    # demo_worker.json), and this entry leaves in the commit that pulls
-    # the fixed version.
-    "/p/agents": 2,
+    # /p/agents held 2 for one commit on 25 Aug 2026 (loon-plugins b629622:
+    # a fragment h1 beside site_page.html's own, and an unlabelled create
+    # input); a435895 fixed both and the entry left the same day.
 }
 
 def main():

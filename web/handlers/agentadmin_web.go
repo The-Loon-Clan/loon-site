@@ -126,7 +126,10 @@ func (w *web) agentsVM(ctx context.Context) agentsVM {
 func (w *web) agentRowFrom(ctx context.Context, a storage.Agent, now time.Time) agentRow {
 	row := agentRow{
 		ID: a.ID, Name: a.Name, Max: a.MaxConcurrent, Completed: a.Completed,
-		TokenTail: tokenTail(a.Token),
+		// The tail of the HASH, not of a token: the plaintext is gone the
+		// moment it was shown. Still enough to tell two credentials apart in
+		// the roster, which is all this column is for.
+		TokenTail: tokenTail(a.TokenHash),
 	}
 	if a.LastSeenAt.Valid {
 		row.LastSeen = humanAge(now.Sub(a.LastSeenAt.Time))
@@ -206,13 +209,13 @@ func (w *web) adminAgentCreate(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	a, err := w.data.EnsureAgent(ctx, name, w.data.UserIDByUsername(ctx, owner))
+	a, tok, err := w.data.EnsureAgent(ctx, name, w.data.UserIDByUsername(ctx, owner))
 	if err != nil {
 		w.log.Error("create agent", "agent", name, "err", err)
 		c.Redirect(http.StatusSeeOther, "/admin/agents")
 		return
 	}
-	w.renderAgents(c, a.Name, a.Token)
+	w.renderAgents(c, a.Name, tok)
 }
 
 // adminAgentToken rotates one agent's token, revoking the old one, and shows
