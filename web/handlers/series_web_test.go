@@ -115,7 +115,7 @@ func TestGroupEpisodes(t *testing.T) {
 		{ID: 4, Title: "Show.S03E01.1080p", Season: 3, Episode: 1},
 		{ID: 5, Title: "Show.S02E05.1080p", Season: 2, Episode: 5},
 	}
-	got := groupEpisodes("show", rels, -1, nil)
+	got := groupEpisodes("show", rels, -1, nil, nil)
 
 	want := []string{"S03E01", "S02E05", "S02E04", "Season 2 · complete"}
 	if len(got) != len(want) {
@@ -149,7 +149,7 @@ func TestGroupEpisodes(t *testing.T) {
 func TestGroupEpisodesDropsTheLinkWhenAlreadyFiltered(t *testing.T) {
 	got := groupEpisodes("show", []pluginapi.Release{
 		{ID: 1, Season: 2, Episode: 4},
-	}, 4, nil)
+	}, 4, nil, nil)
 	if len(got) != 1 {
 		t.Fatalf("got %d groups, want 1", len(got))
 	}
@@ -167,7 +167,7 @@ func TestGroupEpisodesMarksTrackerMirrors(t *testing.T) {
 		{ID: 2, Season: 1, Episode: 1},
 	}, -1, map[int64]pluginapi.TorrentMirror{
 		1: {InfoHash: "abc", Href: "/tracker/t/abc", Seeders: 12, Leechers: 3},
-	})
+	}, nil)
 	rows := got[0].Releases
 	if len(rows) != 2 {
 		t.Fatalf("got %d rows, want 2", len(rows))
@@ -197,5 +197,34 @@ func TestSeriesIndexHrefKeepsTheQuery(t *testing.T) {
 	got := hostPagination(2, 60, 300, seriesIndexHref("the blacklist")).BaseURL
 	if got != "/series?q=the+blacklist&" {
 		t.Errorf("base = %q, want the escaped query kept and an & separator", got)
+	}
+}
+
+// The measured line is a DIFFERENT claim from the filename tags beside it, and
+// the row has to carry both: the tags are what the poster called this copy, the
+// summary is what somebody who downloaded it reported. Six copies of one
+// episode with only tags to choose between them is the gap BACKLOG #18 names,
+// and it is the whole reason the series page wanted this.
+//
+// Threaded as a PARAMETER, like the mirrors beside it, so the grouping stays a
+// pure function — and pinned here because a release with no report must come
+// out with an empty line rather than someone else's.
+func TestGroupEpisodesCarriesTheMeasuredLine(t *testing.T) {
+	got := groupEpisodes("show", []pluginapi.Release{
+		{ID: 1, Season: 1, Episode: 1},
+		{ID: 2, Season: 1, Episode: 1},
+	}, -1, nil, map[int64]string{
+		1: "HEVC at 10.4 Mb/s · E-AC-3 JOC 6 channels",
+	})
+	rows := got[0].Releases
+	if len(rows) != 2 {
+		t.Fatalf("got %d rows, want 2", len(rows))
+	}
+	if rows[0].Media != "HEVC at 10.4 Mb/s · E-AC-3 JOC 6 channels" {
+		t.Errorf("reported copy carries Media = %q, want the summary", rows[0].Media)
+	}
+	if rows[1].Media != "" {
+		t.Errorf("unreported copy carries Media = %q — a release nobody has "+
+			"measured must show nothing, never the neighbouring row's line", rows[1].Media)
 	}
 }

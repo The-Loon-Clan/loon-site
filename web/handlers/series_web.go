@@ -71,6 +71,12 @@ type seriesRowVM struct {
 	// Guarded on this rather than on the counts, for the reason the listing
 	// rows already are: 0 seeders is a real figure meaning a dead torrent, and
 	// must not read the same as a release that was never mirrored.
+	// Media is the measured one-liner — "HEVC at 10.4 Mb/s · E-AC-3 JOC 6
+	// channels" — from somebody who downloaded this copy, as opposed to Tags
+	// above, which is what the poster named it. Empty when nobody has reported
+	// on this release, which is most of them: the row then reads exactly as it
+	// did before. See seriesmedia_web.go.
+	Media string
 	OnTracker bool
 	// TorrentHref is where the TRACKER says its page for this is. Empty when
 	// it publishes none, and the row then states the mirror without linking.
@@ -162,7 +168,8 @@ func (w *web) seriesPage(c *gin.Context) {
 		// The tracker's side of the mix, resolved once for the page rather than
 		// once per row — and passed IN, so the grouping stays a pure function.
 		"Groups": groupEpisodes(key, rels, episode,
-			w.releaseMirrors(ctx, releaseIDsIn(rels))),
+			w.releaseMirrors(ctx, releaseIDsIn(rels)),
+			w.releaseSummaries(ctx, releaseIDsIn(rels))),
 		"Season":  season,
 		"Episode": episode,
 		// Filtered drives the "clear" control, so it means "something is
@@ -268,7 +275,7 @@ func seasonChips(key string, seasons []pluginapi.SeriesSeason, picked int) []sea
 // Newest season and episode first, which is what a reader following a running
 // show wants; within an episode the releases keep the index's order, newest
 // posting first.
-func groupEpisodes(key string, rels []pluginapi.Release, episode int, mirrors map[int64]pluginapi.TorrentMirror) []episodeGroup {
+func groupEpisodes(key string, rels []pluginapi.Release, episode int, mirrors map[int64]pluginapi.TorrentMirror, media map[int64]string) []episodeGroup {
 	if len(rels) == 0 {
 		return nil
 	}
@@ -313,6 +320,7 @@ func groupEpisodes(key string, rels []pluginapi.Release, episode int, mirrors ma
 			row.OnTracker, row.TorrentHref = true, m.Href
 			row.Seeders, row.Leechers = m.Seeders, m.Leechers
 		}
+		row.Media = media[r.ID]
 		groups[i].Releases = append(groups[i].Releases, row)
 	}
 	// Newest season first; within a season, newest episode first, with the

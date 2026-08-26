@@ -130,6 +130,15 @@
                                 <a class="data-table__title" href="/release/{{.ID}}">{{.Title}}</a>
                                 <div class="data-table__meta">
                                     {{range .Tags}}<span class="tag tag--codec">{{.}}</span>{{end}}
+                                    {{/* MEASURED, not claimed. The tags above
+                                         are what the poster called this copy;
+                                         this is what somebody who downloaded it
+                                         reported — the line that answers "which
+                                         of these six is the good one". Absent
+                                         for most releases, and the row then
+                                         reads exactly as it did before it
+                                         existed. See seriesmedia_web.go. */}}
+                                    {{with .Media}}<span class="series-media" title="Reported by a member who downloaded this copy">{{.}}</span>{{end}}
                                     {{/* Also on the tracker. Guarded on
                                          OnTracker, never on the counts: 0
                                          seeders is a real figure meaning a dead
