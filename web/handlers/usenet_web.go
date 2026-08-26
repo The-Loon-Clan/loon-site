@@ -63,6 +63,33 @@ func (w *web) newznabAPI(c *gin.Context) {
 		APIKey:     in.APIKey,
 	}
 
+	// AN ID SEARCH WE CANNOT ANSWER IS EMPTY, NOT EVERYTHING.
+	//
+	// Newznab clients narrow by external id — tvdbid, imdbid, tmdbid, tvmazeid,
+	// traktid, rid — and this index stores none of them, which is why caps
+	// deliberately does not advertise any. But an unknown parameter was simply
+	// IGNORED, and an id search carries no q, so "give me Game of Thrones by
+	// tvdbid" fell through to an unfiltered feed and answered with the entire
+	// index: 160,673 releases, presented as matches for one show.
+	//
+	// Found by pointing NZBHydra2 at this host and reading what it probed with.
+	// Production recorded the same shape from the same client (its BACKLOG: a
+	// degraded query served newest-releases and "NZBHydra caches those as
+	// matches"), which is what makes this worth refusing rather than tolerating:
+	// the response is indistinguishable from a real answer, so a client stores
+	// it, and nothing anywhere reports a problem.
+	//
+	// EMPTY, not an error. We are healthy and simply cannot resolve that id;
+	// a Newznab error would have Sonarr mark the indexer as failing, while an
+	// empty feed says the true thing — no results for that question. A client
+	// that sent no id at all still gets the ordinary newest-releases feed,
+	// which is a legitimate Newznab request and unaffected.
+	if id, ok := unsupportedSearchID(c); ok {
+		w.log.Info("newznab id search refused", "param", id, "function", req.Function)
+		writeNewznab(c, emptyNewznabFeed(req), "id-unsupported")
+		return
+	}
+
 	// Cache read functions; t=get streams NZB bytes, don't hold those.
 	//
 	// AND NOT A NARROWED tvsearch, until the key covers it.
