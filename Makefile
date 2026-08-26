@@ -172,6 +172,26 @@ itest:
 	 docker rm -fv loon-itestdb loon-itestredis >/dev/null 2>&1; \
 	 exit $$status
 
+## clients: conformance against the REAL programs that consume this indexer
+##
+## Not part of `check`, and that is a decision rather than an oversight: this
+## pulls two container images and takes minutes, while `check` is the thing
+## somebody runs before every commit. A slow gate is a skipped gate.
+##
+## It exists because every other check here reads this site's own output and
+## judges it. That is the wrong judge for an API whose entire purpose is to be
+## consumed by somebody else's software -- a Newznab feed can be well-formed,
+## spec-valid and still useless to the two programs anyone actually points at
+## an indexer. `/api?t=tvsearch&tvdbid=121361` answering with the whole
+## 160,673-release catalogue passed every static check here; NZBHydra2 found it
+## in ten minutes.
+##
+## Needs the demo running (`docker compose up -d`). Test containers publish on
+## HIGH ports so they cannot collide with -- or reconfigure -- a real Prowlarr
+## or Hydra the operator runs on this machine.
+clients:
+	@$(PYTHON) scripts/clienttest.py
+
 ## cover: test with coverage, print the per-package table, enforce the floor
 cover:
 	@$(GO) test ./... -coverprofile=coverage.out >/dev/null 2>&1 || true
