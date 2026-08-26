@@ -506,6 +506,12 @@ type newznabQueryInput struct {
 	APIKey   string `form:"apikey"`
 	Limit    int    `form:"limit"`
 	Offset   int    `form:"offset"`
+	// season= and ep=, as POINTERS so "not asked" survives the parse. A client
+	// that sent neither must keep getting an unfiltered feed, and an int cannot
+	// tell that apart from season=0 — which in the indexer's schema means "the
+	// parser never read one", not "specials".
+	Season  *int `form:"season"`
+	Episode *int `form:"ep"`
 }
 
 func readNewznabQueryInput(c *gin.Context) (newznabQueryInput, error) {

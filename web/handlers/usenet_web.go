@@ -51,13 +51,31 @@ func (w *web) newznabAPI(c *gin.Context) {
 		Limit:      in.Limit,
 		Offset:     in.Offset,
 		ID:         in.ID,
+		// The tvsearch narrowing. Without these a member asking for ONE episode
+		// is handed every episode of the series, every time, with nothing in the
+		// response admitting it — and it is the single query Sonarr makes most.
+		// Pointers, so "not asked" is distinguishable from "asked for zero"; the
+		// plugin ignores a zero anyway, because 0 means unparsed in its schema.
+		Season:     in.Season,
+		Episode:    in.Episode,
 		BaseURL:    requestBaseURL(c),
 		Title:      "loon indexer",
 		APIKey:     in.APIKey,
 	}
 
 	// Cache read functions; t=get streams NZB bytes, don't hold those.
-	cacheable := w.cache != nil && req.Function != "get"
+	//
+	// AND NOT A NARROWED tvsearch, until the key covers it.
+	// pluginapi.NewznabCacheKey hashes t/q/cat/limit/offset/id/apikey/base/title
+	// and NOT season/episode, so `tvsearch&q=X&season=4&ep=1` and `tvsearch&q=X`
+	// collide: whichever ran first would answer for both, handing a client
+	// filtered results it never asked to narrow, or the whole series to one that
+	// did. Skipping the cache for these is the conservative half — an
+	// uncached correct answer beats a cached wrong one — and it costs only the
+	// requests that carry a narrowing. Reported upstream; when the key includes
+	// them this condition comes out.
+	narrowed := req.Season != nil || req.Episode != nil
+	cacheable := w.cache != nil && req.Function != "get" && !narrowed
 	var key string
 	if cacheable {
 		key = pluginapi.NewznabCacheKey(req)

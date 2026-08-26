@@ -111,6 +111,26 @@ func fieldKey(f reflect.StructField) (key string, raw, skip bool) {
 
 func setField(fv reflect.Value, s string, present bool) error {
 	switch fv.Kind() {
+	case reflect.Pointer:
+		// A POINTER field means the endpoint needs "not asked" to survive the
+		// parse, distinct from "asked for the zero value". Absent stays nil;
+		// present allocates and fills the element by the rules below.
+		//
+		// The Newznab tvsearch narrowing is the case that wanted it: season=0
+		// means "the parser never read one" in the indexer's schema, so a plain
+		// int could not tell a client that sent no season from one that sent
+		// zero — and the two must behave differently. Before this, such a field
+		// fell to the default branch and Bind returned an "unsupported kind"
+		// error that the caller ignored, so the parameter silently never
+		// arrived: caps advertised the filter and the filter did nothing.
+		if !present {
+			return nil
+		}
+		p := reflect.New(fv.Type().Elem())
+		if err := setField(p.Elem(), s, present); err != nil {
+			return err
+		}
+		fv.Set(p)
 	case reflect.String:
 		fv.SetString(s)
 	case reflect.Bool:
