@@ -90,7 +90,16 @@
                  would imply a search nobody ran — the reader would take an
                  unfiltered feed for the answer to a question. */}}
             {{if .Latest}}Latest releases{{else}}Results{{end}}
-            <span class="panel__grouping">{{len .Results}} release{{if ne (len .Results) 1}}s{{end}}</span>
+            {{/* "100 releases" was the FETCH LIMIT wearing the word "releases".
+                 A search for "the" matches 47,319 of them and the page said
+                 100, which is not a rounding error but a different claim: it
+                 reads as the size of the result set and is really the size of
+                 the window. The read behind this page returns rows and no
+                 total, so the honest sentence is the one that does not pretend
+                 to a number nobody has. */}}
+            <span class="panel__grouping">
+                {{if .Capped}}first {{len .Results}}{{else}}{{len .Results}} release{{if ne (len .Results) 1}}s{{end}}{{end}}
+            </span>
         </h2>
     </header>
     <div class="panel__body panel__body--flush">

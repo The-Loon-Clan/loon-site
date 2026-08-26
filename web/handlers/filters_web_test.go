@@ -65,9 +65,9 @@ func TestClearingIsCaseInsensitive(t *testing.T) {
 func TestFacetCountsSkipEmptyValues(t *testing.T) {
 	// A release with no parsed group is not a group anyone can filter by, and
 	// counting it under "" would offer an empty chip.
-	res, src, grp := facetCounts([]searchRow{
-		{Resolution: "1080p", Source: "WEB-DL", Group: "NTb"},
-		{Resolution: "1080p", Source: "", Group: ""},
+	res, src, grp, cat := facetCounts([]searchRow{
+		{Resolution: "1080p", Source: "WEB-DL", Group: "NTb", Category: "TV/HD"},
+		{Resolution: "1080p", Source: "", Group: "", Category: ""},
 	})
 	if res["1080p"] != 2 {
 		t.Errorf("resolution count = %d, want 2", res["1080p"])
@@ -77,6 +77,14 @@ func TestFacetCountsSkipEmptyValues(t *testing.T) {
 	}
 	if _, ok := grp[""]; ok {
 		t.Error("empty group was counted as a facet value")
+	}
+	// Category is the newest of the four and the same rule applies: a release
+	// the catalog could not name is not a category anyone can click.
+	if cat["TV/HD"] != 1 {
+		t.Errorf("category count = %d, want 1", cat["TV/HD"])
+	}
+	if _, ok := cat[""]; ok {
+		t.Error("empty category was counted as a facet value")
 	}
 }
 

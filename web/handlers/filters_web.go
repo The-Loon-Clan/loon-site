@@ -30,7 +30,17 @@ type releaseFilter struct {
 	Resolution string // "1080p"
 	Source     string // "BluRay"
 	Group      string // newsgroup
-	Sort       string // one of sortOptions
+	// Category is the display name ("TV/HD"), matched against what the catalog
+	// resolved for each row rather than against a Newznab id.
+	//
+	// A NAME and not an id, deliberately. The ids a search page would have to
+	// offer are whatever the fetched rows happen to carry -- a mix of parents
+	// and subcategories -- so filtering by id would need the parent/child
+	// expansion /browse does server-side, over a window that does not contain
+	// the whole category anyway. The name is what the row already displays, and
+	// clicking the thing you can see is the behaviour the other facets have.
+	Category string
+	Sort     string // one of sortOptions
 }
 
 // Narrows reports whether this filter actually excludes anything.
@@ -41,7 +51,7 @@ type releaseFilter struct {
 // match these filters" and "nothing is indexed" are both plausible and only one
 // of them is ever true.
 func (f releaseFilter) Narrows() bool {
-	return f.Resolution != "" || f.Source != "" || f.Group != ""
+	return f.Resolution != "" || f.Source != "" || f.Group != "" || f.Category != ""
 }
 
 // sortOptions are the orderings offered, in menu order. Keyed by the ?sort=
@@ -63,6 +73,14 @@ func parseFilter(c *gin.Context) releaseFilter {
 		Resolution: strings.TrimSpace(c.Query("res")),
 		Source:     strings.TrimSpace(c.Query("source")),
 		Group:      strings.TrimSpace(c.Query("group")),
+		// ?cat= on a SEARCH page. On /browse the same name selects the category
+		// to read from the index, which is a different and stronger thing; here
+		// there is no query capability that takes both a term and a category,
+		// so it narrows the page that came back. Accepting it either way is the
+		// point: it used to be parsed nowhere, so /search?cat=5000 and
+		// ?cat=2000 returned the identical rows and a member had no way to
+		// separate films from television in a mixed result.
+		Category:   strings.TrimSpace(c.Query("cat")),
 		Sort:       strings.TrimSpace(c.Query("sort")),
 	}
 	valid := false
@@ -81,7 +99,8 @@ func parseFilter(c *gin.Context) releaseFilter {
 // Active reports whether anything is filtering, so a template can offer a
 // "clear" control only when there is something to clear.
 func (f releaseFilter) Active() bool {
-	return f.Resolution != "" || f.Source != "" || f.Group != "" || f.Sort != ""
+	return f.Resolution != "" || f.Source != "" || f.Group != "" ||
+		f.Category != "" || f.Sort != ""
 }
 
 // apply filters and sorts a page of rows. Returns a new slice; the caller's is
@@ -97,6 +116,9 @@ func (f releaseFilter) apply(rows []searchRow) []searchRow {
 			continue
 		}
 		if f.Group != "" && !strings.EqualFold(r.Group, f.Group) {
+			continue
+		}
+		if f.Category != "" && !strings.EqualFold(r.Category, f.Category) {
 			continue
 		}
 		out = append(out, r)
@@ -144,6 +166,7 @@ type facetsVM struct {
 	Resolutions []facet
 	Sources     []facet
 	Groups      []facet
+	Categories  []facet
 	Sorts       []facet
 	Active      bool
 	ClearHref   string
@@ -156,7 +179,7 @@ type facetsVM struct {
 // base is the page path plus any params that are NOT facets (?q=, ?cat=), so a
 // facet link keeps the search or category it was clicked from.
 func buildFacets(rows []searchRow, f releaseFilter, base string, keep url.Values) facetsVM {
-	resCount, srcCount, grpCount := facetCounts(rows)
+	resCount, srcCount, grpCount, catCount := facetCounts(rows)
 	link := func(param, value string) string { return facetLink(base, keep, f, param, value) }
 	build := func(counts map[string]int, param, active string) []facet {
 		return facetList(counts, param, active, link)
@@ -175,6 +198,7 @@ func buildFacets(rows []searchRow, f releaseFilter, base string, keep url.Values
 		Resolutions: build(resCount, "res", f.Resolution),
 		Sources:     build(srcCount, "source", f.Source),
 		Groups:      build(grpCount, "group", f.Group),
+		Categories:  build(catCount, "cat", f.Category),
 		Sorts:       sorts,
 		Active:      f.Active(),
 		ClearHref:   clear,
@@ -185,8 +209,8 @@ func buildFacets(rows []searchRow, f releaseFilter, base string, keep url.Values
 //
 // Empty values are skipped rather than counted under "": a release with no
 // parsed group is not a group anyone can filter by.
-func facetCounts(rows []searchRow) (res, src, grp map[string]int) {
-	res, src, grp = map[string]int{}, map[string]int{}, map[string]int{}
+func facetCounts(rows []searchRow) (res, src, grp, cat map[string]int) {
+	res, src, grp, cat = map[string]int{}, map[string]int{}, map[string]int{}, map[string]int{}
 	for _, r := range rows {
 		if r.Resolution != "" {
 			res[r.Resolution]++
@@ -197,8 +221,11 @@ func facetCounts(rows []searchRow) (res, src, grp map[string]int) {
 		if r.Group != "" {
 			grp[r.Group]++
 		}
+		if r.Category != "" {
+			cat[r.Category]++
+		}
 	}
-	return res, src, grp
+	return res, src, grp, cat
 }
 
 // facetLink builds the URL for one facet value.

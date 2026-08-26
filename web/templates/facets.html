@@ -1,7 +1,8 @@
 {{/* Filter bar for /browse and /search — UNIT3D's torrent-search facets, cut
      to what this stack can answer.
 
-     Dot is a facetsVM (filters_web.go): Resolutions, Sources, Groups, Sorts,
+     Dot is a facetsVM (filters_web.go): Resolutions, Sources, Groups,
+     Categories, Sorts,
      Active, ClearHref.
 
      Every href is built in Go, not here. A facet link has to carry the other
@@ -13,7 +14,7 @@
      the page, so an empty group means nothing on this page carries that
      metadata, and an empty row of pills would just be noise. */}}
 {{define "facet-bar"}}
-{{if or .Resolutions .Sources .Groups}}
+{{if or .Resolutions .Sources .Groups .Categories}}
 <section class="panelV2 panelV2--overflow">
     <header class="panel__header">
         <h2 class="panel__heading">
@@ -37,6 +38,12 @@
         {{end}}
     </header>
     <div class="panel__body">
+        {{/* Category FIRST: on a search that returned films and television
+             together it is the coarsest cut and the one a reader reaches for
+             before quality or source. Absent on /browse, where the page is
+             already one category and a row offering to narrow it to itself
+             would be noise. */}}
+        {{template "facet-row" (dict "Label" "Category" "Facets" .Categories)}}
         {{template "facet-row" (dict "Label" "Quality" "Facets" .Resolutions)}}
         {{template "facet-row" (dict "Label" "Source" "Facets" .Sources)}}
         {{template "facet-row" (dict "Label" "Newsgroup" "Facets" .Groups)}}

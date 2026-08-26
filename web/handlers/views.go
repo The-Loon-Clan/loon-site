@@ -1601,6 +1601,11 @@ func (w *web) search(c *gin.Context) {
 			data["Results"] = shown
 			w.cartData(c, data, shown)
 			data["Filter"] = f
+			// A full window means the index almost certainly holds more than
+			// this, and the page must not print the limit as though it were a
+			// total. Judged on the UNFILTERED rows: a facet narrowing 100 down
+			// to 12 has not made the search itself smaller.
+			data["Capped"] = len(rows) >= listingLimit
 		}
 	}
 	// Same as browse. search-results wraps all three shapes of this region
