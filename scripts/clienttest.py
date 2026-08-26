@@ -45,34 +45,31 @@ Fixed numbers appear nowhere.
 
 import argparse
 import json
+import os
+import re
+import socket
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from http import cookiejar as http_cookiejar
 
-DEMO = "http://localhost:8090"
-# Test containers publish on HIGH ports, never the clients' well-known ones.
-# This machine already runs a real Prowlarr on 9696; binding it would fail the
-# suite at best, and at worst the suite would be talking to somebody's actual
-# configured client and changing its indexers. A throwaway container on 19696
-# cannot be mistaken for theirs.
-# Reached from a sibling container: compose service name and internal port.
-DEMO_INTERNAL = "http://app:8090"
-NETWORK = "loon-site_default"
+# Everything addresses everything else by SERVICE NAME on the demo's network
+# (see docker-compose.clients.yml). Nothing is published on the host, so there
+# is no port to collide with a real Prowlarr, Hydra or SAB the operator runs on
+# the same machine -- and no way for this suite to reconfigure one by accident.
+#
+# DEMO_URL is overridable only so the file can still be pointed at a site on a
+# different network; the default is what the compose file supplies.
+DEMO = os.environ.get("DEMO_URL", "http://app:8090")
+DEMO_INTERNAL = DEMO
 QUERY = "Breaking Bad"   # any show the seeded index carries
 TV_SEASON, TV_EPISODE = 4, 1
 
 
 # ── plumbing ────────────────────────────────────────────────────────────
-
-def sh(*args, check=False):
-    r = subprocess.run(args, capture_output=True, text=True)
-    if check and r.returncode != 0:
-        raise RuntimeError(" ".join(args) + "\n" + r.stderr.strip())
-    return r.stdout.strip()
-
 
 def http(url, data=None, headers=None, method=None, timeout=60):
     req = urllib.request.Request(url, data=data, method=method)
@@ -103,17 +100,24 @@ def wait_for(fn, what, secs=180):
 
 
 def demo_api_key():
-    """A member's key, read from the database.
+    """A member's Newznab key, read the way a member gets it: sign in, open the
+    API-key page, take the value out of the field it is displayed in.
 
-    Not scraped off /p/api-key: that page carries other 32-hex strings (a CSRF
-    token among them) and a regex over it picks the wrong one, which fails as
-    "Incorrect user credentials" and looks like a bug in the API.
+    Over HTTP rather than out of the database, so the suite needs no Postgres
+    client and no Docker socket -- which is what lets the whole thing run as an
+    ordinary container.
+
+    Anchored on the field's class rather than "the first 32 hex characters on
+    the page": the page also carries a CSRF token, and a loose pattern picks
+    that instead. The request then fails as "Incorrect user credentials", which
+    reads like a bug in the API and is really a bug in the test.
     """
-    out = sh("docker", "compose", "exec", "-T", "db", "psql", "-U", "demo",
-             "-d", "loon_demo", "-t", "-c",
-             "select k.api_key from api_keys k join users u on u.id=k.user_id "
-             "where u.username='bob' limit 1;")
-    return out.strip()
+    sess = Session()
+    if not sess.login("bob", "bob"):
+        return ""
+    _, body = sess.get("/p/api-key")
+    m = re.search(r'font-monospace" value="([0-9a-f]{32,})"', body)
+    return m.group(1) if m else ""
 
 
 def demo_total(key, params):
@@ -124,6 +128,47 @@ def demo_total(key, params):
     _, body = http(url)
     m = body.split('total="')
     return int(m[1].split('"')[0]) if len(m) > 1 else -1
+
+
+class Session:
+    """Just enough of a browser to sign in and read a page.
+
+    Not scripts/_site.py: that helper is written for a person running against
+    localhost, and this runs inside a container against a service name.
+    """
+
+    def __init__(self):
+        self.jar = http_cookiejar.CookieJar()
+        self.opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(self.jar))
+
+    def get(self, path):
+        try:
+            with self.opener.open(DEMO + path, timeout=30) as r:
+                return r.getcode(), r.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as e:
+            return e.code, e.read().decode("utf-8", "replace")
+        except Exception as e:                                # noqa: BLE001
+            return 0, str(e)
+
+    def login(self, user, pw):
+        _, page = self.get("/login")
+        m = re.search(r'name="_csrf" value="([^"]+)"', page)
+        if not m:
+            return False
+        data = urllib.parse.urlencode(
+            {"username": user, "password": pw, "_csrf": m.group(1)}).encode()
+        try:
+            self.opener.open(urllib.request.Request(DEMO + "/login", data=data),
+                             timeout=30).read()
+        except urllib.error.HTTPError as e:
+            # A successful login is a redirect, which surfaces as an error on
+            # an opener that follows them into a page it cannot read.
+            if e.code not in (301, 302, 303, 307, 308):
+                return False
+        except Exception:                                     # noqa: BLE001
+            return False
+        return user in self.get("/")[1]
 
 
 class Report:
@@ -164,18 +209,12 @@ class Client:
     internal_port = 0   # what the client listens on inside its container
     container = ""
 
-    def start(self):
-        sh("docker", "rm", "-f", self.container)
-        sh("docker", "run", "-d", "--name", self.container,
-           "--network", NETWORK, "-p", "%d:%d" % (self.port, self.internal_port),
-           "-e", "PUID=1000", "-e", "PGID=1000", "-e", "TZ=UTC",
-           self.image, check=True)
-
-    def stop(self):
-        sh("docker", "rm", "-f", self.container)
+    # No start/stop: docker-compose.clients.yml owns the lifecycle, so this
+    # file never shells out to Docker and needs no socket. A client is already
+    # booting by the time the runner starts; ready() is what waits for it.
 
     def base(self):
-        return "http://localhost:%d" % self.port
+        return "http://%s:%d" % (self.name, self.internal_port)
 
 
 class Hydra(Client):
@@ -283,9 +322,16 @@ class Prowlarr(Client):
         return code == 200
 
     def _api_key(self):
-        out = sh("docker", "exec", self.container, "sh", "-c",
-                 "grep -oE '<ApiKey>[a-f0-9]+' /config/config.xml 2>/dev/null | head -1")
-        return out.replace("<ApiKey>", "").strip() or None
+        """Prowlarr generates its key into config.xml on first boot and will
+        not hand it out over HTTP without it -- a chicken and egg the shared
+        volume solves. Mounted READ-ONLY, so the suite can learn the key and
+        cannot rewrite the client's configuration."""
+        try:
+            with open("/clientconfig/prowlarr/config.xml", encoding="utf-8") as fh:
+                m = re.search(r"<ApiKey>([a-f0-9]+)</ApiKey>", fh.read())
+                return m.group(1) if m else None
+        except OSError:
+            return None
 
     def _hdr(self):
         return {"X-Api-Key": self.key, "Content-Type": "application/json"}
@@ -295,6 +341,17 @@ class Prowlarr(Client):
         hand-written body: the schema names every field and its default, so a
         change on their side surfaces as a missing field here instead of a
         silently ignored one."""
+        # Remove a "loon" left by an earlier run first. The client's config is
+        # on a volume that outlives the container, so a second run otherwise
+        # fails with "Name: Should be unique" -- a real collision reported as
+        # if our indexer were malformed.
+        code, body = http(self.base() + "/api/v1/indexer", headers=self._hdr())
+        if code == 200:
+            for existing in json.loads(body):
+                if existing.get("name") == "loon":
+                    http(self.base() + "/api/v1/indexer/%s" % existing["id"],
+                         headers=self._hdr(), method="DELETE")
+
         code, body = http(self.base() + "/api/v1/indexer/schema", headers=self._hdr())
         if code != 200:
             return False
@@ -367,6 +424,176 @@ class Prowlarr(Client):
                   "%d rows" % n)
 
 
+class Sab(Client):
+    """SABnzbd -- the downloader, and the only client here that is not a
+    Newznab reader at all.
+
+    That is exactly why it is worth running: Hydra and Prowlarr both judge us
+    by our FEED, and a feed can be perfect while the thing it points at is
+    broken. SAB judges us by whether the NZB actually downloads, parses, and
+    queues -- and by whether the post-processing script this site hands its
+    members reports back correctly afterwards.
+
+    Its own "test" is `mode=version`, which is the connection check its API
+    offers; SAB's Test buttons are for news SERVERS, not for indexers, so
+    version-then-addurl is the closest thing to "test connection to us".
+    """
+    name = "sab"
+    image = "lscr.io/linuxserver/sabnzbd:latest"
+    internal_port = 8080
+    container = "loon-clienttest-sab"
+    key = None
+
+    def base(self):
+        """BY IP, not by service name, and this is not a style choice.
+
+        SAB refuses any request whose Host header is a hostname it has not been
+        told about (https://sabnzbd.org/hostname-check), and at first boot it
+        whitelists only its own container id -- so `http://sab:8080` answers
+        "Access denied - Hostname verification failed" with HTTP 200 and a
+        sentence of prose. It looks nothing like an auth failure, which sends
+        you hunting for a wrong API key.
+
+        Whitelisting the service name in compose does not fix it: the option is
+        read when the config is FIRST written, and that config lives on a
+        volume that outlives the container. An IP Host header is allowed
+        unconditionally, needs no SAB configuration, and cannot rot.
+        """
+        return "http://%s:%d" % (socket.gethostbyname(self.name), self.internal_port)
+
+    def _api_key(self):
+        """SAB writes its key into sabnzbd.ini on first boot. Same shared
+        read-only volume as Prowlarr, same reason."""
+        try:
+            with open("/clientconfig/sab/sabnzbd.ini", encoding="utf-8") as fh:
+                m = re.search(r"^api_key\s*=\s*(\S+)", fh.read(), re.M)
+                return m.group(1) if m else None
+        except OSError:
+            return None
+
+    def ready(self):
+        self.key = self.key or self._api_key()
+        if not self.key:
+            return False
+        code, body = self.api("mode=version", timeout=5)
+        return code == 200 and body.strip() != ""
+
+    def api(self, params, timeout=60):
+        return http("%s/api?apikey=%s&output=json&%s"
+                    % (self.base(), self.key, params), timeout=timeout)
+
+    def nzb_link(self, key):
+        """A real download link out of a real feed -- the same one a member
+        would click, rather than a URL this test assembled and therefore
+        cannot be wrong about."""
+        _, feed = http(DEMO + "/api?apikey=" + key + "&"
+                       + urllib.parse.urlencode({"t": "search", "q": QUERY}))
+        for chunk in feed.split("<link>")[1:]:
+            cand = chunk.split("</link>")[0].replace("&amp;", "&")
+            if "t=get" in cand:
+                # The feed is built with the site's public base URL, which is
+                # localhost from the host's point of view and unreachable from
+                # inside this network. The PATH is what is being tested.
+                return DEMO + cand[cand.find("/api"):]
+        return ""
+
+    def run(self, rep, key):
+        rep.check(self.name, "answers its own version check", bool(self.key))
+
+        link = self.nzb_link(key)
+        if not rep.check(self.name, "a feed result carries a download link", bool(link)):
+            return
+
+        # PUSH: hand SAB the URL and let IT fetch, parse and queue the NZB.
+        # This is the half a Newznab client cannot test -- the feed can be
+        # perfect while the file behind it is not an NZB at all.
+        code, body = self.api("mode=addurl&name=" + urllib.parse.quote(link, safe=""),
+                              timeout=180)
+        # Parsed, not pattern-matched: SAB answers {"status":true,"nzo_ids":[…]}
+        # with no space after the colon, and a string test for '"status": true'
+        # calls a success a failure while printing the proof that it worked.
+        ok = False
+        try:
+            ok = code == 200 and json.loads(body).get("status") is True
+        except ValueError:
+            pass
+        rep.check(self.name, "accepts our NZB by URL (addurl)", ok, "" if ok else body[:120])
+
+        # And it has to actually ARRIVE. addurl returning true only means SAB
+        # took the job; the fetch happens afterwards, so a URL that 404s still
+        # answers true here and fails silently a second later.
+        def queued():
+            _, q = self.api("mode=queue")
+            _, h = self.api("mode=history")
+            return QUERY.split()[0].lower() in (q + h).lower()
+
+        rep.check(self.name, "the NZB reaches its queue or history",
+                  wait_for(queued, "SAB to fetch the NZB", 90),
+                  "addurl can succeed and the fetch still fail")
+
+    def run_report_script(self, rep, key):
+        """The RETURN half: the post-processing script this site serves its
+        members, run the way SAB runs it, against the live report endpoint.
+
+        Fetched from the site rather than kept in this repo, so what is tested
+        is the file members are actually given -- with its site URL and API key
+        already substituted in.
+        """
+        sess = Session()
+        if not sess.login("bob", "bob"):
+            return rep.check(self.name, "can fetch the report script", False, "login failed")
+        code, script = sess.get("/p/downloads/script?key=" + key)
+        if not rep.check(self.name, "the site serves a configured report script",
+                         code == 200 and "__API_KEY__" not in script,
+                         "HTTP %d" % code):
+            return
+
+        path = "/tmp/report.py"
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(script)
+
+        # GRAB FIRST, then report on what was grabbed.
+        #
+        # The endpoint resolves a job to a release by folding the job NAME and
+        # matching it against that member's recent grabs, so reporting a job
+        # nobody downloaded can only ever answer "could not match" -- which the
+        # script exits 0 on, because an unmatched report is not the member's
+        # fault. Asserting on that proves the endpoint is reachable and nothing
+        # more. Downloading a real NZB first is what makes the match possible,
+        # and the match is the feature.
+        title = self.grab_a_release(key)
+        if not rep.check(self.name, "can grab a release to report on", bool(title)):
+            return
+        # SAB passes positional arguments; argv[3] is the job name and argv[7]
+        # the exit status, 0 meaning the download completed.
+        r = subprocess.run([sys.executable, path, "/tmp", "", title, "", "", "", "", "0"],
+                           capture_output=True, text=True, timeout=120)
+        out = (r.stdout + r.stderr).strip()
+        last = out.splitlines()[-1][:140] if out else ""
+        rep.check(self.name, "the report script runs", r.returncode == 0, last)
+        # And that the site MATCHED it, rather than politely declining to.
+        rep.check(self.name, "the site matches the report to the grab",
+                  "could not match" not in out.lower(), last)
+
+    def grab_a_release(self, key):
+        """Download one NZB as the member, which is what records the grab the
+        report is later matched against. Returns the release title."""
+        _, feed = http(DEMO + "/api?apikey=" + key + "&"
+                       + urllib.parse.urlencode({"t": "search", "q": QUERY}))
+        title = ""
+        if "<title>" in feed:
+            for chunk in feed.split("<title>")[1:]:
+                cand = chunk.split("</title>")[0]
+                if QUERY.split()[0].lower() in cand.lower():
+                    title = cand
+                    break
+        link = self.nzb_link(key)
+        if not title or not link:
+            return ""
+        code, _ = http(link)
+        return title if code == 200 else ""
+
+
 # ── checks that need no client at all ───────────────────────────────────
 
 def api_contract_checks(rep, key):
@@ -429,7 +656,7 @@ def api_contract_checks(rep, key):
               "HTTP %d, %d bytes" % (code, len(body)))
 
 
-CLIENTS = {"hydra": Hydra, "prowlarr": Prowlarr}
+CLIENTS = {"hydra": Hydra, "prowlarr": Prowlarr, "sab": Sab}
 
 
 def main():
@@ -468,17 +695,17 @@ def main():
         c = cls()
         print("\n%s - %s" % (name, cls.image))
         try:
-            c.start()
             if not wait_for(c.ready, "%s to come up" % name):
                 rep.check(name, "starts and answers its own API", False)
                 continue
             rep.check(name, "starts and answers its own API", True)
             c.run(rep, key)
+            if hasattr(c, "run_report_script"):
+                c.run_report_script(rep, key)
         finally:
             # Always, even on an exception: this box is deliberately kept
             # quiet, and a suite that leaks containers is one nobody runs twice.
-            if not args.keep:
-                c.stop()
+            pass  # compose owns teardown: `docker compose ... down -v`
 
     return rep.summary()
 

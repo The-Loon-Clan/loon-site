@@ -190,7 +190,8 @@ itest:
 ## HIGH ports so they cannot collide with -- or reconfigure -- a real Prowlarr
 ## or Hydra the operator runs on this machine.
 clients:
-	@$(PYTHON) scripts/clienttest.py
+	@docker compose -f docker-compose.clients.yml up -d hydra prowlarr sab
+	@set +e; 	 docker compose -f docker-compose.clients.yml run --rm runner; 	 status=$$?; 	 docker compose -f docker-compose.clients.yml down -v >/dev/null 2>&1; 	 exit $$status
 
 ## cover: test with coverage, print the per-package table, enforce the floor
 cover:

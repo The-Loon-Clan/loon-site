@@ -124,9 +124,33 @@ make check      # gofmt, build, vet, golangci-lint, sqllint, tests, coverage flo
 make golint     # golangci-lint alone (slow the first time, seconds after)
 make vuln       # known vulnerabilities in code this project actually calls
 make itest      # the tests needing real services (throwaway Postgres + Redis)
+make clients    # conformance against the REAL programs that consume this API
 make run        # the site, detached
 make clean      # stop it — KEEPS the volumes
 ```
+
+`make clients` needs the site running (`make run`) and then starts NZBHydra2,
+Prowlarr and SABnzbd in throwaway containers, points them at it, and asserts
+what they observe. It exists because every other check here reads this site's
+own output and decides whether it looks right, which is the wrong judge for an
+API whose entire purpose is to be consumed by somebody else's software:
+`/api?t=tvsearch&tvdbid=…` once answered a request for one show with the whole
+160,000-release catalogue — well-formed XML, correct content type, every static
+check passing. NZBHydra2 found it in ten minutes.
+
+Hydra and Prowlarr judge the FEED (caps negotiation, their own indexer Test,
+and whether their result count agrees with ours). SABnzbd judges what the feed
+points AT: it fetches an NZB by URL and queues it, then the post-processing
+script this site serves its members runs against the live report endpoint and
+has to come back *matched*. No assertion is a fixed number — the index is a
+live crawl, so everything is either an invariant or a comparison against what
+the site itself reports for the same query in the same run.
+
+Everything runs in containers on the site's own network, addressed by service
+name, with nothing published on the host — so a real Prowlarr, Hydra or SAB you
+run on the same machine cannot be reached, reconfigured, or collided with.
+It is deliberately NOT part of `make check`: it pulls three images and takes
+minutes, and a slow gate is a skipped gate.
 
 The Go toolchain runs **in a container** by default (`scripts/go.sh`), so
 nothing unsigned is written to your machine. That is not ceremony: on Windows an

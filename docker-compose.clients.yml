@@ -1,0 +1,90 @@
+# The real programs people point at an indexer, and a runner that tests them.
+#
+#   docker compose -f docker-compose.clients.yml run --rm --build runner
+#   make clients
+#
+# WHY A SECOND COMPOSE FILE, AND WHY EVERYTHING IN CONTAINERS
+#
+# So that anyone who clones this repo can run it. The suite used to shell out
+# to `docker run` from a Python script on the host, which meant it worked only
+# on a machine with the right Python, and published every client on its default
+# port -- this machine already runs a real Prowlarr on 9696, so the suite either
+# failed to bind or, worse, would have been talking to somebody's actual
+# configured client and rewriting its indexers.
+#
+# In here nothing is published at all. The clients and the runner share the
+# demo's network and address each other by SERVICE NAME (app:8090, hydra:5076),
+# so there is no host port to collide with anything, and a real Prowlarr on the
+# same machine is untouchable by construction.
+#
+# The runner reads each client's generated API key off a SHARED VOLUME rather
+# than by exec-ing into the container, which is what lets the whole thing run
+# without the Docker CLI or a socket mount.
+
+name: loon-clients
+
+networks:
+  demo:
+    # The demo's own network, created by the main compose file. External so
+    # this file never owns it: `docker compose down` here must not take the
+    # site's network out from under it.
+    external: true
+    name: loon-site_default
+
+volumes:
+  hydra-config:
+  prowlarr-config:
+  sab-config:
+
+services:
+  # NZBHydra2 -- a Newznab aggregator, and the stricter of the two readers. It
+  # does not take an indexer's word for anything: caps advertising season/ep
+  # means nothing until its own probe confirms it.
+  hydra:
+    image: ghcr.io/linuxserver/nzbhydra2:latest
+    networks: [demo]
+    environment: { PUID: 1000, PGID: 1000, TZ: UTC }
+    volumes: [hydra-config:/config]
+
+  # Prowlarr -- what most people actually put in front of an indexer now, and
+  # what Sonarr and Radarr talk to rather than talking to us directly.
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    networks: [demo]
+    environment: { PUID: 1000, PGID: 1000, TZ: UTC }
+    volumes: [prowlarr-config:/config]
+
+  # SABnzbd -- the downloader. Not a Newznab reader at all, which is exactly
+  # why it tests something the other two cannot: whether the NZB behind a
+  # result actually downloads and queues, and whether the post-processing
+  # script this site hands its members reports back correctly.
+  sab:
+    image: lscr.io/linuxserver/sabnzbd:latest
+    networks: [demo]
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: UTC
+      # NOTE: SAB refuses any request whose Host header is a NAME it does not
+      # know (https://sabnzbd.org/hostname-check), and whitelists only its own
+      # container id at first boot. Setting the whitelist here does NOT fix it
+      # -- the option is read when the config is first written, and the config
+      # lives on a volume that outlives the container. The runner addresses SAB
+      # by IP instead, which SAB allows unconditionally; see Sab.base().
+    volumes: [sab-config:/config]
+
+  runner:
+    image: python:3.12-slim
+    networks: [demo]
+    depends_on: [hydra, prowlarr, sab]
+    working_dir: /suite
+    volumes:
+      - ./scripts:/suite:ro
+      # Read-only: the runner needs each client's generated key and must never
+      # be able to reconfigure the client by writing to its config.
+      - prowlarr-config:/clientconfig/prowlarr:ro
+      - sab-config:/clientconfig/sab:ro
+    environment:
+      DEMO_URL: http://app:8090
+      IN_DOCKER: "1"
+    command: ["python", "clienttest.py"]
