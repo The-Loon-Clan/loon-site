@@ -48,6 +48,7 @@ var logKeys = map[string]string{
 	"slug":           "a plugin, widget, page or community slug",
 	"agent":          "a fleet agent, by name or id",
 	"job":            "a scheduled job's name",
+	"param":          "the name of a request parameter being reported on, never its value",
 	"paused":         "whether a job was paused or resumed, on the write that persists it",
 	"task":           "an agent_task row id — the queued grab a fleet agent leases",
 	"rows":           "how many rows a statement affected, where the count is the point",

@@ -85,7 +85,7 @@ func (w *web) newznabAPI(c *gin.Context) {
 	// that sent no id at all still gets the ordinary newest-releases feed,
 	// which is a legitimate Newznab request and unaffected.
 	if id, ok := unsupportedSearchID(c); ok {
-		w.log.Info("newznab id search refused", "param", id, "function", req.Function)
+		w.log.Info("newznab id search refused", "param", id, "action", req.Function)
 		writeNewznab(c, emptyNewznabFeed(req), "id-unsupported")
 		return
 	}
