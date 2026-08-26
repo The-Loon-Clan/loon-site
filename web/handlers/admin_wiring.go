@@ -154,6 +154,13 @@ func wireAdminAndViews(
 	if v, ok := c.Lookup(pluginapi.TorrentMirrorsName); ok {
 		wsrv.mirrors, _ = v.(pluginapi.TorrentMirrors)
 	}
+	// The measured "which copy is this" line for a page of releases
+	// (pluginapi.MediaSummaries), consumed by the series page. Absent on a host
+	// that does not run the mediainfo plugin, and those rows then carry their
+	// filename tags alone, exactly as they did before the feature existed.
+	if ms, ok := pluginapi.LookupMediaSummaries(c); ok {
+		wsrv.mediaSummaries = ms
+	}
 	// And the write side: turning a release into a torrent on demand, which is
 	// how this site mirrors without pre-hashing 160,000 releases it has no
 	// bytes for. Absent = the release page offers no button.

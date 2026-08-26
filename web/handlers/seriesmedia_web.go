@@ -1,50 +1,45 @@
 package handlers
 
-import (
-	"context"
-
-	"github.com/the-loon-clan/loon/core"
-
-	"github.com/the-loon-clan/loon-plugins/mediainfo"
-)
+import "context"
 
 // "Which of these copies do I want?" — the half of that question a filename
 // cannot answer.
 //
 // The series page is where it matters most: six releases of one episode, and
-// until now only the tags carved out of their names to choose between them.
-// Those tags are what the poster CLAIMED. A mediainfo report is what somebody
-// who actually downloaded the file measured — "HEVC at 10.4 Mb/s · E-AC-3 JOC
-// 6 channels" — which is the difference between a 2160p label and a 2160p
-// bitrate.
+// until this landed only the tags carved out of their names to choose between
+// them. Those tags are what the poster CLAIMED. A mediainfo report is what
+// somebody who actually downloaded the file measured — "HEVC at 10.4 Mb/s ·
+// E-AC-3 JOC 6 channels" — and the first row this ever rendered had tags
+// saying x264 against a report saying HEVC, which is the whole argument for
+// the feature in one line.
 //
-// docs/BACKLOG.md #18 is this gap, and it names the shape of the fix: the
-// mediainfo plugin has answered the batch question for a while (SummariesFor)
-// and nothing consumed it, deliberately, because "inventing a contract before
-// there is a second side is how SEAMS.md's bare-string tier grows. The consumer
-// comes first, then the contract." This is that consumer. A pluginapi contract
-// is requested and slots in underneath without the page changing.
+// docs/BACKLOG.md #18 was this gap and it prescribed the order: the store
+// method existed with no contract deliberately, because "inventing one before
+// there is a second side is how SEAMS.md's bare-string tier grows. The
+// consumer comes first, then the contract." The consumer came first; the
+// contract (pluginapi.MediaSummaries) followed, and this now reads through it.
 //
-// The STORE is built per request rather than held on the web struct, and the
-// reasoning is cheatStore's word for word: a host that never enables the plugin
-// should not carry a handle to its schema, and one that enables it later should
-// not need a restart for this page to start working.
-func (w *web) mediaStore() *mediainfo.PGStore {
-	if w.data == nil || !w.data.DB().Valid() {
-		return nil
-	}
-	return mediainfo.NewPGStore(core.NewStorage(w.data.DB().Raw()).SchemaDB("mediainfo"))
-}
+// It briefly did NOT. Between the two there was a version that built the
+// plugin's PGStore per request via core.NewStorage(...).SchemaDB("mediainfo")
+// — legitimate, and the same move cheatqueue_web.go makes for the tracker, but
+// it meant this file knew how another plugin wires its storage. The seam took
+// that knowledge back, which is the point of having one.
 
 // releaseSummaries resolves the one-line "what is in this copy" for a page of
-// releases, in ONE query, keyed by release id. Absent ids simply have no line.
+// releases, in ONE query, keyed by release id.
 //
-// Resolved once per page and passed IN to the grouping, so that stays a pure
-// function — the same arrangement releaseMirrors already has with the tracker's
-// side, and for the same reason: a per-row lookup here is an N+1 on a page that
-// legitimately carries three hundred rows.
+// BATCH is load-bearing, not an optimisation: a per-release call reads
+// perfectly naturally at the call site and is fifty round trips inside a render
+// loop. Resolved once per page and passed IN to the grouping so that stays a
+// pure function — the same arrangement releaseMirrors has with the tracker's
+// side.
+//
+// The result is SPARSE. A release nobody has reported on simply has no key,
+// and that is the ordinary case rather than an error: most releases have no
+// report, and a column of "unknown" on a page where three rows have data reads
+// as a broken feature instead of an unanswered question.
 func (w *web) releaseSummaries(ctx context.Context, releaseIDs []int64) map[int64]string {
-	if len(releaseIDs) == 0 {
+	if len(releaseIDs) == 0 || w.mediaSummaries == nil {
 		return nil
 	}
 	// Deduplicated before asking: a listing can carry the same release twice,
@@ -57,15 +52,14 @@ func (w *web) releaseSummaries(ctx context.Context, releaseIDs []int64) map[int6
 			ids = append(ids, id)
 		}
 	}
-	st := w.mediaStore()
-	if len(ids) == 0 || st == nil {
+	if len(ids) == 0 {
 		return nil
 	}
-	out, err := st.SummariesFor(ctx, ids)
+	out, err := w.mediaSummaries.SummariesFor(ctx, ids)
 	if err != nil {
-		// Logged and dropped, never propagated. This decorates a listing; a
-		// host whose mediainfo schema is absent or unreadable should show the
-		// page it always showed, not a 500. Same call releaseMirrors makes.
+		// Logged and dropped, never propagated. This DECORATES a listing; a
+		// host whose mediainfo store is unreadable should show the page it
+		// always showed, not a 500. The same call releaseMirrors makes.
 		w.log.Error("mediainfo summaries", "count", len(ids), "err", err)
 		return nil
 	}

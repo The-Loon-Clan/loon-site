@@ -114,6 +114,9 @@ type web struct {
 	// page then offers no button rather than one that cannot work.
 	mirrorMaker pluginapi.TorrentMirrorMaker
 	usenetAPI   pluginapi.UsenetNewznab // Newznab /api + /rss
+	// mediaSummaries answers "what is actually in this copy" for a batch of
+	// releases (seriesmedia_web.go). Nil without the mediainfo plugin.
+	mediaSummaries pluginapi.MediaSummaries
 	catalog     pluginapi.Catalog       // taxonomy + names for /browse (filled after Boot)
 	// agentToken is the MASTER bearer that gates /api/agent/register (where a
 	// client self-provisions a per-agent token); empty disables registration.

@@ -739,12 +739,26 @@ beside the filename tags, resolved once per page and passed into the grouping
 the way the tracker's mirrors already are. The first row it rendered is the
 argument for the feature — its tags say x264 and the report says HEVC.
 
-So the contract is what remains, and it is requested: `mediainfo.summaries`
-over the existing `SummariesFor(ctx, []int64) (map[int64]string, error)`, which
-`PGStore` already satisfies unchanged. Until it lands the host builds that
-store per request via `core.NewStorage(...).SchemaDB("mediainfo")` — the same
-move `cheatqueue_web.go` makes for the tracker — which works but reaches past
-the seam into the plugin's store type. Swapping it for a lookup deletes the
-direct construction and changes nothing on the page.
+**And the contract landed** (`pluginapi.MediaSummaries`, loon-plugins
+`bc81b8e`), so this entry is CLOSED. The host reads through the seam and the
+per-request `core.NewStorage(...).SchemaDB("mediainfo")` construction it used
+in between is deleted — that worked, and it is what `cheatqueue_web.go` still
+does for the tracker, but it meant a host file knew how another plugin wires
+its storage. The seam took that knowledge back, which is the point of one.
+
+Two properties the contract's doc now carries, because they are what a
+consumer gets wrong: the read is BATCH (a per-release call reads naturally and
+is fifty round trips inside a render loop), and the map is SPARSE (an id with
+no live report has no key — ordinary, not an error; a column of "unknown"
+beside three rows with data reads as a broken feature).
+
+Worth recording for whoever picks up adoption: **production does not run the
+mediainfo plugin at all** — no schema, not in `core.plugin_migrations`. It has
+its own host-side `/release/:id/mediainfo` reading `nzbs.audio`, a track dump
+the crawler parses. So these two demo reports are not a thin sample of a
+populated feature, they are the entire corpus of it anywhere, and the
+x264-vs-HEVC row is an existence proof rather than a preview. Whether
+member-contributed reports and crawler-parsed tracks are one column or two is
+a design question, and it is the one adoption has to answer first.
 
 ---
