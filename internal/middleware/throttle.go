@@ -128,6 +128,17 @@ type Throttle struct {
 	// operator running audits against their own site is the friendliest there
 	// is. nil means nobody is exempt.
 	Exempt func(*gin.Context) bool
+
+	// Refuse renders the 429, when a host wants it to look like the site.
+	//
+	// A hook rather than a template here, for the reason this package holds no
+	// view models at all: it is decided entirely by the request and knows
+	// nothing about what any route does. The host owns chrome; this owns the
+	// decision. nil keeps the plain-text body below, which is right for an API
+	// or a fetch caller and wrong for a member who was reading a page — they
+	// got a bare white page with no nav and no way back, which reads as the
+	// site breaking rather than as a rule they tripped.
+	Refuse func(c *gin.Context, retryAfterSecs int)
 }
 
 // NewThrottle builds a limiter whose buckets live in THIS process.
@@ -335,6 +346,11 @@ func (t *Throttle) Guard() gin.HandlerFunc {
 		// sees when the site refuses them for something they did not know was
 		// a rule, so it says what happened, that it is temporary, and how long
 		// — "Too Many Requests" alone reads like a fault.
+		if t.Refuse != nil {
+			t.Refuse(c, secs)
+			c.Abort()
+			return
+		}
 		c.String(http.StatusTooManyRequests,
 			"Too many requests. This is a rate limit, not an error: "+
 				"wait %d second(s) and it will work again.", secs)

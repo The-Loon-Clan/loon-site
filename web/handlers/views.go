@@ -507,6 +507,11 @@ func (w *web) mount(e *gin.Engine) {
 	w.tBrowse.Skip = onAuthPath
 	w.tBrowse.Exempt = w.throttleExempt
 	w.tWork.Exempt = w.throttleExempt
+	// A refusal that looks like the site. All three tiers, because whichever
+	// one trips it is the same member on the same page.
+	w.tBrowse.Refuse = w.throttleRefused
+	w.tWork.Refuse = w.throttleRefused
+	w.tAuth.Refuse = w.throttleRefused
 	w.tBrowse.Sweeper(time.Minute)
 	w.tWork.Sweeper(time.Minute)
 	w.tAuth.Sweeper(time.Minute)
@@ -595,7 +600,20 @@ func (w *web) mount(e *gin.Engine) {
 	e.GET("/search", limited(w.tWork, w.search)...)
 	// The quick-search dropdown. A fragment, so it is never a page — see
 	// suggest_web.go.
-	e.GET("/search/suggest", limited(w.tWork, w.suggestPage)...)
+	//
+	// BROWSE tier, not work, and the difference is per-KEYSTROKE. The box is on
+	// every page with hx-trigger="keyup changed delay:150ms", and ordinary
+	// typing outruns that debounce, so one typed query spends one token per
+	// character. On the work tier (burst 15) that is the entire search budget
+	// gone before the member presses Enter: the dropdown dies mid-word and the
+	// results page then refuses the facet pills it just offered.
+	//
+	// Not a new tier — this file says tiers are deliberately few and the real
+	// question is "what does an attacker get out of repeating it". Repeating
+	// this gets a CACHED catalogue prefix lookup that returns nothing under two
+	// runes (suggest_web.go), which is cheaper than the page reads the browse
+	// tier already governs. It was in the wrong bucket, not missing one.
+	e.GET("/search/suggest", limited(w.tBrowse, w.suggestPage)...)
 	e.GET("/browse", w.browse)
 	// Releases grouped by the show they belong to (series_web.go). Mounted
 	// unconditionally and gated INSIDE the handler: the capability is looked up
