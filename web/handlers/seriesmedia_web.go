@@ -1,6 +1,36 @@
 package handlers
 
-import "context"
+import (
+	"context"
+
+	"github.com/the-loon-clan/loon-site/internal/markdown"
+)
+
+// mediaSummaryMax bounds the measured line before it reaches a page.
+//
+// The string is MEMBER-SUBMITTED: it is assembled from fields of a pasted
+// MediaInfo report, and the plugin's caps are on the whole paste (64KB) and on
+// the LINE COUNT, not on one field's value. So a single "Format :" line of
+// sixty thousand unbroken characters parses, stores, and arrives here intact.
+// Rendered without a bound in a flex row that cannot shrink below max-content,
+// that one paste widens the series table for every reader of the show — and
+// the hover rule that lifts overflow containment then scrolls the whole
+// document sideways.
+//
+// A real summary is around forty characters ("HEVC at 10.4 Mb/s · E-AC-3 JOC 6
+// channels"), so this is generous by three times and still bounded. Cut HERE
+// rather than in the template because the point is that the oversized string
+// never reaches the DOM at all, not merely that it is hidden once there — and
+// the full value is deliberately NOT carried in a title attribute, which would
+// put all sixty thousand characters straight back.
+//
+// markdown.Ellipsis's own doc already says this, about release titles: "any
+// slot that shows one inline needs a bound or the layout is at the mercy of
+// whatever was posted." The lesson was written down; this field just did not
+// apply it.
+// (Counts CONTENT runes: markdown.Ellipsis appends one more to mark the cut,
+// so the rendered line is at most this plus one.)
+const mediaSummaryMax = 120
 
 // "Which of these copies do I want?" — the half of that question a filename
 // cannot answer.
@@ -62,6 +92,9 @@ func (w *web) releaseSummaries(ctx context.Context, releaseIDs []int64) map[int6
 		// always showed, not a 500. The same call releaseMirrors makes.
 		w.log.Error("mediainfo summaries", "count", len(ids), "err", err)
 		return nil
+	}
+	for id, line := range out {
+		out[id] = markdown.Ellipsis(mediaSummaryMax, line)
 	}
 	return out
 }

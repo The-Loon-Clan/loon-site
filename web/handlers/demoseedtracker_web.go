@@ -4,6 +4,7 @@ import (
 	"github.com/the-loon-clan/loon-site/internal/storage"
 
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -339,9 +340,30 @@ const (
 //
 // DEMO SEEDING, like everything else in this file: it fabricates activity and
 // belongs to the reference host, not to a real deployment.
-func demoTrackerActivity(db storage.Conn, log *slog.Logger) {
+func demoTrackerActivity(db storage.Conn, log *slog.Logger, job *schedule.JobInfo) {
 	if !flavourTracker() || !db.Valid() {
 		return
+	}
+	// Reported, not just logged. This job was registered so an operator reading
+	// /admin/jobs finds out the demo nudges the swarm — and a job that never
+	// calls SetRunning has Last run "—" and Runs 0 forever however often it has
+	// run, which is indistinguishable from one that was never scheduled. Worse,
+	// a tick whose UPDATE fails every pass still renders as idle with a blank
+	// Activity column, because that column is fed from LastError and Logs.
+	// Both sibling host jobs do this explicitly (runSitemap, runTVSchedule);
+	// this one had simply not been wired the same way.
+	if job != nil {
+		job.SetRunning()
+	}
+	next := time.Now().Add(demoSwarmEveryMin * time.Minute)
+	done := func(line string) {
+		if job == nil {
+			return
+		}
+		// "%s" and not line: Log is printf-style, so a line carrying a percent
+		// sign would be read as a verb and mangled.
+		job.Log("%s", line)
+		job.SetIdle(next)
 	}
 	res, err := db.Exec(`
 		UPDATE tracker.user_stats s
@@ -353,14 +375,24 @@ func demoTrackerActivity(db storage.Conn, log *slog.Logger) {
 		 WHERE s.user_id = r.user_id AND s.info_hash = r.info_hash`,
 		demoSwarmWindow.String(), demoLastSeenStep, demoLastSeenMax)
 	if err != nil {
-		// Warn, never fail: a demo whose swarm went stale is worse-looking than
-		// one that logged why, and neither is worth failing a boot over.
+		// SetError, not SetIdle: a pass that moved nothing because the statement
+		// failed is not a quiet pass, and an idle row would say it was fine.
 		log.Warn("demo tracker activity", "err", err)
+		if job != nil {
+			job.SetError(err.Error())
+		}
 		return
 	}
-	if n, _ := res.RowsAffected(); n > 0 {
+	n, _ := res.RowsAffected()
+	if n > 0 {
 		log.Info("demo tracker activity: seeded swarm nudged forward", "rows", n)
+		done(fmt.Sprintf("nudged %d stale row(s) back inside the window", n))
+		return
 	}
+	// Nothing stale is the STEADY state, not a failure — every row is already
+	// inside the window. Said out loud so the row does not read as a job that
+	// did nothing because it is broken.
+	done("nothing stale — the whole swarm is already inside the window")
 }
 
 // wireDemoTrackerActivity registers the nudge as a visible job, so an operator
@@ -373,10 +405,10 @@ func wireDemoTrackerActivity(db storage.Conn, log *slog.Logger) {
 	job := schedule.RegisterJob("Demo tracker activity",
 		"Keeps the SEEDED tracker swarm inside the one-hour window the seeder/leecher counts are measured over, so the demo does not read as a dead tracker. Demo data only: it stops the moment a real peer announces.")
 	job.IntervalMin = demoSwarmEveryMin
-	job.SetTrigger(func() { go demoTrackerActivity(db, log) })
+	job.SetTrigger(func() { go demoTrackerActivity(db, log, job) })
 	if config.RunsJobs() {
 		go schedule.ServiceLoop(context.Background(), job,
 			10*time.Second, demoSwarmEveryMin*time.Minute,
-			func(context.Context) { demoTrackerActivity(db, log) })
+			func(context.Context) { demoTrackerActivity(db, log, job) })
 	}
 }

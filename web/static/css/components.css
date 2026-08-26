@@ -2791,7 +2791,14 @@ a.cal-ev:hover { background: var(--surface-3); }
    from the filename tags beside it because it is a different KIND of claim --
    what a downloader measured, not what the poster named -- so it reads as
    prose rather than as another tag. */
-.series-media { color: var(--text-muted); font-size: .78rem; white-space: nowrap; }
+/* BOUNDED, and both halves matter. The text is member-submitted, so the
+   consumer caps its length (mediaSummaryMax) and this caps its WIDTH: a flex
+   item defaults to min-width:auto and cannot shrink below max-content, and
+   .data-table has no fixed layout, so one long unbroken token would otherwise
+   widen the whole table for every reader. The nowrap that makes it read as one
+   line is exactly what makes the bound necessary. */
+.series-media { color: var(--text-muted); font-size: .78rem; white-space: nowrap;
+                max-width: 34ch; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* The live-status metadata an agent posts (VPN, public IP, speeds, disk): a
    compact wrapping row of labelled chips. */
 .agent-meta { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .35rem; }
