@@ -2787,6 +2787,10 @@ a.cal-ev:hover { background: var(--surface-3); }
 .agent-progress { position: relative; height: 6px; border-radius: 3px; background: var(--bg-elevated); overflow: hidden; min-width: 8rem; }
 .agent-progress__bar { position: absolute; inset: 0 auto 0 0; background: var(--success); border-radius: 3px; }
 .agent-conc { width: 4.5rem; }
+/* The facet panel's scope note: these counts describe the fetched page, not the
+   whole category (see facets.html). Quiet, because it is a qualifier on the
+   heading rather than a heading of its own. */
+.facet-scope { font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: .5rem; }
 /* The measured mediainfo line on a series row (seriesmedia_web.go). Set apart
    from the filename tags beside it because it is a different KIND of claim --
    what a downloader measured, not what the poster named -- so it reads as

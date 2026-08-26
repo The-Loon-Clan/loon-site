@@ -19,6 +19,15 @@
         <h2 class="panel__heading">
             <svg class="icon panel__heading-icon" aria-hidden="true"><use href="#search"></use></svg>
             Filter
+            {{/* SCOPE, said out loud. These counts are computed over the rows
+                 FETCHED for this page, not over the whole category — the filter
+                 runs after the read. Unlabelled, "1080p 70" beside a header
+                 reading "108863 releases" is read as "this category holds 70
+                 pieces of 1080p", which is wrong by three orders of magnitude
+                 and is the natural next click after landing here. Naming the
+                 scope is the honest fix available host-side; counting the whole
+                 category needs an aggregate the indexer does not expose yet. */}}
+            <span class="panel__grouping facet-scope">on this page</span>
         </h2>
         {{if .Active}}
         <div class="panel__actions">

@@ -287,7 +287,19 @@ func keepParams(c *gin.Context, names ...string) url.Values {
 // Bigger than the page shows, because filtering happens after the read: fetch
 // only a screenful and a narrow filter would find almost nothing. Bounded
 // anyway — this is a window, not the index.
-const listingLimit = 200
+//
+// 200 WAS A LIE IN PRACTICE. The indexer clamps anything over 100 back down to
+// 50 (loon-plugins/usenet/release_store.go: `if limit <= 0 || limit > 100 {
+// limit = 50 }`), so asking for 200 quietly returned a QUARTER of it, and every
+// piece of reasoning built on this number was wrong by 4x: the filter had 50
+// rows to work with rather than 200, the facet counts summed to 50, and a
+// listing that said "Showing 50" was the honest half of a page that believed it
+// had asked for 200. Nothing errored, because a clamp is not an error.
+//
+// 100 is the largest value the indexer actually honours, so this now means what
+// it says. A page size must never exceed it again: paging steps by this number,
+// and a step wider than the fetch skips rows that were never shown.
+const listingLimit = 100
 
 // ── sortable column headers ────────────────────────────────────────────────
 //

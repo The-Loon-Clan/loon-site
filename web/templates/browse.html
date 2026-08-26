@@ -119,8 +119,18 @@
     </div>
     {{template "cart-bar" $}}
     <div class="panel__body">
-        <p class="m-0 small text-muted">Showing {{len .Results}} of {{.Total}} release{{if ne .Total 1}}s{{end}} in {{.CatName}}.</p>
+        {{/* Says WHICH rows these are, not just how many. "Showing 50 of
+             108863" with no pager read as "this is all you get"; naming the
+             range makes the pager below it obviously the way to the rest. */}}
+        <p class="m-0 small text-muted">
+            {{if .Paged}}
+            Showing {{.RangeFrom}}&ndash;{{.RangeTo}} of {{.Total}} release{{if ne .Total 1}}s{{end}} in {{.CatName}}.
+            {{else}}
+            Showing {{len .Results}} of {{.Total}} release{{if ne .Total 1}}s{{end}} in {{.CatName}}.
+            {{end}}
+        </p>
     </div>
+    {{with .PaginationHTML}}<div class="panel__body">{{.}}</div>{{end}}
     {{else}}
     <div class="panel__body">
         <p class="notice notice--info">

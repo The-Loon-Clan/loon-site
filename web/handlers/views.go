@@ -1434,7 +1434,20 @@ func (w *web) browse(c *gin.Context) {
 	data["CatID"] = catID
 	data["CatName"] = w.catalog.Name(catID)
 	if w.usenet != nil {
-		if res, total, err := w.usenet.Feed(ctx, w.expandCats(ctx, catID), listingLimit, 0); err == nil {
+		// PAGE, not just the first window. Feed has always taken an offset and
+		// this passed a literal 0, so every category was a hard stop at the
+		// newest listingLimit rows: the footer told a member "50 of 108863" and
+		// gave them no control that reached row 51. Browsing is the way in for
+		// anyone who does not already know a title, so 99.95% of the catalogue
+		// was reachable only by guessing names into the search box.
+		//
+		// Same helper /series has used all along (hostPagination), so the two
+		// listings page identically rather than teaching a member two habits.
+		page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+		if err != nil || page < 1 {
+			page = 1
+		}
+		if res, total, err := w.usenet.Feed(ctx, w.expandCats(ctx, catID), listingLimit, (page-1)*listingLimit); err == nil {
 			f := parseFilter(c)
 			rows := toSearchRows(res)
 			w.attachCovers(ctx, rows) // one lookup for the page, not one per row
@@ -1456,6 +1469,26 @@ func (w *web) browse(c *gin.Context) {
 			// count is len(Results) and the template shows both — conflating
 			// them would claim a filter shrank the category itself.
 			data["Total"] = total
+			data["Page"] = page
+			data["PageSize"] = listingLimit
+			// The range these rows actually are, for the footer. Computed here
+			// rather than in the template because the last page is short and
+			// "1-100 of 43" would be its own small lie.
+			from := (page-1)*listingLimit + 1
+			to := from + len(rows) - 1
+			if total > 0 && from > total {
+				from, to = total, total
+			}
+			data["RangeFrom"], data["RangeTo"] = from, to
+			// Whether to SAY a range at all, decided here. In the template this
+			// was `gt .Total .PageSize`, which explodes the moment either key is
+			// absent — as TestPagesExecuteWithRealData proved by rendering the
+			// page without them. A bool degrades to false instead.
+			data["Paged"] = total > listingLimit
+			// keepParams carries ?cat= and any active filter through the pager,
+			// so paging never silently drops what you were browsing.
+			data["PaginationHTML"] = w.renderPagination(hostPagination(
+				page, listingLimit, total, "/browse?"+keepParams(c, "cat").Encode()))
 		}
 	}
 	// A facet click or a column sort changes only the results panel, so htmx
