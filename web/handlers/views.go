@@ -1551,6 +1551,22 @@ func (w *web) expandCats(ctx context.Context, catID int) []int {
 	return []int{catID}
 }
 
+// searchSource decides which read a /search request comes from.
+//
+// Extracted so the precedence is testable on its own: it needs no database and
+// no indexer, and it is the whole of the bug it was written for -- the choice
+// between three reads, made from two strings.
+func searchSource(query, group string) string {
+	switch {
+	case query != "":
+		return "search" // the group, if any, narrows this afterwards
+	case group != "":
+		return "browse"
+	default:
+		return "feed"
+	}
+}
+
 func (w *web) search(c *gin.Context) {
 	q := strings.TrimSpace(c.Query("q"))
 	f := parseFilter(c)
@@ -1563,11 +1579,23 @@ func (w *web) search(c *gin.Context) {
 	if w.usenet != nil {
 		var res []pluginapi.Release
 		var err error
-		switch {
-		case f.Group != "":
-			res, err = w.usenet.Browse(c.Request.Context(), f.Group, listingLimit)
-		case q != "":
+		switch searchSource(q, f.Group) {
+		// A TYPED QUERY ALWAYS WINS the choice of source. ?group= then narrows
+		// what came back, through the same f.apply every other facet uses --
+		// which is exactly what the note above always claimed happened ("a real
+		// filter on a ?q= search") and was not what the code did.
+		//
+		// Group used to be tested first, so a member who searched and then
+		// clicked a Newsgroup chip had their query silently dropped and was
+		// handed that group's newest posts instead. Measured before the fix:
+		// "Breaking Bad" returned 100 rows of which 100 said Breaking Bad, and
+		// "Breaking Bad" plus a group chip returned 100 rows of which ZERO did,
+		// led by an unrelated Furious episode -- while the search box went on
+		// showing "Breaking Bad", so the page looked like it had answered.
+		case "search":
 			res, err = w.usenet.Search(c.Request.Context(), q, listingLimit)
+		case "browse":
+			res, err = w.usenet.Browse(c.Request.Context(), f.Group, listingLimit)
 		default:
 			// Nothing asked for yet: show the newest releases rather than an
 			// empty page.
