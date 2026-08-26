@@ -908,7 +908,16 @@ func (w *web) profilePage(c *gin.Context) {
 	//
 	// Reached only after the private gate, so a member who has hidden their
 	// profile hides this with it.
-	if tt, ok := w.data.ReadTrackerTotals(ctx, subject.ID); ok {
+	//
+	// AND ONLY WHEN THIS SITE HAS A TRACKER. The flavour check is not
+	// redundant with the read: these figures come from the tracker's own
+	// tables, which SURVIVE the tracker being switched off, so a site that ran
+	// as "both" and moved to indexer-only kept showing every member a ratio, a
+	// seeding count and a snatch count for a tracker that no longer exists and
+	// whose pages all 404. /stats, the swarm badges and the release page each
+	// learned this separately and carry the same guard; this was the one read
+	// that never did.
+	if tt, ok := w.data.ReadTrackerTotals(ctx, subject.ID); ok && flavourTracker() {
 		data["HasSubjectTracker"] = true
 		data["SubjectTrackerUp"] = humanBytes(tt.Uploaded)
 		data["SubjectTrackerDown"] = humanBytes(tt.Downloaded)
