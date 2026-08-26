@@ -30,6 +30,12 @@ import (
 	"github.com/the-loon-clan/loon/schedule"
 )
 
+// jobPausedKey is where a job's paused flag lives among its other per-job
+// settings. One name, shared by the load and save hooks below, because a load
+// that reads a different key from the one the save wrote is a pause that
+// silently never comes back.
+const jobPausedKey = "paused"
+
 // baselineStores is what the first phase hands to the rest of boot.
 //
 // Only the stores used LATER are fields. jobSettings, maintStore and apiSvc
@@ -90,6 +96,36 @@ func wireBaselineStores(db storage.Conn, logger *slog.Logger) (baselineStores, e
 	jobSettings := jobsettings.NewPGStore(db.Raw().DB)
 	if err := jobSettings.Migrate(context.Background()); err != nil {
 		return st, fmt.Errorf("jobsettings migrate: %w", err)
+	}
+	// PAUSE SURVIVES A RESTART, and until this was wired it did not. loon keeps
+	// the flag in memory unless a host installs these two hooks -- its own note
+	// on them says "the next deploy silently resumes the job, which is exactly
+	// wrong when an operator paused it to keep it off". That is precisely what
+	// happened here: the crawler was paused deliberately to keep a demo box
+	// quiet, and every rebuild started it again, silently, with the jobs page
+	// still reading "idle" rather than "paused" to say so.
+	//
+	// Stored beside the other per-job settings, which is where the hooks'
+	// documentation says to put them, so an operator's pause is as durable as
+	// the intervals they set next to it.
+	schedule.LoadPaused = func(jobName string) bool {
+		vals, err := jobSettings.GetJobSettings(context.Background(), jobName)
+		if err != nil {
+			// Fail toward RUNNING: a store blip must not silently freeze every
+			// job on the site, which is the failure an operator cannot see.
+			logger.Error("load paused", "job", jobName, "err", err)
+			return false
+		}
+		return vals[jobPausedKey] == "1"
+	}
+	schedule.SavePaused = func(jobName string, paused bool) {
+		v := "0"
+		if paused {
+			v = "1"
+		}
+		if err := jobSettings.SetJobSetting(context.Background(), jobName, jobPausedKey, v); err != nil {
+			logger.Error("save paused", "job", jobName, "paused", paused, "err", err)
+		}
 	}
 	// Newznab API keys (loon-baseline): one per user, shown + regenerated on the
 	// self-service /p/api-key page. loon-api (against this same DB) validates the
