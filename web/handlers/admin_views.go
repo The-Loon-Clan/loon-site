@@ -10,6 +10,7 @@ import (
 
 	"github.com/the-loon-clan/loon/core"
 
+	agentplugin "github.com/the-loon-clan/loon-plugins/agent"
 	"github.com/the-loon-clan/loon-plugins/pluginapi"
 )
 
@@ -220,7 +221,12 @@ type navNode struct {
 // knows nothing about who grants it: the host's own role baseline (admins, see
 // main.go) or any group the ranks plugin has marked with this key, ORed
 // together by core.
-const agentEntitlementKey = "agent.use"
+// Taken from the PLUGIN rather than spelled again here. Two copies of a
+// registry key are two things to keep in step, and the failure when they drift
+// is silent in the worst direction: the host would grant "agent.use" while the
+// plugin asked about something else, so every gate would answer no and the
+// feature would simply be gone with nothing logging why.
+const agentEntitlementKey = agentplugin.EntitlementKey
 
 // viewEntitlement gates a plugin view on an entitlement its own declaration
 // cannot express. core.View has Public and MinRole -- a ladder -- and "members

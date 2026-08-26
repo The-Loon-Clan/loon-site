@@ -107,6 +107,22 @@ func (w *web) wireAgentPlugin() {
 		SetShowOnProfile: func(ctx context.Context, ownerID int, show bool) error {
 			return w.data.SetShowAgentsOnProfile(ctx, int64(ownerID), show)
 		},
+		// Who may use the fleet at all. The plugin asks in five places the host
+		// cannot reach individually — the page, its four actions, and the
+		// profile card — which is the portable inner gate; canView here stays
+		// the outer one and covers surfaces the plugin has no view of, like the
+		// sitemap and the home widgets.
+		//
+		// An ERROR is a refusal, deliberately: this seam exists to answer the
+		// question, and one that failed has not answered it. Returning
+		// (true, err) is the shape a careless caller waves through, so the error
+		// is returned alone.
+		CanUseAgents: func(ctx context.Context, userID int) (bool, error) {
+			if w.ents == nil {
+				return false, errEntitlementsUnwired
+			}
+			return w.ents.Has(ctx, int64(userID), agentplugin.EntitlementKey), nil
+		},
 	})
 }
 
