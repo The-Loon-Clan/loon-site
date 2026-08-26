@@ -734,4 +734,17 @@ It is a store method with no contract, deliberately: inventing one before there
 is a second side is how SEAMS.md's bare-string tier grows. The consumer comes
 first, then the contract.
 
+**The consumer exists now** (`94bda1e`): series rows carry the measured line
+beside the filename tags, resolved once per page and passed into the grouping
+the way the tracker's mirrors already are. The first row it rendered is the
+argument for the feature — its tags say x264 and the report says HEVC.
+
+So the contract is what remains, and it is requested: `mediainfo.summaries`
+over the existing `SummariesFor(ctx, []int64) (map[int64]string, error)`, which
+`PGStore` already satisfies unchanged. Until it lands the host builds that
+store per request via `core.NewStorage(...).SchemaDB("mediainfo")` — the same
+move `cheatqueue_web.go` makes for the tracker — which works but reaches past
+the seam into the plugin's store type. Swapping it for a lookup deletes the
+direct construction and changes nothing on the page.
+
 ---
