@@ -107,6 +107,28 @@ var navConditions = map[string]func() bool{
 	"/tracker": flavourTracker,
 }
 
+// navEntryVM is one row of the menu editor: the stored entry, plus whether a
+// flavour condition is currently suppressing it.
+//
+// The editor lists every entry, including ones the chrome is not drawing,
+// which is right -- an operator switching site_flavour needs to see what will
+// come back. What was wrong is that it linked all of their targets, so on an
+// indexer-flavoured site the Torrents row offered a live link to /tracker and
+// the route is not mounted. The operator got a 404 from their own admin page
+// with nothing anywhere saying why.
+type navEntryVM struct {
+	storage.NavEntry
+	Off bool
+}
+
+// navConditionOff reports that a flavour gate is currently hiding this href.
+// An entry with no condition is never off: only the operator's own "hidden"
+// checkbox applies to it, and that one is theirs to explain.
+func navConditionOff(href string) bool {
+	cond, ok := navConditions[href]
+	return ok && !cond()
+}
+
 // navPluginGroups maps builtin TOP group keys to the NavHint group names
 // plugins register under (core.View.Nav) — how a plugin page's request to
 // sit in "Community" finds the community tab even after it is renamed.
@@ -345,14 +367,18 @@ func (w *web) adminNavEditor(c *gin.Context) {
 	}
 	type groupVM struct {
 		storage.NavGroup
-		Rows []storage.NavEntry
+		Rows []navEntryVM
 		// Deletable: custom and empty — a group with entries would strand
 		// them, and a builtin would be re-ensured at the next boot anyway.
 		Deletable bool
 	}
 	var vms []groupVM
 	for _, g := range groups {
-		vms = append(vms, groupVM{NavGroup: g, Rows: byGroup[g.Key],
+		rows := make([]navEntryVM, 0, len(byGroup[g.Key]))
+		for _, e := range byGroup[g.Key] {
+			rows = append(rows, navEntryVM{NavEntry: e, Off: navConditionOff(e.Href)})
+		}
+		vms = append(vms, groupVM{NavGroup: g, Rows: rows,
 			Deletable: !g.Builtin && len(byGroup[g.Key]) == 0})
 	}
 	// The localization slugs, for the label-slug dropdowns — best effort,

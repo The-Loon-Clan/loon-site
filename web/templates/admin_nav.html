@@ -117,7 +117,7 @@
                         {{range .Rows}}
                         <tr>
                             <td><input class="form__input" name="l/{{.ID}}" value="{{.Label}}" aria-label="Label of {{.Href}}"></td>
-                            <td><a href="{{.Href}}"><code>{{.Href}}</code></a></td>
+                            <td>{{if .Off}}<code>{{.Href}}</code> <span class="text-muted small">off &mdash; site flavour</span>{{else}}<a href="{{.Href}}"><code>{{.Href}}</code></a>{{end}}</td>
                             <td>
                                 {{$cur := .Grp}}
                                 <select class="form__input" name="g/{{.ID}}" aria-label="Menu for {{.Href}}">
