@@ -652,12 +652,24 @@ func (w *web) renderSettingsPage(c *gin.Context, slug string, override *template
 	w.render(c, "admin_settings.html", data)
 }
 
+// adminActionFailed is the response for a plugin admin action that returned an
+// error. Both wrappers below had it written out, identically, which is one
+// sentence too many: the words a person reads should have a single home even
+// when that home cannot be a template. It cannot be one here -- producing the
+// fragment a page would render is precisely what failed.
+//
+// The log line stays at each call site so the two failures remain
+// distinguishable in the log, which is where they are actually diagnosed.
+func adminActionFailed(c *gin.Context, slug string) {
+	c.String(http.StatusInternalServerError, "action on %s failed", slug)
+}
+
 func (w *web) settingsAction(v core.View, fn func(*gin.Context) (template.HTML, error)) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		frag, err := fn(c)
 		if err != nil {
 			w.log.Error("settings action", "slug", v.Slug, "err", err)
-			c.String(http.StatusInternalServerError, "action on %s failed", v.Slug)
+			adminActionFailed(c, v.Slug)
 			return
 		}
 		if frag == "" {
@@ -686,7 +698,7 @@ func (w *web) viewAction(v core.View, fn func(*gin.Context) (template.HTML, erro
 		frag, err := fn(c)
 		if err != nil {
 			w.log.Error("admin view action", "slug", v.Slug, "err", err)
-			c.String(http.StatusInternalServerError, "action on %s failed", v.Slug)
+			adminActionFailed(c, v.Slug)
 			return
 		}
 		if frag == "" {
