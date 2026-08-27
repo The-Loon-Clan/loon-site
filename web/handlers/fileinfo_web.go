@@ -41,6 +41,7 @@ const (
 	kindSample
 	kindImage
 	kindNFO
+	kindAudio
 )
 
 // Extension sets. Deliberately literal rather than clever: a release is named by
@@ -49,6 +50,11 @@ var (
 	videoExt   = map[string]bool{".mkv": true, ".mp4": true, ".avi": true, ".m4v": true, ".ts": true, ".m2ts": true, ".wmv": true, ".mov": true, ".iso": true, ".img": true}
 	subExt     = map[string]bool{".srt": true, ".ass": true, ".ssa": true, ".sub": true, ".idx": true, ".vtt": true, ".sup": true, ".smi": true}
 	imageExt   = map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".gif": true}
+	// Audio is media too. Without this set an audiobook's files fell to
+	// kindOther, which counts as neither media nor payload -- so the panel had
+	// nothing to say about 16,000 releases and computed every one of them as
+	// 0% payload. .m4b is the audiobook container and is NOT .m4v.
+	audioExt = map[string]bool{".mp3": true, ".m4a": true, ".m4b": true, ".flac": true, ".ogg": true, ".opus": true, ".wav": true, ".aac": true, ".wma": true, ".ape": true, ".aiff": true, ".mka": true}
 	archiveExt = map[string]bool{".rar": true, ".zip": true, ".7z": true, ".tar": true, ".gz": true}
 )
 
@@ -72,6 +78,8 @@ func classify(name string) fileKind {
 		return kindSubtitle
 	case videoExt[ext]:
 		return kindVideo
+	case audioExt[ext]:
+		return kindAudio
 	case imageExt[ext]:
 		return kindImage
 	case archiveExt[ext], rarPart.MatchString(lower):
@@ -186,9 +194,28 @@ type contentsVM struct {
 	Files int
 }
 
-// Meaningful reports whether there is anything worth drawing. A release whose
-// NZB carried no file list at all gets no panel rather than a panel of blanks.
-func (v contentsVM) Meaningful() bool { return v.Files > 0 }
+// Meaningful reports whether there is anything worth drawing.
+//
+// It used to be Files > 0, which is not the same question and was letting
+// through exactly the panel the comment promised to prevent: every fact below
+// renders conditionally, so a post whose file list names nothing recognisable
+// drew a heading, a file count, and an empty list. Audiobooks are full of
+// them -- posters name the parts from the subject ("Lady Clementine 44-46"),
+// so there is no extension to classify, and the reader got a panel that said
+// less than the sidebar did. The file list itself is already drawn in its own
+// panel directly below, so nothing is lost by staying quiet here.
+//
+// The conditions mirror the template's. That coupling is real, and pinned by
+// a test rather than by hoping: a fact added to one and not the other either
+// hides a panel that has something to say or draws an empty one again.
+func (v contentsVM) Meaningful() bool {
+	if v.Files == 0 {
+		return false
+	}
+	return v.Container != "" || v.MediaFiles > 0 || v.SubtitleFiles > 0 ||
+		v.RecoveryPct > 0 || (v.PayloadPct > 0 && v.PayloadPct < 70) ||
+		v.HasSample || v.HasNFO
+}
 
 // describeFiles derives everything the file list can prove.
 //
@@ -203,16 +230,16 @@ func describeFiles(files []pluginapi.ReleaseFile) contentsVM {
 
 	var total, recovery, payload int64
 	langs := map[string]bool{}
-	videoExts := map[string]bool{}
+	mediaExts := map[string]bool{}
 	archives := 0
 
 	for _, f := range files {
 		total += f.Bytes
 		switch classify(f.Filename) {
-		case kindVideo:
+		case kindVideo, kindAudio:
 			vm.MediaFiles++
 			payload += f.Bytes
-			videoExts[strings.ToUpper(strings.TrimPrefix(path.Ext(strings.ToLower(f.Filename)), "."))] = true
+			mediaExts[strings.ToUpper(strings.TrimPrefix(path.Ext(strings.ToLower(f.Filename)), "."))] = true
 		case kindArchive:
 			archives++
 			payload += f.Bytes
@@ -249,11 +276,11 @@ func describeFiles(files []pluginapi.ReleaseFile) contentsVM {
 	case archives > 0 && vm.MediaFiles == 0:
 		// A rar set: the video is inside and its name is not in the NZB.
 		vm.Container = "RAR set"
-	case len(videoExts) == 1:
-		for e := range videoExts {
+	case len(mediaExts) == 1:
+		for e := range mediaExts {
 			vm.Container = e
 		}
-	case len(videoExts) > 1:
+	case len(mediaExts) > 1:
 		vm.Container = "Mixed"
 	}
 
