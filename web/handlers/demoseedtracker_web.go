@@ -405,7 +405,7 @@ func wireDemoTrackerActivity(db storage.Conn, log *slog.Logger) {
 	job := schedule.RegisterJob("Demo tracker activity",
 		"Keeps the SEEDED tracker swarm inside the one-hour window the seeder/leecher counts are measured over, so the demo does not read as a dead tracker. Demo data only: it stops the moment a real peer announces.")
 	job.IntervalMin = demoSwarmEveryMin
-	job.SetTrigger(func() { go demoTrackerActivity(db, log, job) })
+	job.SetTrigger(triggerProtected(job, func() { demoTrackerActivity(db, log, job) }))
 	if config.RunsJobs() {
 		go schedule.ServiceLoop(context.Background(), job,
 			10*time.Second, demoSwarmEveryMin*time.Minute,

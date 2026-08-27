@@ -291,7 +291,7 @@ func (w *web) wireTVSchedule(c *core.Core, src *tvmaze.Source) {
 	job := schedule.RegisterJob("TV Schedule",
 		"Fetches the broadcast schedule for the shows this site carries, so the calendar can show when the next episode airs.")
 	job.IntervalMin = tvIntervalMin
-	job.SetTrigger(func() { go w.runTVSchedule(context.Background(), job) })
+	job.SetTrigger(triggerProtected(job, func() { w.runTVSchedule(context.Background(), job) }))
 	// Registered everywhere so /admin/jobs can list it and Run now has
 	// something to enqueue; the loop runs only where jobs run. Same split as
 	// the sitemap job, and for the same reason.

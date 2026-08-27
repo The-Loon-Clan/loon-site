@@ -92,7 +92,7 @@ func (w *web) wireSitemap(engine *gin.Engine, baseURL string) {
 	job := schedule.RegisterJob("Sitemap",
 		"Regenerates sitemap.xml and its sub-sitemaps from the site's content sources, cached for serving.")
 	job.IntervalMin = sitemapIntervalMin
-	job.SetTrigger(func() { go w.runSitemap(context.Background(), gen, job) })
+	job.SetTrigger(triggerProtected(job, func() { w.runSitemap(context.Background(), gen, job) }))
 	// REGISTERED everywhere, RUN only where jobs run. The registration has to
 	// happen in the web process too or /admin/jobs cannot list the job, and the
 	// "Run now" button has nothing to enqueue against — but the loop that

@@ -125,6 +125,21 @@ func (w *web) sweepAvatars(ctx context.Context, db storage.Conn) (int, error) {
 // the interval still collects.
 func (w *web) startAvatarSweep(ctx context.Context, db storage.Conn, log *slog.Logger) {
 	sweep := func() {
+		// A panic in here would take the PROCESS down, not this sweep: gin's
+		// recovery wraps the request goroutine and this is not one. The
+		// framework already draws that line for its own background work --
+		// loon's schedule.runTickProtected wraps every tick fn for exactly
+		// this reason -- and a host that spawns its own ticker outside that
+		// protection quietly opts out of it. This one does filesystem
+		// deletion and database reads on a timer, forever, which is the
+		// profile worth protecting; the host's other goroutines are
+		// ListenAndServe, a guarded one-shot UPDATE, and a map sweep under a
+		// mutex, so they are left alone rather than wrapped for symmetry.
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("avatar sweep panicked", "err", r)
+			}
+		}()
 		n, err := w.sweepAvatars(ctx, db)
 		if err != nil {
 			log.Warn("avatar sweep failed", "err", err)
