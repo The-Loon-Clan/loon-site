@@ -117,6 +117,38 @@ func (w *web) wireAgentPlugin() {
 		// question, and one that failed has not answered it. Returning
 		// (true, err) is the shape a careless caller waves through, so the error
 		// is returned alone.
+		// TEMPORARY, for the side-by-side diff agreed with the plugin's owner:
+		// wiring this mounts the plugin's /admin/p/agents beside this host's
+		// /admin/agents so the two can be compared as rendered pages rather
+		// than as my reading of two source files. One of them goes when we have
+		// agreed which half each owns; nothing is deleted before then.
+		AllAgents: func(ctx context.Context) ([]agentplugin.AdminAgent, error) {
+			rows, err := w.data.AllAgents(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out := make([]agentplugin.AdminAgent, 0, len(rows))
+			for _, a := range rows {
+				aa := agentplugin.AdminAgent{
+					ID: int(a.ID), Name: a.Name, CreatedAt: a.CreatedAt,
+					// The plugin documents this vocabulary as "active"/"revoked"
+					// (its deps.go). This host has no revoked STATE: an agent row
+					// exists or it is deleted, so the only honest word here is
+					// "active" -- see the note sent to the plugin's owner about
+					// whether the column earns its place on a host like this one.
+					Status: "active",
+				}
+				if a.UserID.Valid {
+					aa.Owner = w.data.UsernameByID(ctx, a.UserID.Int64)
+				}
+				if a.LastSeenAt.Valid {
+					t := a.LastSeenAt.Time
+					aa.LastSeen = &t
+				}
+				out = append(out, aa)
+			}
+			return out, nil
+		},
 		CanUseAgents: func(ctx context.Context, userID int) (bool, error) {
 			if w.ents == nil {
 				return false, errEntitlementsUnwired
