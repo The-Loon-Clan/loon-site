@@ -117,37 +117,32 @@ func (w *web) wireAgentPlugin() {
 		// question, and one that failed has not answered it. Returning
 		// (true, err) is the shape a careless caller waves through, so the error
 		// is returned alone.
-		// TEMPORARY, for the side-by-side diff agreed with the plugin's owner:
-		// wiring this mounts the plugin's /admin/p/agents beside this host's
-		// /admin/agents so the two can be compared as rendered pages rather
-		// than as my reading of two source files. One of them goes when we have
-		// agreed which half each owns; nothing is deleted before then.
-		AllAgents: func(ctx context.Context) ([]agentplugin.AdminAgent, error) {
-			rows, err := w.data.AllAgents(ctx)
-			if err != nil {
-				return nil, err
+		// AllAgents is deliberately NOT wired, which unmounts the plugin's
+		// /admin/p/agents. The side-by-side it was added for is over, and the
+		// plugin's owner settled it plainly: their roster is READ-ONLY and is
+		// not a superset of this host's page, which carries create, rotate,
+		// delete and per-agent concurrency. Admin actions on another member's
+		// credentials are a capability their prod has never had, and not one
+		// to ship into every host on the strength of this host's UI. Two
+		// "Agents" entries in the admin nav is a worse outcome than either
+		// page alone, so this host keeps its own whole and leaves the seam
+		// nil — the plugin's page is built to disappear when it is absent.
+
+		// OnlineWindow settles the disagreement the side-by-side found: this
+		// host's roster said "0 of 5 online" beside the plugin's three green
+		// dots, same fleet, same instant, because each tree carried its own
+		// constant (3 minutes here, 5 there). The host knows its own poll
+		// interval and the plugin cannot, so the host answers.
+		OnlineWindow: func() time.Duration { return agentOnlineWindow },
+
+		// AdminLinks names this host's own agent pages for the plugin's
+		// dispatch panel. It replaced a hardcoded /admin/dispatch, which 404s
+		// here because this host draws its queue as a panel on /admin/agents
+		// rather than a page of its own.
+		AdminLinks: func() []agentplugin.AdminLink {
+			return []agentplugin.AdminLink{
+				{Label: "Fleet & dispatch queue", Href: "/admin/agents"},
 			}
-			out := make([]agentplugin.AdminAgent, 0, len(rows))
-			for _, a := range rows {
-				aa := agentplugin.AdminAgent{
-					ID: int(a.ID), Name: a.Name, CreatedAt: a.CreatedAt,
-					// The plugin documents this vocabulary as "active"/"revoked"
-					// (its deps.go). This host has no revoked STATE: an agent row
-					// exists or it is deleted, so the only honest word here is
-					// "active" -- see the note sent to the plugin's owner about
-					// whether the column earns its place on a host like this one.
-					Status: "active",
-				}
-				if a.UserID.Valid {
-					aa.Owner = w.data.UsernameByID(ctx, a.UserID.Int64)
-				}
-				if a.LastSeenAt.Valid {
-					t := a.LastSeenAt.Time
-					aa.LastSeen = &t
-				}
-				out = append(out, aa)
-			}
-			return out, nil
 		},
 		CanUseAgents: func(ctx context.Context, userID int) (bool, error) {
 			if w.ents == nil {

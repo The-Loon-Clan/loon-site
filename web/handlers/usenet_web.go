@@ -92,17 +92,13 @@ func (w *web) newznabAPI(c *gin.Context) {
 
 	// Cache read functions; t=get streams NZB bytes, don't hold those.
 	//
-	// AND NOT A NARROWED tvsearch, until the key covers it.
-	// pluginapi.NewznabCacheKey hashes t/q/cat/limit/offset/id/apikey/base/title
-	// and NOT season/episode, so `tvsearch&q=X&season=4&ep=1` and `tvsearch&q=X`
-	// collide: whichever ran first would answer for both, handing a client
-	// filtered results it never asked to narrow, or the whole series to one that
-	// did. Skipping the cache for these is the conservative half — an
-	// uncached correct answer beats a cached wrong one — and it costs only the
-	// requests that carry a narrowing. Reported upstream; when the key includes
-	// them this condition comes out.
-	narrowed := req.Season != nil || req.Episode != nil
-	cacheable := w.cache != nil && req.Function != "get" && !narrowed
+	// Narrowed tvsearch used to be excluded here too: NewznabCacheKey did not
+	// hash season/episode, so `tvsearch&q=X&season=4&ep=1` and `tvsearch&q=X`
+	// collided and whichever ran first answered for both. It hashes them now,
+	// as POINTERS, so "did not ask" keeps its own key rather than colliding
+	// with "asked for zero" — pinned by TestNewznabCacheKeySeparatesNarrowed
+	// because this host is what would break if it regressed.
+	cacheable := w.cache != nil && req.Function != "get"
 	var key string
 	if cacheable {
 		key = pluginapi.NewznabCacheKey(req)

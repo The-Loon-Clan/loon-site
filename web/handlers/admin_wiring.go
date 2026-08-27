@@ -15,7 +15,6 @@ package handlers
 import (
 	"context"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -104,17 +103,6 @@ func wireAdminAndViews(
 	admin.POST("/agents/token", wsrv.adminAgentToken)
 	admin.POST("/agents/delete", wsrv.adminAgentDelete)
 	admin.POST("/agents/task/delete", wsrv.adminTaskDelete)
-	// /admin/dispatch is the NAME the agent plugin's panel links to for the
-	// host's dispatch queue, and a test in that plugin pins the link as
-	// unconditional -- the roster moved into the plugin, the queue did not,
-	// because agent_task and request_locks are a host's own shape. This host
-	// draws the queue as a panel on /admin/agents rather than on a page of its
-	// own, so the contract is honoured with a redirect rather than by
-	// duplicating the panel. Without it the plugin's "Dispatch Debug" button
-	// is a 404 and audit_links says so.
-	admin.GET("/dispatch", func(c *gin.Context) {
-		c.Redirect(http.StatusMovedPermanently, "/admin/agents")
-	})
 	// Per-tracker API keys (trackerskeys_web.go): storing a key activates a
 	// private tracker's search adapter, live.
 	admin.GET("/tracker-keys", wsrv.adminTrackerKeys)

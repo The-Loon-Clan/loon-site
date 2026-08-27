@@ -48,7 +48,7 @@ type agentRow struct {
 	Protocol  string
 	Version   string
 	Completed int64
-	TokenTail string // last 6 chars, so the operator can tell tokens apart
+	Created   string // when the agent was registered
 
 	HasTask bool
 	Phase   string
@@ -193,10 +193,13 @@ func (w *web) adminTaskDelete(c *gin.Context) {
 func (w *web) agentRowFrom(ctx context.Context, a storage.Agent, now time.Time) agentRow {
 	row := agentRow{
 		ID: a.ID, Name: a.Name, Max: a.MaxConcurrent, Completed: a.Completed,
-		// The tail of the HASH, not of a token: the plaintext is gone the
-		// moment it was shown. Still enough to tell two credentials apart in
-		// the roster, which is all this column is for.
-		TokenTail: tokenTail(a.TokenHash),
+		// This column used to show the tail of the token HASH. It came out on
+		// the agent plugin owner's reasoning and my own: a member cannot match
+		// a hash tail against the token they hold, so it distinguished
+		// credentials only within this table and answered "was this rotated"
+		// badly. The registration date is the fact an operator actually reads
+		// off a roster, and it is honest.
+		Created: a.CreatedAt.Format("Jan 02, 2006"),
 	}
 	if a.LastSeenAt.Valid {
 		row.LastSeen = fleetAge(now.Sub(a.LastSeenAt.Time))
@@ -318,14 +321,7 @@ func (w *web) adminAgentDelete(c *gin.Context) {
 	c.Redirect(http.StatusSeeOther, "/admin/agents")
 }
 
-// tokenTail is the last 6 characters, enough to tell two tokens apart in the
-// roster without printing the secret.
-func tokenTail(tok string) string {
-	if len(tok) <= 6 {
-		return tok
-	}
-	return tok[len(tok)-6:]
-}
+
 
 // fleetAge renders how long an agent has been silent, at the resolution a
 // FLEET roster is read at.

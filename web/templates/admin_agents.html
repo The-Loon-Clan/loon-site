@@ -150,7 +150,7 @@
         <table class="data-table">
             <caption class="visually-hidden">Every agent, its live status and its current task</caption>
             <thead>
-                <tr><th>Agent</th><th>Owner</th><th>Status</th><th>Now</th><th>Done</th><th>Concurrency</th><th>Token</th></tr>
+                <tr><th>Agent</th><th>Owner</th><th>Status</th><th>Now</th><th>Done</th><th>Concurrency</th><th>Added</th><th></th></tr>
             </thead>
             <tbody>
                 {{range .VM.Rows}}
@@ -219,9 +219,9 @@
                             <button class="btn btn-sm" type="submit">Set</button>
                         </form>
                     </td>
+                    <td class="small text-subtle">{{.Created}}</td>
                     <td class="small">
-                        <span class="text-subtle" title="Credential fingerprint (hash tail) — the token itself is never stored">…{{.TokenTail}}</span>
-                        <div class="d-flex gap-1 mt-1">
+                        <div class="d-flex gap-1">
                             <form method="post" action="/admin/agents/token">
                                 <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
                                 <input type="hidden" name="id" value="{{.ID}}">
