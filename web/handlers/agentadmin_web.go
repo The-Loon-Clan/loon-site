@@ -153,7 +153,7 @@ func (w *web) agentsVM(ctx context.Context) agentsVM {
 			ID: t.ID, Title: t.Title, State: t.State,
 			InfoHash: shortHash(t.InfoHash),
 			Progress: t.Progress.String,
-			Age:      humanAge(now.Sub(t.CreatedAt)),
+			Age:      fleetAge(now.Sub(t.CreatedAt)),
 			Fail:     t.FailReason.String,
 		}
 		if t.LeasedAgentID.Valid {
@@ -199,7 +199,7 @@ func (w *web) agentRowFrom(ctx context.Context, a storage.Agent, now time.Time) 
 		TokenTail: tokenTail(a.TokenHash),
 	}
 	if a.LastSeenAt.Valid {
-		row.LastSeen = humanAge(now.Sub(a.LastSeenAt.Time))
+		row.LastSeen = fleetAge(now.Sub(a.LastSeenAt.Time))
 		row.Online = now.Sub(a.LastSeenAt.Time) <= agentOnlineWindow
 	} else {
 		row.LastSeen = "never"
@@ -325,4 +325,35 @@ func tokenTail(tok string) string {
 		return tok
 	}
 	return tok[len(tok)-6:]
+}
+
+// fleetAge renders how long an agent has been silent, at the resolution a
+// FLEET roster is read at.
+//
+// humanAge (tvgapsadmin_web.go) is the other one, and it is wrong here: it
+// answers "just now" for anything under an hour, which is the right coarseness
+// for a TV gap measured in days and useless for a worker that goes offline
+// after three minutes. Using it here printed rows reading "offline - just now",
+// which is not a state an agent can be in and told an operator nothing about
+// whether the machine had died a moment ago or half an hour ago.
+//
+// The online BADGE and this string must be able to agree, so the resolution
+// has to be finer than agentOnlineWindow.
+func fleetAge(d time.Duration) string {
+	switch {
+	case d < 10*time.Second:
+		return "just now"
+	case d < time.Minute:
+		return itoa(int(d.Seconds())) + "s ago"
+	case d < time.Hour:
+		return itoa(int(d.Minutes())) + "m ago"
+	case d < 24*time.Hour:
+		return itoa(int(d.Hours())) + "h ago"
+	default:
+		days := int(d.Hours() / 24)
+		if days == 1 {
+			return "yesterday"
+		}
+		return itoa(days) + " days ago"
+	}
 }
