@@ -8,9 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/the-loon-clan/loon-site/internal/config"
-	"github.com/the-loon-clan/loon-site/internal/storage"
+	"github.com/the-loon-clan/loon-plugins/pluginapi"
 
+	"github.com/the-loon-clan/loon-site/internal/config"
+
+	"github.com/the-loon-clan/loon/core"
 	"github.com/the-loon-clan/loon/schedule"
 )
 
@@ -140,7 +142,7 @@ type seedAward struct {
 // clock, no database, no logging. Every rule in this economy is therefore
 // testable directly, which is the only way it gets tested at all on a host
 // whose tracker is switched off.
-func awardFor(rows []storage.SeedRow, s seedSettings, elapsed time.Duration, carry map[int64]float64) []seedAward {
+func awardFor(rows []pluginapi.SeedRow, s seedSettings, elapsed time.Duration, carry map[int64]float64) []seedAward {
 	if s.Mode != seedModeClassic && s.Mode != seedModePool {
 		return nil
 	}
@@ -223,21 +225,21 @@ func loyaltyFactor(seedtimeSecs int64, s seedSettings) float64 {
 // Registered on every process so /admin/jobs can list it and "Run now" has
 // something to enqueue against; the loop only turns where jobs run, which is
 // the same split every other job here uses.
-func (w *web) wireSeedPoints(jobSettings schedule.JobConfigStore, logger *slog.Logger) {
+func (w *web) wireSeedPoints(c *core.Core, jobSettings schedule.JobConfigStore, logger *slog.Logger) {
 	job := schedule.RegisterJob(seedJobName,
 		"Pays bonus points for seeding. Two economies -- classic (size × time) and pool (each torrent mints a pool its seeders split) -- and the operator picks one at Config. Off until they do.")
 	job.IntervalMin = seedIntervalMin
 	job.DeclareConfig(jobSettings, seedConfigVars()...)
-	job.SetTrigger(triggerProtected(job, func() { w.runSeedPoints(context.Background(), job, jobSettings, logger) }))
+	job.SetTrigger(triggerProtected(job, func() { w.runSeedPoints(context.Background(), c, job, jobSettings, logger) }))
 	if config.RunsJobs() {
 		go schedule.ServiceLoop(context.Background(), job,
 			seedIntervalMin*time.Minute, seedIntervalMin*time.Minute,
-			func(ctx context.Context) { w.runSeedPoints(ctx, job, jobSettings, logger) })
+			func(ctx context.Context) { w.runSeedPoints(ctx, c, job, jobSettings, logger) })
 	}
 }
 
 // runSeedPoints pays one accounting period.
-func (w *web) runSeedPoints(ctx context.Context, job *schedule.JobInfo, jobSettings schedule.JobConfigStore, logger *slog.Logger) {
+func (w *web) runSeedPoints(ctx context.Context, c *core.Core, job *schedule.JobInfo, jobSettings schedule.JobConfigStore, logger *slog.Logger) {
 	job.SetRunning()
 	next := time.Now().Add(seedIntervalMin * time.Minute)
 
@@ -246,17 +248,25 @@ func (w *web) runSeedPoints(ctx context.Context, job *schedule.JobInfo, jobSetti
 		job.SetIdle(next)
 		return
 	}
-	// The tracker is a plugin, and on an indexer-flavoured site it never
-	// booted -- so its schema is ABSENT rather than empty. Saying so is the
-	// point: an operator who switched this economy on while the tracker is off
-	// has made a mistake that no amount of "0 paid" would reveal.
-	if !flavourTracker() || !w.data.TrackerSwarmReady(ctx) {
+	// The swarm comes from the TRACKER, through pluginapi's snapshot seam.
+	// Absent is the normal state of a host with no tracker -- on an
+	// indexer-flavoured site the plugin never booted and never registered it --
+	// and saying so is the point: an operator who switched this economy on
+	// while the tracker is off has made a mistake that no amount of "0 paid"
+	// would ever reveal.
+	//
+	// This used to be a direct read of tracker.user_stats and tracker.torrents
+	// from this host's own store. That worked and was flagged rather than
+	// hidden; the seam replaces it, so the host no longer depends on the shape
+	// of another plugin's tables.
+	snap, ok := pluginapi.SeedingSnapshots(c)
+	if !ok {
 		job.SetError("the tracker is not running on this site, so there is no swarm to pay for")
 		return
 	}
 
 	elapsed := seedElapsed(ctx, jobSettings, time.Now())
-	rows, err := w.data.SeedingSnapshot(ctx, seedFreshFor)
+	rows, err := snap.SeedingSnapshot(ctx, seedFreshFor)
 	if err != nil {
 		job.SetError("read swarm: " + err.Error())
 		return

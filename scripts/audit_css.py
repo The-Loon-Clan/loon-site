@@ -466,22 +466,27 @@ JS_TREES = [
 # optimising the measurement rather than the thing measured, which is the
 # mistake this file exists to catch elsewhere. They are somebody's intended
 # structure; whoever styles it adds the rule, and the entry goes down then.
+# 1 Sep 2026: six plugins reached 0 at once and none of it was this host's
+# work -- the plugin repo removed a button--info that a shared fragment had
+# been requiring from one host's stylesheet, and the classes it was standing in
+# for were already defined. Lowered here rather than left, because a baseline
+# that absorbs somebody else's progress stops noticing the next regression.
 PLUGIN_BASELINE = {
-    "achievements": 1,
-    "applications": 5,
+    "achievements": 0,
+    "applications": 0,
     "cosmetics": 3,
-    "donations": 1,
+    "donations": 0,
     "forum": 9,
     "lists": 5,
-    "mediainfo": 1,
-    "messages": 1,
+    "mediainfo": 0,
+    "messages": 0,
     "offers": 1,
     # 0 since 23 Aug 2026: the one undefined name was .rg-bio, which the detail
     # template had been carrying while its font-size and line-height sat in a
     # style attribute beside it. Naming the class defined it.
     "releasegroups": 0,
     "requests": 31,
-    "uploads": 1,
+    "uploads": 0,
 }
 
 def main():

@@ -218,7 +218,7 @@ func wireAdminAndViews(
 	// able to see and configure the economy before they turn the swarm on. It
 	// pays nothing until a mode is chosen, and says so plainly if a mode is
 	// chosen while the tracker is not running.
-	wsrv.wireSeedPoints(st.jobSettings, logger)
+	wsrv.wireSeedPoints(c, st.jobSettings, logger)
 
 	// Calendar sources. Registered AFTER the capability lookups above because
 	// each source closes over one of them; a source whose dependency is absent

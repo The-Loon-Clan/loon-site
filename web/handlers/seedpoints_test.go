@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/the-loon-clan/loon-site/internal/storage"
+	"github.com/the-loon-clan/loon-plugins/pluginapi"
 )
 
 // The seeding economy's rules, tested directly. awardFor is pure, which is the
@@ -30,10 +30,10 @@ func awardsByUser(t *testing.T, got []seedAward) map[int64]seedAward {
 // The pool's whole point: the same torrent pays each seeder more when there
 // are fewer of them.
 func TestPoolPaysMoreWhenFewerSeed(t *testing.T) {
-	alone := awardFor([]storage.SeedRow{
+	alone := awardFor([]pluginapi.SeedRow{
 		{UserID: 1, InfoHash: "a", SizeBytes: oneTB, Seeders: 1},
 	}, poolSettings(0), time.Hour, map[int64]float64{})
-	crowded := awardFor([]storage.SeedRow{
+	crowded := awardFor([]pluginapi.SeedRow{
 		{UserID: 1, InfoHash: "a", SizeBytes: oneTB, Seeders: 4},
 	}, poolSettings(0), time.Hour, map[int64]float64{})
 
@@ -50,7 +50,7 @@ func TestPoolPaysMoreWhenFewerSeed(t *testing.T) {
 // that disagreed with the payees would mint or destroy points every hour, in a
 // direction nobody could see from the outside.
 func TestPoolSharesSumToThePool(t *testing.T) {
-	rows := []storage.SeedRow{
+	rows := []pluginapi.SeedRow{
 		{UserID: 1, InfoHash: "a", SizeBytes: oneTB, Seeders: 4},
 		{UserID: 2, InfoHash: "a", SizeBytes: oneTB, Seeders: 4},
 		{UserID: 3, InfoHash: "a", SizeBytes: oneTB, Seeders: 4},
@@ -68,9 +68,9 @@ func TestPoolSharesSumToThePool(t *testing.T) {
 // The cap is what stands between the pool and its own incentive. Without it,
 // somebody seeding many torrents alone collects a full pool from each.
 func TestCapBoundsTheLoneSeederFarm(t *testing.T) {
-	var rows []storage.SeedRow
+	var rows []pluginapi.SeedRow
 	for i := 0; i < 50; i++ {
-		rows = append(rows, storage.SeedRow{
+		rows = append(rows, pluginapi.SeedRow{
 			UserID: 1, InfoHash: string(rune('a' + i)), SizeBytes: oneTB, Seeders: 1,
 		})
 	}
@@ -90,7 +90,7 @@ func TestCapBoundsTheLoneSeederFarm(t *testing.T) {
 // The cap is a RATE, so a longer accounting period pays proportionally more.
 // A catch-up run must not be silently truncated to one hour's worth.
 func TestCapScalesWithTheAccountingPeriod(t *testing.T) {
-	rows := []storage.SeedRow{{UserID: 1, InfoHash: "a", SizeBytes: 10 * oneTB, Seeders: 1}}
+	rows := []pluginapi.SeedRow{{UserID: 1, InfoHash: "a", SizeBytes: 10 * oneTB, Seeders: 1}}
 	got := awardFor(rows, poolSettings(250), 2*time.Hour, map[int64]float64{})
 	if got[0].Points != 500 {
 		t.Errorf("two hours at a 250/hour cap paid %d, want 500", got[0].Points)
@@ -103,7 +103,7 @@ func TestCapScalesWithTheAccountingPeriod(t *testing.T) {
 // seeder while paying the large ones in full.
 func TestFractionsAreCarriedNotDropped(t *testing.T) {
 	// A 1 TB torrent with 250 seeders at 100/TB/hour is 0.4 each per hour.
-	rows := []storage.SeedRow{{UserID: 1, InfoHash: "a", SizeBytes: oneTB, Seeders: 250}}
+	rows := []pluginapi.SeedRow{{UserID: 1, InfoHash: "a", SizeBytes: oneTB, Seeders: 250}}
 	carry := map[int64]float64{}
 	paid := 0
 	for hour := 1; hour <= 5; hour++ {
@@ -123,7 +123,7 @@ func TestFractionsAreCarriedNotDropped(t *testing.T) {
 // the fraction accumulate through every capped hour and pay out the moment
 // they dipped below the cap -- the cap failing slowly instead of working.
 func TestCappedMembersDoNotBankCarry(t *testing.T) {
-	rows := []storage.SeedRow{{UserID: 1, InfoHash: "a", SizeBytes: 10 * oneTB, Seeders: 1}}
+	rows := []pluginapi.SeedRow{{UserID: 1, InfoHash: "a", SizeBytes: 10 * oneTB, Seeders: 1}}
 	carry := map[int64]float64{1: 0.9}
 	got := awardFor(rows, poolSettings(250), time.Hour, carry)
 	if got[0].Points != 250 {
@@ -139,7 +139,7 @@ func TestClassicPaysForSizeAndTime(t *testing.T) {
 	s := seedSettings{Mode: seedModeClassic, ClassicPerTBHour: 100,
 		LoyaltyPctPerMonth: 5, LoyaltyMaxPct: 100}
 
-	fresh := awardFor([]storage.SeedRow{
+	fresh := awardFor([]pluginapi.SeedRow{
 		{UserID: 1, InfoHash: "a", SizeBytes: oneTB, Seedtime: 0},
 	}, s, time.Hour, map[int64]float64{})
 	if fresh[0].Points != 100 {
@@ -147,7 +147,7 @@ func TestClassicPaysForSizeAndTime(t *testing.T) {
 	}
 
 	// Two months held: +10%.
-	aged := awardFor([]storage.SeedRow{
+	aged := awardFor([]pluginapi.SeedRow{
 		{UserID: 1, InfoHash: "a", SizeBytes: oneTB, Seedtime: 60 * 24 * 3600},
 	}, s, time.Hour, map[int64]float64{})
 	if aged[0].Points != 110 {
@@ -155,7 +155,7 @@ func TestClassicPaysForSizeAndTime(t *testing.T) {
 	}
 
 	// Twice the size, twice the pay.
-	big := awardFor([]storage.SeedRow{
+	big := awardFor([]pluginapi.SeedRow{
 		{UserID: 1, InfoHash: "a", SizeBytes: 2 * oneTB, Seedtime: 0},
 	}, s, time.Hour, map[int64]float64{})
 	if big[0].Points != 200 {
@@ -167,8 +167,8 @@ func TestClassicPaysForSizeAndTime(t *testing.T) {
 // economies answer different questions and this is the difference.
 func TestClassicIgnoresTheSeederCount(t *testing.T) {
 	s := seedSettings{Mode: seedModeClassic, ClassicPerTBHour: 100}
-	alone := awardFor([]storage.SeedRow{{UserID: 1, SizeBytes: oneTB, Seeders: 1}}, s, time.Hour, map[int64]float64{})
-	crowded := awardFor([]storage.SeedRow{{UserID: 1, SizeBytes: oneTB, Seeders: 99}}, s, time.Hour, map[int64]float64{})
+	alone := awardFor([]pluginapi.SeedRow{{UserID: 1, SizeBytes: oneTB, Seeders: 1}}, s, time.Hour, map[int64]float64{})
+	crowded := awardFor([]pluginapi.SeedRow{{UserID: 1, SizeBytes: oneTB, Seeders: 99}}, s, time.Hour, map[int64]float64{})
 	if alone[0].Points != crowded[0].Points {
 		t.Errorf("classic paid %d alone and %d in a crowd; it must not depend on the swarm",
 			alone[0].Points, crowded[0].Points)
@@ -181,7 +181,7 @@ func TestLoyaltyIsCapped(t *testing.T) {
 	s := seedSettings{Mode: seedModeClassic, ClassicPerTBHour: 100,
 		LoyaltyPctPerMonth: 5, LoyaltyMaxPct: 100}
 	// Ten years held would be +600% uncapped.
-	got := awardFor([]storage.SeedRow{
+	got := awardFor([]pluginapi.SeedRow{
 		{UserID: 1, SizeBytes: oneTB, Seedtime: 10 * 365 * 24 * 3600},
 	}, s, time.Hour, map[int64]float64{})
 	if got[0].Points != 200 {
@@ -192,7 +192,7 @@ func TestLoyaltyIsCapped(t *testing.T) {
 // Off pays nothing at all, which is the shipped default: an economy that
 // starts paying because somebody deployed is not a decision anybody made.
 func TestOffPaysNothing(t *testing.T) {
-	rows := []storage.SeedRow{{UserID: 1, SizeBytes: oneTB, Seeders: 1}}
+	rows := []pluginapi.SeedRow{{UserID: 1, SizeBytes: oneTB, Seeders: 1}}
 	for _, mode := range []string{seedModeOff, "", "POOL "} {
 		s := seedSettings{Mode: mode, PoolPerTBHour: 100, ClassicPerTBHour: 100}
 		if got := awardFor(rows, s, time.Hour, map[int64]float64{}); len(got) != 0 {
@@ -204,7 +204,7 @@ func TestOffPaysNothing(t *testing.T) {
 // Hostile and degenerate rows must not produce a NaN, a negative, or a panic:
 // this arithmetic lands in somebody's points balance.
 func TestAwardsSurviveDegenerateRows(t *testing.T) {
-	rows := []storage.SeedRow{
+	rows := []pluginapi.SeedRow{
 		{UserID: 1, SizeBytes: 0, Seeders: 1},     // zero-size torrent
 		{UserID: 1, SizeBytes: oneTB, Seeders: 0}, // impossible: paid but nobody seeding
 		{UserID: 1, SizeBytes: -oneTB, Seeders: 2},
@@ -223,7 +223,7 @@ func TestAwardsSurviveDegenerateRows(t *testing.T) {
 
 // A zero or negative period pays nothing rather than paying backwards.
 func TestNoTimeNoPay(t *testing.T) {
-	rows := []storage.SeedRow{{UserID: 1, SizeBytes: oneTB, Seeders: 1}}
+	rows := []pluginapi.SeedRow{{UserID: 1, SizeBytes: oneTB, Seeders: 1}}
 	for _, d := range []time.Duration{0, -time.Hour} {
 		if got := awardFor(rows, poolSettings(0), d, map[int64]float64{}); len(got) != 0 {
 			t.Errorf("elapsed %v paid %d members", d, len(got))
@@ -234,7 +234,7 @@ func TestNoTimeNoPay(t *testing.T) {
 // One member seeding several torrents is paid for all of them, summed before
 // the cap is applied -- the cap is per member per hour, not per torrent.
 func TestCapAppliesToTheMemberNotTheTorrent(t *testing.T) {
-	rows := []storage.SeedRow{
+	rows := []pluginapi.SeedRow{
 		{UserID: 1, InfoHash: "a", SizeBytes: oneTB, Seeders: 1},
 		{UserID: 1, InfoHash: "b", SizeBytes: oneTB, Seeders: 1},
 		{UserID: 2, InfoHash: "a", SizeBytes: oneTB, Seeders: 1},
@@ -256,7 +256,7 @@ func TestCapAppliesToTheMemberNotTheTorrent(t *testing.T) {
 // implementation that merely declines to ADD the member's existing carry still
 // banks that one.
 func TestCappedMembersCarryNothingOnAPartialHour(t *testing.T) {
-	rows := []storage.SeedRow{{UserID: 1, InfoHash: "a", SizeBytes: 100 * oneTB, Seeders: 1}}
+	rows := []pluginapi.SeedRow{{UserID: 1, InfoHash: "a", SizeBytes: 100 * oneTB, Seeders: 1}}
 	// 250/hour × 1.33h = 332.5, so the capped amount is fractional.
 	got := awardFor(rows, poolSettings(250), 80*time.Minute, map[int64]float64{1: 0.7})
 	if got[0].Points != 333 {
