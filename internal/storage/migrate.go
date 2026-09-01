@@ -799,6 +799,15 @@ func (st *Store) MigratePoints() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_points_ledger_user
 		     ON points_ledger (user_id, created_at DESC)`,
+		// The unpaid fraction of a seeding point, per member. Points are
+		// integers and an hourly seeding award rarely is, so the remainder is
+		// carried rather than dropped -- otherwise a member whose hourly
+		// earning is below one point is paid nothing forever. See
+		// storage/seedpoints.go.
+		`CREATE TABLE IF NOT EXISTS seed_points_carry (
+		    user_id  BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+		    fraction DOUBLE PRECISION NOT NULL DEFAULT 0
+		)`,
 	}
 	for _, q := range stmts {
 		if _, err := st.db.Exec(q); err != nil {

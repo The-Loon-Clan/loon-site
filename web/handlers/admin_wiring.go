@@ -207,6 +207,13 @@ func wireAdminAndViews(
 	// demoseedtracker_web.go — demo data only, and it stops the moment a real
 	// peer announces.
 	wireDemoTrackerActivity(db, logger)
+	// Bonus points for seeding (seedpoints_web.go). Registered unconditionally
+	// so the job and its economy are visible at /admin/jobs even on a site with
+	// the tracker switched off -- an operator setting the site up should be
+	// able to see and configure the economy before they turn the swarm on. It
+	// pays nothing until a mode is chosen, and says so plainly if a mode is
+	// chosen while the tracker is not running.
+	wsrv.wireSeedPoints(st.jobSettings, logger)
 
 	// Calendar sources. Registered AFTER the capability lookups above because
 	// each source closes over one of them; a source whose dependency is absent

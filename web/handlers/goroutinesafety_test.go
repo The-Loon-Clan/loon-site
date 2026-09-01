@@ -27,7 +27,7 @@ import (
 // of them: `go someCall(...)` and a `go` inside a closure argument are both
 // goroutines and neither matches that pattern.
 //
-// The audited twelve:
+// The audited thirteen:
 //
 //	avatarsweep       filesystem deletion + DB on a forever ticker -- RECOVERED
 //	jobtrigger        the one shared manual-run spawn -- RECOVERED, and it
@@ -35,11 +35,13 @@ import (
 //	demoseedtracker   ServiceLoop, protected by the framework's runTickProtected
 //	sitemap           ServiceLoop, same
 //	tvschedule        ServiceLoop, same
+//	seedpoints        ServiceLoop, same; its manual run goes through
+//	                  triggerProtected like the other three
 //	main              x3: StartRefresh / StartPoller / StartReporter, baseline-owned
 //	presence          one-shot UPDATE, guarded by db.Valid() before the spawn
 //	serve_wiring      x3: ListenAndServe, plus backfillCovers and runLocalLinks
 func TestGoroutineCountIsAudited(t *testing.T) {
-	const audited = 12
+	const audited = 13
 
 	entries, err := os.ReadDir(".")
 	if err != nil {

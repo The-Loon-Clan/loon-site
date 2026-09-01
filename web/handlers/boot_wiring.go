@@ -38,9 +38,10 @@ const jobPausedKey = "paused"
 
 // baselineStores is what the first phase hands to the rest of boot.
 //
-// Only the stores used LATER are fields. jobSettings, maintStore and apiSvc
-// are set up here and never referenced again, so they stay locals — a struct
-// field for them would imply a lifetime they do not have.
+// Only the stores used LATER are fields. maintStore and apiSvc are set up here
+// and never referenced again, so they stay locals — a struct field for them
+// would imply a lifetime they do not have. jobSettings became a field when the
+// seeding-points job needed to read its own economy back out of it.
 type baselineStores struct {
 	sessionSecret []byte
 	users         *users.PGStore
@@ -50,6 +51,7 @@ type baselineStores struct {
 	maint         *maintenance.Controller
 	jobTriggers   *jobtrigger.PGStore
 	heartbeat     *heartbeat.PGStore
+	jobSettings   *jobsettings.PGStore
 }
 
 // wireBaselineStores migrates and returns loon-baseline's stores.
@@ -97,6 +99,7 @@ func wireBaselineStores(db storage.Conn, logger *slog.Logger) (baselineStores, e
 	if err := jobSettings.Migrate(context.Background()); err != nil {
 		return st, fmt.Errorf("jobsettings migrate: %w", err)
 	}
+	st.jobSettings = jobSettings
 	// PAUSE SURVIVES A RESTART, and until this was wired it did not. loon keeps
 	// the flag in memory unless a host installs these two hooks -- its own note
 	// on them says "the next deploy silently resumes the job, which is exactly

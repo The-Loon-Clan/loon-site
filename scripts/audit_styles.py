@@ -63,7 +63,12 @@ SKIP = {".git", "node_modules", "vendor", "scratchpad", "examples", "testdata",
 #   /p/agents page, raised under protest) -> 830 (a435895 converted the new
 #   page AND the fleet card's older attributes to ag-* classes in
 #   agent/stylesheet.go -- seven below where it started).
-BASELINE_INLINE = {"host": 34, "plugins": 830}
+#
+#   27 Aug 2026: plugins 830 -> 820. Not this host's work -- the plugin repo's
+#   own agent-groups and roster pages landed with classes rather than style
+#   attributes. Recorded here because the ratchet only ratchets if progress is
+#   written down: leaving it at 830 would silently absorb the next ten.
+BASELINE_INLINE = {"host": 34, "plugins": 820}
 BASELINE_DEAD = {"host": 0, "plugins": 32}
 
 STYLE_ATTR = re.compile(r'style\s*=\s*"([^"]*)"', re.I)

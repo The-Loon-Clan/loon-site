@@ -48,6 +48,12 @@ var logKeys = map[string]string{
 	"slug":           "a plugin, widget, page or community slug",
 	"agent":          "a fleet agent, by name or id",
 	"job":            "a scheduled job's name",
+	// the seeding-points economy (web/handlers/seedpoints_web.go). "mode"
+	// already existed and is reused: the economy a payout ran under is exactly
+	// "which of several modes a subsystem is in".
+	"seeding_rows":   "how many member-seeds-torrent pairs one payout run looked at",
+	"points":         "points awarded by one run, summed over every member paid",
+	"capped_members": "how many members hit the per-hour earning cap in one run",
 	"param":          "the name of a request parameter being reported on, never its value",
 	"paused":         "whether a job was paused or resumed, on the write that persists it",
 	"task":           "an agent_task row id — the queued grab a fleet agent leases",
