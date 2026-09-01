@@ -97,6 +97,11 @@ func wireAdminAndViews(
 	admin.GET("/trackers", wsrv.adminTrackers)
 	// The fleet agent roster (agentadmin_web.go): settings, credentials, and
 	// live per-file progress.
+	// Neutral leech (neutral_web.go): the restriction that counts in neither
+	// direction. Its policy source is registered at boot; these are the pages
+	// that set it.
+	admin.GET("/neutral", wsrv.adminNeutral)
+	admin.POST("/neutral", wsrv.adminNeutralSet)
 	admin.GET("/agents", wsrv.adminAgents)
 	admin.POST("/agents/concurrent", wsrv.adminAgentConcurrent)
 	admin.POST("/agents/create", wsrv.adminAgentCreate)

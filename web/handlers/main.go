@@ -672,6 +672,12 @@ func Main() {
 		os.Exit(1)
 	}
 
+	// Neutral leech (neutral_web.go). Registered BEFORE Boot like the other
+	// capabilities here: the tracker plugin resolves policy flags off the
+	// registry, and a source that arrived after Provision would be invisible
+	// to the announce path that consults it.
+	wsrv.wireNeutral(c, conn, logger)
+
 	// Publish the Turnstile verifier as a cross-cutting capability so plugins
 	// (e.g. the dailyreward claim button) can require a captcha without importing
 	// loon-baseline. Registered before Boot so plugin Provision can Lookup it; a

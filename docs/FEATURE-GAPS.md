@@ -52,7 +52,8 @@ missing is not tracker-specific.
 - [ ] **Personal freeleech tokens** — `S` — spend one torrent's download as free
 - [ ] **Peer and snatch lists** — `S` — who is seeding this, who has taken it
 - [ ] **Seedbox / IP allowlist** — `S` — members register where they announce from
-- [ ] **Double upload / neutral leech** — `S` — per-torrent multipliers as site states
+- [ ] **Double upload** — `S` — per-torrent multipliers as site states
+- [x] **Neutral leech** — done 1 Sep 2026 — a restriction, not a multiplier; see below
 - [ ] **IRC announce channel** — `M` — the channel autodl-irssi and autobrr parse
 
 ---
@@ -491,7 +492,7 @@ anti-cheat: an announce from an unregistered address is a signal.
 **Here:** cheat detection already samples announces, so the signal has
 somewhere to go the day the list exists.
 
-## Double upload / neutral leech — S
+## Double upload — S
 
 Per-torrent multipliers as first-class site states. UNIT3D ships "double upload
 system" alongside freeleech as a headline feature; it is how a site pushes a
@@ -501,6 +502,33 @@ category it wants seeded.
 combines them under the rules in the multiplier contract. This is a site-level
 state on machinery that runs — and it must go through `ResolveMultiplier`
 rather than beside it, or the combining rules exist in two places.
+
+## Neutral leech — DONE, 1 Sep 2026
+
+**This used to be half of the entry above, and the bundling was the mistake.**
+Double upload is a `ResolveMultiplier` source and always could have been.
+Neutral never could: promotions combine by MAX from a 1.0 floor, so a source
+asking for upload × 0 always loses, and a `(0, 0)` source resolved to `(1, 0)`
+— ordinary freeleech, meaning free downloads *and* full upload credit. It did
+not fail. It silently paid out more than intended, which is why reading the
+contract was not enough and it had to be measured.
+
+The cause was a category error rather than an arithmetic one: MAX is exactly
+right for promotions, where every source is offering the member something.
+Neutral is a **restriction** bundled with a benefit, so it loses the argument
+the algebra exists to settle.
+
+**Now:** `pluginapi.PolicySource` / `ResolvePolicyFlag`, combined by ANY — one
+source asserting a restriction is enough and nothing can out-bid it — with
+`tracker.Credit` applying it after the promotions are settled and zeroing both
+halves. The host's source and its admin surface are `neutral_web.go`: a
+site-wide window and a per-torrent list, both mirrored in memory because the
+flag is read per peer per announce.
+
+One asymmetry worth knowing: a policy source that ERRORS is not applied, so
+restrictions fail *generous*. That is the right direction — an operator can see
+a restriction that never fires, whereas the opposite silently withholds credit
+somebody earned and nobody can see that at all.
 
 ## IRC announce channel — M
 

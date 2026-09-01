@@ -1,0 +1,105 @@
+{{define "content"}}
+<header class="mb-3">
+    <h1 class="h3 m-0">Neutral leech</h1>
+    <p class="text-muted small m-0">
+        Traffic that counts in <strong>neither</strong> direction: the download is free
+        and the upload earns nothing. Both halves together — a &ldquo;neutral&rdquo;
+        torrent that still credited upload would be a ratio farm.
+    </p>
+</header>
+
+{{if not .TrackerOn}}
+<div class="notice notice--info mb-3">
+    <svg class="icon notice__icon" aria-hidden="true"><use href="#info"></use></svg>
+    <span>The tracker is switched off on this site, so nothing announces and nothing
+    asks whether it is neutral. Anything set here takes effect when the tracker is
+    turned on at <a href="/admin/access">Access</a>.</span>
+</div>
+{{end}}
+
+<section class="panelV2 mb-3">
+    <header class="panel__header">
+        <h2 class="panel__heading">Site-wide window</h2>
+        <div class="panel__actions">
+            <span class="panel__grouping">{{if .SiteWide}}running until {{.Until}}{{else}}not running{{end}}</span>
+        </div>
+    </header>
+    <div class="panel__body">
+        <p class="small text-muted">
+            Makes <em>all</em> traffic neutral for a period — the neutral equivalent of a
+            freeleech event. Set 0 hours to end it now.
+        </p>
+        <form method="post" action="/admin/neutral" class="d-flex gap-2 align-items-end flex-wrap">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <input type="hidden" name="action" value="site">
+            <label class="form__label" for="neutral-hours">Hours
+                <input id="neutral-hours" class="form__input" type="number" name="hours"
+                       min="0" max="336" value="{{if .SiteWide}}0{{else}}6{{end}}">
+            </label>
+            <button class="button button--primary" type="submit">
+                {{if .SiteWide}}Update window{{else}}Start window{{end}}
+            </button>
+        </form>
+    </div>
+</section>
+
+<section class="panelV2 mb-3">
+    <header class="panel__header">
+        <h2 class="panel__heading">Mark a torrent</h2>
+    </header>
+    <div class="panel__body">
+        <form method="post" action="/admin/neutral" class="d-flex gap-2 align-items-end flex-wrap">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <label class="form__label" for="neutral-hash">Info hash (40 hex)
+                <input id="neutral-hash" class="form__input" name="info_hash" size="44"
+                       placeholder="0123456789abcdef0123456789abcdef01234567">
+            </label>
+            <label class="form__label" for="neutral-reason">Reason
+                <input id="neutral-reason" class="form__input" name="reason" size="30"
+                       placeholder="re-seed of an already widely held release">
+            </label>
+            <label class="form__label" for="neutral-expiry">Hours (blank = forever)
+                <input id="neutral-expiry" class="form__input" type="number" name="hours" min="0" size="6">
+            </label>
+            <button class="button button--primary" type="submit">Mark neutral</button>
+        </form>
+    </div>
+</section>
+
+<section class="panelV2">
+    <header class="panel__header">
+        <h2 class="panel__heading">Marked torrents</h2>
+        <div class="panel__actions"><span class="panel__grouping">{{.Active}} active</span></div>
+    </header>
+    <div class="panel__body panel__body--flush">
+        <div class="data-table-wrapper">
+            <table class="data-table">
+                <caption class="visually-hidden">Torrents currently marked neutral, with why and by whom</caption>
+                <thead>
+                    <tr><th>Info hash</th><th>Reason</th><th>Set by</th><th>Expires</th><th></th></tr>
+                </thead>
+                <tbody>
+                {{range .Rows}}
+                    <tr{{if .Expired}} class="text-subtle"{{end}}>
+                        <td><code class="small">{{.InfoHash}}</code></td>
+                        <td class="small">{{if .Reason}}{{.Reason}}{{else}}<span class="text-subtle">&mdash;</span>{{end}}</td>
+                        <td class="small">{{if .SetBy}}{{.SetBy}}{{else}}<span class="text-subtle">&mdash;</span>{{end}}</td>
+                        <td class="small">{{.Expires}}{{if .Expired}} <span class="text-subtle">(expired)</span>{{end}}</td>
+                        <td>
+                            <form method="post" action="/admin/neutral">
+                                <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                                <input type="hidden" name="action" value="clear">
+                                <input type="hidden" name="info_hash" value="{{.InfoHash}}">
+                                <button class="button button--sm" type="submit">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                {{else}}
+                    <tr><td colspan="5" class="text-muted small">No torrents are marked neutral.</td></tr>
+                {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{{end}}

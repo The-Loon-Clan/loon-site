@@ -220,6 +220,9 @@ var pageTemplates = []string{
 	"admin_tracker_keys.html",
 	// The fleet agent roster (agentadmin_web.go).
 	"admin_agents.html",
+	// Neutral leech, the restriction that counts in neither direction
+	// (neutral_web.go).
+	"admin_neutral.html",
 	// The message catalogue (i18nadmin_web.go).
 	"admin_i18n.html",
 	// Editable site pages (pagesadmin_web.go).
