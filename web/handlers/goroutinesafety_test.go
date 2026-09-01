@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -138,4 +139,40 @@ func TestTriggerProtectedDoesNotKillTheProcess(t *testing.T) {
 	triggerProtected(job, func() { defer close(done); panic("boom") })()
 	<-done
 	time.Sleep(5 * time.Millisecond)
+}
+
+// A triggered panic must reach the panic sink as well as the job, because the
+// two answer different questions: the job's error is what the operator who
+// pressed the button sees now, and the sink is where it is still findable
+// tomorrow. Wiring one and not the other was the state this host was in.
+func TestTriggerProtectedReachesThePanicSink(t *testing.T) {
+	prev := schedule.PanicSink
+	t.Cleanup(func() { schedule.PanicSink = prev })
+
+	type report struct {
+		job string
+		err error
+	}
+	got := make(chan report, 1)
+	schedule.PanicSink = func(_ context.Context, jobName string, err error) {
+		select {
+		case got <- report{jobName, err}:
+		default:
+		}
+	}
+
+	job := schedule.RegisterJob("test-trigger-sink", "unit test")
+	triggerProtected(job, func() { panic("sink me") })()
+
+	select {
+	case r := <-got:
+		if r.job != "test-trigger-sink" {
+			t.Errorf("sink got job %q", r.job)
+		}
+		if r.err == nil || !strings.Contains(r.err.Error(), "sink me") {
+			t.Errorf("sink got err %v, which does not name the panic", r.err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the panic never reached the sink; it is only on the job, which the next run clears")
+	}
 }

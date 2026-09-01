@@ -127,6 +127,24 @@ func wireBaselineStores(db storage.Conn, logger *slog.Logger) (baselineStores, e
 			logger.Error("save paused", "job", jobName, "paused", paused, "err", err)
 		}
 	}
+	// WHERE A JOB PANIC GOES, and until this was wired the answer was nowhere
+	// an operator would look.
+	//
+	// schedule.runTickProtected catches a panic in a scheduled tick, records it
+	// with SetError and then calls SetIdle -- which CLEARS LastError, by
+	// design, because that is what stops the status pill sticking on "Running".
+	// The panic's durable home is meant to be this sink. With it nil, loon
+	// falls back to log.Printf: unstructured, straight to stdout, outside the
+	// logger every other line on this site goes through, and gone from the jobs
+	// page a second after it happened.
+	//
+	// Reported under the same "job"/"err" keys as everything else here, so
+	// "what has this job been doing" is one query. The stack rides inside err
+	// rather than as a key of its own -- the vocabulary earns its strictness by
+	// not growing a key per caller.
+	schedule.PanicSink = func(ctx context.Context, jobName string, err error) {
+		logger.Error("job panicked", "job", jobName, "err", err)
+	}
 	// Newznab API keys (loon-baseline): one per user, shown + regenerated on the
 	// self-service /p/api-key page. loon-api (against this same DB) validates the
 	// ?apikey= a client sends against this table.

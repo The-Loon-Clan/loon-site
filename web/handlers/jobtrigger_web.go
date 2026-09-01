@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 
@@ -25,12 +27,31 @@ import (
 // This mirrors what the loop does rather than inventing its own handling,
 // because an operator reading the jobs page should not be able to tell which
 // path a failure arrived by.
+// It does NOT delegate to loon's newer schedule.SetTriggerAsync, and that is a
+// decision about THIS host rather than a judgement on the framework. That
+// helper runs the work through runTickProtected, which calls SetError and then
+// SetIdle -- and SetIdle clears LastError deliberately, because that is what
+// stops the pill sticking on "Running". The panic's durable home is meant to
+// be PanicSink plus the OnRunEnd history. This host has no job-run history
+// table at all, so on the framework's path a triggered panic would vanish from
+// the jobs page a second after it happened, leaving only the log line. Calling
+// SetError alone leaves the job reading "error" with the message on it until
+// something runs it again, which is what an operator who just pressed the
+// button needs to see.
+//
+// The sink is still called, so both paths report identically where it counts.
 func triggerProtected(job *schedule.JobInfo, run func()) func() {
 	return func() {
 		go func() {
 			defer func() {
-				if r := recover(); r != nil {
-					job.SetError(fmt.Sprintf("panic: %v\n%s", r, debug.Stack()))
+				r := recover()
+				if r == nil {
+					return
+				}
+				msg := fmt.Sprintf("panic: %v\n%s", r, debug.Stack())
+				job.SetError(msg)
+				if schedule.PanicSink != nil {
+					schedule.PanicSink(context.Background(), job.Name, errors.New(msg))
 				}
 			}()
 			run()
