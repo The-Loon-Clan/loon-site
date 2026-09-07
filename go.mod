@@ -11,10 +11,10 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.12.3
 	github.com/redis/go-redis/v9 v9.22.0
-	github.com/yuin/goldmark v1.8.5
-	golang.org/x/crypto v0.55.0
+	github.com/yuin/goldmark v1.8.6
+	golang.org/x/crypto v0.56.0
 	golang.org/x/image v0.45.0
-	golang.org/x/net v0.57.0
+	golang.org/x/net v0.58.0
 )
 
 require (
